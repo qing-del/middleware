@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: middleware-server
+
+jacolp:
+  jwt:
+    admin-secret-key: ${jwt.admin-secret-key}
+    admin-ttl: ${jwt.admin-ttl}
+    admin-token-name: ${jwt.admin-token-name}
+    user-secret-key: ${jwt.user-secret-key}
+    user-ttl: ${jwt.user-ttl}
+    user-token-name: ${jwt.user-token-name}
+
+aliyun:
+  oss:
+    endpoint: ${aliyun.oss.endpoint}
+    bucket-name: ${aliyun.oss.bucket-name}
+    region: ${aliyun.oss.region}
