@@ -28,12 +28,14 @@
         <spring-boot.version>4.0.5</spring-boot.version>
         <java.version>21</java.version>
         <mybatis>4.0.1</mybatis>
+        <pagehelper>2.1.0</pagehelper>
         <lombok>1.18.38</lombok>
         <mysql.connector.j>8.0.33</mysql.connector.j>
         <jjwt>0.9.1</jjwt>
         <knife4j>4.3.0</knife4j>
         <spring-security.crypto>6.4.5</spring-security.crypto>
         <httpclient>4.5.14</httpclient>
+        <openapi.webmvc.ui>2.7.0</openapi.webmvc.ui>
     </properties>
 
     <dependencyManagement>
@@ -58,6 +60,11 @@
                 <groupId>org.mybatis.spring.boot</groupId>
                 <artifactId>mybatis-spring-boot-starter</artifactId>
                 <version>${mybatis}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.pagehelper</groupId>
+                <artifactId>pagehelper-spring-boot-starter</artifactId>
+                <version>${pagehelper}</version>
             </dependency>
 
             <!-- mysql驱动 -->
@@ -125,6 +132,12 @@
                 <groupId>org.apache.httpcomponents</groupId>
                 <artifactId>httpclient</artifactId>
                 <version>${httpclient}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${openapi.webmvc.ui}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

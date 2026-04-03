@@ -1,6 +1,7 @@
 package com.jacolp.component;
 
 import com.jacolp.constant.RoleConstant;
+import com.jacolp.constant.UserConstant;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.utils.PasswordEncoder;
@@ -37,12 +38,12 @@ public class DataInitializer implements CommandLineRunner {
 
         if (creator == null) {
             // 如果不存在则创建一个
-            creator = new UserEntity(1L,
-                    adminUsername, passwordEncoder.encode(adminPassword),
-                    RoleConstant.CREATOR,
-                    1,
-                    null,
-                    null);
+            creator = new UserEntity();
+            creator.setId(1L);
+            creator.setUsername(adminUsername);
+            creator.setPassword(passwordEncoder.encode(adminPassword));
+            creator.setRoleId(RoleConstant.CREATOR);
+            creator.setStatus(UserConstant.DEFAULT_STATUS);
             int count = userMapper.insertCreator(creator);
             if (count <= 0) {
                 log.error("Failed to create admin account!");

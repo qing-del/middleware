@@ -23,6 +23,10 @@ public class UserEntity implements Serializable {
 
     private String password;
 
+    private String nickname;
+
+    private String email;
+
     private Long roleId;    // 角色ID：1-创建者，2-管理员，3-普通用户，4-VIP用户
 
     private Integer status;

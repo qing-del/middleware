@@ -31,15 +31,20 @@ INSERT INTO `sys_role` (`role_name`, `role_code`, `daily_api_limit`) VALUES
 -- ==========================================
 CREATE TABLE `sys_user` (
                             `id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户ID',
-                            `username` varchar(50) NOT NULL COMMENT '登录账号',
-                            `password` char(60) NOT NULL COMMENT '加密密码(建议使用 BCrypt 加密存储)',
-                            `role_id` bigint NOT NULL COMMENT '关联的角色ID',
+                            `username` varchar(50) UNIQUE NOT NULL COMMENT '登录账号',
+                            `password` char(60) NOT NULL COMMENT '加密密码(使用 BCrypt 加密存储)',
+                            `nickname` varchar(50) DEFAULT NULL COMMENT '昵称',
+                            `email` varchar(100) UNIQUE DEFAULT NULL COMMENT '邮箱地址(唯一)',
+                            `role_id` bigint NOT NULL DEFAULT 3 COMMENT '关联的角色ID',
                             `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态(1:正常, 0:禁用)',
                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                             PRIMARY KEY (`id`),
                             UNIQUE KEY `uk_username` (`username`),
-                            KEY `idx_role_id` (`role_id`)
+                            UNIQUE KEY `idx_email` (`email`),
+                            KEY `idx_nickname` (`nickname`, `status`),
+                            KEY `idx_role_id` (`role_id`),
+                            KEY `idx_status_role` (`status`, `role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户信息表';
 
 

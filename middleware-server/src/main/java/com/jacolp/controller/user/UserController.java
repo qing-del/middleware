@@ -1,11 +1,10 @@
-package com.jacolp.controller.admin;
+package com.jacolp.controller.user;
 
 import com.jacolp.constant.UserConstant;
-import com.jacolp.pojo.dto.UserListDTO;
 import com.jacolp.pojo.dto.UserLoginDTO;
+import com.jacolp.pojo.dto.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.properties.JwtProperties;
-import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.UserService;
 import com.jacolp.utils.JwtUtil;
@@ -21,10 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestController("Admin-UserController")
-@RequestMapping("/admin/user")
+@RestController("User-UserController")
+@RequestMapping("/user/user")
 @Slf4j
-@Schema(description = "Admin - 用户管理")
+@Schema(description = "User - 用户管理")
 public class UserController {
     @Autowired private JwtProperties jwtProperties;
     @Autowired private UserService userService;
@@ -34,24 +33,21 @@ public class UserController {
     public Result<String> login(@RequestBody UserLoginDTO userLoginDTO) {
         log.info("User login: {}", userLoginDTO.getUsername());
 
-        UserEntity user = userService.loginAdmin(userLoginDTO);
+        // 先校验账号和密码，返回登录成功的用户信息
+        UserEntity user = userService.loginUser(userLoginDTO);
 
-        if (user == null) {
-            log.error("User login failed!");
-            return Result.error(UserConstant.USER_LOGIN_FAILED);
-        }
-
-        // 生成 JWT 令牌（封装 id 到令牌里面）
+        // 将用户ID写入 JWT，后续请求会通过拦截器解析出来
         Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.ADMIN_ID_CLAIM, user.getId());
-        String jwt = JwtUtil.createJWT(jwtProperties.getAdminSecretKey(), jwtProperties.getAdminTtl(), claims);
+        claims.put(UserConstant.USER_ID_CLAIM, user.getId());
+        String jwt = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
 
         return Result.success(jwt);
     }
 
-    @PostMapping("/list")
-    @Operation(description = "分页查询用户列表")
-    public Result<PageResult> list(@RequestBody UserListDTO userListDTO) {
-        return Result.success(userService.list(userListDTO));
+    @PostMapping("/register")
+    @Operation(description = "用户注册")
+    public Result<String> register(@RequestBody UserRegisterDTO userRegisterDTO) {
+        log.info("User register: {}", userRegisterDTO.getUsername());
+        return Result.success(userService.register(userRegisterDTO));
     }
 }

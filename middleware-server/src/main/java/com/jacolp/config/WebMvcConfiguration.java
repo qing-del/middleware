@@ -29,10 +29,19 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns("/admin/user/login")
-                .excludePathPatterns("/admin/user/register");
+                .excludePathPatterns("/admin/user/register")
+                .excludePathPatterns(
+                        "/doc.html",
+                        "/webjars/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html"
+                );;
 
         registry.addInterceptor(jwtTokenUserInterceptor)
-                .addPathPatterns("/user/**");
+                .addPathPatterns("/user/**")
+                .excludePathPatterns("/user/user/login")
+                .excludePathPatterns("/user/user/register");
     }
 
     /**
@@ -55,6 +64,14 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
         return GroupedOpenApi.builder()
                 .group("admin 端接口")
                 .packagesToScan("com.jacolp.controller.admin")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi userApi() {
+        return GroupedOpenApi.builder()
+                .group("user 端接口")
+                .packagesToScan("com.jacolp.controller.user")
                 .build();
     }
 

@@ -7,6 +7,11 @@
                 VALUES (#{id}, #{username}, #{password}, #{roleId}, #{status}, now(), now())
         </insert>
 
+    <insert id="insertUser" parameterType="com.jacolp.pojo.entity.UserEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (username, password, role_id, status, create_time, update_time)
+        VALUES (#{username}, #{password}, #{roleId}, #{status}, now(), now())
+    </insert>
+
         <update id="updateById" parameterType="com.jacolp.pojo.entity.UserEntity">
                 UPDATE sys_user
                 <set>
@@ -26,4 +31,24 @@
                 </set>
                 WHERE id = #{id}
         </update>
+
+            <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.UserListDTO">
+                SELECT id, username, nickname, email, role_id, status, create_time, update_time
+                FROM sys_user
+                <where>
+                    <if test="id != null">
+                        id = #{id}
+                    </if>
+                    <if test="username != null and username != ''">
+                        AND username LIKE CONCAT('%', #{username}, '%')
+                    </if>
+                    <if test="status != null">
+                        AND status = #{status}
+                    </if>
+                    <if test="roleId != null">
+                        AND role_id = #{roleId}
+                    </if>
+                </where>
+                ORDER BY id DESC
+            </select>
 </mapper>

@@ -1,8 +1,11 @@
 package com.jacolp.mapper;
 
+import com.jacolp.pojo.dto.UserListDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 @Mapper
 public interface UserMapper {
@@ -15,4 +18,8 @@ public interface UserMapper {
     int insertCreator(UserEntity user);
 
     int updateById(UserEntity user);
+
+    int insertUser(UserEntity user);
+
+    List<UserEntity> listByCondition(UserListDTO userListDTO);
 }

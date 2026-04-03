@@ -1,5 +1,6 @@
 package com.jacolp.interceptor;
 
+import com.jacolp.constant.UserConstant;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
@@ -17,8 +18,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 @Slf4j
 public class JwtTokenUserInterceptor implements HandlerInterceptor {
-
-    private static final String USER_ID_CLAIM = "userId";
 
     @Autowired private JwtProperties jwtProperties;
 
@@ -51,7 +50,7 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             }
             log.info("JWT verification: {}", token);
             Claims claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
-            Long userId = Long.valueOf(claims.get(USER_ID_CLAIM).toString());
+            Long userId = Long.valueOf(claims.get(UserConstant.USER_ID_CLAIM).toString());
             log.info("Current user ID: {}", userId);
             // 3、通过，放行
             return true;
