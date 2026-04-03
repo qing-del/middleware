@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.UserMapper">
+        <insert id="insertCreator" parameterType="com.jacolp.pojo.entity.UserEntity">
+                INSERT INTO sys_user (id, username, password, role_id, status, create_time, update_time)
+                VALUES (#{id}, #{username}, #{password}, #{roleId}, #{status}, now(), now())
+        </insert>
+
+        <update id="updateById" parameterType="com.jacolp.pojo.entity.UserEntity">
+                UPDATE sys_user
+                <set>
+                    <if test="username != null">
+                        username = #{username},
+                    </if>
+                    <if test="password != null">
+                        password = #{password},
+                    </if>
+                    <if test="roleId != null">
+                        role_id = #{roleId},
+                    </if>
+                    <if test="status != null">
+                        status = #{status},
+                    </if>
+                        update_time = now()
+                </set>
+                WHERE id = #{id}
+        </update>
+</mapper>

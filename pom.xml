@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
@@ -31,6 +32,8 @@
         <mysql.connector.j>8.0.33</mysql.connector.j>
         <jjwt>0.9.1</jjwt>
         <knife4j>4.3.0</knife4j>
+        <spring-security.crypto>6.4.5</spring-security.crypto>
+        <httpclient>4.5.14</httpclient>
     </properties>
 
     <dependencyManagement>
@@ -110,8 +113,23 @@
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${knife4j}</version>
             </dependency>
+
+            <!-- import Spring security -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-crypto</artifactId>
+                <version>${spring-security.crypto}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>${httpclient}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+
+
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>

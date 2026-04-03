@@ -20,10 +20,9 @@ CREATE TABLE `sys_role` (
 -- 初始化角色数据
 INSERT INTO `sys_role` (`role_name`, `role_code`, `daily_api_limit`) VALUES
                                                                          ('创建者', 'CREATOR', 999999),
-                                                                         ('管理员', 'ADMIN', 9999),
-                                                                         ('游客', 'GUEST', 0),
-                                                                         ('普通用户', 'USER', 10),
-                                                                         ('高级VIP', 'VIP', 100);
+                                                                         ('管理员', 'ADMIN', 1000),
+                                                                         ('普通用户', 'USER', 5),
+                                                                         ('高级VIP', 'VIP', 50);
 
 
 -- ==========================================
@@ -33,7 +32,7 @@ INSERT INTO `sys_role` (`role_name`, `role_code`, `daily_api_limit`) VALUES
 CREATE TABLE `sys_user` (
                             `id` bigint NOT NULL AUTO_INCREMENT COMMENT '用户ID',
                             `username` varchar(50) NOT NULL COMMENT '登录账号',
-                            `password` varchar(255) NOT NULL COMMENT '加密密码(建议使用 BCrypt 加密存储)',
+                            `password` char(60) NOT NULL COMMENT '加密密码(建议使用 BCrypt 加密存储)',
                             `role_id` bigint NOT NULL COMMENT '关联的角色ID',
                             `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态(1:正常, 0:禁用)',
                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',

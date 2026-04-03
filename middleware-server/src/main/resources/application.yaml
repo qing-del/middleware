@@ -1,13 +1,19 @@
 spring:
+  profiles:
+    active: dev
   application:
     name: middleware-server
   datasource:
-    url: jdbc:mysql://${jacolp.datasource.host}:${jacolp.datasource.port}
+    url: jdbc:mysql://${jacolp.datasource.host}:${jacolp.datasource.port}/${jacolp.datasource.database}
     username: ${jacolp.datasource.username}
     password: ${jacolp.datasource.password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 jacolp:
+  admin:
+    username: ${jacolp.admin.username}
+    password: ${jacolp.admin.password}
+  default-password: ${jacolp.default-password}
   jwt:
     admin-secret-key: ${jwt.admin-secret-key}
     admin-ttl: 7200000
@@ -24,5 +30,6 @@ aliyun:
 
 # 开启驼峰命名转换
 mybatis:
+  mapper-locations: classpath:mapper/*.xml
   configuration:
     map-underscore-to-camel-case: true
