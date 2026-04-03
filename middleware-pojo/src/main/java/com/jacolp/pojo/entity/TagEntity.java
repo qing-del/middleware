@@ -8,12 +8,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 笔记存储记录表 biz_note 对应实体。
+ * 笔记标签表 biz_tag 对应实体。
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoteEntity implements Serializable {
+public class TagEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -21,17 +21,7 @@ public class NoteEntity implements Serializable {
 
     private Long userId;
 
-    private Long topicId;
-
-    private String title;
-
-    private String htmlFilePath;
-
-    private String mdFilePath;
-
-    private Integer isPublished;
+    private String tagName;
 
     private LocalDateTime createTime;
-
-    private LocalDateTime updateTime;
 }

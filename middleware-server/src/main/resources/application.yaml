@@ -1,18 +1,28 @@
 spring:
   application:
     name: middleware-server
+  datasource:
+    url: jdbc:mysql://${jacolp.datasource.host}:${jacolp.datasource.port}
+    username: ${jacolp.datasource.username}
+    password: ${jacolp.datasource.password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
 jacolp:
   jwt:
     admin-secret-key: ${jwt.admin-secret-key}
-    admin-ttl: ${jwt.admin-ttl}
+    admin-ttl: 7200000
     admin-token-name: ${jwt.admin-token-name}
     user-secret-key: ${jwt.user-secret-key}
-    user-ttl: ${jwt.user-ttl}
+    user-ttl: 7200000
     user-token-name: ${jwt.user-token-name}
 
 aliyun:
   oss:
-    endpoint: ${aliyun.oss.endpoint}
-    bucket-name: ${aliyun.oss.bucket-name}
-    region: ${aliyun.oss.region}
+    endpoint: ${jacolp.aliyun.oss.endpoint}
+    bucket-name: https://${jacolp.aliyun.oss.bucket-name}
+    region: ${jacolp.aliyun.oss.region}
+
+# 开启驼峰命名转换
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true

@@ -34,3 +34,6 @@ build/
 
 ### configuration ###
 application-dev.yaml
+
+### MyNotes ###
+notes

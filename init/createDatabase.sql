@@ -45,12 +45,45 @@ CREATE TABLE `sys_user` (
 
 
 -- ==========================================
--- 3. 笔记/文章表 (biz_note)
--- 满足需求：使用 flexmark-java 将 md 转为 html 之后在数据库中存储路径
+-- 3. 主题/分类表 (biz_topic)
+-- 满足需求：将笔记归类为MySQL主题的笔记，主题可以后续新增 (1对多)
+-- ==========================================
+CREATE TABLE `biz_topic` (
+                             `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主题ID',
+                             `user_id` bigint NOT NULL COMMENT '创建者ID(隔离不同用户的主题)',
+                             `topic_name` varchar(100) NOT NULL COMMENT '主题名称(如: MySQL, Redis, 架构设计)',
+                             `sort_order` int DEFAULT 0 COMMENT '排序字段(用于左侧菜单栏排序)',
+                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                             PRIMARY KEY (`id`),
+                             KEY `idx_user_id` (`user_id`),
+                             UNIQUE KEY `uk_user_topic` (`user_id`, `topic_name`) -- 同一个用户不能创建同名的主题
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记主题/分类表';
+
+
+-- ==========================================
+-- 4. 标签表 (biz_tag)
+-- 满足需求：类似obsidian中的标签，可被多篇笔记复用 (多对多)
+-- ==========================================
+CREATE TABLE `biz_tag` (
+                           `id` bigint NOT NULL AUTO_INCREMENT COMMENT '标签ID',
+                           `user_id` bigint NOT NULL COMMENT '创建者ID',
+                           `tag_name` varchar(50) NOT NULL COMMENT '标签名称(如: 踩坑, 性能优化, 源码解析)',
+                           `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                           PRIMARY KEY (`id`),
+                           KEY `idx_user_id` (`user_id`),
+                           UNIQUE KEY `uk_user_tag` (`user_id`, `tag_name`) -- 同一个用户不能创建同名的标签
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记标签表';
+
+
+-- ==========================================
+-- 5. 笔记/文章主表 (biz_note)
+-- 满足需求：关联主题ID，存储HTML路径
 -- ==========================================
 CREATE TABLE `biz_note` (
                             `id` bigint NOT NULL AUTO_INCREMENT COMMENT '笔记ID',
                             `user_id` bigint NOT NULL COMMENT '作者(用户ID)',
+                            `topic_id` bigint DEFAULT NULL COMMENT '所属主题ID(允许为空，即未分类笔记)',
                             `title` varchar(255) NOT NULL COMMENT '笔记标题',
                             `html_file_path` varchar(500) NOT NULL COMMENT 'HTML文件在本地服务器的绝对/相对路径',
                             `md_file_path` varchar(500) DEFAULT NULL COMMENT '原始Markdown文件的存储路径(可选,便于后期编辑)',
@@ -58,13 +91,26 @@ CREATE TABLE `biz_note` (
                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                             PRIMARY KEY (`id`),
-                            KEY `idx_user_id` (`user_id`)
+                            KEY `idx_user_id` (`user_id`),
+                            KEY `idx_topic_id` (`topic_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记存储记录表';
 
 
 -- ==========================================
--- 4. 图片资源映射表 (biz_image)
--- 满足需求：存储唯一文件名，通过文件名来获取图片在oss中使用的url
+-- 6. 笔记-标签 多对多关联表 (biz_note_tag_mapping)
+-- 满足需求：一篇笔记对应多个标签，一个标签对应多篇笔记
+-- ==========================================
+CREATE TABLE `biz_note_tag_mapping` (
+                                        `note_id` bigint NOT NULL COMMENT '笔记ID',
+                                        `tag_id` bigint NOT NULL COMMENT '标签ID',
+                                        `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
+                                        PRIMARY KEY (`note_id`, `tag_id`), -- 联合主键，防止重复绑定
+                                        KEY `idx_tag_id` (`tag_id`) -- 方便通过 tag_id 反查所有 note_id
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记与标签多对多关联表';
+
+
+-- ==========================================
+-- 7. 图片资源映射表 (biz_image)
 -- ==========================================
 CREATE TABLE `biz_image` (
                              `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -80,8 +126,7 @@ CREATE TABLE `biz_image` (
 
 
 -- ==========================================
--- 5. 每日 API 调用统计表 (biz_api_daily_usage)
--- 满足需求：高并发下记录每日调用次数。不用每次都去明细表 count(*)
+-- 8. 每日 API 调用统计表 (biz_api_daily_usage)
 -- ==========================================
 CREATE TABLE `biz_api_daily_usage` (
                                        `id` bigint NOT NULL AUTO_INCREMENT,
@@ -91,13 +136,12 @@ CREATE TABLE `biz_api_daily_usage` (
                                        `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次调用时间',
                                        `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
                                        PRIMARY KEY (`id`),
-                                       UNIQUE KEY `uk_user_date` (`user_id`, `record_date`) -- 保证一个用户一天只有一条统计记录
+                                       UNIQUE KEY `uk_user_date` (`user_id`, `record_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户每日API调用次数统计表';
 
 
 -- ==========================================
--- 6. API 异步任务明细表 (biz_api_task_log)
--- 拓展设计：为后续转异步架构(微服务)做准备，记录每一次脚本调用的状态
+-- 9. API 异步任务明细表 (biz_api_task_log)
 -- ==========================================
 CREATE TABLE `biz_api_task_log` (
                                     `id` bigint NOT NULL AUTO_INCREMENT COMMENT '任务/日志ID',

@@ -24,10 +24,15 @@
     </modules>
 
     <properties>
+        <spring-boot.version>4.0.5</spring-boot.version>
         <java.version>21</java.version>
         <mybatis>4.0.1</mybatis>
         <lombok>1.18.38</lombok>
+        <mysql.connector.j>8.0.33</mysql.connector.j>
+        <jjwt>0.9.1</jjwt>
+        <knife4j>4.3.0</knife4j>
     </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -52,10 +57,12 @@
                 <version>${mybatis}</version>
             </dependency>
 
+            <!-- mysql驱动 -->
             <dependency>
                 <groupId>com.mysql</groupId>
                 <artifactId>mysql-connector-j</artifactId>
                 <scope>runtime</scope>
+                <version>${mysql.connector.j}</version>
             </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
@@ -89,8 +96,40 @@
                 <version>${mybatis}</version>
                 <scope>test</scope>
             </dependency>
+
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt</artifactId>
+                <version>${jjwt}</version>
+                <scope>compile</scope>
+            </dependency>
+
+
+            <dependency>
+                <groupId>com.github.xiaoymin</groupId>
+                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+                <version>${knife4j}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
@@ -104,6 +143,14 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>6</source>
+                    <target>6</target>
                 </configuration>
             </plugin>
         </plugins>
