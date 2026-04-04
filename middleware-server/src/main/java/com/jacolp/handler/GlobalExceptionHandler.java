@@ -2,8 +2,10 @@ package com.jacolp.handler;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jacolp.constant.DatabaseConstant;
+import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.BaseException;
 import com.jacolp.result.Result;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -28,6 +30,14 @@ public class GlobalExceptionHandler {
         return Result.error(ex.getMessage());
     }
 
+    @ExceptionHandler
+    public Result authExceptionHandler(AuthenticationException ex, HttpServletResponse response){
+        log.error("Exception information:{}", ex.getMessage());
+        // 设置 401 状态码
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return Result.error(ex.getMessage());
+    }
+
     /**
      * 捕获 Jackson 的异常
      * @param ex JsonProcessingException
@@ -47,6 +57,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({SQLIntegrityConstraintViolationException.class})
     public Result sqlExceptionHandler(SQLIntegrityConstraintViolationException ex) {
         log.error("SQL Integrity Constraint Violation Exception: {}", ex.getMessage());
+        // 抓获唯一性错误
         if (ex.getMessage().contains("Duplicate entry")) {
             String[] split = ex.getMessage().split(" ");
             String msg = split[2] + DatabaseConstant.ALREADY_EXISTS;

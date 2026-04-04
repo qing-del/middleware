@@ -39,3 +39,5 @@ application-dev.yaml
 ### MyNotes ###
 notes
 /flexmark/
+/.aboutInterface/
+/.agent/
