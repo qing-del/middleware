@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>原子类与CAS</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f7f8fa; color: #222; }
+        .container { max-width: 960px; margin: 24px auto; background: #fff; padding: 28px 32px; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,.06); }
+        h1,h2,h3,h4,h5,h6 { margin-top: 1.4em; }
+        p,li { line-height: 1.75; }
+        code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+        pre { background: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 10px; overflow-x: auto; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        blockquote { border-left: 4px solid #d0d7de; margin: 16px 0; padding: 6px 14px; color: #57606a; background: #f6f8fa; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        th, td { border: 1px solid #d0d7de; padding: 8px 10px; text-align: left; }
+        thead { background: #f6f8fa; }
+        .meta-title { margin: 0 0 8px 0; }
+        .meta-row { margin-bottom: 14px; color: #555; font-size: 14px; }
+        .tag { display: inline-block; background: #eef2ff; color: #3949ab; border-radius: 999px; padding: 2px 10px; margin-right: 8px; }
+        .callout { border-left: 4px solid #60a5fa; border-radius: 8px; background: #eff6ff; padding: 12px 14px; margin: 16px 0; }
+        .callout-title { font-weight: 600; margin-bottom: 8px; }
+        .callout-info { border-left-color: #0284c7; background: #e0f2fe; }
+        .callout-tip { border-left-color: #16a34a; background: #ecfdf5; }
+        .callout-warning { border-left-color: #d97706; background: #fffbeb; }
+        .callout-question { border-left-color: #7c3aed; background: #f5f3ff; }
+        .callout-failure { border-left-color: #dc2626; background: #fef2f2; }
+        .mermaid { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin: 16px 0; }
+        .toc-sidebar { position: fixed; top: 20px; right: 20px; width: 280px; max-height: calc(100vh - 40px); background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.12); overflow: hidden; z-index: 1000; transition: transform .2s ease, opacity .2s ease; }
+        .toc-sidebar.is-collapsed { transform: translateX(130%); opacity: 0; pointer-events: none; }
+        .toc-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid #eef0f3; background: #f8fafc; }
+        .toc-collapse-btn { width: 26px; height: 26px; border: none; border-radius: 50%; background: #e2e8f0; cursor: pointer; font-size: 16px; }
+        .toc-nav { padding: 8px 8px 10px 8px; overflow: auto; max-height: calc(100vh - 100px); }
+        .toc-link { display: block; color: #334155; text-decoration: none; padding: 6px 8px; border-radius: 6px; margin: 2px 0; }
+        .toc-link:hover { background: #f1f5f9; }
+        .toc-level-2 { padding-left: 8px; font-weight: 600; }
+        .toc-level-3 { padding-left: 18px; }
+        .toc-level-4 { padding-left: 28px; color: #64748b; }
+        .toc-fab { position: fixed; left: 24px; top: 24px; width: 42px; height: 42px; border: none; border-radius: 50%; background: #1e293b; color: #fff; font-size: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.25); cursor: grab; z-index: 1001; display: none; user-select: none; }
+        .toc-fab.is-visible { display: inline-flex; align-items: center; justify-content: center; }
+        .toc-fab:active { cursor: grabbing; }
+        @media (max-width: 1080px) {
+            .toc-sidebar { width: 240px; right: 12px; top: 12px; max-height: calc(100vh - 24px); }
+        }
+    </style>
+</head>
+<body>
+    <aside id="tocSidebar" class="toc-sidebar">
+    <div class="toc-header">
+        <strong>目录</strong>
+        <button id="tocCollapseBtn" class="toc-collapse-btn" type="button" aria-label="收起目录">×</button>
+    </div>
+    <nav class="toc-nav">
+        <a class="toc-link toc-level-2" href="#目录">目录</a><a class="toc-link toc-level-2" href="#共享资源保护-加锁-vs-无锁">共享资源保护：加锁 vs 无锁</a><a class="toc-link toc-level-3" href="#加锁方式-悲观锁思想">加锁方式（悲观锁思想）</a><a class="toc-link toc-level-3" href="#无锁方式-乐观锁思想">无锁方式（乐观锁思想）</a><a class="toc-link toc-level-2" href="#cas-机制详解">CAS 机制详解</a><a class="toc-link toc-level-3" href="#cas-工作方式">CAS 工作方式</a><a class="toc-link toc-level-3" href="#cas-与-volatile-的配合">CAS 与 volatile 的配合</a><a class="toc-link toc-level-3" href="#cas-效率分析">CAS 效率分析</a><a class="toc-link toc-level-3" href="#cas-特点总结">CAS 特点总结</a><a class="toc-link toc-level-2" href="#原子整数">原子整数</a><a class="toc-link toc-level-3" href="#atomicinteger-基本用法">AtomicInteger 基本用法</a><a class="toc-link toc-level-3" href="#updateandget-自定义更新">updateAndGet 自定义更新</a><a class="toc-link toc-level-3" href="#updateandget-原理-cas-自旋">updateAndGet 原理（CAS 自旋）</a><a class="toc-link toc-level-2" href="#原子引用">原子引用</a><a class="toc-link toc-level-3" href="#atomicreference">AtomicReference</a><a class="toc-link toc-level-3" href="#aba-问题">ABA 问题</a><a class="toc-link toc-level-3" href="#atomicstampedreference-版本号解决-aba">AtomicStampedReference（版本号解决 ABA）</a><a class="toc-link toc-level-3" href="#atomicmarkablereference-标记解决-aba">AtomicMarkableReference（标记解决 ABA）</a><a class="toc-link toc-level-2" href="#原子数组">原子数组</a><a class="toc-link toc-level-2" href="#原子更新器">原子更新器</a><a class="toc-link toc-level-2" href="#原子累加器">原子累加器</a><a class="toc-link toc-level-3" href="#为什么需要-longadder">为什么需要 LongAdder？</a><a class="toc-link toc-level-3" href="#longadder-原理">LongAdder 原理</a><a class="toc-link toc-level-4" href="#cas-锁-cell-创建时的保护">CAS 锁（Cell 创建时的保护）</a><a class="toc-link toc-level-4" href="#缓存行伪共享-false-sharing">缓存行伪共享（False Sharing）</a><a class="toc-link toc-level-3" href="#longadder-源码分析">LongAdder 源码分析</a><a class="toc-link toc-level-4" href="#add-方法流程">add 方法流程</a><a class="toc-link toc-level-4" href="#longaccumulate-方法的三种情况">longAccumulate 方法的三种情况</a><a class="toc-link toc-level-4" href="#sum-方法">sum 方法</a><a class="toc-link toc-level-2" href="#unsafe-类">Unsafe 类</a><a class="toc-link toc-level-3" href="#获取-unsafe-实例">获取 Unsafe 实例</a><a class="toc-link toc-level-3" href="#cas-相关方法">CAS 相关方法</a><a class="toc-link toc-level-3" href="#模拟实现-atomicinteger">模拟实现 AtomicInteger</a><a class="toc-link toc-level-2" href="#第六章小结">第六章小结</a>
+    </nav>
+</aside>
+<button id="tocFab" class="toc-fab" type="button" aria-label="展开目录" title="目录">☰</button>
+
+    <main class="container">
+        <h1 class="meta-title">原子类与CAS</h1><div class="meta-row">创建时间: 2026-03-18</div><div class="meta-row">标签: <span class="tag">JUC</span><span class="tag">CAS</span><span class="tag">原子操作</span><span class="tag">无锁并发</span><span class="tag">Unsafe</span></div>
+        <h2 id="目录">目录</h2>
+<ul>
+<li><a href="#共享资源保护-加锁-vs-无锁">共享资源保护：加锁 vs 无锁</a></li>
+<li><a href="#cas-机制详解">CAS 机制详解</a>
+<ul>
+<li><a href="#cas-工作方式">CAS 工作方式</a></li>
+<li><a href="#cas-与-volatile-的配合">CAS 与 volatile 的配合</a></li>
+<li><a href="#cas-效率分析">CAS 效率分析</a></li>
+<li><a href="#cas-特点总结">CAS 特点总结</a></li>
+</ul>
+</li>
+<li><a href="#原子整数">原子整数</a>
+<ul>
+<li><a href="#atomicinteger-基本用法">AtomicInteger 基本用法</a></li>
+<li><a href="#updateandget-自定义更新">updateAndGet 自定义更新</a></li>
+<li><a href="#updateandget-原理-cas-自旋">updateAndGet 原理（CAS 自旋）</a></li>
+</ul>
+</li>
+<li><a href="#原子引用">原子引用</a>
+<ul>
+<li><a href="#atomicreference">AtomicReference</a></li>
+<li><a href="#aba-问题">ABA 问题</a></li>
+<li><a href="#atomicstampedreference-版本号解决-aba">AtomicStampedReference（版本号解决 ABA）</a></li>
+<li><a href="#atomicmarkablereference-标记解决-aba">AtomicMarkableReference（标记解决 ABA）</a></li>
+</ul>
+</li>
+<li><a href="#原子数组">原子数组</a></li>
+<li><a href="#原子更新器">原子更新器</a></li>
+<li><a href="#原子累加器">原子累加器</a>
+<ul>
+<li><a href="#longadder-原理">LongAdder 原理</a></li>
+<li><a href="#longadder-源码分析">LongAdder 源码分析</a></li>
+</ul>
+</li>
+<li><a href="#unsafe-类">Unsafe 类</a></li>
+</ul>
+<hr />
+<h2 id="共享资源保护-加锁-vs-无锁">共享资源保护：加锁 vs 无锁</h2>
+<h3 id="加锁方式-悲观锁思想">加锁方式（悲观锁思想）</h3>
+<pre><code class="language-java">// synchronized 保护共享变量
+private int balance;
+
+public synchronized void withdraw(int amount) {
+    balance -= amount;
+}
+</code></pre>
+<ul>
+<li>思想：假设一定会有竞争 → 先加锁再操作 → <strong>悲观锁（Pessimistic Locking）</strong></li>
+<li>代价：线程阻塞/唤醒需要<strong>用户态与内核态切换</strong>（系统调用开销）</li>
+</ul>
+<h3 id="无锁方式-乐观锁思想">无锁方式（乐观锁思想）</h3>
+<pre><code class="language-java">// CAS 保护共享变量
+private AtomicInteger balance = new AtomicInteger(1000);
+
+public void withdraw(int amount) {
+    while (true) {
+        int prev = balance.get();         // 读取当前值
+        int next = prev - amount;         // 计算新值
+        if (balance.compareAndSet(prev, next)) {  // CAS 尝试更新
+            break;  // 成功则退出
+        }
+        // 失败说明被其他线程修改了 → 重试（自旋）
+    }
+}
+</code></pre>
+<ul>
+<li>思想：假设大多数时候没有竞争 → 直接操作，失败了再重试 → <strong>乐观锁（Optimistic Locking）</strong></li>
+<li>优势：不阻塞线程，全程在<strong>用户态</strong>完成</li>
+</ul>
+<div class="mermaid">
+flowchart LR
+    A[读取当前值 prev] --> B[计算新值 next]
+    B --> C{CAS: prev == 内存值?}
+    C -->|是| D[更新成功, 退出]
+    C -->|否| A
+</div>
+<div class="callout callout-tip">
+  <div class="callout-title">类比理解
+<strong>悲观锁</strong>像是去银行柜台办业务：不管有没有人，先取号排队等叫号（加锁等待），确保同时只有一个人在窗口操作
+<strong>乐观锁</strong>像是在超市自助结账：直接扫码结账，如果系统提示&quot;库存冲突&quot;就重新扫一次（CAS 重试），大多数时候一次就成功了</div>
+  <div class="callout-content"><p>CS 术语：悲观锁通过 <strong>互斥（Mutual Exclusion）</strong> 阻塞竞争者；乐观锁通过 <strong>比较并交换（Compare-And-Swap）</strong> 无阻塞重试</p></div>
+</div>
+
+<hr />
+<h2 id="cas-机制详解">CAS 机制详解</h2>
+<h3 id="cas-工作方式">CAS 工作方式</h3>
+<p>CAS（Compare And Swap）是一个 <strong>CPU 级别的原子指令</strong>，包含三个操作数：</p>
+<pre><code>CAS(V, Expected, New)
+
+V        — 内存地址（变量的实际值）
+Expected — 期望值（线程上次读到的值）
+New      — 新值（要写入的值）
+
+执行逻辑：
+if (V 的当前值 == Expected) {
+    V = New;     // 原子地更新
+    return true; // 成功
+} else {
+    return false; // 失败（被其他线程改过了）
+}
+</code></pre>
+<pre><code>CAS 操作示意图（多线程竞争）:
+
+        主内存: balance = 100
+              ┌──────────┐
+              │  100     │
+              └──┬───┬───┘
+                 │   │
+    ┌────────────┘   └────────────┐
+    ↓                             ↓
+  线程A                         线程B
+  prev=100                      prev=100
+  next=100-10=90                next=100-20=80
+  CAS(100, 100, 90) ✅ 成功     CAS(100, 100, 80) ❌ 失败
+  balance → 90                  （发现已经是90≠100）
+                                 ↓ 重试
+                                prev=90
+                                next=90-20=70
+                                CAS(90, 90, 70) ✅ 成功
+                                balance → 70
+</code></pre>
+<div class="callout callout-info">
+  <div class="callout-title">CPU 层面的实现
+在 x86 架构中，CAS 对应 <code>CMPXCHG</code>（Compare and Exchange）指令
+该指令带 <strong><code>LOCK</code> 前缀</strong>，保证在多核环境下的原子性：</div>
+  <div class="callout-content"><ul>
+<li>锁定总线（Bus Lock）或<strong>缓存行锁定（Cache Line Lock）</strong> → 阻止其他 CPU 核心同时修改</li>
+<li>这比操作系统的互斥锁（Mutex）轻量得多，因为不涉及用户态/内核态切换</li>
+</ul></div>
+</div>
+
+<h3 id="cas-与-volatile-的配合">CAS 与 volatile 的配合</h3>
+<p>CAS 必须与 <code>volatile</code> 配合使用：</p>
+<div class="mermaid">
+flowchart TB
+    subgraph "CAS + volatile 协作"
+        A["volatile 读: 从主内存获取最新值"] --> B["计算新值"]
+        B --> C["CAS 写: 原子地比较并更新主内存"]
+        C -->|失败| A
+        C -->|成功| D["操作完成"]
+    end
+</div>
+<ul>
+<li><strong>volatile</strong> 保证<strong>可见性</strong>：每次读都从主内存取最新值</li>
+<li><strong>CAS</strong> 保证<strong>原子性</strong>：比较和交换作为一个不可分割的操作执行</li>
+<li>两者结合 = <strong>无锁的线程安全</strong></li>
+</ul>
+<div class="callout callout-warning">
+  <div class="callout-title">为什么 CAS 需要 volatile？
+如果没有 volatile，线程可能从 CPU 缓存中读到旧值 → CAS 的 <code>expected</code> 就是过时的
+→ 虽然 CAS 本身是原子的，但它比较的是一个&quot;过期&quot;的期望值，语义就错了</div>
+  <div class="callout-content"></div>
+</div>
+
+<h3 id="cas-效率分析">CAS 效率分析</h3>
+<table>
+<thead>
+<tr><th>场景</th><th>加锁（synchronized）</th><th>无锁（CAS）</th></tr>
+</thead>
+<tbody>
+<tr><td>无竞争</td><td>偏向锁优化，接近零开销</td><td>一次 CAS 成功，零开销</td></tr>
+<tr><td>低竞争</td><td>轻量级锁 CAS + 自旋</td><td>CAS 重试 1~2 次</td></tr>
+<tr><td>高竞争</td><td>重量级锁，线程阻塞/唤醒（内核态切换）</td><td>CAS 频繁失败，CPU 空转（忙等）</td></tr>
+</tbody>
+</table>
+<div class="callout callout-tip">
+  <div class="callout-title">选型建议</div>
+  <div class="callout-content"><ul>
+<li><strong>临界区短 + 线程数不多</strong> → CAS 无锁方案更优（避免阻塞开销）</li>
+<li><strong>临界区长 + 线程数很多</strong> → 加锁方案更优（CAS 反复失败会浪费大量 CPU）</li>
+<li><strong>超高并发累加</strong> → <code>LongAdder</code>（分段 CAS，见下文）</li>
+</ul></div>
+</div>
+
+<h3 id="cas-特点总结">CAS 特点总结</h3>
+<div class="mermaid">
+mindmap
+  root((CAS))
+    优点
+      无锁, 不阻塞线程
+      全程用户态, 无系统调用
+      适合临界区短的场景
+    缺点
+      高竞争时 CPU 空转
+      只能保证一个变量的原子性
+      ABA 问题
+    适用
+      AtomicInteger 等原子类
+      ConcurrentHashMap 内部
+      AQS 状态管理
+</div>
+<hr />
+<h2 id="原子整数">原子整数</h2>
+<h3 id="atomicinteger-基本用法">AtomicInteger 基本用法</h3>
+<pre><code class="language-java">AtomicInteger ai = new AtomicInteger(0);
+
+ai.get();                    // 获取当前值: 0
+ai.getAndIncrement();        // 先获取再 +1（类似 i++）返回 0，值变为 1
+ai.incrementAndGet();        // 先 +1 再获取（类似 ++i）返回 2
+ai.getAndAdd(5);             // 先获取再 +5，返回 2，值变为 7
+ai.addAndGet(-3);            // 先 -3 再获取，返回 4
+ai.getAndSet(10);            // 先获取再设值，返回 4，值变为 10
+ai.compareAndSet(10, 20);    // CAS：期望10→设20，返回 true
+
+// 类似的还有 AtomicLong、AtomicBoolean
+</code></pre>
+<h3 id="updateandget-自定义更新">updateAndGet 自定义更新</h3>
+<pre><code class="language-java">// updateAndGet 接受一个函数式接口，支持自定义更新逻辑
+AtomicInteger ai = new AtomicInteger(10);
+
+// 乘以 2
+int result = ai.updateAndGet(x -&gt; x * 2);  // result = 20
+
+// 取模
+ai.updateAndGet(x -&gt; x % 3);  // 20 % 3 = 2
+
+// getAndUpdate: 先获取旧值，再更新
+int old = ai.getAndUpdate(x -&gt; x + 100);  // old = 2, 新值 = 102
+</code></pre>
+<h3 id="updateandget-原理-cas-自旋">updateAndGet 原理（CAS 自旋）</h3>
+<pre><code class="language-java">// AtomicInteger.updateAndGet 的简化源码
+public final int updateAndGet(IntUnaryOperator updateFunction) {
+    int prev, next;
+    do {
+        prev = get();                         // volatile 读
+        next = updateFunction.applyAsInt(prev); // 计算新值
+    } while (!compareAndSet(prev, next));      // CAS 自旋
+    return next;
+}
+</code></pre>
+<pre><code>CAS 自旋流程图:
+
+  ┌──────────────────────────────┐
+  │ 1. volatile 读取 prev       │
+  └──────────┬───────────────────┘
+             ↓
+  ┌──────────────────────────────┐
+  │ 2. 计算 next = f(prev)      │
+  └──────────┬───────────────────┘
+             ↓
+  ┌──────────────────────────────┐
+  │ 3. CAS(prev, next)          │
+  │    内存值 == prev ?          │
+  └───┬─────────────┬────────────┘
+      │ YES         │ NO（被修改了）
+      ↓             ↓
+  ┌────────┐   ┌─────────┐
+  │ 成功!  │   │ 回到 1  │
+  │ return │   │ 重试    │
+  └────────┘   └─────────┘
+</code></pre>
+<div class="callout callout-info">
+  <div class="callout-title">为什么叫&quot;自旋&quot;？
+&quot;自旋（Spin）&quot;就是线程在原地循环重试，CPU 一直在执行（忙等 / Busy Waiting），没有被挂起
+类比：排队等咖啡时你不断探头看&quot;我的好了没？好了没？&quot;（自旋），而不是坐下来等叫号（阻塞）
+CS 术语：<strong>自旋等待（Spin Wait）</strong> — 通过循环检查条件来等待，不释放 CPU</div>
+  <div class="callout-content"></div>
+</div>
+
+<hr />
+<h2 id="原子引用">原子引用</h2>
+<h3 id="atomicreference">AtomicReference</h3>
+<p>用于对<strong>引用类型</strong>做 CAS 操作（AtomicInteger 只能保护 int）：</p>
+<pre><code class="language-java">AtomicReference&lt;BigDecimal&gt; balance = new AtomicReference&lt;&gt;(new BigDecimal(&quot;10000&quot;));
+
+// 扣款操作
+while (true) {
+    BigDecimal prev = balance.get();
+    BigDecimal next = prev.subtract(new BigDecimal(&quot;1000&quot;));
+    if (balance.compareAndSet(prev, next)) {  // CAS 比较的是引用地址
+        break;
+    }
+}
+</code></pre>
+<div class="callout callout-warning">
+  <div class="callout-title">CAS 比较的是引用（==），不是值（equals）
+<code>compareAndSet</code> 使用 <code>==</code> 比较旧引用和当前引用是否指向同一个对象
+如果对象被替换为一个 <code>.equals()</code> 相同但 <code>==</code> 不同的新对象 → CAS 会失败
+（但对于不可变对象如 String、BigDecimal，这通常是期望的行为）</div>
+  <div class="callout-content"></div>
+</div>
+
+<h3 id="aba-问题">ABA 问题</h3>
+<pre><code>ABA 问题时间线:
+
+时刻1: 变量值 = A
+         线程1 读到 A，准备更新为 C
+         线程1 此时被调度走（上下文切换）
+
+时刻2: 线程2 将 A 改为 B
+时刻3: 线程2 将 B 改回 A
+
+时刻4: 线程1 恢复执行
+         CAS(A, A, C) → 成功！（但线程1不知道值已经被改过了）
+
+        线程1     线程2       内存值
+          │                    A
+          │ 读到 A             │
+          │         A → B      B
+          │         B → A      A
+          │ CAS(A→C) ✅        C  ← 线程1不知道中间发生了 A→B→A
+</code></pre>
+<div class="callout callout-question">
+  <div class="callout-title">ABA 问题有什么危害？
+在简单的计数器场景中，ABA 通常没问题（值一样结果也一样）
+但在<strong>链表/栈</strong>等数据结构中，ABA 可能导致严重错误：</div>
+  <div class="callout-content"><ul>
+<li>假设栈顶是 A→B→C，线程1想 pop A（CAS: 把栈顶从 A 改为 B）</li>
+<li>线程2 在此期间 pop A、pop B、push D、push A → 栈变为 A→D</li>
+<li>线程1 CAS 成功（栈顶确实是 A）→ 把栈顶指向 B → 但 B 已经不在栈中了！</li>
+</ul>
+<p>类比：你在停车场记住了&quot;我停在了 A 号车位的红色车旁边&quot;。等你回来发现 A 号车位确实有辆红色车，你以为没变。但其实原来的红车已经开走了，现在停的是另一辆红车，你的车（B 号位）也被挪走了
+CS 术语：ABA 问题是 <strong>无锁数据结构（Lock-Free Data Structure）</strong> 中的经典陷阱</p></div>
+</div>
+
+<h3 id="atomicstampedreference-版本号解决-aba">AtomicStampedReference（版本号解决 ABA）</h3>
+<p>给每次修改加一个<strong>版本号（stamp）</strong>，CAS 同时比较引用和版本号：</p>
+<pre><code class="language-java">// 初始值 &quot;A&quot;，版本号 0
+AtomicStampedReference&lt;String&gt; ref = new AtomicStampedReference&lt;&gt;(&quot;A&quot;, 0);
+
+// 获取当前版本号
+int stamp = ref.getStamp();       // 0
+String value = ref.getReference(); // &quot;A&quot;
+
+// CAS 更新：必须引用和版本号都匹配
+boolean success = ref.compareAndSet(
+    &quot;A&quot;,       // expectedReference
+    &quot;C&quot;,       // newReference
+    stamp,     // expectedStamp
+    stamp + 1  // newStamp（版本号 +1）
+);
+</code></pre>
+<div class="mermaid">
+sequenceDiagram
+    participant T1 as 线程1
+    participant Mem as 内存 (ref + stamp)
+    participant T2 as 线程2
+
+    T1->>Mem: 读取 value=A, stamp=0
+    Note over T1: 暂停（被调度走）
+
+    T2->>Mem: CAS(A→B, stamp 0→1) ✅
+    Note over Mem: value=B, stamp=1
+    T2->>Mem: CAS(B→A, stamp 1→2) ✅
+    Note over Mem: value=A, stamp=2
+
+    T1->>Mem: CAS(A→C, stamp 0→?) ❌ 失败！
+    Note over T1: stamp 期望0, 实际2 → 检测到 ABA
+</div>
+<h3 id="atomicmarkablereference-标记解决-aba">AtomicMarkableReference（标记解决 ABA）</h3>
+<p>如果不关心修改了几次，只关心&quot;<strong>有没有被修改过</strong>&quot;，用布尔标记即可：</p>
+<pre><code class="language-java">// 初始值 &quot;A&quot;，标记 false
+AtomicMarkableReference&lt;String&gt; ref = new AtomicMarkableReference&lt;&gt;(&quot;A&quot;, false);
+
+// CAS：同时更新引用和标记
+ref.compareAndSet(&quot;A&quot;, &quot;C&quot;, false, true);
+// 只要标记变了（false→true），就知道被动过了
+</code></pre>
+<div class="callout callout-tip">
+  <div class="callout-title">StampedReference vs MarkableReference
+| 类型 | 额外信息 | 适用场景 |
+|------|---------|---------|
+| <code>AtomicStampedReference</code> | <code>int stamp</code>（版本号） | 需要知道被修改了<strong>几次</strong> |
+| <code>AtomicMarkableReference</code> | <code>boolean mark</code>（标记） | 只需要知道<strong>有没有被改过</strong> |</div>
+  <div class="callout-content"></div>
+</div>
+
+<hr />
+<h2 id="原子数组">原子数组</h2>
+<p>保护<strong>数组中每个元素</strong>的原子性（而非整个数组引用）：</p>
+<pre><code class="language-java">AtomicIntegerArray array = new AtomicIntegerArray(10);  // 长度为10
+
+array.getAndIncrement(0);    // 索引0处 +1
+array.getAndAdd(1, 5);       // 索引1处 +5
+array.compareAndSet(2, 0, 100); // 索引2处：CAS(0→100)
+
+// 类似的还有 AtomicLongArray、AtomicReferenceArray
+</code></pre>
+<pre><code>AtomicIntegerArray 内部结构:
+
+┌───────────────────────────────────────────────────┐
+│  index:  [0]   [1]   [2]   [3]  ...  [9]         │
+│  value:   1     5    100    0   ...   0            │
+│           ↑     ↑     ↑                           │
+│         每个元素都可以独立做 CAS 操作                │
+│         不同索引之间互不干扰                         │
+└───────────────────────────────────────────────────┘
+</code></pre>
+<div class="callout callout-info">
+  <div class="callout-title">应用场景</div>
+  <div class="callout-content"><ul>
+<li>多线程统计不同分类的计数器（如按小时统计访问量）</li>
+<li><code>ConcurrentHashMap</code> 内部的 <code>CounterCell[]</code> 就是类似思想</li>
+</ul></div>
+</div>
+
+<hr />
+<h2 id="原子更新器">原子更新器</h2>
+<p>用于对<strong>已有类的 volatile 字段</strong>做原子更新（无需把字段改成 AtomicXxx 类型）：</p>
+<pre><code class="language-java">class Student {
+    volatile String name;  // 必须是 volatile
+}
+
+// 创建更新器（反射方式）
+AtomicReferenceFieldUpdater&lt;Student, String&gt; updater =
+    AtomicReferenceFieldUpdater.newUpdater(Student.class, String.class, &quot;name&quot;);
+
+Student stu = new Student();
+updater.compareAndSet(stu, null, &quot;张三&quot;);  // CAS 更新 stu.name
+</code></pre>
+<div class="callout callout-tip">
+  <div class="callout-title">使用场景
+当你<strong>无法修改原有类的字段类型</strong>（如第三方库的类），但又想对其做 CAS 操作时
+典型案例：Netty 中大量使用 <code>AtomicReferenceFieldUpdater</code> 来避免额外的对象分配开销</div>
+  <div class="callout-content"></div>
+</div>
+
+<hr />
+<h2 id="原子累加器">原子累加器</h2>
+<h3 id="为什么需要-longadder">为什么需要 LongAdder？</h3>
+<p>在高竞争场景下，<code>AtomicLong.incrementAndGet()</code> 的 CAS 自旋会频繁失败：</p>
+<pre><code>高竞争下 AtomicLong 的问题:
+
+  线程1 → CAS(100→101) ✅
+  线程2 → CAS(100→101) ❌ 重试 → CAS(101→102) ✅
+  线程3 → CAS(100→101) ❌ 重试 → CAS(102→103) ✅
+  线程4 → CAS(100→101) ❌ 重试 → CAS(103→104) ✅
+  ...
+  N个线程竞争同一个变量 → 大量 CAS 失败 → CPU 空转浪费
+</code></pre>
+<p><code>LongAdder</code> 的解决思路：<strong>分散热点</strong></p>
+<pre><code>LongAdder 的分段累加思想:
+
+  AtomicLong（单点竞争）:
+  所有线程 → [counter] ← 瓶颈！
+
+  LongAdder（分段竞争）:
+  线程1 → [Cell-0]  = 25
+  线程2 → [Cell-1]  = 30
+  线程3 → [Cell-0]  = 20    ← 同一个 Cell 内才有竞争
+  线程4 → [Cell-1]  = 25
+  最终结果 = base + Cell-0 + Cell-1 = 0 + 45 + 55 = 100
+</code></pre>
+<div class="callout callout-tip">
+  <div class="callout-title">类比理解
+<strong>AtomicLong</strong> 像是一个收银台：所有顾客排一条队，一个一个结账 → 高峰时段排长队
+<strong>LongAdder</strong> 像是多个收银台：顾客分散到不同窗口，最后各窗口汇总营业额 → 高并发下吞吐更高</div>
+  <div class="callout-content"><p>CS 术语：<strong>分段锁（Striped Locking）/ 热点分散（Contention Spreading）</strong>。JDK 7 的 <code>ConcurrentHashMap</code> 用的 Segment 分段锁也是同样思想</p></div>
+</div>
+
+<pre><code class="language-java">LongAdder adder = new LongAdder();
+adder.increment();  // +1
+adder.add(10);      // +10
+long sum = adder.sum();  // 汇总所有 Cell + base
+
+// 类似的还有 LongAccumulator（支持自定义累加函数）
+LongAccumulator acc = new LongAccumulator(Long::max, 0);
+acc.accumulate(10);
+acc.accumulate(5);
+acc.get();  // 10（取最大值）
+</code></pre>
+<h3 id="longadder-原理">LongAdder 原理</h3>
+<h4 id="cas-锁-cell-创建时的保护">CAS 锁（Cell 创建时的保护）</h4>
+<pre><code class="language-java">// LongAdder 内部用一个简单的 CAS 锁来保护 Cell 数组的创建和扩容
+// 这是一个自定义的自旋锁（非 ReentrantLock）
+volatile int cellsBusy;  // 0=空闲, 1=加锁
+
+boolean casCellsBusy() {
+    return CELLSBUSY.compareAndSet(this, 0, 1);  // CAS: 0 → 1
+}
+</code></pre>
+<h4 id="缓存行伪共享-false-sharing">缓存行伪共享（False Sharing）</h4>
+<div class="callout callout-info">
+  <div class="callout-title">CPU/OS 知识 —— 缓存行（Cache Line）
+CPU 缓存以<strong>缓存行</strong>为单位加载数据（通常 64 字节）。当两个变量恰好在同一个缓存行中时：</div>
+  <div class="callout-content"><pre><code>缓存行 (64 bytes):
+┌─────────────┬─────────────┬──────────────────┐
+│  Cell[0]    │  Cell[1]    │  ... padding ... │
+│  (8 bytes)  │  (8 bytes)  │                  │
+└─────────────┴─────────────┴──────────────────┘
+      ↑               ↑
+   Core 0 修改     Core 1 修改
+   → 整行失效！    → 整行失效！
+</code></pre>
+<ul>
+<li>Core 0 修改 <code>Cell[0]</code> 后，CPU 缓存一致性协议（MESI）会使 Core 1 中<strong>整个缓存行失效</strong></li>
+<li>Core 1 修改 <code>Cell[1]</code> 后，也会使 Core 0 的缓存行失效</li>
+<li>即使它们操作的是<strong>不同变量</strong>，也互相干扰 → 这就是 <strong>伪共享（False Sharing）</strong></li>
+</ul></div>
+</div>
+
+<p><strong>解决方案</strong>：<code>@Contended</code> 注解（JDK 8+）</p>
+<pre><code class="language-java">// LongAdder.Cell 的源码
+@sun.misc.Contended  // 让 JVM 在 Cell 对象前后各填充 128 字节
+static final class Cell {
+    volatile long value;
+    Cell(long x) { value = x; }
+    // ...
+}
+</code></pre>
+<pre><code>@Contended 填充后的内存布局:
+
+┌────────────────────────────────────────────────────────────────┐
+│ padding (128B) │ Cell[0] value (8B) │ padding (128B) │        │
+├────────────────────────────────────────────────────────────────┤
+│ padding (128B) │ Cell[1] value (8B) │ padding (128B) │        │
+└────────────────────────────────────────────────────────────────┘
+  ← Cell[0] 和 Cell[1] 一定不在同一个缓存行中 →
+</code></pre>
+<h3 id="longadder-源码分析">LongAdder 源码分析</h3>
+<h4 id="add-方法流程">add 方法流程</h4>
+<div class="mermaid">
+flowchart TD
+    A["add(x)"] --> B{"cells 是否已创建?"}
+    B -->|未创建| C{"直接 CAS base"}
+    C -->|成功| D["结束"]
+    C -->|失败| E["进入 longAccumulate"]
+    B -->|已创建| F["通过线程 hash 找到对应 Cell"]
+    F --> G{"CAS 更新该 Cell"}
+    G -->|成功| D
+    G -->|失败| E
+    E --> H["longAccumulate: 处理初始化/扩容/重试"]
+</div>
+<h4 id="longaccumulate-方法的三种情况">longAccumulate 方法的三种情况</h4>
+<pre><code>情况1: cells 未创建
+  → 加 CAS 锁 → 创建 cells 数组（初始大小 2）→ 将值放入对应 Cell
+
+情况2: cells 已创建，但对应 Cell 未初始化
+  → 加 CAS 锁 → 创建新 Cell 并放入数组对应位置
+
+情况3: cells 已创建，Cell 也存在，CAS 更新失败
+  → 尝试重新 hash（换一个 Cell）再次 CAS
+  → 如果多次失败 → 扩容 cells 数组（翻倍，最大不超过 CPU 核心数）
+</code></pre>
+<div class="mermaid">
+flowchart TD
+	A[进入longAccumulate的循环]
+	B[cells 已创建 & cells.length > 0 存在大小]
+	B1[成立]
+	B2[不成立]
+	C[判断是否加锁]
+	C1[走到这里其实是没计算的，修改一下计算标识符]
+	C2[使用cell尝试计算]
+	C3[判断是否没加锁 & cells没被改动 & 尝试加锁]
+	D[判断是否没加锁 & 尝试加锁]
+	D1[判断cells的容量是否超过cpu核心数 or 当前cells已经被修改]
+	D2[创建新的cells，初始长度为2，并且赋值x进去]
+	D3[尝试使用base来计算]
+	E[再次判断当前cells中该线程的位置还是否为null]
+	E1[当作没发生冲突]
+	E2[发生冲突，修改冲突标识符为true]
+	E3[判断是否已加锁 & 尝试加锁]
+	F[对cells进行两倍扩容，并将冲突标识符改为false]
+	END[退出循环]
+	
+	A --> |判断|B
+	B --> B1
+	B --> B2
+	B1 --> |不存在该线程使用的cell|C
+	B1 --> |存在该线程使用的cell，但是是否计算标识符错误|C1
+	B1 --> |线程的使用的cell存在，且计算标识符没错|C2
+	B2 --> C3
+	C --> |没加锁，创建新的cell，并初始化值为x|D
+	C2 --> |成功|END
+	C2 --> |失败|D1
+	C3 --> |都成立|D2
+	C3 --> |其一不成立|D3
+	D --> |都成立|E
+	D1 --> |其一成立|E1
+	D1 --> |都不成立，并且冲突标识符为false|E2
+	D1 --> |都不成立，且冲突标识符为true|E3
+	D2 --> |成功|END
+	D3 --> |成功|END
+	E3 --> |都成功|F
+	E --> |都成立，将新的cell加入到cells中|END
+</div>
+<blockquote>
+<blockquote>
+<p>因为<code>cells</code>扩容之后并不会马上初始化所有的<code>cell</code>，所以才会存在<code>cell</code>为空的情况</p>
+</blockquote>
+<ul>
+<li>一些变量的信息
+<ul>
+<li><code>x</code> - 为需要累加的值</li>
+<li><code>base</code> - 这个类自带的存值变量</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>其余没有指向<code>END</code>且没有下一步的都会进入下一轮循环</p>
+</blockquote>
+</blockquote>
+<div class="callout callout-info">
+  <div class="callout-title">为什么最大不超过 CPU 核心数？
+Cell 的个数 ≥ CPU 核心数后，继续扩容没有意义：
+因为同一时刻最多只有 <code>CPU核心数</code> 个线程真正并行执行，Cell 再多也不会减少竞争</div>
+  <div class="callout-content"></div>
+</div>
+
+<h4 id="sum-方法">sum 方法</h4>
+<pre><code class="language-java">public long sum() {
+    Cell[] cs = cells;
+    long sum = base;
+    if (cs != null) {
+        for (Cell c : cs) {
+            if (c != null) sum += c.value;
+        }
+    }
+    return sum;
+}
+// 注意：sum() 不是原子操作！在并发调用 add 的同时调用 sum，结果可能不精确
+</code></pre>
+<hr />
+<h2 id="unsafe-类">Unsafe 类</h2>
+<p><code>sun.misc.Unsafe</code> 是 JDK 内部类，提供了<strong>绕过 JVM 安全检查</strong>的底层操作能力。</p>
+<div class="callout callout-failure">
+  <div class="callout-title">为什么叫 &quot;Unsafe&quot;？
+因为它允许：直接操作内存地址、绕过构造方法创建对象、CAS 操作任意字段等
+用错了可能导致 <strong>JVM 崩溃</strong>、<strong>内存泄漏</strong>、<strong>数据损坏</strong>
+所以正常情况下开发者不应该直接使用，所有原子类都是基于它实现的</div>
+  <div class="callout-content"></div>
+</div>
+
+<h3 id="获取-unsafe-实例">获取 Unsafe 实例</h3>
+<pre><code class="language-java">// Unsafe 的构造方法是 private 的，且 getUnsafe() 有类加载器检查
+// 通过反射获取
+Field f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);
+f.setAccessible(true);
+Unsafe unsafe = (Unsafe) f.get(null);
+</code></pre>
+<h3 id="cas-相关方法">CAS 相关方法</h3>
+<pre><code class="language-java">// 对对象 obj 的 offset 偏移处的 int 字段做 CAS
+unsafe.compareAndSwapInt(Object obj, long offset, int expected, int update);
+unsafe.compareAndSwapLong(Object obj, long offset, long expected, long update);
+unsafe.compareAndSwapObject(Object obj, long offset, Object expected, Object update);
+
+// 获取字段偏移量（用于定位内存中的字段位置）
+long offset = unsafe.objectFieldOffset(MyClass.class.getDeclaredField(&quot;value&quot;));
+</code></pre>
+<h3 id="模拟实现-atomicinteger">模拟实现 AtomicInteger</h3>
+<pre><code class="language-java">class MyAtomicInteger {
+    private volatile int value;
+    private static final Unsafe unsafe;
+    private static final long valueOffset;
+
+    static {
+        try {
+            Field f = Unsafe.class.getDeclaredField(&quot;theUnsafe&quot;);
+            f.setAccessible(true);
+            unsafe = (Unsafe) f.get(null);
+            valueOffset = unsafe.objectFieldOffset(
+                MyAtomicInteger.class.getDeclaredField(&quot;value&quot;));
+        } catch (Exception e) { throw new RuntimeException(e); }
+    }
+
+    public MyAtomicInteger(int initialValue) {
+        this.value = initialValue;
+    }
+
+    public int get() { return value; }
+
+    public boolean compareAndSet(int expected, int update) {
+        return unsafe.compareAndSwapInt(this, valueOffset, expected, update);
+    }
+
+    public int incrementAndGet() {
+        int prev, next;
+        do {
+            prev = get();
+            next = prev + 1;
+        } while (!compareAndSet(prev, next));
+        return next;
+    }
+}
+</code></pre>
+<div class="mermaid">
+flowchart LR
+    subgraph "MyAtomicInteger 结构"
+        A["volatile int value"] --- B["valueOffset（内存偏移量）"]
+        B --- C["Unsafe.compareAndSwapInt"]
+    end
+    D["incrementAndGet()"] --> E["CAS 自旋循环"]
+    E --> C
+</div>
+<hr />
+<h2 id="第六章小结">第六章小结</h2>
+<table>
+<thead>
+<tr><th>概念</th><th>核心要点</th></tr>
+</thead>
+<tbody>
+<tr><td>CAS</td><td>CPU 级原子指令（CMPXCHG），比较并交换，无锁</td></tr>
+<tr><td>CAS + volatile</td><td>volatile 保证可见性 + CAS 保证原子性 = 无锁线程安全</td></tr>
+<tr><td>AtomicInteger/Long</td><td>基于 CAS 的原子整数操作</td></tr>
+<tr><td>AtomicReference</td><td>引用类型的 CAS 操作</td></tr>
+<tr><td>ABA 问题</td><td>值被改回原值，CAS 感知不到；用版本号 / 标记解决</td></tr>
+<tr><td>LongAdder</td><td>分段 CAS，高并发下性能远超 AtomicLong</td></tr>
+<tr><td>缓存行伪共享</td><td>不同 Cell 落在同一缓存行 → @Contended 填充</td></tr>
+<tr><td>Unsafe</td><td>JDK 内部类，所有原子类的底层实现基础</td></tr>
+</tbody>
+</table>
+<div class="callout callout-tip">
+  <div class="callout-title">记忆口诀
+<strong>CAS 三兄弟</strong>：读（volatile）→ 算（计算新值）→ 写（CAS）
+<strong>ABA 两把刀</strong>：Stamped（版本号）和 Markable（标记位）
+<strong>LongAdder 一思想</strong>：分散热点（类似分段锁 / Striping）</div>
+  <div class="callout-content"></div>
+</div>
+
+<hr />
+
+    </main>
+    <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+</script>
+
+    <script>
+    (function () {
+        const sidebar = document.getElementById('tocSidebar');
+        const collapseBtn = document.getElementById('tocCollapseBtn');
+        const fab = document.getElementById('tocFab');
+        if (!sidebar || !collapseBtn || !fab) {
+            return;
+        }
+
+        const collapse = () => {
+            sidebar.classList.add('is-collapsed');
+            fab.classList.add('is-visible');
+        };
+
+        const expand = () => {
+            sidebar.classList.remove('is-collapsed');
+            fab.classList.remove('is-visible');
+        };
+
+        collapseBtn.addEventListener('click', collapse);
+        fab.addEventListener('click', expand);
+
+        let dragging = false;
+        let moved = false;
+        let startX = 0;
+        let startY = 0;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        fab.style.left = '24px';
+        fab.style.top = '24px';
+
+        fab.addEventListener('pointerdown', function (event) {
+            dragging = true;
+            moved = false;
+            startX = event.clientX;
+            startY = event.clientY;
+            const rect = fab.getBoundingClientRect();
+            offsetX = startX - rect.left;
+            offsetY = startY - rect.top;
+            fab.setPointerCapture(event.pointerId);
+        });
+
+        fab.addEventListener('pointermove', function (event) {
+            if (!dragging) {
+                return;
+            }
+            const dx = Math.abs(event.clientX - startX);
+            const dy = Math.abs(event.clientY - startY);
+            if (dx > 3 || dy > 3) {
+                moved = true;
+            }
+            const left = event.clientX - offsetX;
+            const top = event.clientY - offsetY;
+            const maxLeft = window.innerWidth - fab.offsetWidth - 8;
+            const maxTop = window.innerHeight - fab.offsetHeight - 8;
+            fab.style.left = Math.max(8, Math.min(maxLeft, left)) + 'px';
+            fab.style.top = Math.max(8, Math.min(maxTop, top)) + 'px';
+        });
+
+        fab.addEventListener('pointerup', function (event) {
+            if (dragging) {
+                fab.releasePointerCapture(event.pointerId);
+            }
+            dragging = false;
+            if (!moved) {
+                expand();
+            }
+        });
+
+        fab.addEventListener('click', function (event) {
+            if (moved) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }, true);
+    })();
+</script>
+
+</body>
+</html>

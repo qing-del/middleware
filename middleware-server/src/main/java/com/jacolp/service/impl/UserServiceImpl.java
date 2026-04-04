@@ -121,6 +121,7 @@ public class UserServiceImpl implements UserService {
         UserEntity user = new UserEntity();
         user.setUsername(userRegisterDTO.getUsername());
         user.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
+        user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
         user.setRoleId(RoleConstant.USER);
         user.setStatus(UserConstant.DEFAULT_STATUS);
 

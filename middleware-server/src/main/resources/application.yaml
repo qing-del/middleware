@@ -21,6 +21,10 @@ jacolp:
     user-secret-key: ${jwt.user-secret-key}
     user-ttl: 7200000
     user-token-name: ${jwt.user-token-name}
+  markdown:
+    root: ${jacolp.markdown.root}
+    input-dir: ${jacolp.markdown.input}
+    output-dir: ${jacolp.markdown.output}
 
 aliyun:
   oss:
