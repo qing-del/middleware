@@ -25,6 +25,8 @@ public class ImageEntity implements Serializable {
 
     private String ossUrl;
 
+    private Short storageType;  // 0:本地 1:云OSS
+
     private Integer fileSize;
 
     private LocalDateTime uploadTime;

@@ -1,10 +1,12 @@
 package com.jacolp;
 
 import com.jacolp.converter.MarkdownHtmlEngine;
+import com.jacolp.converter.MarkdownPlugin;
 import com.jacolp.converter.MarkdownPublishService;
 import com.jacolp.io.FileStorageService;
 import com.jacolp.io.LocalFileStorageService;
 import com.jacolp.io.LocalMarkdownScanner;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -57,12 +59,19 @@ public class MarkdownAutoConfiguration {
     /**
      * 注册 Markdown 解析引擎。
      * <p>
-     * 引擎是无状态的，整个应用只需要一个实例，线程安全可复用。
+     * 引擎是线程安全的，整个应用只需要一个实例。
+     * 通过 {@link ObjectProvider} 自动发现容器中所有 {@link MarkdownPlugin} 类型的 Bean，
+     * 将它们收集为有序列表并注入引擎的构造函数中。
+     * <p>
+     * 💡 想要自定义解析规则？只需在你的项目中编写一个实现 {@link MarkdownPlugin} 接口的类，
+     * 打上 {@code @Component} 注解即可自动被引擎发现并加载——无需修改任何配置。
+     *
+     * @param pluginsProvider Spring 自动注入的插件提供者（按 {@code @Order} 排序）
      */
     @Bean
     @ConditionalOnMissingBean
-    public MarkdownHtmlEngine markdownHtmlEngine() {
-        return new MarkdownHtmlEngine();
+    public MarkdownHtmlEngine markdownHtmlEngine(ObjectProvider<MarkdownPlugin> pluginsProvider) {
+        return new MarkdownHtmlEngine(pluginsProvider.orderedStream().toList());
     }
 
     /**

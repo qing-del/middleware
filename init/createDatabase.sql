@@ -121,6 +121,7 @@ CREATE TABLE `biz_image` (
                              `user_id` bigint NOT NULL COMMENT '上传者ID',
                              `unique_filename` varchar(255) NOT NULL COMMENT '唯一文件名(例如: UUID.png)',
                              `oss_url` varchar(1000) NOT NULL COMMENT '图片在OSS(或云存储)中的完整访问URL',
+                             `storage_type` tinyint NOT NULL COMMENT '存储方式-0:本地, 1:云OSS',
                              `file_size` int DEFAULT NULL COMMENT '文件大小(字节, 选填)',
                              `upload_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
                              PRIMARY KEY (`id`),

@@ -19,6 +19,8 @@
 | **中文 slug** | 标题锚点保留 CJK 汉字，无需担心中文链接乱码 |
 | **全量扫描发布** | `LocalMarkdownScanner` 一键递归扫描 `inputDir`，批量将笔记生成为 HTML 静态站点 |
 | **YAML 属性配置** | 通过 `jacolp.markdown.*` 灵活配置读取目录、输出目录，支持 IDE 自动提示 |
+| **标签提取** | 提供 `extractTagsFromMarkdown` 和 `extractTagsFromHtml` 两个静态方法，转换前后均可提取 |
+| **插件扩展 (Plugin)** | 通过 `MarkdownPlugin` 接口注入自定义解析规则，`@Component` 即自动生效 |
 
 ---
 
@@ -54,6 +56,7 @@ flexmark-jacolp-autoconfigure/src/main/java/com/jacolp/
 ├── MarkdownProperty.java             # YAML 配置属性绑定（jacolp.markdown.*）
 ├── converter/
 │   ├── MarkdownHtmlEngine.java       # 核心解析引擎：Markdown → 结构化 HTML（零 I/O）
+│   ├── MarkdownPlugin.java           # 插件扩展接口：preProcess / postProcess 钩子
 │   └── MarkdownPublishService.java   # 发布门面：编排引擎 + CSS/JS 套壳 + 存储
 └── io/
     ├── FileStorageService.java       # 存储抽象接口（DIP 设计）
@@ -200,6 +203,118 @@ public class StartupPublisher implements CommandLineRunner {
 ```java
 @Scheduled(cron = "0 0 3 * * ?")  // 每天凌晨 3 点
 public void autoPublish() { scanner.scanAndPublishAll(); }
+```
+
+---
+
+## 🏷️ 标签提取
+
+引擎提供两个静态方法，方便在不同阶段获取标签信息：
+
+### 从 Markdown 源文件提取（转换前）
+
+```java
+// 无需创建引擎实例，直接静态调用
+String[] tags = MarkdownHtmlEngine.extractTagsFromMarkdown(rawMarkdown);
+// 例如返回 ["Java", "Spring", "并发"]
+```
+
+适用场景：文件索引、分类归档、在转换之前快速获取标签信息。
+
+### 从 HTML 页面提取（转换后）
+
+```java
+// 从已渲染的 HTML 中反向提取标签
+String[] tags = MarkdownHtmlEngine.extractTagsFromHtml(htmlContent);
+```
+
+适用场景：从数据库存储的 HTML 片段中恢复标签、对已发布的静态站点进行标签索引。
+
+---
+
+## 🧩 插件扩展机制 (MarkdownPlugin)
+
+引擎内置的 WikiLink、Callout、Mermaid、TOC 等转换规则是**永远执行的兜底基石**。
+在此基础上，你可以通过 `MarkdownPlugin` 接口注入自定义的解析规则——不会影响任何内置功能。
+
+### 处理管线与插件切入点
+
+```
+原始 Markdown
+     │
+     ▼
+╔══════════════════════════════╗
+║  ① Plugin.preProcess()       ║ ← 外挂前置钩子（你的自定义规则）
+╚══════════════════════════════╝
+     │
+     ▼
+┌──────────────────────────────┐
+│  ② 内置引擎核心处理（兜底）    │ ← Front-Matter / WikiLink / Flexmark / Callout / Mermaid
+└──────────────────────────────┘
+     │
+     ▼
+╔══════════════════════════════╗
+║  ③ Plugin.postProcess()      ║ ← 外挂后置钩子（你的最终修正）
+╚══════════════════════════════╝
+     │
+     ▼
+最终 HTML 输出
+```
+
+### 实战示例：Obsidian 图片嵌入 → 数据库查 URL
+
+假设你的笔记中使用 `![[xxx.jpg]]` 语法嵌入图片，而图片的实际 URL 存储在数据库中：
+
+```java
+@Component  // 打上此注解即可被引擎自动发现
+public class ImageLinkPlugin implements MarkdownPlugin {
+
+    private final ImageRepository imageRepo;
+
+    public ImageLinkPlugin(ImageRepository imageRepo) {
+        this.imageRepo = imageRepo;
+    }
+
+    @Override
+    public String preProcess(String rawMarkdown) {
+        Pattern pattern = Pattern.compile("!\\[\\[([^]]+)]]");
+        Matcher matcher = pattern.matcher(rawMarkdown);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String fileName = matcher.group(1);
+            String url = imageRepo.findUrlByName(fileName);
+            matcher.appendReplacement(sb,
+                Matcher.quoteReplacement("<img src=\"" + url + "\" alt=\"" + fileName + "\">"));
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+}
+```
+
+> 💡 整个过程零配置：只要实现 `MarkdownPlugin` 并标注 `@Component`，
+> `MarkdownAutoConfiguration` 会通过 `ObjectProvider` 自动收集所有插件 Bean 并注入引擎。
+
+### 非 Spring 项目中使用插件
+
+```java
+MarkdownPlugin myPlugin = new MyCustomPlugin();
+MarkdownHtmlEngine engine = new MarkdownHtmlEngine(List.of(myPlugin));
+HtmlProcessResult result = engine.process(rawMarkdown);
+```
+
+### 多插件排序
+
+在 Spring Boot 中，多个插件的执行顺序由 `@Order` 注解控制（值越小越先执行）：
+
+```java
+@Component
+@Order(1)  // 先执行
+public class ImageLinkPlugin implements MarkdownPlugin { ... }
+
+@Component
+@Order(2)  // 后执行
+public class CustomSyntaxPlugin implements MarkdownPlugin { ... }
 ```
 
 ---

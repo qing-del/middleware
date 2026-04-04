@@ -104,10 +104,35 @@ public class MarkdownHtmlEngine {
     private static final Pattern MERMAID_BLOCK =
             Pattern.compile("(?s)<pre><code class=\"language-mermaid\">(.*?)</code></pre>");
 
+    // ==================== 标签提取正则 ====================
+
+    /**
+     * 匹配已渲染 HTML 中的标签徽章元素。
+     * <p>
+     * 由 {@link com.jacolp.converter.MarkdownPublishService} 的 {@code renderMetadata} 方法
+     * 生成的标签结构为 {@code <span class="tag">标签名</span>}，
+     * 本正则用于从成品 HTML 中反向提取出标签纯文本。
+     * <ul>
+     *     <li>捕获组 1 = 标签文本内容（已经过 {@link #escapeHtml} 编码，需反转义）</li>
+     * </ul>
+     * {@code (?i)} 启用大小写不敏感匹配，兼容手动编写的 HTML。
+     */
+    private static final Pattern HTML_TAG_PATTERN =
+            Pattern.compile("(?i)<span class=\"tag\">(.*?)</span>");
+
     // ==================== Flexmark 解析器与渲染器 ====================
 
     private final Parser parser;
     private final HtmlRenderer renderer;
+
+    /**
+     * 已注册的外部插件列表（不可变，线程安全）。
+     * <p>
+     * 插件按列表顺序链式执行：前一个插件的输出是后一个插件的输入。
+     * 若无外部插件注册，此列表为空（{@code List.of()}），
+     * 引擎仅执行内置的核心转换规则。
+     */
+    private final List<MarkdownPlugin> plugins;
 
     // ==================== 数据结构（Record 类） ====================
 
@@ -166,7 +191,24 @@ public class MarkdownHtmlEngine {
     // ==================== 构造函数 ====================
 
     /**
-     * 构造 MarkdownHtmlEngine 实例。
+     * 无参构造函数（零插件模式）。
+     * <p>
+     * 创建一个不携带任何外部插件的引擎实例。
+     * 引擎内置的 Front-Matter、WikiLink、Callout、Mermaid、TOC 等核心转换规则
+     * 依然正常运行——这些是"兜底基石"，永远不会因为缺少外部插件而失效。
+     * <p>
+     * 适用于非 Spring 环境下的快速使用：
+     * <pre>{@code
+     * MarkdownHtmlEngine engine = new MarkdownHtmlEngine();
+     * HtmlProcessResult result = engine.process(rawMarkdown);
+     * }</pre>
+     */
+    public MarkdownHtmlEngine() {
+        this(List.of());
+    }
+
+    /**
+     * 带插件列表的构造函数。
      * <p>
      * 初始化 Flexmark 解析器（{@link Parser}）和渲染器（{@link HtmlRenderer}），
      * 并启用以下 GitHub Flavored Markdown (GFM) 扩展：
@@ -176,10 +218,18 @@ public class MarkdownHtmlEngine {
      *     <li>{@link TaskListExtension} — 任务列表语法（{@code - [x]} / {@code - [ ]}）</li>
      * </ul>
      * <p>
-     * 创建后的实例是无状态的（Parser 和 HtmlRenderer 均为线程安全的不可变对象），
-     * 可在多个文件之间安全复用，无需为每个 Markdown 文件创建新引擎。
+     * 创建后的实例是线程安全的（Parser 和 HtmlRenderer 均为不可变对象），
+     * 可在多个文件之间安全复用。
+     * <p>
+     * 在 Spring Boot 环境中，{@link com.jacolp.MarkdownAutoConfiguration}
+     * 会使用 {@code ObjectProvider<MarkdownPlugin>} 自动收集容器中所有插件 Bean 并传入此构造函数。
+     *
+     * @param plugins 外部插件列表；传入 {@code null} 或空列表均视为零插件模式
      */
-    public MarkdownHtmlEngine() {
+    public MarkdownHtmlEngine(List<MarkdownPlugin> plugins) {
+        // 防御性拷贝：确保插件列表不可被外部修改
+        this.plugins = (plugins == null) ? List.of() : List.copyOf(plugins);
+
         // 使用 MutableDataSet 配置 Flexmark 的解析选项
         MutableDataSet options = new MutableDataSet();
 
@@ -217,6 +267,16 @@ public class MarkdownHtmlEngine {
      * @return 包含元数据、TOC 和正文 HTML 的处理结果
      */
     public HtmlProcessResult process(String rawMarkdown) {
+        // ===== 外挂前置钩子 =====
+        // 在引擎核心逻辑之前，依次调用所有插件的 preProcess 方法。
+        // 插件可以在此阶段替换自定义语法（如 ![[xxx.jpg]] → <img>），
+        // 注入额外内容，或过滤不需要的文本。
+        for (MarkdownPlugin plugin : plugins) {
+            rawMarkdown = plugin.preProcess(rawMarkdown);
+        }
+
+        // ===== 引擎内置核心处理（兜底基石，始终执行） =====
+
         // ① 提取 Front-Matter 元数据（title、tags、create_time）
         FrontMatter meta = parseFrontMatter(rawMarkdown);
 
@@ -232,6 +292,14 @@ public class MarkdownHtmlEngine {
 
         // ⑤ 后处理增强：添加标题锚点 id → 转换 Callout → 转换 Mermaid
         htmlBody = postProcessHtml(htmlBody);
+
+        // ===== 外挂后置钩子 =====
+        // 在 TOC 生成之前，依次调用所有插件的 postProcess 方法。
+        // 插件可以在此阶段注入自定义 CSS class、替换 HTML 标签、或追加 JS 片段。
+        // 注意：后置钩子在 TOC 生成之前执行，这样插件修改的标题也能被 TOC 收录。
+        for (MarkdownPlugin plugin : plugins) {
+            htmlBody = plugin.postProcess(htmlBody);
+        }
 
         // ⑥ 基于已添加 id 的标题，生成 TOC 侧边栏 HTML
         String tocHtml = buildTocHtml(htmlBody);
@@ -258,7 +326,7 @@ public class MarkdownHtmlEngine {
      * @param markdown 原始 Markdown 文本
      * @return 解析后的 FrontMatter 实例
      */
-    private FrontMatter parseFrontMatter(String markdown) {
+    private static FrontMatter parseFrontMatter(String markdown) {
         Matcher matcher = FRONT_MATTER.matcher(markdown);
         if (!matcher.find()) {
             return FrontMatter.empty();
@@ -661,5 +729,66 @@ public class MarkdownHtmlEngine {
                 .replace("&amp;", "&")
                 .replace("&quot;", "\"")
                 .replace("&#39;", "'");
+    }
+
+    // ==================== 标签提取方法 ====================
+
+    /**
+     * 从原始 Markdown 文本中提取标签列表。
+     * <p>
+     * 解析 YAML Front-Matter 块中的 {@code tags} 字段，支持两种写法：
+     * <pre>{@code
+     * # 写法一：多行列表
+     * ---
+     * tags:
+     *   - Java
+     *   - Spring
+     * ---
+     *
+     * # 写法二：行内值
+     * ---
+     * tags: Java
+     * ---
+     * }</pre>
+     * <p>
+     * 本方法为静态方法，无需创建引擎实例即可调用。
+     * 适用于需要在转换之前（如文件索引、分类归档）快速获取标签信息的场景。
+     *
+     * @param rawMarkdown 原始 Markdown 文本
+     * @return 标签数组；若无 Front-Matter 或未声明 tags 则返回空数组
+     */
+    public static String[] extractTagsFromMarkdown(String rawMarkdown) {
+        return parseFrontMatter(rawMarkdown).tags().toArray(String[]::new);
+    }
+
+    /**
+     * 从已渲染的 HTML 页面中提取标签列表。
+     * <p>
+     * 扫描 HTML 中所有 {@code <span class="tag">标签名</span>} 结构，
+     * 提取其中的纯文本内容。这些标签徽章由
+     * {@link com.jacolp.converter.MarkdownPublishService} 的 {@code renderMetadata}
+     * 方法在套壳阶段生成。
+     * <p>
+     * 本方法为静态方法，适用于以下场景：
+     * <ul>
+     *     <li>从数据库中存储的 HTML 片段中反向提取标签</li>
+     *     <li>对已发布的静态 HTML 文件进行标签索引</li>
+     *     <li>在没有原始 Markdown 源文件时恢复标签信息</li>
+     * </ul>
+     * <p>
+     * 注意：由于 {@code renderMetadata} 在生成标签时会调用 {@link #escapeHtml} 进行 XSS 转义，
+     * 本方法会自动对提取到的文本进行反转义（{@link #decodeHtml}），确保返回的是原始标签名。
+     *
+     * @param html 已渲染的 HTML 文本（通常为完整页面或包含 meta-row 区域的片段）
+     * @return 标签数组；若 HTML 中无标签徽章则返回空数组
+     */
+    public static String[] extractTagsFromHtml(String html) {
+        Matcher matcher = HTML_TAG_PATTERN.matcher(html);
+        List<String> tags = new ArrayList<>();
+        while (matcher.find()) {
+            // 反转义 HTML 实体，还原标签原始文本
+            tags.add(decodeHtml(matcher.group(1).trim()));
+        }
+        return tags.toArray(String[]::new);
     }
 }
