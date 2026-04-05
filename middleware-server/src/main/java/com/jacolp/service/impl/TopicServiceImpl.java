@@ -3,6 +3,7 @@ package com.jacolp.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.TopicConstant;
+import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.TopicMapper;
@@ -146,7 +147,12 @@ public class TopicServiceImpl implements TopicService {
         // PageHelper 必须在查询语句前调用
         PageHelper.startPage(pageNum, pageSize);
 
-        List<TopicListVO> records = topicMapper.listByCondition(dto.getUserId(), normalizeKeyword(dto.getKeyword()));
+        Long userId = dto.getUserId();
+        if (userId != null && userId <= 0) {
+            throw new BaseException(UserConstant.NOT_FIND_USER);
+        }
+
+        List<TopicListVO> records = topicMapper.listByCondition(userId, normalizeKeyword(dto.getKeyword()));
         PageInfo<TopicListVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }

@@ -62,6 +62,7 @@ CREATE TABLE `biz_topic` (
                              `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                              PRIMARY KEY (`id`),
                              KEY `idx_user_id` (`user_id`),
+                             KEY `idx_user_sort_update` (`user_id`, `sort_order`, `update_time`),
                              UNIQUE KEY `uk_topic_user` (`topic_name`, `user_id`) -- 同一个用户不能创建同名的主题
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记主题/分类表';
 
@@ -73,11 +74,11 @@ CREATE TABLE `biz_topic` (
 CREATE TABLE `biz_tag` (
                            `id` bigint NOT NULL AUTO_INCREMENT COMMENT '标签ID',
                            `user_id` bigint NOT NULL COMMENT '创建者ID',
-                           `tag_name` varchar(50) NOT NULL COMMENT '标签名称(如: 踩坑, 性能优化, 源码解析)',
+                           `tag_name` varchar(20) NOT NULL COMMENT '标签名称(如: 踩坑, 性能优化, 源码解析)',
                            `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                            PRIMARY KEY (`id`),
                            KEY `idx_user_id` (`user_id`),
-                           UNIQUE KEY `uk_user_tag` (`user_id`, `tag_name`) -- 同一个用户不能创建同名的标签
+                           UNIQUE KEY `uk_tag_user` (`tag_name`, `user_id`) -- 同一个用户不能创建同名的标签
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记标签表';
 
 
@@ -100,7 +101,7 @@ CREATE TABLE `biz_note` (
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                             PRIMARY KEY (`id`),
                             KEY `idx_user_id` (`user_id`),
-                            KEY `idx_topic_id` (`topic_id`)
+                            KEY `idx_topic_deleted` (`topic_id`, `is_deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记存储记录表';
 
 
@@ -110,10 +111,11 @@ CREATE TABLE `biz_note` (
 -- ==========================================
 CREATE TABLE `biz_note_tag_mapping` (
                                         `note_id` bigint NOT NULL COMMENT '笔记ID',
+                                        `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
                                         `tag_id` bigint NOT NULL COMMENT '标签ID',
                                         `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
                                         PRIMARY KEY (`note_id`, `tag_id`), -- 联合主键，防止重复绑定
-                                        KEY `idx_tag_id` (`tag_id`) -- 方便通过 tag_id 反查所有 note_id
+                                        KEY `idx_tag_deleted` (`tag_id`, `is_deleted`) -- 方便通过 tag_id 反查所有 note_id
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记与标签多对多关联表';
 
 

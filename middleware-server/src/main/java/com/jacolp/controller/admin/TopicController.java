@@ -1,6 +1,5 @@
 package com.jacolp.controller.admin;
 
-import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.TopicAddDTO;
 import com.jacolp.pojo.dto.TopicListDTO;
 import com.jacolp.pojo.dto.TopicModifyDTO;
@@ -8,6 +7,7 @@ import com.jacolp.pojo.vo.TopicDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.TopicService;
+import com.jacolp.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,10 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 @RestController("Admin-TopicController")
@@ -78,40 +75,9 @@ public class TopicController {
     public Result<String> delete(@Parameter(description = "主题ID，使用英文逗号分隔，例如 1,2,3")
                                  @RequestParam String ids) {
         // 支持前端以字符串形式传入批量 ID："1,2,3"
-        List<Long> idList = parseIds(ids);
+        List<Long> idList = IdParserUtil.parseIds(ids, "主题");
         log.info("Admin delete topics, ids: {}", idList);
         topicService.deleteTopics(idList);
         return Result.success();
-    }
-
-    private List<Long> parseIds(String ids) {
-        if (!StringUtils.hasText(ids)) {
-            throw new BaseException("待删除的主题 ID 列表不能为空");
-        }
-
-        /*
-         * LinkedHashSet 作用：
-         * 1. 去重，避免重复 ID 干扰删除校验；
-         * 2. 保持输入顺序，便于日志排查。
-         */
-        LinkedHashSet<Long> idSet = new LinkedHashSet<>();
-        String[] parts = ids.split(",");
-        for (String part : parts) {
-            String trimmed = part.trim();
-            if (!StringUtils.hasText(trimmed)) {
-                continue;
-            }
-            try {
-                idSet.add(Long.valueOf(trimmed));
-            } catch (NumberFormatException ex) {
-                throw new BaseException("主题 ID 非法: " + trimmed);
-            }
-        }
-
-        List<Long> result = new ArrayList<>(idSet);
-        if (result.isEmpty()) {
-            throw new BaseException("待删除的主题 ID 列表不能为空");
-        }
-        return result;
     }
 }

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.TagMapper">
+
+    <!-- 新增标签，主键回填 -->
+    <insert id="insertTag" parameterType="com.jacolp.pojo.entity.TagEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_tag (user_id, tag_name, create_time)
+        VALUES (#{userId}, #{tagName}, NOW())
+    </insert>
+
+    <!-- 批量新增（由 Service 预筛选后调用，保证无重复） -->
+    <insert id="batchInsertTags">
+        INSERT INTO biz_tag (user_id, tag_name, create_time)
+        VALUES
+        <foreach collection="tags" item="tag" separator=",">
+            (#{tag.userId}, #{tag.tagName}, NOW())
+        </foreach>
+    </insert>
+
+    <!-- 修改标签 -->
+    <update id="updateTag" parameterType="com.jacolp.pojo.entity.TagEntity">
+        UPDATE biz_tag
+        SET tag_name = #{tagName}
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <!-- 删除前校验：统计各 tag 的关联笔记数 -->
+    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.domain.TagNoteCountDO">
+        SELECT
+            t.id AS tagId,
+            t.tag_name AS tagName,
+            COUNT(m.note_id) AS noteCount
+        FROM biz_tag t
+        LEFT JOIN biz_note_tag_mapping m ON m.tag_id = t.id AND m.is_deleted = 0
+        WHERE t.user_id = #{userId}
+          AND t.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY t.id, t.tag_name
+    </select>
+
+    <!-- 批量删除 -->
+    <delete id="deleteByIds">
+        DELETE FROM biz_tag
+        WHERE user_id = #{userId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 列表查询（前缀搜索，PageHelper 分页） -->
+    <select id="listByCondition" resultType="com.jacolp.pojo.vo.TagVO">
+        SELECT id, user_id AS userId, tag_name AS tagName, create_time AS createTime
+        FROM biz_tag
+        <where>
+            <if test="userId != null">
+                user_id = #{userId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND tag_name LIKE CONCAT(#{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>
