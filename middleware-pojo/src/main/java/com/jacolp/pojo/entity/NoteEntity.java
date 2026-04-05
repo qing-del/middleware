@@ -21,7 +21,7 @@ public class NoteEntity implements Serializable {
 
     private Long userId;
 
-    private Long topicId;
+    private Long topicId;   // 0-未分类到对应主题(default)
 
     private String title;
 
@@ -29,7 +29,13 @@ public class NoteEntity implements Serializable {
 
     private String mdFilePath;
 
-    private Integer isPublished;
+    private Integer isPublished;  // 是否发布：1-公开, 0-私密
+
+    private Integer storageType;  // 存储方式：0-本地, 1-云OSS
+
+    private Integer isMissingPhoto;  // 是否缺少图片：0-正常, 1-缺少图片
+
+    private Integer isDeleted;  // 是否删除：0-正常, 1-删除
 
     private LocalDateTime createTime;
 

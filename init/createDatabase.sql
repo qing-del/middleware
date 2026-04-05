@@ -46,6 +46,7 @@ CREATE TABLE `sys_user` (
                             KEY `idx_role_id` (`role_id`),
                             KEY `idx_status_role` (`status`, `role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户信息表';
+-- 服务器启动时会默认创建（若存在则会进行覆盖该用户）一个id=1的创建者用户
 
 
 -- ==========================================
@@ -55,13 +56,13 @@ CREATE TABLE `sys_user` (
 CREATE TABLE `biz_topic` (
                              `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主题ID',
                              `user_id` bigint NOT NULL COMMENT '创建者ID(隔离不同用户的主题)',
-                             `topic_name` varchar(100) NOT NULL COMMENT '主题名称(如: MySQL, Redis, 架构设计)',
+                             `topic_name` varchar(25) NOT NULL COMMENT '主题名称(如: MySQL, Redis, 架构设计)',
                              `sort_order` int DEFAULT 0 COMMENT '排序字段(用于左侧菜单栏排序)',
                              `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                              `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                              PRIMARY KEY (`id`),
                              KEY `idx_user_id` (`user_id`),
-                             UNIQUE KEY `uk_user_topic` (`user_id`, `topic_name`) -- 同一个用户不能创建同名的主题
+                             UNIQUE KEY `uk_topic_user` (`topic_name`, `user_id`) -- 同一个用户不能创建同名的主题
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记主题/分类表';
 
 
@@ -92,6 +93,9 @@ CREATE TABLE `biz_note` (
                             `html_file_path` varchar(500) NOT NULL COMMENT 'HTML文件在本地服务器的绝对/相对路径',
                             `md_file_path` varchar(500) DEFAULT NULL COMMENT '原始Markdown文件的存储路径(可选,便于后期编辑)',
                             `is_published` tinyint NOT NULL DEFAULT 0 COMMENT '是否发布(1:公开, 0:私密)',
+                            `storage_type` tinyint NOT NULL COMMENT '存储方式-0:本地, 1:云OSS',
+                            `is_missing_photo` tinyint NOT NULL DEFAULT 0 COMMENT '是否缺少图片(0:正常, 1:缺少图片)',
+                            `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                             PRIMARY KEY (`id`),
@@ -119,14 +123,15 @@ CREATE TABLE `biz_note_tag_mapping` (
 CREATE TABLE `biz_image` (
                              `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
                              `user_id` bigint NOT NULL COMMENT '上传者ID',
-                             `unique_filename` varchar(255) NOT NULL COMMENT '唯一文件名(例如: UUID.png)',
+                             `topic_id` bigint DEFAULT NULL COMMENT '所属主题ID,0-默认(未分类)',
+                             `filename` varchar(255) NOT NULL COMMENT '文件名',
                              `oss_url` varchar(1000) NOT NULL COMMENT '图片在OSS(或云存储)中的完整访问URL',
                              `storage_type` tinyint NOT NULL COMMENT '存储方式-0:本地, 1:云OSS',
                              `file_size` int DEFAULT NULL COMMENT '文件大小(字节, 选填)',
                              `upload_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
                              PRIMARY KEY (`id`),
-                             UNIQUE KEY `uk_unique_filename` (`unique_filename`),
-                             KEY `idx_user_id` (`user_id`)
+                             -- 对于 (uk_user_topic_filename) 采取 Java 层逻辑唯一索引
+                             KEY `uk_user_topic_filename` (`user_id`, `topic_id`, filename(40))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片资源映射表';
 
 

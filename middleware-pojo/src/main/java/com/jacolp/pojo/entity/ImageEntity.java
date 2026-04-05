@@ -21,11 +21,13 @@ public class ImageEntity implements Serializable {
 
     private Long userId;
 
-    private String uniqueFilename;
+    private Long topicId;  // 所属主题ID 0-未归类主题
+
+    private String filename;  // 文件名
 
     private String ossUrl;
 
-    private Short storageType;  // 0:本地 1:云OSS
+    private Short storageType;  // 存储方式：0-本地, 1-云OSS
 
     private Integer fileSize;
 

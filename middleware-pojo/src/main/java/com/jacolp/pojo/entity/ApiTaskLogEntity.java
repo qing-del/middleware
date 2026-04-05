@@ -23,7 +23,7 @@ public class ApiTaskLogEntity implements Serializable {
 
     private String taskType;
 
-    private Integer taskStatus;
+    private Integer taskStatus;  // 状态：0-处理中, 1-成功, 2-失败
 
     private String resultUrl;
 

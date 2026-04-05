@@ -1,7 +1,10 @@
 package com.jacolp.interceptor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.constant.UserConstant;
+import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.properties.JwtProperties;
+import com.jacolp.result.Result;
 import com.jacolp.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +23,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class JwtTokenUserInterceptor implements HandlerInterceptor {
 
     @Autowired private JwtProperties jwtProperties;
+    private static final ObjectMapper OBJECT_MAPPER = new JacksonObjectMapper();
 
     /**
      * verify JWT token
@@ -57,7 +61,25 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         } catch (Exception ex) {
             // 4、不通过，响应401状态码
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            log.error("JWT verification failed: {}", ex.getMessage());
+            setResult(response, Result.error("认证令牌无效或已过期"));
             return false;
+        }
+    }
+
+    /**
+     * 设置响应结果
+     *
+     * @param response 响应对象
+     * @param result   返回结果
+     */
+    private void setResult(HttpServletResponse response, Result<?> result) {
+        try {
+            response.setContentType("application/json;charset=UTF-8");
+            String json = OBJECT_MAPPER.writeValueAsString(result);
+            response.getWriter().write(json);
+        } catch (Exception e) {
+            log.error("Failed to write response: {}", e.getMessage());
         }
     }
 

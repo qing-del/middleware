@@ -1,7 +1,10 @@
 package com.jacolp.interceptor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.context.BaseContext;
+import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.properties.JwtProperties;
+import com.jacolp.result.Result;
 import com.jacolp.utils.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +23,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class JwtTokenAdminInterceptor implements HandlerInterceptor {
 
     private static final String ADMIN_ID_CLAIM = "adminId";
+    private static final ObjectMapper OBJECT_MAPPER = new JacksonObjectMapper();
 
     @Autowired
     private JwtProperties jwtProperties;
@@ -49,26 +53,46 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
         try {
             if (token == null || token.isBlank()) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                setResult(response, Result.error("未提供认证令牌"));
                 return false;
             }
             log.info("JWT verification: {}", token);
             Claims claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
             Long adminId = Long.valueOf(claims.get(ADMIN_ID_CLAIM).toString());
             log.info("Current admin ID: {}", adminId);
-
+        
             BaseContext.setCurrentId(adminId);
             // 3、通过，放行
             return true;
         } catch (Exception ex) {
             // 4、不通过，响应401状态码
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            log.error("JWT verification failed: {}", ex.getMessage());
+            setResult(response, Result.error("认证令牌无效或已过期"));
             return false;
         }
     }
 
 
     /**
+     * 设置响应结果
+     *
+     * @param response 响应对象
+     * @param result   返回结果
+     */
+    private void setResult(HttpServletResponse response, Result<?> result) {
+        try {
+            response.setContentType("application/json;charset=UTF-8");
+            String json = OBJECT_MAPPER.writeValueAsString(result);
+            response.getWriter().write(json);
+        } catch (Exception e) {
+            log.error("Failed to write response: {}", e.getMessage());
+        }
+    }
+
+    /**
      * 清理线程数据
+     *
      * @param request
      * @param response
      * @param handler

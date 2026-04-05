@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.TopicMapper">
+
+    <!-- 新增主题，主键回填到 TopicEntity.id -->
+    <insert id="insertTopic" parameterType="com.jacolp.pojo.entity.TopicEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_topic (user_id, topic_name, sort_order, create_time, update_time)
+        VALUES (#{userId}, #{topicName}, #{sortOrder}, NOW(), NOW())
+    </insert>
+
+    <!-- 按需更新：仅更新传入字段 -->
+    <update id="updateTopic" parameterType="com.jacolp.pojo.entity.TopicEntity">
+        UPDATE biz_topic
+        <set>
+            <if test="topicName != null and topicName != ''">
+                topic_name = #{topicName},
+            </if>
+            <if test="sortOrder != null">
+                sort_order = #{sortOrder},
+            </if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <!-- 主题列表查询：左连接笔记统计，支持关键词过滤 -->
+    <select id="listByCondition" resultType="com.jacolp.pojo.vo.TopicListVO">
+        SELECT
+            t.id,
+            t.topic_name AS topicName,
+            t.sort_order AS sortOrder,
+            t.create_time AS createTime,
+            t.update_time AS updateTime,
+            IFNULL(n.note_count, 0) AS noteCount
+        FROM biz_topic t
+        LEFT JOIN (
+            SELECT topic_id, COUNT(1) AS note_count
+            FROM biz_note
+            WHERE is_deleted = 0
+            GROUP BY topic_id
+        ) n ON t.id = n.topic_id
+        <where>
+            <if test="userId != null"> t.user_id = #{userId} </if>
+            <if test="keyword != null and keyword != ''">
+                AND t.topic_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY t.sort_order ASC, t.update_time DESC, t.id DESC
+    </select>
+
+    <!-- 删除前校验查询：获取每个主题的未删除笔记数 -->
+    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.domain.TopicNoteCountDO">
+        SELECT
+            t.topic_name AS topicName,
+            COUNT(n.id) AS noteCount
+        FROM biz_topic t
+        LEFT JOIN biz_note n ON n.topic_id = t.id AND n.is_deleted = 0
+        WHERE t.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY t.id
+    </select>
+
+    <!-- 批量删除主题（仅删除当前用户所属主题） -->
+    <delete id="deleteByIds">
+        DELETE FROM biz_topic
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

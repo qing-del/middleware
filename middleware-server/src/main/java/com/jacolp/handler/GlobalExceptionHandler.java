@@ -64,6 +64,13 @@ public class GlobalExceptionHandler {
             return Result.error(msg);
         }
 
+        // SQL Integrity Constraint Violation Exception: Column 'user_id' cannot be null
+        if (ex.getMessage().contains("cannot be null")) {
+            String[] split = ex.getMessage().split(" ");
+            String msg = "传递的字段：" + split[1] + DatabaseConstant.CANNOT_BE_NULL;
+            return Result.error(msg);
+        }
+
         return Result.error("未知错误");
     }
 }
