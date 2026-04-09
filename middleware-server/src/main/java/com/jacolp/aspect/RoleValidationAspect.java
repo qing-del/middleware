@@ -3,7 +3,7 @@ package com.jacolp.aspect;
 import com.jacolp.annotation.RequireValidRole;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.RoleMapper;
-import com.jacolp.pojo.dto.RoleIdProvider;
+import com.jacolp.pojo.provider.RoleIdProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;

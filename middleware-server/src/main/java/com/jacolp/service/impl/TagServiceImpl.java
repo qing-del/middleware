@@ -2,6 +2,7 @@ package com.jacolp.service.impl;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
@@ -50,6 +51,7 @@ public class TagServiceImpl implements TagService {
         TagEntity tag = new TagEntity();
         tag.setUserId(userId);
         tag.setTagName(tagName);
+        tag.setIsPass(AuditConstant.PASS);
         int count = tagMapper.insertTag(tag);
         if (count <= 0) {
             throw new BaseException(TagConstant.TAG_ADD_FAILED);
@@ -90,6 +92,7 @@ public class TagServiceImpl implements TagService {
                 TagEntity tag = new TagEntity();
                 tag.setUserId(userId);
                 tag.setTagName(tagName);
+                tag.setIsPass(AuditConstant.PASS);
                 toInsert.add(tag);
             }
         }

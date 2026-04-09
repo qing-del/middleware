@@ -1,4 +1,4 @@
-package com.jacolp.pojo.entity;
+package com.jacolp.pojo.vo;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,12 +8,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 图片资源映射表 biz_image 对应实体。
+ * 图片列表响应 VO。
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ImageEntity implements Serializable {
+public class ImageVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -21,13 +21,13 @@ public class ImageEntity implements Serializable {
 
     private Long userId;
 
-    private Long topicId;  // 所属主题ID 0-未归类主题
+    private Long topicId;
 
-    private String filename;  // 文件名
+    private String filename;
 
     private String ossUrl;
 
-    private Short storageType;  // 存储方式：1-阿里云OSS, 2-Cloudflare R2
+    private Short storageType;
 
     private Long fileSize;
 

@@ -4,7 +4,9 @@ public class UserConstant {
     public static final String ADMIN_ID_CLAIM = "adminId";
     public static final String USER_ID_CLAIM = "userId";
 
+    public static final int UNACTIVE_STATUS = 2;
     public static final int DEFAULT_STATUS = 1;
+    public static final int BANNED_STATUS = 0;
 
     public static final String USER_LOGIN_FAILED = "用户登录失败";
     public static final String NOT_FIND_USER = "用户不存在";

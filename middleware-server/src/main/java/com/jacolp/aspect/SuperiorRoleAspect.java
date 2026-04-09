@@ -6,7 +6,7 @@ import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PermissionDeniedException;
 import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.dto.TargetUserProvider;
+import com.jacolp.pojo.provider.TargetUserProvider;
 import com.jacolp.pojo.entity.UserEntity;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;

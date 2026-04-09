@@ -2,6 +2,7 @@ package com.jacolp.service.impl;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.TopicConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
@@ -57,7 +58,8 @@ public class TopicServiceImpl implements TopicService {
 
         TopicEntity topic = new TopicEntity();
         BeanUtils.copyProperties(dto, topic);
-        //topic.setUserId(userId);
+        topic.setUserId(userId);
+        topic.setIsPass(AuditConstant.PASS);
 
         // 未传排序时使用默认值，保证列表排序稳定
         Integer sortOrder = dto.getSortOrder();

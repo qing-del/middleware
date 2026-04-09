@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.ImageMapper">
+
+    <!-- resultMap：简化字段映射 -->
+    <resultMap id="ImageVO" type="com.jacolp.pojo.vo.ImageVO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="topic_id" property="topicId"/>
+        <result column="filename" property="filename"/>
+        <result column="oss_url" property="ossUrl"/>
+        <result column="storage_type" property="storageType"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="is_public" property="isPublic"/>
+        <result column="is_pass" property="isPass"/>
+        <result column="upload_time" property="uploadTime"/>
+    </resultMap>
+
+    <!-- 新增图片，主键回填 -->
+    <insert id="insertImage" parameterType="com.jacolp.pojo.entity.ImageEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_image (user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time)
+        VALUES (#{userId}, #{topicId}, #{filename}, #{ossUrl}, #{storageType}, #{fileSize}, 0, 0, NOW())
+    </insert>
+
+    <!-- 更新图片信息（改名、换主题、更新 storage_type/oss_url） -->
+    <update id="updateImage" parameterType="com.jacolp.pojo.entity.ImageEntity">
+        UPDATE biz_image
+        <set>
+            <if test="filename != null and filename != ''">
+                filename = #{filename},
+            </if>
+            <if test="topicId != null">
+                topic_id = #{topicId},
+            </if>
+            <if test="ossUrl != null and ossUrl != ''">
+                oss_url = #{ossUrl},
+            </if>
+            <if test="storageType != null">
+                storage_type = #{storageType},
+            </if>
+            <if test="fileSize != null">
+                file_size = #{fileSize},
+            </if>
+            <if test="isPublic != null">
+                is_public = #{isPublic},
+            </if>
+            <if test="isPass != null">
+                is_pass = #{isPass},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 条件分页查询：支持多条件过滤 -->
+    <select id="listByCondition" parameterType="com.jacolp.pojo.entity.ImageEntity" resultMap="ImageVO">
+        SELECT
+            id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
+        FROM biz_image
+        <where>
+            <if test="userId != null">user_id = #{userId}</if>
+            <if test="topicId != null">AND topic_id = #{topicId}</if>
+            <if test="filename != null and filename != ''">
+                AND filename LIKE CONCAT(#{filename}, '%')
+            </if>
+            <if test="storageType != null">AND storage_type = #{storageType}</if>
+            <if test="isPublic != null">AND is_public = #{isPublic}</if>
+            <if test="isPass != null">AND is_pass = #{isPass}</if>
+        </where>
+        ORDER BY upload_time DESC
+    </select>
+
+    <!-- 删除前校验：查询每张图片及其被引用次数 -->
+    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.domain.ImageNoteCountDO">
+        SELECT
+            i.id AS imageId,
+            i.filename,
+            COUNT(m.id) AS refCount
+        FROM biz_image i
+        LEFT JOIN biz_note_image_mapping m ON i.id = m.image_id AND m.is_deleted = 0
+        WHERE i.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY i.id
+    </select>
+
+    <!-- 批量删除图片 -->
+    <delete id="deleteByIds">
+        DELETE FROM biz_image
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

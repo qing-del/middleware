@@ -1,5 +1,7 @@
 package com.jacolp.annotation;
 
+import com.jacolp.pojo.provider.TargetUserProvider;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -10,7 +12,7 @@ import java.lang.annotation.Target;
  * 1. 操作者的 roleId 必须 <= 2（即创建者或管理员）。
  * 2. 操作者的 roleId 必须严格小于被操作用户的 roleId。
  * <p>
- * 被标注的方法参数中必须包含一个实现了 {@link com.jacolp.pojo.dto.TargetUserProvider} 接口的参数，
+ * 被标注的方法参数中必须包含一个实现了 {@link TargetUserProvider} 接口的参数，
  * 否则会在运行期抛出开发者级别的异常。
  */
 @Target(ElementType.METHOD)

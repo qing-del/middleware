@@ -33,6 +33,15 @@
                     <if test="status != null">
                         status = #{status},
                     </if>
+                    <if test="maxStorageBytes != null">
+                        max_storage_bytes = #{maxStorageBytes},
+                    </if>
+                    <if test="noteUsedStorageBytes != null">
+                        note_used_storage_bytes = #{noteUsedStorageBytes},
+                    </if>
+                    <if test="imageUsedStorageBytes != null">
+                        img_used_storage_bytes = #{imageUsedStorageBytes},
+                    </if>
                         update_time = now()
                 </set>
                 WHERE id = #{id}

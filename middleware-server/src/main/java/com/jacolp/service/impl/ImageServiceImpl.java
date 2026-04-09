@@ -1,0 +1,492 @@
+package com.jacolp.service.impl;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+import com.jacolp.mapper.NoteMapper;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.aliyun.oss.AliyunOSSOperator;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.jacolp.context.BaseContext;
+import com.jacolp.constant.ImageConstant;
+import com.jacolp.exception.BaseException;
+import com.jacolp.mapper.ImageAuditMapper;
+import com.jacolp.mapper.ImageMapper;
+import com.jacolp.pojo.domain.ImageNoteCountDO;
+import com.jacolp.pojo.dto.ImageAuditReviewDTO;
+import com.jacolp.pojo.dto.ImageModifyInfoDTO;
+import com.jacolp.pojo.dto.ImageQueryDTO;
+import com.jacolp.pojo.entity.ImageAuditRecordEntity;
+import com.jacolp.pojo.entity.ImageEntity;
+import com.jacolp.pojo.vo.ImageVO;
+import com.jacolp.pojo.vo.NoteSimpleVO;
+import com.jacolp.result.PageResult;
+import com.jacolp.service.ImageService;
+
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * 图片服务实现。
+ * 
+ * 约束：
+ * 1. 所有查询和修改都按当前登录用户隔离（user_id）。
+ * 2. 删除图片前必须校验该图片是否被笔记引用。
+ * 3. 图片只使用云对象存储：
+ *    - 1: 阿里云 OSS（默认启用）
+ *    - 2: Cloudflare R2（仅预留扩展位，暂未实现）
+ */
+@Service
+@Slf4j
+public class ImageServiceImpl implements ImageService {
+
+    @Autowired private ImageMapper imageMapper;
+    @Autowired private ImageAuditMapper imageAuditMapper;
+    @Autowired private AliyunOSSOperator aliyunOSSOperator;
+    @Autowired private NoteMapper noteMapper;
+
+    /**
+     * 上传图片。
+     * 
+     * 流程：
+     * 1. 按 (user_id, topic_id, filename) 校验唯一性。
+     * 2. 写入物理文件。
+     * 3. 写入数据库记录。
+     * 4. 累加用户已用存储空间。
+     */
+    @Override
+    public ImageVO uploadImage(MultipartFile file, Long topicId) {
+        Long userId = BaseContext.getCurrentId();
+        String filename = file.getOriginalFilename();
+        validateFilename(filename);
+
+        // 唯一性校验：(user_id, topic_id, filename)
+        int count = imageMapper.countByUserIdTopicIdAndFilename(userId, topicId, filename);
+        if (count > 0) {
+            throw new BaseException(ImageConstant.IMAGE_NAME_DUPLICATE);
+        }
+
+        // 默认上传到阿里云 OSS，object key 规范：image/{userId}/{filename}
+        String ossUrl = uploadToAliyunOss(file, userId, filename);
+
+        // 写入数据库
+        ImageEntity image = new ImageEntity();
+        image.setUserId(userId);
+        image.setTopicId(topicId);
+        image.setFilename(filename);
+        image.setOssUrl(ossUrl);
+        image.setStorageType(ImageConstant.DEFAULT_STORAGE_TYPE);
+        image.setFileSize(file.getSize());
+        image.setIsPublic(ImageConstant.IS_PUBLIC_NO);
+        
+        // 管理员添加直接通过
+        image.setIsPass(ImageConstant.AUDIT_STATUS_APPROVED);
+        image.setUploadTime(LocalDateTime.now());
+
+        int insertCount = imageMapper.insertImage(image);
+        if (insertCount <= 0) {
+            throw new BaseException("图片上传失败");
+        }
+
+        // 转换为 VO 返回
+        ImageVO vo = new ImageVO();
+        BeanUtils.copyProperties(image, vo);
+
+        return vo;
+    }
+
+    /**
+     * 修改图片源文件。
+     * @id 图片 ID
+     */
+    @Override
+    public void modifyImageFile(Long id, MultipartFile newFile) {
+        Long userId = BaseContext.getCurrentId();
+        validateImageId(id);
+
+        // 查询旧记录
+        ImageEntity existed = imageMapper.selectById(id);
+        if (existed == null) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+        if (!existed.getUserId().equals(userId)) {
+            // 管理员也不能随便修改别人的图片内容
+            throw new BaseException(ImageConstant.IMAGE_NOT_OWNER);
+        }
+
+        if (existed.getStorageType() == null
+            || existed.getStorageType() != ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
+            // TODO 预留 R2 扩展，当前仅先实现阿里云 OSS
+            throw new BaseException(ImageConstant.IMAGE_STORAGE_PROVIDER_NOT_SUPPORTED);
+        }
+
+        Long newFileSize = newFile.getSize();
+
+        // 替换图片文件：直接覆盖原 object key
+        String oldObjectKey = extractObjectKeyFromUrl(existed.getOssUrl());
+        if (oldObjectKey == null || oldObjectKey.isEmpty()) {
+            oldObjectKey = buildObjectKey(userId, existed.getFilename());
+        }
+        String newOssUrl = uploadToAliyunOss(newFile, oldObjectKey);
+
+        // 更新数据库
+        existed.setOssUrl(newOssUrl);
+        existed.setFileSize(newFileSize);
+
+        int updateCount = imageMapper.updateImage(existed);
+        if (updateCount <= 0) {
+            throw new BaseException("图片更新失败");
+        }
+    }
+
+    /**
+     * 修改图片信息（改名/换主题）。
+     */
+    @Override
+    public void modifyImageInfo(ImageModifyInfoDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+        validateImageId(dto.getId());
+
+        // 查询现有记录
+        ImageEntity existed = imageMapper.selectById(dto.getId());
+        if (existed == null || !existed.getUserId().equals(userId)) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        // 仅更新提供的字段
+        if (dto.getFilename() != null && !dto.getFilename().isEmpty()) {
+            String newFilename = dto.getFilename().trim();
+            // 检查新文件名是否重复
+            if (!newFilename.equals(existed.getFilename())) {
+                int count = imageMapper.countByUserIdTopicIdAndFilename(userId, dto.getTopicId(), newFilename);
+                if (count > 0) {
+                    throw new BaseException(ImageConstant.IMAGE_NAME_DUPLICATE);
+                }
+            }
+            existed.setFilename(newFilename);
+        }
+
+        // 如果传过来的主题不为空 则换主题
+        if (dto.getTopicId() != null) {
+            existed.setTopicId(dto.getTopicId());
+        }
+
+        int updateCount = imageMapper.updateImage(existed);
+        if (updateCount <= 0) {
+            throw new BaseException("图片信息更新失败");
+        }
+    }
+
+    /**
+     * 云厂商迁移入口（当前仅阿里云已实现，R2 迁移逻辑预留）。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transferToCloud(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+
+        int successCount = 0;
+        int failureCount = 0;
+
+        for (Long imageId : ids) {
+            try {
+                ImageEntity image = imageMapper.selectById(imageId);
+                if (image == null) {
+                    continue;
+                }
+                if (image.getStorageType() != null
+                    && image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
+                    // 已经是默认云厂商，无需迁移
+                    continue;
+                }
+                // TODO 预留：未来实现 R2 -> 阿里云 OSS 迁移
+                log.warn("暂不支持从当前存储类型迁移到阿里云 OSS，imageId: {}, storageType: {}",
+                        imageId, image.getStorageType());
+                failureCount++;
+            } catch (Exception e) {
+                log.error("转移到云存储失败，imageId: {}", imageId, e);
+                failureCount++;
+            }
+        }
+
+        log.info("转移到云存储完成，成功: {}, 失败: {}", successCount, failureCount);
+    }
+
+    /**
+     * 已废弃：不再支持 OSS -> 本地迁移。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void transferToLocal(List<Long> ids) {
+        throw new BaseException("本地存储方案已废弃，当前仅支持云对象存储");
+    }
+
+    /**
+     * 删除图片（批量）。
+     * 
+     * 策略：先全量校验引用，如有任何一张图片被引用，则全量拒绝。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteImages(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BaseException("待删除的图片 ID 列表不能为空");
+        }
+
+        // 转换为 LinkedHashSet 以去重并保持顺序
+        Set<Long> idSet = new LinkedHashSet<>(ids);
+
+        // 查询删除检查
+        List<ImageNoteCountDO> deleteChecks = imageMapper.selectDeleteChecksByIds(new ArrayList<>(idSet));
+
+        // 检查所有引用情况
+        List<String> inUseImageNames = new ArrayList<>();
+        for (ImageNoteCountDO check : deleteChecks) {
+            if (check.getRefCount() != null && check.getRefCount() > 0) {
+                inUseImageNames.add(check.getFilename());
+            }
+        }
+
+        // 若存在被引用的图片，直接拒绝
+        if (!inUseImageNames.isEmpty()) {
+            String message = ImageConstant.IMAGE_IN_USE + "：" + String.join(", ", inUseImageNames);
+            throw new BaseException(message);
+        }
+
+        // 删除物理文件
+        for (Long imageId : idSet) {
+            try {
+                ImageEntity image = imageMapper.selectById(imageId);
+                if (image != null) {
+                    deleteFile(image);
+                }
+            } catch (Exception e) {
+                log.error("删除物理文件失败，imageId: {}", imageId, e);
+            }
+        }
+
+        // 删除数据库记录
+        int deleteCount = imageMapper.deleteByIds(new ArrayList<>(idSet));
+        if (deleteCount <= 0) {
+            throw new BaseException("图片删除失败");
+        }
+    }
+
+    /**
+     * 获取图片列表。
+     */
+    @Override
+    public PageResult listImages(ImageQueryDTO dto) {
+        if (dto == null) {
+            dto = new ImageQueryDTO();
+        }
+
+        // 分页参数处理
+        Integer pageNumParam = dto.getPageNum();
+        Integer pageSizeParam = dto.getPageSize();
+        int pageNum = pageNumParam == null || pageNumParam <= 0 ? 1 : pageNumParam;
+        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? 10 : pageSizeParam;
+
+        PageHelper.startPage(pageNum, pageSize);
+
+        ImageEntity query = new ImageEntity();
+        BeanUtils.copyProperties(dto, query);
+
+        List<ImageVO> records = imageMapper.listByCondition(query);
+        PageInfo<ImageVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 查询图片关联的笔记列表。
+     */
+    @Override
+    public List<NoteSimpleVO> listNotesByImageId(Long imageId) {
+        validateImageId(imageId);
+
+        ArrayList<NoteSimpleVO> notes = noteMapper.selectNoteSimpleByImageId(imageId);
+        // TODO 后续可以加入是否筛选 非删除/公开 的数据
+
+        return notes;
+    }
+
+    /**
+     * 公开/取消公开图片。
+     */
+    @Override
+    public void setImagePublic(Long imageId, Short isPublic) {
+        Long userId = BaseContext.getCurrentId();
+        validateImageId(imageId);
+
+        ImageEntity image = imageMapper.selectById(imageId);
+        if (image == null || !image.getUserId().equals(userId)) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        image.setIsPublic(isPublic);
+        int updateCount = imageMapper.updateImage(image);
+        if (updateCount <= 0) {
+            throw new BaseException("图片公开状态更新失败");
+        }
+    }
+
+    /**
+     * 管理员审核图片。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void auditReviewImage(ImageAuditReviewDTO dto) {
+        Long reviewerId = BaseContext.getCurrentId();
+        validateImageId(dto.getAuditId());
+
+        // 查询审核记录
+        ImageAuditRecordEntity auditRecord = imageAuditMapper.selectById(dto.getAuditId());
+        if (auditRecord == null || auditRecord.getStatus() != ImageConstant.AUDIT_STATUS_PENDING) {
+            throw new BaseException(ImageConstant.IMAGE_AUDIT_ALREADY_PROCESSED);
+        }
+
+        if (dto.getApproved()) {
+            // 批准
+            auditRecord.setStatus(ImageConstant.AUDIT_STATUS_APPROVED);
+            auditRecord.setReviewerUserId(reviewerId);
+            auditRecord.setReviewTime(LocalDateTime.now());
+
+            // 更新图片的审核状态
+            ImageEntity image = imageMapper.selectById(auditRecord.getImageId());
+            if (image != null) {
+                image.setIsPass(ImageConstant.AUDIT_STATUS_APPROVED);
+                imageMapper.updateImage(image);
+            }
+        } else {
+            // 拒绝
+            if (dto.getRejectReason() == null || dto.getRejectReason().isEmpty()) {
+                throw new BaseException("拒绝原因不能为空");
+            }
+            auditRecord.setStatus(ImageConstant.AUDIT_STATUS_REJECTED);
+            auditRecord.setReviewerUserId(reviewerId);
+            auditRecord.setRejectReason(dto.getRejectReason());
+            auditRecord.setReviewTime(LocalDateTime.now());
+
+            // 更新图片的审核状态
+            ImageEntity image = imageMapper.selectById(auditRecord.getImageId());
+            if (image != null) {
+                image.setIsPass(ImageConstant.AUDIT_STATUS_REJECTED);
+                imageMapper.updateImage(image);
+            }
+        }
+
+        imageAuditMapper.updateAuditRecord(auditRecord);
+    }
+
+    // ============ 私有方法 ============
+
+    /**
+     * 删除对象文件（当前仅支持阿里云 OSS）。
+     */
+    private void deleteFile(ImageEntity image) {
+        if (image.getStorageType() != null
+            && image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
+            deleteFromAliyunOss(image);
+            return;
+        }
+        throw new BaseException(ImageConstant.IMAGE_STORAGE_PROVIDER_NOT_SUPPORTED);
+    }
+
+    /**
+     * 上传文件到阿里云 OSS（默认存储策略）。
+     */
+    private String uploadToAliyunOss(MultipartFile file, Long userId, String filename) {
+        try {
+            String objectKey = buildObjectKey(userId, filename);
+            return uploadToAliyunOss(file, objectKey);
+        } catch (BaseException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("上传文件到阿里云 OSS 失败，userId: {}, filename: {}", userId, filename, e);
+            throw new BaseException(ImageConstant.IMAGE_TRANSFER_FAILED);
+        }
+    }
+
+    /**
+     * 上传文件到阿里云 OSS（指定 object key，可用于覆盖原对象）。
+     */
+    private String uploadToAliyunOss(MultipartFile file, String objectKey) {
+        try {
+            byte[] fileBytes = file.getBytes();
+            String ossUrl = aliyunOSSOperator.uploadByObjectName(fileBytes, objectKey);
+            log.info("上传到阿里云 OSS 成功，objectKey: {}, ossUrl: {}", objectKey, ossUrl);
+            return ossUrl;
+        } catch (Exception e) {
+            log.error("上传到阿里云 OSS 失败，objectKey: {}", objectKey, e);
+            throw new BaseException(ImageConstant.IMAGE_TRANSFER_FAILED);
+        }
+    }
+
+    /**
+     * 从阿里云 OSS 删除对象。
+     */
+    private void deleteFromAliyunOss(ImageEntity image) {
+        try {
+            String objectKey = extractObjectKeyFromUrl(image.getOssUrl());
+            if (objectKey == null || objectKey.isEmpty()) {
+                objectKey = buildObjectKey(image.getUserId(), image.getFilename());
+            }
+            boolean result = aliyunOSSOperator.delete(objectKey);
+            log.info("从阿里云 OSS 删除对象：{}, 结果: {}", objectKey, result);
+        } catch (Exception e) {
+            log.error("删除阿里云 OSS 对象失败，imageId: {}", image.getId(), e);
+            // 删除流程中记录日志即可，避免影响主事务
+        }
+    }
+
+    /**
+     * 构造规范 object key：image/{userId}/{filename}
+     */
+    private String buildObjectKey(Long userId, String filename) {
+        return ImageConstant.IMAGE_OSS_DIRECTORY_PREFIX + "/" + userId + "/" + filename;
+    }
+
+    /**
+     * 从完整 URL 中提取 object key。
+     */
+    private String extractObjectKeyFromUrl(String ossUrl) {
+        if (ossUrl == null || ossUrl.isEmpty()) {
+            return null;
+        }
+        int index = ossUrl.indexOf('/', ossUrl.indexOf("//") + 2);
+        if (index < 0 || index + 1 >= ossUrl.length()) {
+            return null;
+        }
+        return ossUrl.substring(index + 1);
+    }
+
+    /**
+     * 校验文件名。
+     * 如果文件名为空则抛出异常
+     */
+    private void validateFilename(String filename) {
+        if (filename == null || filename.isEmpty()) {
+            throw new BaseException("文件名不能为空");
+        }
+    }
+
+    /**
+     * 校验图片 ID。
+     * 只是单纯校验图片 ID 是否合法，不进行图片是否存在的校验
+     */
+    private void validateImageId(Long id) {
+        if (id == null || id <= 0) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+    }
+}

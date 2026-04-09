@@ -8,4 +8,7 @@ public interface RoleMapper {
 
     @Select("select COUNT(1) from sys_role where id = #{id}")
     Integer selectById(Long id);
+
+    @Select("select max_storage_bytes from sys_role where id = #{id}")
+    Long selectMaxStorageById(Long id);
 }

@@ -31,6 +31,12 @@ public class UserEntity implements Serializable {
 
     private Integer status;  // 状态：1-正常, 0-禁用
 
+    private Long maxStorageBytes;  // 用户个性化最大存储空间(字节)
+
+    private Long noteUsedStorageBytes;  // 用户当前已用笔记存储空间(字节)
+
+    private Long imageUsedStorageBytes;  // 用户当前已用图片存储空间(字节)
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

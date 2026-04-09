@@ -1,5 +1,6 @@
 package com.jacolp.pojo.dto;
 
+import com.jacolp.pojo.provider.RoleIdProvider;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

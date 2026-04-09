@@ -23,5 +23,7 @@ public class TagEntity implements Serializable {
 
     private String tagName;
 
+    private Short isPass;
+
     private LocalDateTime createTime;
 }

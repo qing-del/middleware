@@ -28,8 +28,8 @@ jacolp:
 
 aliyun:
   oss:
-    endpoint: ${jacolp.aliyun.oss.endpoint}
-    bucket-name: https://${jacolp.aliyun.oss.bucket-name}
+    endpoint: https://${jacolp.aliyun.oss.endpoint}
+    bucket-name: ${jacolp.aliyun.oss.bucket-name}
     region: ${jacolp.aliyun.oss.region}
 
 # 开启驼峰命名转换

@@ -1,4 +1,4 @@
-package com.jacolp.pojo.entity;
+package com.jacolp.pojo.vo;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -8,26 +8,24 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 笔记主题/分类表 biz_topic 对应实体。
+ * 关联笔记简要信息 VO。
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TopicEntity implements Serializable {
+public class NoteSimpleVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private Long id;
 
-    private Long userId;
+    private String title;
 
-    private String topicName;
+    private Short isCrossUser;
 
-    private Integer sortOrder;
+    private Short isPublished;  // TODO 后续可以选择是否加入
 
-    private Short isPass;
+    private Short isDeleted;
 
     private LocalDateTime createTime;
-
-    private LocalDateTime updateTime;
 }

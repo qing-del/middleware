@@ -1,4 +1,4 @@
-package com.jacolp.pojo.dto;
+package com.jacolp.pojo.provider;
 
 /**
  * 标记接口：实现此接口的 DTO 表示其携带了一个"被操作的目标用户 ID"。

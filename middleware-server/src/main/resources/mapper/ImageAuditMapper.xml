@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.ImageAuditMapper">
+
+    <!-- resultMap：将数据库字段映射到 VO -->
+    <resultMap id="ImageAuditVO" type="com.jacolp.pojo.vo.ImageAuditVO">
+        <id column="id" property="id"/>
+        <result column="applicant_user_id" property="applicantUserId"/>
+        <result column="image_id" property="imageId"/>
+        <result column="filename" property="filename"/>
+        <result column="oss_url" property="ossUrl"/>
+        <result column="apply_reason" property="applyReason"/>
+        <result column="status" property="status"/>
+        <result column="reviewer_user_id" property="reviewerUserId"/>
+        <result column="reviewer_username" property="reviewerUsername"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="create_time" property="createTime"/>
+        <result column="review_time" property="reviewTime"/>
+    </resultMap>
+
+    <!-- 新增审核记录 -->
+    <insert id="insertAuditRecord" parameterType="com.jacolp.pojo.entity.ImageAuditRecordEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_image_audit_record (applicant_user_id, image_id, apply_reason, status, create_time)
+        VALUES (#{applicantUserId}, #{imageId}, #{applyReason}, 0, NOW())
+    </insert>
+
+    <!-- 修改审核记录（批准或拒绝） -->
+    <update id="updateAuditRecord" parameterType="com.jacolp.pojo.entity.ImageAuditRecordEntity">
+        UPDATE biz_image_audit_record
+        <set>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="reviewerUserId != null">
+                reviewer_user_id = #{reviewerUserId},
+            </if>
+            <if test="rejectReason != null and rejectReason != ''">
+                reject_reason = #{rejectReason},
+            </if>
+            review_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 条件查询审核列表（管理员用）-->
+    <select id="listByCondition" resultMap="ImageAuditVO">
+        SELECT
+            a.id,
+            a.applicant_user_id,
+            a.image_id,
+            a.apply_reason,
+            a.status,
+            a.reviewer_user_id,
+            (SELECT username FROM sys_user WHERE id = a.reviewer_user_id) AS reviewer_username,
+            a.reject_reason,
+            a.create_time,
+            a.review_time,
+            i.filename,
+            i.oss_url
+        FROM biz_image_audit_record a
+        LEFT JOIN biz_image i ON i.id = a.image_id
+        <where>
+            <if test="status != null">a.status = #{status}</if>
+        </where>
+        ORDER BY a.create_time ASC
+    </select>
+
+    <!-- 查询待审核审核列表 -->
+    <select id="listPendingAudits" resultMap="ImageAuditVO">
+        SELECT
+            a.id,
+            a.applicant_user_id,
+            a.image_id,
+            a.apply_reason,
+            a.status,
+            a.reviewer_user_id,
+            (SELECT username FROM sys_user WHERE id = a.reviewer_user_id) AS reviewer_username,
+            a.reject_reason,
+            a.create_time,
+            a.review_time,
+            i.filename,
+            i.oss_url
+        FROM biz_image_audit_record a
+        LEFT JOIN biz_image i ON i.id = a.image_id
+        WHERE a.status = 0
+        ORDER BY a.create_time ASC
+    </select>
+
+</mapper>

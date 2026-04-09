@@ -41,7 +41,7 @@ public class UserServiceImpl implements UserService {
         }
 
         // 检查账号状态
-        if (user.getStatus() == 0) {
+        if (user.getStatus() == UserConstant.BANNED_STATUS) {
             log.error("User is banned!");
             throw new UserIsBanException(UserConstant.USER_IS_BANNED);
         }
@@ -83,7 +83,7 @@ public class UserServiceImpl implements UserService {
         }
 
         // 2. 账号被禁用则直接拒绝登录
-        if (user.getStatus() == 0) {
+        if (user.getStatus() == UserConstant.BANNED_STATUS) {
             log.error("User is banned!");
             throw new UserIsBanException(UserConstant.USER_IS_BANNED);
         }
@@ -127,7 +127,7 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
         user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
         user.setRoleId(RoleConstant.USER);
-        user.setStatus(UserConstant.DEFAULT_STATUS);
+        user.setStatus(UserConstant.UNACTIVE_STATUS);   // 默认用户状态为未激活
 
         int count = userMapper.insertUser(user);
         if (count <= 0) {
