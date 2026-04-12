@@ -8,6 +8,9 @@ spring:
     username: ${jacolp.datasource.username}
     password: ${jacolp.datasource.password}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      keep-alive-time: 50000  # 50 秒尝试一次保持 TCP 连接
+      connection-test-query: SELECT 1
 
 jacolp:
   admin:
@@ -25,6 +28,12 @@ jacolp:
     root: ${jacolp.markdown.root}
     input-dir: ${jacolp.markdown.input}
     output-dir: ${jacolp.markdown.output}
+  aliyun:
+    oss:
+      keep-live-time: 45  # 单位是秒
+      enabled: true
+  image:
+    delete-image-task-time: 1 # 单位是分钟
 
 aliyun:
   oss:

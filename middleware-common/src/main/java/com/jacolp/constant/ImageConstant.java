@@ -33,7 +33,14 @@ public class ImageConstant {
     public static final short AUDIT_STATUS_APPROVED = 1;  // 已通过
     public static final short AUDIT_STATUS_REJECTED = 2;  // 已拒绝
 
+    // ============= 图片删除死信队列常量 =============
+    public static final short IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING = 0;    // 等待处理
+    public static final short IMAGE_DELETE_DEAD_LETTER_STATUS_COMPLETED = 1;  // 处理完成
+
+    public static final String FAILED_TO_INSERT_IMAGE_DELETE_DEAD_LETTER = "图片删除死信队列插入失败";
+
     // ================ 错误消息 ================
+    public static final String IMAGE_EMPTY_FILENAME = "文件名不能为空";
     public static final String IMAGE_NOT_FOUND = "未找到目标图片";
     public static final String IMAGE_FILE_EMPTY = "上传的图片文件为空";
     public static final String IMAGE_FILE_TOO_LARGE = "图片文件大小超出系统限制";
@@ -47,4 +54,5 @@ public class ImageConstant {
     public static final String IMAGE_AUDIT_ALREADY_PROCESSED = "该审核记录已处理";
     public static final String IMAGE_NOT_OWNER = "不是图片归属者无法修改图片内容";
     public static final String IMAGE_STORAGE_PROVIDER_NOT_SUPPORTED = "当前存储类型暂不支持，请后续接入对应云存储实现";
+    public static final String IMAGE_REJECT_REASON_NOT_EMPTY = "拒绝原因不能为空";
 }

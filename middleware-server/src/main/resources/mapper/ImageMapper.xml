@@ -85,6 +85,15 @@
         GROUP BY i.id
     </select>
 
+    <select id="selectByIds" resultType="com.jacolp.pojo.entity.ImageEntity">
+        SELECT id, user_id, filename, oss_url, storage_type, file_size
+        FROM biz_image
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <!-- 批量删除图片 -->
     <delete id="deleteByIds">
         DELETE FROM biz_image

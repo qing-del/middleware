@@ -32,4 +32,7 @@ public interface UserService {
 
     // 管理员封禁/解封账号状态
     void updateStatus(Long targetId, Integer status);
+
+    // 获取用户信息
+    UserEntity getUserById(Long id);
 }

@@ -21,7 +21,7 @@ public class ImageEntity implements Serializable {
 
     private Long userId;
 
-    private Long topicId;  // 所属主题ID 0-未归类主题
+    private Long topicId;  // 所属主题ID，NULL 表示未归类
 
     private String filename;  // 文件名
 

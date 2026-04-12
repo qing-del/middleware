@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.jacolp.enums.StorageOperationType;
+import com.jacolp.pojo.vo.ImageBatchDeleteVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,18 +20,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.annotation.CheckAndUpdateUserStorage;
 import com.jacolp.annotation.ImageLimit;
-import com.jacolp.constant.ImageConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.ImageModifyInfoDTO;
 import com.jacolp.pojo.dto.ImagePublicDTO;
 import com.jacolp.pojo.dto.ImageQueryDTO;
-import com.jacolp.pojo.vo.ImageVO;
 import com.jacolp.pojo.vo.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.ImageService;
-import com.jacolp.utils.IdParserUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -60,7 +59,7 @@ public class ImageController {
      */
     @PostMapping("/upload")
     @ImageLimit
-    @CheckAndUpdateUserStorage
+    @CheckAndUpdateUserStorage(operationType = StorageOperationType.UPLOAD)
     @Operation(description = "上传图片")
     public Result<String> upload(
             @RequestParam(required = false) Long topicId,
@@ -77,7 +76,7 @@ public class ImageController {
      */
     @PutMapping("/modify-file")
     @ImageLimit
-    @CheckAndUpdateUserStorage
+    @CheckAndUpdateUserStorage(operationType = StorageOperationType.UPLOAD)
     @Operation(description = "修改图片源文件")
     public Result<String> modifyFile(
             @Parameter(description = "图片ID") @RequestParam Long id,
@@ -129,12 +128,11 @@ public class ImageController {
      */
     @DeleteMapping("/delete")
     @Operation(description = "批量删除图片")
-    public Result<String> delete(
+    public Result<ImageBatchDeleteVO> delete(
             @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
         List<Long> idList = parseIds(ids);
         log.info("Admin delete images, ids: {}", idList);
-        imageService.deleteImages(idList);
-        return Result.success();
+        return Result.success(imageService.deleteImages(idList));
     }
 
     /**

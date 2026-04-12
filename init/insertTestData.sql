@@ -16,7 +16,8 @@ INSERT INTO `sys_user` (`id`, `username`, `password`, `nickname`, `email`, `role
                                                                                                     (1, 'creator_admin', '$2a$10$8K1p/a0dxE.Y8L.oUIn8Lu7Yl18f5pI1O3vS7l6f9Y.f9Uo7i8I6K', '系统创建者', 'creator@example.com', 1, 1),
                                                                                                     (2, 'zhangsan', '$2a$10$8K1p/a0dxE.Y8L.oUIn8Lu7Yl18f5pI1O3vS7l6f9Y.f9Uo7i8I6K', '张三', 'zhangsan@test.com', 3, 1),
                                                                                                     (3, 'lisi_vip', '$2a$10$8K1p/a0dxE.Y8L.oUIn8Lu7Yl18f5pI1O3vS7l6f9Y.f9Uo7i8I6K', '李四VIP', 'lisi@test.com', 4, 1),
-                                                                                                    (4, 'disabled_user', '$2a$10$8K1p/a0dxE.Y8L.oUIn8Lu7Yl18f5pI1O3vS7l6f9Y.f9Uo7i8I6K', '被禁用用户', 'badboy@test.com', 3, 0);
+                                                                                                    (4, 'disabled_user', '$2a$10$8K1p/a0dxE.Y8L.oUIn8Lu7Yl18f5pI1O3vS7l6f9Y.f9Uo7i8I6K', '被禁用用户', 'badboy@test.com', 3, 0),
+                                                                                                    (5, 'new_user_wait_active', '$2a$10$8K1p/a0dxE.Y8L.oUIn8Lu7Yl18f5pI1O3vS7l6f9Y.f9Uo7i8I6K', '未激活用户', 'wait_active@test.com', 3, 2);
 
 
 -- ==========================================
@@ -122,11 +123,14 @@ INSERT INTO `biz_note_tag_mapping` (`note_id`, `tag_id`) VALUES
 
 -- ==========================================
 -- 7. 图片资源映射表 (biz_image)
+-- 说明：biz_image 仅支持云存储(1=阿里云OSS, 2=Cloudflare R2预留)
 -- ==========================================
-INSERT INTO `biz_image` (`user_id`, `topic_id`, `filename`, `oss_url`, `storage_type`, `file_size`) VALUES
-                                                                                                        (1, 1, 'mysql_b_tree.png', '/storage/images/1/mysql_b_tree.png', 0, 102455),
-                                                                                                        (1, 1, 'explain_result.jpg', '/storage/images/1/explain_result.jpg', 0, 56789),
-                                                                                                        (3, 5, 'raft_protocol.png', 'https://oss.example.com/u3/raft_protocol.png', 1, 204800);
+INSERT INTO `biz_image` (`id`, `user_id`, `topic_id`, `filename`, `oss_url`, `storage_type`, `file_size`, `is_public`, `is_pass`) VALUES
+                                                                                                              (1, 1, 1, 'mysql_b_tree.png', 'https://oss.example.com/u1/mysql_b_tree.png', 1, 102455, 1, 1),
+                                                                                                              (2, 1, 1, 'explain_result.jpg', 'https://oss.example.com/u1/explain_result.jpg', 1, 56789, 0, 1),
+                                                                                                              (3, 3, 10, 'raft_protocol.png', 'https://oss.example.com/u3/raft_protocol.png', 1, 204800, 1, 1),
+                                                                                                              (4, 2, 8, 'daily_note_cover.png', 'https://oss.example.com/u2/daily_note_cover.png', 1, 40960, 0, 0),
+                                                                                                              (5, 3, 10, 'eventual_consistency.png', 'https://r2.example.com/u3/eventual_consistency.png', 2, 99888, 1, 0);
 
 
 -- ==========================================
@@ -136,7 +140,9 @@ INSERT INTO `biz_image` (`user_id`, `topic_id`, `filename`, `oss_url`, `storage_
 INSERT INTO `biz_api_daily_usage` (`user_id`, `record_date`, `used_count`) VALUES
                                                                                (1, CURDATE(), 50),     -- 管理员今天用了 50 次
                                                                                (2, CURDATE(), 5),      -- 普通用户张三今天已经用完了（上限5次）
-                                                                               (3, CURDATE(), 10);     -- VIP 李四今天用了 10 次
+                                                                               (3, CURDATE(), 10),     -- VIP 李四今天用了 10 次
+                                                                               (2, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 3),
+                                                                               (3, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 35);
 
 
 -- ==========================================
@@ -146,3 +152,54 @@ INSERT INTO `biz_api_task_log` (`user_id`, `task_type`, `task_status`, `result_u
                                                                                                                      (1, 'analyze_text', 1, 'https://oss.example.com/res/report_001.pdf', NULL, NOW()),
                                                                                                                      (2, 'generate_audio', 2, NULL, 'Python Script Timeout: Connection refused', NOW()),
                                                                                                                      (3, 'analyze_text', 0, NULL, NULL, NULL); -- 处理中任务
+
+
+-- ==========================================
+-- 10. 笔记-图片引用映射表 (biz_note_image_mapping)
+-- ==========================================
+INSERT INTO `biz_note_image_mapping`
+(`note_id`, `image_id`, `note_user_id`, `image_user_id`, `parsed_image_name`, `note_title`, `is_cross_user`, `is_deleted`) VALUES
+    (1, 1, 1, 1, 'mysql_b_tree.png', 'MySQL 索引失效的 10 种场景', 0, 0),
+    (1, 2, 1, 1, 'explain_result.jpg', 'MySQL 索引失效的 10 种场景', 0, 0),
+    (4, 3, 3, 3, 'raft_protocol.png', '分布式事务一致性方案', 0, 0),
+    (8, 3, 1, 3, 'raft_protocol.png', '微服务架构设计模式', 1, 0),
+    (3, 4, 2, 2, 'daily_note_cover.png', '2024 年第一篇随笔', 0, 1);
+
+
+-- ==========================================
+-- 11. 元数据审核表 (biz_meta_audit_record)
+-- ==========================================
+INSERT INTO `biz_meta_audit_record`
+(`applicant_user_id`, `apply_type`, `target_id`, `apply_reason`, `status`, `reviewer_user_id`, `reject_reason`, `review_time`) VALUES
+    (2, 1, 8, '申请将主题公开给团队共享', 1, 1, NULL, NOW()),
+    (2, 2, 11, '该标签用于项目复盘', 2, 1, '标签描述过于模糊，请补充语义', NOW()),
+    (3, 1, 10, '申请加急审核架构主题', 0, NULL, NULL, NULL);
+
+
+-- ==========================================
+-- 12. 图片审核表 (biz_image_audit_record)
+-- ==========================================
+INSERT INTO `biz_image_audit_record`
+(`applicant_user_id`, `image_id`, `apply_reason`, `status`, `reviewer_user_id`, `reject_reason`, `review_time`) VALUES
+    (2, 4, '封面图用于公开笔记，申请通过审核', 0, NULL, NULL, NULL),
+    (3, 5, '该图为原创架构图，申请公开引用', 2, 1, '当前图片清晰度不足，请重新上传高清版本', NOW()),
+    (1, 1, '用于公共知识库示例图', 1, 1, NULL, NOW());
+
+
+-- ==========================================
+-- 13. 笔记审核表 (biz_note_audit_record)
+-- ==========================================
+INSERT INTO `biz_note_audit_record`
+(`applicant_user_id`, `note_id`, `apply_reason`, `status`, `reviewer_user_id`, `reject_reason`, `review_time`) VALUES
+    (2, 3, '内容已补充完整，申请发布', 0, NULL, NULL, NULL),
+    (1, 2, '技术笔记申请公开', 1, 1, NULL, NOW()),
+    (3, 4, '申请首页推荐', 2, 1, '内容缺少可复现步骤，请补充后重提', NOW());
+
+
+-- ==========================================
+-- 14. 图片删除死信队列表 (biz_image_delete_dead_letter)
+-- ==========================================
+INSERT INTO `biz_image_delete_dead_letter` (`image_url`, `status`) VALUES
+    ('https://oss.example.com/u2/expired_audit_001.png', 0),
+    ('https://oss.example.com/u1/temp/deprecated_cover.png', 0),
+    ('https://r2.example.com/u3/legacy/old_architecture.png', 1);

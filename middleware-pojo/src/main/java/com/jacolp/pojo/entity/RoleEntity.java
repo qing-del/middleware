@@ -25,6 +25,8 @@ public class RoleEntity implements Serializable {
 
     private Integer dailyApiLimit;
 
+    private Long maxStorageBytes;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

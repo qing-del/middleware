@@ -17,4 +17,5 @@ public class UserConstant {
     public static final String PASSWORD_IS_REQUIRED = "密码不能为空";
     public static final String PASSWORD_CONFIRM_ERROR = "两次密码输入不一致";
     public static final String USER_ALREADY_EXISTS = "用户名已存在";
+    public static final String UPDATE_USER_STORAGE_FAILED = "更新用户存储空间失败";
 }

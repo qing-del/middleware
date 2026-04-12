@@ -19,6 +19,8 @@ public class NoteTagMappingEntity implements Serializable {
 
     private Long noteId;
 
+    private Integer isDeleted;
+
     private Long tagId;
 
     private LocalDateTime createTime;

@@ -51,4 +51,10 @@ public interface TopicMapper {
      * 批量删除主题。
      */
     int deleteByIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 按 ID 检查主题是否存在。
+     */
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_topic WHERE id = #{topicId}")
+    int countById(Long topicId);
 }

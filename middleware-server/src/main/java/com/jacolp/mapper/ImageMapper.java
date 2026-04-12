@@ -1,5 +1,6 @@
 package com.jacolp.mapper;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -54,8 +55,15 @@ public interface ImageMapper {
     int deleteByIds(@Param("ids") List<Long> ids);
 
     /**
-     * 按用户查询所有已有的标签名。
+     * 查询用户存储图片的总大小
+     * @param userId 用户 ID
+     * @return 如果查到了就返回对应的sum值，查不到就会返回 0
      */
-    @Select("SELECT COUNT(*) FROM biz_image WHERE user_id = #{userId}")
+    @Select("SELECT IFNULL(SUM(file_size), 0) FROM biz_image WHERE user_id = #{userId}")
     Long sumImageFileSizeByUserId(@Param("userId") Long userId);
+
+    /**
+     * 按图片 ID 批量查询图片。
+     */
+    List<ImageEntity> selectByIds(ArrayList<Long> ids);
 }

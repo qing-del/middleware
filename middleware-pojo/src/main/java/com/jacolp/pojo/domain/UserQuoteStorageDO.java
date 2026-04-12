@@ -10,6 +10,5 @@ import lombok.NoArgsConstructor;
 public class UserQuoteStorageDO {
     private Long roleId;
     private Long maxStorageBytes;
-    private Long noteUsedStorageBytes;
-    private Long imageUsedStorageBytes;
+    private Long usedStorageBytes;
 }

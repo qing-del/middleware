@@ -29,6 +29,6 @@ public interface UserMapper {
 
     List<UserEntity> listByCondition(UserListDTO userListDTO);
 
-    @Select("select role_id, max_storage_bytes, note_used_storage_bytes, img_used_storage_bytes from sys_user where id = ${id}")
+    @Select("select role_id, max_storage_bytes, used_storage_bytes as usedStorageBytes from sys_user where id = #{id}")
     UserQuoteStorageDO selectQuoteStorageById(Long id);
 }

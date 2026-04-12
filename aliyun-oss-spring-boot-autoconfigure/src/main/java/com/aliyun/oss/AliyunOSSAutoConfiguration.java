@@ -1,5 +1,6 @@
 package com.aliyun.oss;
 
+import com.aliyuncs.exceptions.ClientException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -13,13 +14,19 @@ import org.springframework.context.annotation.Configuration;
 public class AliyunOSSAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
-    public AliyunOSSOperator aliyunOSSOperator(AliyunOSSProperties aliyunOSSProperties) {
-        return new AliyunOSSOperator(aliyunOSSProperties);
+    public AliyunOSSOperator aliyunOSSOperator(AliyunOSSProperties aliyunOSSProperties, AliyunOSSClient aliyunOSSClient) {
+        return new AliyunOSSOperator(aliyunOSSProperties, aliyunOSSClient);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public AliyunOSSProperties aliyunOSSProperties() {
         return new AliyunOSSProperties();
+    }
+
+    @Bean(destroyMethod = "destroy")
+    @ConditionalOnMissingBean
+    public AliyunOSSClient aliyunOSSClient(AliyunOSSProperties aliyunOSSProperties) throws ClientException {
+        return new AliyunOSSClient(aliyunOSSProperties);
     }
 }

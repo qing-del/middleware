@@ -38,8 +38,7 @@ CREATE TABLE `sys_user` (
                             `email` varchar(100) UNIQUE DEFAULT NULL COMMENT '邮箱地址(唯一)',
                             `role_id` bigint NOT NULL DEFAULT 3 COMMENT '关联的角色ID',
                             `max_storage_bytes` bigint DEFAULT NULL COMMENT '用户个性化最大存储空间(字节, NULL=使用角色默认值, 管理员可单独设置)',
-                            `note_used_storage_bytes` bigint NOT NULL DEFAULT 0 COMMENT '用户当前已用存储空间(字节, 上传笔记时累加, 删除时递减)',
-                            `img_used_storage_bytes` bigint NOT NULL DEFAULT 0 COMMENT '用户当前已用图片存储空间(字节, 上传图片时累加, 删除时递减)',
+                            `used_storage_bytes` bigint NOT NULL DEFAULT 0 COMMENT '用户当前已用存储空间(字节, 笔记与图片合计)',
                             `status` tinyint NOT NULL DEFAULT 2 COMMENT '状态(2:未激活, 1:正常, 0:禁用)',
                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -101,11 +100,11 @@ CREATE TABLE `biz_note` (
                             `html_file_path` varchar(500) NOT NULL COMMENT 'HTML文件在本地服务器的绝对/相对路径',
                             `md_file_path` varchar(500) DEFAULT NULL COMMENT '原始Markdown文件的存储路径',
                             `is_published` tinyint NOT NULL DEFAULT 0 COMMENT '是否发布(1:公开, 0:私密)',
-                            `storage_type` tinyint NOT NULL COMMENT '存储方式-1:阿里云OSS, 2:Cloudflare R2(预留)',
+                            `storage_type` tinyint NOT NULL COMMENT '存储方式-0:本地存储, 1:阿里云OSS, 2:Cloudflare R2(预留)',
                             `is_missing_photo` tinyint NOT NULL DEFAULT 0 COMMENT '是否缺少图片(0:正常, 1:缺少图片)',
                             `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
                             `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
-                            `file_size` bigint NOT NULL DEFAULT 0 COMMENT 'HTML+MD文件大小合计(字节, 上传时由服务端写入, 用于存储配额统计)',
+                            `md_file_size` bigint NOT NULL DEFAULT 0 COMMENT 'MD文件大小合计(字节, 上传时由服务端写入, 用于存储配额统计)',
                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                             PRIMARY KEY (`id`),
@@ -265,3 +264,20 @@ CREATE TABLE `biz_note_audit_record` (
     KEY `idx_status`           (`status`),                      -- 管理员批量拉待审队列
     KEY `idx_note_id`          (`note_id`)                      -- 按笔记反查审核记录
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记审核表';
+
+
+-- ==========================================
+-- 14. 图片删除死信队列表 (biz_image_delete_dead_letter)
+-- 用于记录需要异步重试删除的图片URL
+-- status: 0=等待删除, 1=删除完成
+-- ==========================================
+CREATE TABLE `biz_image_delete_dead_letter` (
+    `id`           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `image_url`    varchar(1000) NOT NULL COMMENT '待删除图片URL(OSS/R2等完整地址)',
+    `status`       tinyint      NOT NULL DEFAULT 0 COMMENT '删除状态(0:等待删除, 1:删除完成)',
+    `retry_count`  int          NOT NULL DEFAULT 0 COMMENT '重试次数',
+    `create_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入队时间',
+    `update_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '状态更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_status_update` (`status`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片删除死信队列表';

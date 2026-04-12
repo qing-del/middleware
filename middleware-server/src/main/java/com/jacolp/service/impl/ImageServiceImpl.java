@@ -1,12 +1,16 @@
 package com.jacolp.service.impl;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
-import com.jacolp.mapper.NoteMapper;
+import com.jacolp.constant.PageConstant;
+import com.jacolp.constant.TopicConstant;
+import com.jacolp.constant.UserConstant;
+import com.jacolp.mapper.*;
+import com.jacolp.pojo.domain.UserQuoteStorageDO;
+import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
+import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.pojo.vo.ImageBatchDeleteVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,8 +23,6 @@ import com.github.pagehelper.PageInfo;
 import com.jacolp.context.BaseContext;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.ImageAuditMapper;
-import com.jacolp.mapper.ImageMapper;
 import com.jacolp.pojo.domain.ImageNoteCountDO;
 import com.jacolp.pojo.dto.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.ImageModifyInfoDTO;
@@ -52,6 +54,9 @@ public class ImageServiceImpl implements ImageService {
     @Autowired private ImageAuditMapper imageAuditMapper;
     @Autowired private AliyunOSSOperator aliyunOSSOperator;
     @Autowired private NoteMapper noteMapper;
+    @Autowired private UserMapper userMapper;
+    @Autowired private TopicMapper topicMapper;
+    @Autowired private ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper;
 
     /**
      * 上传图片。
@@ -68,6 +73,9 @@ public class ImageServiceImpl implements ImageService {
         String filename = file.getOriginalFilename();
         validateFilename(filename);
 
+        // 校验主题是否存在
+        validateTopic(topicId);
+
         // 唯一性校验：(user_id, topic_id, filename)
         int count = imageMapper.countByUserIdTopicIdAndFilename(userId, topicId, filename);
         if (count > 0) {
@@ -76,6 +84,7 @@ public class ImageServiceImpl implements ImageService {
 
         // 默认上传到阿里云 OSS，object key 规范：image/{userId}/{filename}
         String ossUrl = uploadToAliyunOss(file, userId, filename);
+
 
         // 写入数据库
         ImageEntity image = new ImageEntity();
@@ -96,9 +105,11 @@ public class ImageServiceImpl implements ImageService {
             throw new BaseException("图片上传失败");
         }
 
+
         // 转换为 VO 返回
         ImageVO vo = new ImageVO();
         BeanUtils.copyProperties(image, vo);
+        vo.setId(null);
 
         return vo;
     }
@@ -130,12 +141,9 @@ public class ImageServiceImpl implements ImageService {
 
         Long newFileSize = newFile.getSize();
 
-        // 替换图片文件：直接覆盖原 object key
+        // 获取原来的 object key
         String oldObjectKey = extractObjectKeyFromUrl(existed.getOssUrl());
-        if (oldObjectKey == null || oldObjectKey.isEmpty()) {
-            oldObjectKey = buildObjectKey(userId, existed.getFilename());
-        }
-        String newOssUrl = uploadToAliyunOss(newFile, oldObjectKey);
+        String newOssUrl = uploadToAliyunOss(newFile, oldObjectKey);    // 覆盖上传
 
         // 更新数据库
         existed.setOssUrl(newOssUrl);
@@ -154,6 +162,7 @@ public class ImageServiceImpl implements ImageService {
     public void modifyImageInfo(ImageModifyInfoDTO dto) {
         Long userId = BaseContext.getCurrentId();
         validateImageId(dto.getId());
+        validateTopic(dto.getTopicId());
 
         // 查询现有记录
         ImageEntity existed = imageMapper.selectById(dto.getId());
@@ -233,12 +242,14 @@ public class ImageServiceImpl implements ImageService {
 
     /**
      * 删除图片（批量）。
-     * 
+     * <p>
      * 策略：先全量校验引用，如有任何一张图片被引用，则全量拒绝。
+     *
+     * @return
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteImages(List<Long> ids) {
+    public ImageBatchDeleteVO deleteImages(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BaseException("待删除的图片 ID 列表不能为空");
         }
@@ -263,23 +274,68 @@ public class ImageServiceImpl implements ImageService {
             throw new BaseException(message);
         }
 
-        // 删除物理文件
-        for (Long imageId : idSet) {
-            try {
-                ImageEntity image = imageMapper.selectById(imageId);
-                if (image != null) {
-                    deleteFile(image);
-                }
-            } catch (Exception e) {
-                log.error("删除物理文件失败，imageId: {}", imageId, e);
+        // 创建一个用于存储用户示范空间量的映射表
+        HashMap<Long, Long> userStorageMap = new HashMap<>();
+        ImageBatchDeleteVO result = new ImageBatchDeleteVO(
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new ArrayList<>(),
+                new ArrayList<>());
+        ArrayList<ImageDeleteDeadLetterEntity> imageDeleteDeadLetterEntities = new ArrayList<>();
+
+        List<ImageEntity> images = imageMapper.selectByIds(new ArrayList<>(idSet));
+        images.forEach(image -> {
+            ImageDeleteDeadLetterEntity imageDeleteDeadLetterEntity = new ImageDeleteDeadLetterEntity(
+                    image.getId(),
+                    image.getOssUrl(),
+                    ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING,
+                    0,
+                    null,
+                    null);
+
+            // 获取插入队列结果
+            boolean addResult =  imageDeleteDeadLetterEntities.add(imageDeleteDeadLetterEntity);
+
+            // 做保底检查
+            if (!addResult) {
+                result.getFailIds().add(image.getId());
+                result.getFailFileNames().add(image.getFilename());
+            } else {
+                result.getSuccessIds().add(image.getId());
+                result.getSuccessFileNames().add(image.getFilename());
             }
+
+            // 更新用户空间量
+            userStorageMap.merge(image.getUserId(), image.getFileSize(), Long::sum);
+        });
+
+        // 插入到死信队列
+        int countDeadLetter = imageDeleteDeadLetterMapper.insertBatch(imageDeleteDeadLetterEntities);
+        if (countDeadLetter < imageDeleteDeadLetterEntities.size()) {
+            log.error("插入死信队列失败，count: {}, size: {}", countDeadLetter, imageDeleteDeadLetterEntities.size());
+            throw new BaseException(ImageConstant.FAILED_TO_INSERT_IMAGE_DELETE_DEAD_LETTER);
         }
 
         // 删除数据库记录
-        int deleteCount = imageMapper.deleteByIds(new ArrayList<>(idSet));
-        if (deleteCount <= 0) {
+        int deleteCount = imageMapper.deleteByIds(result.getSuccessIds());  // 仅删除成功列表中的数据行
+        if (deleteCount < idSet.size()) {
             throw new BaseException("图片删除失败");
         }
+
+        // 更新用户空间量
+        userStorageMap.forEach((userId, storageSize) -> {
+            UserQuoteStorageDO userStorageInfo = userMapper.selectQuoteStorageById(userId);
+            UserEntity user = new UserEntity();
+            user.setId(userId);
+            user.setUsedStorageBytes(userStorageInfo.getUsedStorageBytes() - storageSize);
+            int countUser = userMapper.updateById(user);
+            if (countUser <= 0) {
+                log.error("更新用户空间量失败，userId: {}", userId);
+                throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
+            }
+        });
+
+        return result;
     }
 
     /**
@@ -294,8 +350,8 @@ public class ImageServiceImpl implements ImageService {
         // 分页参数处理
         Integer pageNumParam = dto.getPageNum();
         Integer pageSizeParam = dto.getPageSize();
-        int pageNum = pageNumParam == null || pageNumParam <= 0 ? 1 : pageNumParam;
-        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? 10 : pageSizeParam;
+        int pageNum = pageNumParam == null || pageNumParam <= 0 ? PageConstant.DEFAULT_PAGE : pageNumParam;
+        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : pageSizeParam;
 
         PageHelper.startPage(pageNum, pageSize);
 
@@ -370,7 +426,7 @@ public class ImageServiceImpl implements ImageService {
         } else {
             // 拒绝
             if (dto.getRejectReason() == null || dto.getRejectReason().isEmpty()) {
-                throw new BaseException("拒绝原因不能为空");
+                throw new BaseException(ImageConstant.IMAGE_REJECT_REASON_NOT_EMPTY);
             }
             auditRecord.setStatus(ImageConstant.AUDIT_STATUS_REJECTED);
             auditRecord.setReviewerUserId(reviewerId);
@@ -388,16 +444,15 @@ public class ImageServiceImpl implements ImageService {
         imageAuditMapper.updateAuditRecord(auditRecord);
     }
 
-    // ============ 私有方法 ============
 
+    // ============ 私有方法 ============
     /**
      * 删除对象文件（当前仅支持阿里云 OSS）。
      */
-    private void deleteFile(ImageEntity image) {
+    private boolean deleteFile(ImageEntity image) {
         if (image.getStorageType() != null
             && image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
-            deleteFromAliyunOss(image);
-            return;
+            return deleteFromAliyunOss(image);
         }
         throw new BaseException(ImageConstant.IMAGE_STORAGE_PROVIDER_NOT_SUPPORTED);
     }
@@ -435,25 +490,30 @@ public class ImageServiceImpl implements ImageService {
     /**
      * 从阿里云 OSS 删除对象。
      */
-    private void deleteFromAliyunOss(ImageEntity image) {
+    private boolean deleteFromAliyunOss(ImageEntity image) {
         try {
-            String objectKey = extractObjectKeyFromUrl(image.getOssUrl());
-            if (objectKey == null || objectKey.isEmpty()) {
-                objectKey = buildObjectKey(image.getUserId(), image.getFilename());
-            }
+            String objectKey = extractObjectKeyFromUrl(image.getOssUrl());  // 从阿里云 OSS URL 中提取 object key
+            if (objectKey == null) return false;
             boolean result = aliyunOSSOperator.delete(objectKey);
             log.info("从阿里云 OSS 删除对象：{}, 结果: {}", objectKey, result);
+            return result;
         } catch (Exception e) {
             log.error("删除阿里云 OSS 对象失败，imageId: {}", image.getId(), e);
             // 删除流程中记录日志即可，避免影响主事务
         }
+
+        return false;   // not achievable
     }
 
     /**
-     * 构造规范 object key：image/{userId}/{filename}
+     * 构造规范 object key：image/{userId}/{uuid}
+     * 这里会采用 uuid 的随机算法来防止文件名冲突的覆盖
      */
     private String buildObjectKey(Long userId, String filename) {
-        return ImageConstant.IMAGE_OSS_DIRECTORY_PREFIX + "/" + userId + "/" + filename;
+        UUID uuid = UUID.randomUUID();
+        return ImageConstant.IMAGE_OSS_DIRECTORY_PREFIX + "/"
+                + userId + "/"
+                + uuid + filename.substring(filename.lastIndexOf('.'));
     }
 
     /**
@@ -463,11 +523,11 @@ public class ImageServiceImpl implements ImageService {
         if (ossUrl == null || ossUrl.isEmpty()) {
             return null;
         }
-        int index = ossUrl.indexOf('/', ossUrl.indexOf("//") + 2);
+        int index = ossUrl.indexOf(ImageConstant.IMAGE_OSS_DIRECTORY_PREFIX);
         if (index < 0 || index + 1 >= ossUrl.length()) {
             return null;
         }
-        return ossUrl.substring(index + 1);
+        return ossUrl.substring(index);
     }
 
     /**
@@ -476,7 +536,7 @@ public class ImageServiceImpl implements ImageService {
      */
     private void validateFilename(String filename) {
         if (filename == null || filename.isEmpty()) {
-            throw new BaseException("文件名不能为空");
+            throw new BaseException(ImageConstant.IMAGE_EMPTY_FILENAME);
         }
     }
 
@@ -487,6 +547,22 @@ public class ImageServiceImpl implements ImageService {
     private void validateImageId(Long id) {
         if (id == null || id <= 0) {
             throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+    }
+
+    /**
+     * 校验主题 ID 是否合法
+     * 会先校验主题 ID 的内容是否合法
+     * 然后就回到数据库校验主题是否存在
+     * @param topicId
+     */
+    private void validateTopic(Long topicId) {
+        // 校验 topicId 是否合法
+        if (topicId != null && topicId > 0) {
+            int count = topicMapper.countById(topicId);
+            if (count <= 0) {
+                throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
+            }
         }
     }
 }

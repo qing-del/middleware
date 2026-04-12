@@ -67,7 +67,7 @@ flowchart TD
 | email              | varchar(100)| 邮箱地址             | 唯一键 (`idx_email`)，可为空                   |
 | role_id            | bigint      | 关联的角色ID         | 默认 3 (普通用户)，普通索引 (`idx_role_id`)    |
 | max_storage_bytes  | bigint      | 个性化最大存储空间   | 可为空 (NULL表示使用角色默认值)                |
-| used_storage_bytes | bigint      | 当前已用存储空间     | 单位：字节，默认 0                             |
+| used_storage_bytes | bigint      | 当前已用存储空间 | 单位：字节，默认 0                             |
 | status             | tinyint     | 状态                 | 2:未激活, 1:正常, 0:禁用。联合索引 (`idx_status_role`) |
 | create_time        | datetime    | 注册时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time        | datetime    | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |

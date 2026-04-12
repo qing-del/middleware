@@ -2,11 +2,11 @@ package com.jacolp.service;
 
 import java.util.List;
 
+import com.jacolp.pojo.vo.ImageBatchDeleteVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.pojo.dto.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.ImageModifyInfoDTO;
-import com.jacolp.pojo.dto.ImagePublicDTO;
 import com.jacolp.pojo.dto.ImageQueryDTO;
 import com.jacolp.pojo.vo.ImageVO;
 import com.jacolp.pojo.vo.NoteSimpleVO;
@@ -44,8 +44,10 @@ public interface ImageService {
 
     /**
      * 删除图片（批量）。
+     *
+     * @return
      */
-    void deleteImages(List<Long> ids);
+    ImageBatchDeleteVO deleteImages(List<Long> ids);
 
     /**
      * 获取图片列表。

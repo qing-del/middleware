@@ -91,5 +91,12 @@ public class UserController {
         userService.updateStatus(userStatusDTO.getId(), status);
         return Result.success();
     }
+
+    @GetMapping("/get")
+    @Operation(description = "获取用户信息")
+    public Result<UserEntity> get(@RequestParam Long id) {
+        log.info("Admin get user, id: {}", id);
+        return Result.success(userService.getUserById(id));
+    }
 }
 

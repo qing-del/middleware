@@ -4,17 +4,16 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.UUID;
 
-import com.aliyun.oss.common.auth.CredentialsProviderFactory;
-import com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider;
-import com.aliyun.oss.common.comm.SignVersion;
 import com.aliyun.oss.model.GetObjectRequest;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.PutObjectResult;
 
 public class AliyunOSSOperator {
+    AliyunOSSClient aliyunOSSClient;
     AliyunOSSProperties aliyunOSSProperties;
 
-    public AliyunOSSOperator(AliyunOSSProperties aliyunOSSProperties) {
+    public AliyunOSSOperator(AliyunOSSProperties aliyunOSSProperties, AliyunOSSClient aliyunOSSClient) {
+        this.aliyunOSSClient = aliyunOSSClient;
         this.aliyunOSSProperties = aliyunOSSProperties;
     }
 
@@ -25,32 +24,17 @@ public class AliyunOSSOperator {
      * @param content          文件的字节数组
      * @param originalFileName 文件的原始名称(用于获取文件名的后缀)
      * @return 文件上传之后的在线访问 url (endpoint.split("//")[0] + "//" + bucketName + "." + endpoint.split("//")[1] + "/" + objectName)
-     * @throws Exception 抛出异常
      */
-    public String upload(byte[] content, String originalFileName, String directory) throws Exception {
+    public String upload(byte[] content, String originalFileName, String directory) {
         String endpoint = aliyunOSSProperties.getEndpoint();
         String bucketName = aliyunOSSProperties.getBucketName();
-        String region = aliyunOSSProperties.getRegion();
-
-
-        // 先获取环境变量中的访问凭证
-        EnvironmentVariableCredentialsProvider credentialsProvider = CredentialsProviderFactory.newEnvironmentVariableCredentialsProvider();
 
         // 设置文件完整路径
         // 生成一个新的不重复的文件名
         String newFileName = UUID.randomUUID() + originalFileName.substring(originalFileName.lastIndexOf("."));
         String objectName = directory + "/" + newFileName;
 
-        // 创建OSSClient实例。
-        // 当OSSClient实例不再使用时，调用shutdown方法以释放资源。
-        ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-        clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-        OSS ossClient = OSSClientBuilder.create()
-                .endpoint(endpoint)
-                .credentialsProvider(credentialsProvider)
-                .clientConfiguration(clientBuilderConfiguration)
-                .region(region)
-                .build();
+        OSS ossClient = aliyunOSSClient.getOssClient();
 
         try {
             // 创建PutObjectRequest对象。
@@ -70,10 +54,6 @@ public class AliyunOSSOperator {
                     + "a serious internal problem while trying to communicate with OSS, "
                     + "such as not being able to access the network.");
             System.out.println("Error Message:" + ce.getMessage());
-        } finally {
-            if (ossClient != null) {
-                ossClient.shutdown();
-            }
         }
 
         // 返回可以访问已上传文件的拼装 url 路径
@@ -87,23 +67,12 @@ public class AliyunOSSOperator {
      * @param content 文件字节数组
      * @param objectName 完整 object key，例如 image/{userId}/{filename}
      * @return 上传后的访问 URL
-     * @throws Exception 上传异常
      */
-    public String uploadByObjectName(byte[] content, String objectName) throws Exception {
+    public String uploadByObjectName(byte[] content, String objectName) {
         String endpoint = aliyunOSSProperties.getEndpoint();
         String bucketName = aliyunOSSProperties.getBucketName();
-        String region = aliyunOSSProperties.getRegion();
 
-        EnvironmentVariableCredentialsProvider credentialsProvider = CredentialsProviderFactory.newEnvironmentVariableCredentialsProvider();
-
-        ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-        clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-        OSS ossClient = OSSClientBuilder.create()
-                .endpoint(endpoint)
-                .credentialsProvider(credentialsProvider)
-                .clientConfiguration(clientBuilderConfiguration)
-                .region(region)
-                .build();
+        OSS ossClient = aliyunOSSClient.getOssClient();
 
         try {
             PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, objectName, new ByteArrayInputStream(content));
@@ -120,10 +89,6 @@ public class AliyunOSSOperator {
                     + "a serious internal problem while trying to communicate with OSS, "
                     + "such as not being able to access the network.");
             System.out.println("Error Message:" + ce.getMessage());
-        } finally {
-            if (ossClient != null) {
-                ossClient.shutdown();
-            }
         }
 
         return endpoint.split("//")[0] + "//" + bucketName + "." + endpoint.split("//")[1] + "/" + objectName;
@@ -135,27 +100,11 @@ public class AliyunOSSOperator {
      *
      * @param objectName 完整文件路径
      * @return 删除结果
-     * @throws com.aliyuncs.exceptions.ClientException
      */
-    public Boolean delete(String objectName) throws com.aliyuncs.exceptions.ClientException {
-        String endpoint = aliyunOSSProperties.getEndpoint();
+    public Boolean delete(String objectName) {
         String bucketName = aliyunOSSProperties.getBucketName();
-        String region = aliyunOSSProperties.getRegion();
 
-
-        // 先获取环境变量中的访问凭证
-        EnvironmentVariableCredentialsProvider credentialsProvider = CredentialsProviderFactory.newEnvironmentVariableCredentialsProvider();
-
-        // 创建OSSClient实例。
-        // 当OSSClient实例不再使用时，调用shutdown方法以释放资源。
-        ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-        clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-        OSS ossClient = OSSClientBuilder.create()
-                .endpoint(endpoint)
-                .credentialsProvider(credentialsProvider)
-                .clientConfiguration(clientBuilderConfiguration)
-                .region(region)
-                .build();
+        OSS ossClient = aliyunOSSClient.getOssClient();
 
         try {
             // 删除文件或目录。如果要删除目录，目录必须为空。
@@ -172,11 +121,8 @@ public class AliyunOSSOperator {
                     + "a serious internal problem while trying to communicate with OSS, "
                     + "such as not being able to access the network.");
             System.out.println("Error Message:" + ce.getMessage());
-        } finally {
-            if (ossClient != null) {
-                ossClient.shutdown();
-            }
         }
+
         return true;
     }
 
@@ -187,26 +133,11 @@ public class AliyunOSSOperator {
      * @param objectName  云OSS上完整文件路径
      * @param storagePath 文件保存到本地路径
      * @return 是否保存成功
-     * @throws com.aliyuncs.exceptions.ClientException
      */
-    public boolean download(String objectName, String storagePath) throws com.aliyuncs.exceptions.ClientException {
-        String endpoint = aliyunOSSProperties.getEndpoint();
+    public boolean download(String objectName, String storagePath) {
         String bucketName = aliyunOSSProperties.getBucketName();
-        String region = aliyunOSSProperties.getRegion();
 
-        //从环境变量中获取访问凭证。运行本代码示例之前，请确保已设置环境变量OSS_ACCESS_KEY_ID和OSS_ACCESS_KEY_SECRET。
-        EnvironmentVariableCredentialsProvider credentialsProvider = CredentialsProviderFactory.newEnvironmentVariableCredentialsProvider();
-
-        // 创建OSSClient实例。
-        // 当OSSClient实例不再使用时，调用shutdown方法以释放资源。
-        ClientBuilderConfiguration clientBuilderConfiguration = new ClientBuilderConfiguration();
-        clientBuilderConfiguration.setSignatureVersion(SignVersion.V4);
-        OSS ossClient = OSSClientBuilder.create()
-                .endpoint(endpoint)
-                .credentialsProvider(credentialsProvider)
-                .clientConfiguration(clientBuilderConfiguration)
-                .region(region)
-                .build();
+        OSS ossClient = aliyunOSSClient.getOssClient();
 
         try {
             // 下载Object到本地文件，并保存到指定的本地路径中。如果指定的本地文件存在会覆盖，不存在则新建。
@@ -225,10 +156,6 @@ public class AliyunOSSOperator {
                     + "a serious internal problem while trying to communicate with OSS, "
                     + "such as not being able to access the network.");
             System.out.println("Error Message:" + ce.getMessage());
-        } finally {
-            if (ossClient != null) {
-                ossClient.shutdown();
-            }
         }
 
         return false;

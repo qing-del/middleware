@@ -1,5 +1,17 @@
 package com.jacolp.converter;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.vladsch.flexmark.ext.gfm.strikethrough.StrikethroughExtension;
 import com.vladsch.flexmark.ext.gfm.tasklist.TaskListExtension;
 import com.vladsch.flexmark.ext.tables.TablesExtension;
@@ -7,14 +19,6 @@ import com.vladsch.flexmark.html.HtmlRenderer;
 import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.data.MutableDataSet;
-
-import java.text.Normalizer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Markdown → HTML 纯解析引擎。
@@ -48,6 +52,22 @@ public class MarkdownHtmlEngine {
      */
     private static final Pattern WIKILINK =
             Pattern.compile("\\[\\[([^\\]]+)]]");
+
+        /**
+         * 匹配 Obsidian 图片嵌入语法：![[目标]] 或 ![[目标|别名]]。
+         * <p>
+         * 捕获组 1 为双方括号内的全部内容（可能包含 '|' 及别名部分）。
+         * 示例：{@code ![[assets/cover.jpg|封面]]} 的捕获组 1 为 {@code "assets/cover.jpg|封面"}。
+         */
+        private static final Pattern IMAGE_EMBED =
+            Pattern.compile("!\\[\\[([^\\]]+)]]");
+
+        /**
+         * 允许识别为图片资源的后缀名（小写形式，含 '.'）。
+         */
+        private static final List<String> IMAGE_EXTENSIONS = List.of(
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"
+        );
 
     /**
      * 匹配不带 id 属性的 HTML 标题标签 (h1-h6)。
@@ -186,6 +206,15 @@ public class MarkdownHtmlEngine {
      * @param bodyHtml Flexmark 渲染并经后处理增强（锚点 id、Callout、Mermaid）的 HTML 正文
      */
     public record HtmlProcessResult(FrontMatter meta, String tocHtml, String bodyHtml) {
+    }
+
+    /**
+     * 单次扫描 Markdown 文本得到的标签与图片集合结果。
+     *
+     * @param tags       从 Front-Matter 解析出的标签列表
+     * @param imageNames 从 Obsidian 图片嵌入语法提取出的图片文件名列表
+     */
+    public record TagsAndImages(List<String> tags, List<String> imageNames) {
     }
 
     // ==================== 构造函数 ====================
@@ -758,7 +787,110 @@ public class MarkdownHtmlEngine {
      * @return 标签数组；若无 Front-Matter 或未声明 tags 则返回空数组
      */
     public static String[] extractTagsFromMarkdown(String rawMarkdown) {
-        return parseFrontMatter(rawMarkdown).tags().toArray(String[]::new);
+        return scanTagsAndImages(rawMarkdown).tags().toArray(String[]::new);
+    }
+
+    /**
+     * 从原始 Markdown 文本中提取 Obsidian 图片嵌入的图片名列表。
+     * <p>
+     * 支持语法：{@code ![[xxx.jpg]]}、{@code ![[assets/xxx.png]]}、{@code ![[xxx.webp|封面]]}。
+     * 仅识别常见图片后缀：.jpg、.jpeg、.png、.gif、.webp、.svg、.bmp（大小写不敏感）。
+     * <p>
+     * 返回值按出现顺序去重，元素为图片文件名（不含目录路径）。
+     * 例如：{@code ![[assets/cover.JPG|封面]]} 提取结果为 {@code "cover.JPG"}。
+     *
+     * @param rawMarkdown 原始 Markdown 文本
+     * @return 图片文件名列表；若未匹配到合法图片嵌入，返回空列表
+     */
+    public static List<String> extractImageNamesFromMarkdown(String rawMarkdown) {
+        return scanTagsAndImages(rawMarkdown).imageNames();
+    }
+
+    /**
+     * 单次扫描 Markdown 文本，同时提取 tags 与图片文件名列表。
+     * <p>
+     * 提取规则：
+     * <ul>
+     *     <li>tags：仅从文件头 Front-Matter 中解析 {@code tags} 字段（支持行内值和 YAML 列表项）</li>
+     *     <li>images：全量扫描 {@code ![[...]]}，仅保留常见图片后缀，返回文件名并按出现顺序去重</li>
+     * </ul>
+     *
+     * @param rawMarkdown 原始 Markdown 文本
+     * @return 同时包含 tags 与 imageNames 的结果对象
+     */
+    public static TagsAndImages scanTagsAndImages(String rawMarkdown) {
+        List<String> tags = new ArrayList<>();
+        LinkedHashSet<String> imageNames = new LinkedHashSet<>();
+
+        boolean frontMatterStarted = false;
+        boolean inFrontMatter = false;
+        String currentKey = "";
+
+        try (BufferedReader reader = new BufferedReader(new StringReader(rawMarkdown))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.strip();
+
+                if (!frontMatterStarted) {
+                    if ("---".equals(trimmed)) {
+                        frontMatterStarted = true;
+                        inFrontMatter = true;
+                    }
+                } else if (inFrontMatter && "---".equals(trimmed)) {
+                    inFrontMatter = false;
+                }
+
+                if (inFrontMatter) {
+                    if (!trimmed.isEmpty()) {
+                        if (trimmed.startsWith("- ") && "tags".equals(currentKey)) {
+                            tags.add(trimmed.substring(2).trim());
+                        } else {
+                            int colonIndex = trimmed.indexOf(':');
+                            if (colonIndex >= 0) {
+                                currentKey = trimmed.substring(0, colonIndex).trim();
+                                String value = trimmed.substring(colonIndex + 1).trim();
+                                if ("tags".equals(currentKey) && !value.isEmpty()) {
+                                    tags.add(value);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Matcher matcher = IMAGE_EMBED.matcher(line);
+                while (matcher.find()) {
+                    String raw = matcher.group(1).trim();
+                    if (raw.isEmpty()) {
+                        continue;
+                    }
+
+                    String target = raw;
+                    int aliasIndex = raw.indexOf('|');
+                    if (aliasIndex >= 0) {
+                        target = raw.substring(0, aliasIndex).trim();
+                    }
+                    if (target.isEmpty()) {
+                        continue;
+                    }
+
+                    int slashIndex = Math.max(target.lastIndexOf('/'), target.lastIndexOf('\\'));
+                    String fileName = slashIndex >= 0 ? target.substring(slashIndex + 1).trim() : target;
+                    if (fileName.isEmpty()) {
+                        continue;
+                    }
+
+                    String lower = fileName.toLowerCase(Locale.ROOT);
+                    boolean isImage = IMAGE_EXTENSIONS.stream().anyMatch(lower::endsWith);
+                    if (isImage) {
+                        imageNames.add(fileName);
+                    }
+                }
+            }
+        } catch (IOException ignored) {
+            // StringReader 不会抛出实际 I/O 异常，这里仅为满足 AutoCloseable 接口签名
+        }
+
+        return new TagsAndImages(List.copyOf(tags), List.copyOf(imageNames));
     }
 
     /**

@@ -36,11 +36,8 @@
                     <if test="maxStorageBytes != null">
                         max_storage_bytes = #{maxStorageBytes},
                     </if>
-                    <if test="noteUsedStorageBytes != null">
-                        note_used_storage_bytes = #{noteUsedStorageBytes},
-                    </if>
-                    <if test="imageUsedStorageBytes != null">
-                        img_used_storage_bytes = #{imageUsedStorageBytes},
+                    <if test="usedStorageBytes != null">
+                        used_storage_bytes = #{usedStorageBytes},
                     </if>
                         update_time = now()
                 </set>
@@ -48,7 +45,17 @@
         </update>
 
             <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.UserListDTO">
-                SELECT id, username, nickname, email, role_id, status, create_time, update_time
+                SELECT
+                    id,
+                    username,
+                    nickname,
+                    email,
+                    role_id,
+                    max_storage_bytes,
+                    used_storage_bytes,
+                    status,
+                    create_time,
+                    update_time
                 FROM sys_user
                 <where>
                     <if test="id != null">

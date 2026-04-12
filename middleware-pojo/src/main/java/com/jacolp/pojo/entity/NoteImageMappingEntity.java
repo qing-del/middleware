@@ -29,6 +29,8 @@ public class NoteImageMappingEntity implements Serializable {
 
     private String parsedImageName;  // 笔记中原始图片名称
 
+    private String noteTitle;  // 笔记标题
+
     private Short isCrossUser;  // 是否跨用户引用（0:否, 1:是）
 
     private Short isDeleted;  // 是否删除（0:正常, 1:已删除）

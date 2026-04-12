@@ -306,4 +306,16 @@ public class UserServiceImpl implements UserService {
 
         log.info("User status updated successfully, id: {}, status: {}", targetId, status);
     }
+
+    @Override
+    public UserEntity getUserById(Long id) {
+        if (id == null || id <= 0) {
+            log.error("Invalid user id: {}", id);
+            throw new BaseException("无效的用户 ID");
+        }
+        UserEntity user = userMapper.selectById(id);
+        user.setPassword(null);
+        user.setUpdateTime(null);
+        return user;
+    }
 }
