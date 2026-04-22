@@ -66,4 +66,22 @@ public interface ImageMapper {
      * 按图片 ID 批量查询图片。
      */
     List<ImageEntity> selectByIds(ArrayList<Long> ids);
+
+    /**
+     * 按用户和文件名查询图片。
+     */
+    @Select("SELECT id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time FROM biz_image WHERE user_id = #{userId} AND filename = #{filename} LIMIT 1")
+    ImageEntity selectByUserIdAndFilename(@Param("userId") Long userId, @Param("filename") String filename);
+
+    /**
+     * 批量查询指定用户、指定话题下的图片（命中联合索引）
+     * <p>索引：(user_id, topic_id, filename(40))</p>
+     * @param userId  用户 ID
+     * @param topicId 话题 ID
+     * @param filenames 文件名列表
+     * @return 匹配到的图片列表
+     */
+    List<ImageEntity> selectByUserIdAndTopicIdAndFilenames(@Param("userId") Long userId,
+                                                           @Param("topicId") Long topicId,
+                                                           @Param("filenames") List<String> filenames);
 }

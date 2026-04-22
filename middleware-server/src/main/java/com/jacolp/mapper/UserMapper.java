@@ -31,4 +31,12 @@ public interface UserMapper {
 
     @Select("select role_id, max_storage_bytes, used_storage_bytes as usedStorageBytes from sys_user where id = #{id}")
     UserQuoteStorageDO selectQuoteStorageById(Long id);
+
+    /**
+     * 批量 <b>插入/更新</b> 用户
+     * <p><b>不会修改密码</b></p>
+     * @param users
+     * @return
+     */
+    int upsertUser(List<UserEntity> users);
 }

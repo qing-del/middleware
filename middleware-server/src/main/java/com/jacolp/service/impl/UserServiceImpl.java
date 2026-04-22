@@ -6,7 +6,7 @@ import com.jacolp.constant.UserConstant;
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.*;
-import com.jacolp.utils.PasswordEncoder;
+import com.jacolp.component.PasswordEncoder;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.UserAddDTO;
 import com.jacolp.pojo.dto.UserListDTO;

@@ -97,11 +97,9 @@ CREATE TABLE `biz_note` (
                             `topic_id` bigint DEFAULT NULL COMMENT '所属主题ID(允许为空，即未分类笔记)',
                             `title` varchar(100) NOT NULL COMMENT '笔记标题',
                             `description` varchar(255) DEFAULT NULL COMMENT '笔记描述',
-                            `html_file_path` varchar(500) NOT NULL COMMENT 'HTML文件在本地服务器的绝对/相对路径',
-                            `md_file_path` varchar(500) DEFAULT NULL COMMENT '原始Markdown文件的存储路径',
                             `is_published` tinyint NOT NULL DEFAULT 0 COMMENT '是否发布(1:公开, 0:私密)',
                             `storage_type` tinyint NOT NULL COMMENT '存储方式-0:本地存储, 1:阿里云OSS, 2:Cloudflare R2(预留)',
-                            `is_missing_photo` tinyint NOT NULL DEFAULT 0 COMMENT '是否缺少图片(0:正常, 1:缺少图片)',
+                            `is_missing_info` tinyint NOT NULL DEFAULT 0 COMMENT '信息是否缺失(0:正常, 1:标签或图片未完整绑定)',
                             `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
                             `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
                             `md_file_size` bigint NOT NULL DEFAULT 0 COMMENT 'MD文件大小合计(字节, 上传时由服务端写入, 用于存储配额统计)',
@@ -109,8 +107,84 @@ CREATE TABLE `biz_note` (
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                             PRIMARY KEY (`id`),
                             KEY `idx_user_id` (`user_id`),
+                            -- 这个索引逻辑唯一二级索引 在Java层完成唯一性校验
+                            KEY `idx_user_topic_title_deleted` (`user_id`, `topic_id`, title(30), `is_deleted`),
                             KEY `idx_topic_deleted` (`topic_id`, `is_deleted`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记存储记录表';
+
+
+-- ==========================================
+-- 5.1 笔记转换缓存表 (biz_note_converted)
+-- ==========================================
+CREATE TABLE `biz_note_converted` (
+        `id`             bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+        `note_id`        bigint       NOT NULL COMMENT '关联笔记ID(biz_note.id, 唯一)',
+        `title`          varchar(200) NOT NULL COMMENT '引擎解析得到的标题',
+        `tags_json`      text         DEFAULT NULL COMMENT '标签列表JSON',
+        `create_time_str` varchar(50)  DEFAULT NULL COMMENT '原始create_time字符串',
+        `toc_html`       mediumtext   DEFAULT NULL COMMENT 'TOC侧边栏HTML片段',
+        `body_html`      longtext     NOT NULL COMMENT '正文HTML片段(已替换图片URL)(已解析双链)',
+        `convert_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近转换时间',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_note_id` (`note_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记转换结果缓存表';
+
+
+-- ==========================================
+-- 5.2 笔记覆盖上传 Diff 记录表 (biz_note_change_diff)
+-- ==========================================
+CREATE TABLE `biz_note_change_diff` (
+    `id`            bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `note_id`       bigint       NOT NULL COMMENT '关联笔记ID(biz_note.id, 唯一)',
+    `status`        tinyint      NOT NULL DEFAULT 0 COMMENT '状态(0:等待确认, 1:已接受, 2:已拒绝)',
+    `diff_json`     longtext     NOT NULL COMMENT 'Diff内容(JSON)',
+    `old_file_size` bigint       NOT NULL COMMENT '覆盖前文件大小',
+    `new_file_size` bigint       NOT NULL COMMENT '覆盖后文件大小',
+    `create_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_note_id` (`note_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记覆盖上传Diff记录表';
+
+
+-- ==========================================
+-- 5.3 笔记内容表 (biz_note_context)
+-- 满足需求：存储笔记的 Markdown 原文，与 biz_note 一对一关联
+-- ==========================================
+CREATE TABLE `biz_note_context` (
+    `id`                     bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `note_id`                bigint       NOT NULL COMMENT '关联笔记ID(biz_note.id, 唯一)',
+    `markdown_content`       longtext     NOT NULL COMMENT 'Markdown 原始内容',
+    `markdown_content_new`   longtext     DEFAULT NULL COMMENT 'Markdown 新版本内容（修改上传时临时存储，待确认后覆盖）',
+    `create_time`            datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`            datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_note_id` (`note_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记内容表(存储 Markdown 原文)';
+
+
+-- ==========================================
+-- 5.4 笔记双链映射表 (biz_note_each_mapping)
+-- 满足需求：记录源笔记与目标笔记之间的双链关系
+-- ==========================================
+CREATE TABLE `biz_note_each_mapping` (
+    `id`               bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `source_note_id`   bigint       NOT NULL COMMENT '源笔记ID(biz_note.id)',
+    `target_note_id`   bigint       DEFAULT NULL COMMENT '目标笔记ID(biz_note.id, 未命中时可为空)',
+    `parsed_note_name` varchar(255) NOT NULL COMMENT '从双链中解析出来的笔记名(对应内联笔记的title)',
+    `anchor`           varchar(255) DEFAULT NULL COMMENT '笔记锚点(双链中 # 之后的片段, 如 [[note.md#标题]] 中的"标题")',
+    `nickname`         varchar(255) DEFAULT NULL COMMENT '笔记别名(双链中 | 之后的自定义显示名, 如 [[note.md|别名]] 中的"别名")',
+    `is_pass`          tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过)',
+    `is_deleted`       tinyint      NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
+    `create_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    -- 四元唯一性由 Java 应用层保证，此处仅作普通查询索引
+    KEY `idx_source_target` (`source_note_id`, `target_note_id`),
+    KEY `idx_target` (`target_note_id`),
+    KEY `idx_delete` (`is_deleted`),     -- 方便后续要做软删除
+    KEY `idx_note_deleted_pass` (`source_note_id`, `is_deleted`, `is_pass`) -- 方便发布前要做count(1)做优化
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记双链映射表';
 
 
 -- ==========================================
@@ -118,12 +192,19 @@ CREATE TABLE `biz_note` (
 -- 满足需求：一篇笔记对应多个标签，一个标签对应多篇笔记
 -- ==========================================
 CREATE TABLE `biz_note_tag_mapping` (
+                                        `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
                                         `note_id` bigint NOT NULL COMMENT '笔记ID',
+                                        `tag_id` bigint DEFAULT NULL COMMENT '标签ID(NULL=未绑定)',
+                                        `parsed_tag_name` varchar(20) NOT NULL COMMENT '从笔记中解析出的标签名',
+                                        `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过)',
                                         `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
-                                        `tag_id` bigint NOT NULL COMMENT '标签ID',
                                         `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
-                                        PRIMARY KEY (`note_id`, `tag_id`), -- 联合主键，防止重复绑定
-                                        KEY `idx_tag_deleted` (`tag_id`, `is_deleted`) -- 方便通过 tag_id 反查所有 note_id
+                                        `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                                        PRIMARY KEY (`id`),
+                                        UNIQUE KEY `idx_note_tag` (`note_id`, `tag_id`),
+                                        KEY `uk_note_tag_name` (`note_id`, parsed_tag_name),
+                                        KEY `idx_tag_deleted` (`tag_id`, `is_deleted`), -- 方便通过 tag_id 反查所有 note_id
+                                        KEY `idx_note_deleted_pass` (`note_id`, `is_deleted`, `is_pass`) -- 方便发布前要做count(1)做优化
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记与标签多对多关联表';
 
 
@@ -156,20 +237,22 @@ CREATE TABLE `biz_image` (
 CREATE TABLE `biz_note_image_mapping` (
     `id`                bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `note_id`           bigint       NOT NULL COMMENT '关联的笔记ID',
-    `image_id`          bigint       NOT NULL COMMENT '关联的图片ID(biz_image.id)',
+    `image_id`          bigint       DEFAULT NULL COMMENT '关联的图片ID(biz_image.id, NULL=图片尚未绑定)',
     `note_user_id`      bigint       NOT NULL COMMENT '笔记所属用户ID(冗余字段，避免JOIN查询)',
-    `image_user_id`     bigint       NOT NULL COMMENT '图片所属用户ID(冗余字段，标识是否跨用户引用)',
+    `image_user_id`     bigint       DEFAULT NULL COMMENT '图片所属用户ID(冗余字段，标识是否跨用户引用)',
     `parsed_image_name` varchar(255) NOT NULL COMMENT '笔记中解析出的原始图片名称(如: 架构图.png)，用于建立名称到URL的映射',
     `note_title`        varchar(100) NOT NULL COMMENT '笔记标题(冗余字段，用于后续按笔记标题搜索图片)',
     `is_cross_user`     tinyint      NOT NULL DEFAULT 0 COMMENT '是否跨用户引用(0:同一用户, 1:引用了其他用户的公开图片)',
+    `is_pass`           tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过)',
     `is_deleted`        tinyint      NOT NULL DEFAULT 0 COMMENT '是否已删除(0:正常, 1:已删除，删除时软删)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '映射创建时间(首次解析时间)',
     `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_note_image` (`note_id`, `image_id`),                          -- 同一笔记不重复绑定同一张图片
-    KEY `idx_note_id` (`note_id`, `is_deleted`),                                 -- 按笔记查所有引用图片(渲染时用)
-    KEY `idx_image_id` (`image_id`, `is_deleted`),                               -- 按图片反查所有引用笔记(删图前检查用)
-    KEY `idx_note_user_name` (`note_user_id`, `parsed_image_name`, `is_deleted`) -- 解析时按用户+文件名快速定位已有映射
+    KEY `idx_image_id` (`image_id`),                                             -- 按图片反查所有引用笔记(删图前检查用)
+    KEY `idx_note_user_name` (`note_user_id`, `parsed_image_name`, `is_deleted`),-- 解析时按用户+文件名快速定位已有映射
+    KEY `idx_note_deleted_pass` (`note_id`, `is_deleted`, `is_pass`),            -- 用于发布时统计数据行count(1)优化
+    KEY `idx_is_deleted` (`is_deleted`)                                          -- 方便懒删除时查找笔记
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记-图片引用映射表';
 
 

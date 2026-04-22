@@ -36,13 +36,12 @@ public class MarkdownHtmlEngine {
      * <p>
      * 格式：文件以 "---" 起始，紧跟换行，内容区域以 "---" 结束。
      * <ul>
-     *     <li>{@code (?s)} — 启用 DOTALL 模式使 '.' 能匹配换行符</li>
-     *     <li>{@code \\R} — 匹配任意平台换行符 (\n, \r\n, \r)</li>
-     *     <li>{@code (.*?)} — 非贪婪捕获 Front-Matter 正文内容</li>
+     * <li>{@code (?s)} — 启用 DOTALL 模式使 '.' 能匹配换行符</li>
+     * <li>{@code \\R} — 匹配任意平台换行符 (\n, \r\n, \r)</li>
+     * <li>{@code (.*?)} — 非贪婪捕获 Front-Matter 正文内容</li>
      * </ul>
      */
-    private static final Pattern FRONT_MATTER =
-            Pattern.compile("(?s)^---\\R(.*?)\\R---\\R?");
+    private static final Pattern FRONT_MATTER = Pattern.compile("(?s)^---\\R(.*?)\\R---\\R?");
 
     /**
      * 匹配 Obsidian 风格的 WikiLink：[[目标]] 或 [[目标|别名]]。
@@ -50,95 +49,114 @@ public class MarkdownHtmlEngine {
      * 捕获组 1 为双方括号内的全部内容（包含可能的 '|' 和别名部分）。
      * 例如：{@code [[Java 并发|JUC]]} 的捕获组 1 为 {@code "Java 并发|JUC"}。
      */
-    private static final Pattern WIKILINK =
-            Pattern.compile("\\[\\[([^\\]]+)]]");
+    private static final Pattern WIKILINK = Pattern.compile("\\[\\[([^\\]]+)]]");
 
-        /**
-         * 匹配 Obsidian 图片嵌入语法：![[目标]] 或 ![[目标|别名]]。
-         * <p>
-         * 捕获组 1 为双方括号内的全部内容（可能包含 '|' 及别名部分）。
-         * 示例：{@code ![[assets/cover.jpg|封面]]} 的捕获组 1 为 {@code "assets/cover.jpg|封面"}。
-         */
-        private static final Pattern IMAGE_EMBED =
-            Pattern.compile("!\\[\\[([^\\]]+)]]");
+    /**
+     * 统一匹配 Obsidian 的所有双链语法：嵌入图片（{@code ![[...]]}）和文字双链（{@code [[...]]}）。
+     * <p>
+     * 两种语法唯一的差异在于前置的 {@code !}。使用单个正则同时捕获两者，就可对每行做到“一次扫描、两种类型内部分支”。
+     * <ul>
+     *     <li>捕获组 1 = 前置 {@code !}，若存在则为文件嵌入（图片），否则为文字双链（笔记）</li>
+     *     <li>捕获组 2 = 方括号内的完整内容（目标路径及可能存在的 {@code |} 别名）</li>
+     * </ul>
+     * 具体分类逻辑在调用处通过判断捕获组 1 是否为 null 来实现。
+     */
+    private static final Pattern WIKILINK_ANY = Pattern.compile("(!)?\\[\\[([^\\]]+)]]");
 
-        /**
-         * 允许识别为图片资源的后缀名（小写形式，含 '.'）。
-         */
-        private static final List<String> IMAGE_EXTENSIONS = List.of(
-            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"
-        );
+    /**
+     * 允许识别为图片资源的后缀名（小写形式，含 '.'）。
+     */
+    private static final List<String> IMAGE_EXTENSIONS = List.of(
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp");
 
     /**
      * 匹配不带 id 属性的 HTML 标题标签 (h1-h6)。
      * <p>
      * 用于在后处理阶段为标题添加锚点 id。
      * <ul>
-     *     <li>捕获组 1 = 标题级别（数字 1-6）</li>
-     *     <li>捕获组 2 = 标题内容（可含内联 HTML，如 {@code <code>}、{@code <a>} 等）</li>
+     * <li>捕获组 1 = 标题级别（数字 1-6）</li>
+     * <li>捕获组 2 = 标题内容（可含内联 HTML，如 {@code <code>}、{@code <a>} 等）</li>
      * </ul>
      * {@code Pattern.DOTALL} 使 '.' 能跨行匹配标题内容。
      */
-    private static final Pattern HEADING =
-            Pattern.compile("<h([1-6])>(.*?)</h\\1>", Pattern.DOTALL);
+    private static final Pattern HEADING = Pattern.compile("<h([1-6])>(.*?)</h\\1>", Pattern.DOTALL);
 
     /**
      * 匹配已携带 id 属性的 HTML 标题标签 (h1-h6)，用于生成 TOC 目录。
      * <p>
      * 此正则与 {@link #HEADING} 互补：HEADING 用于"添加 id"，本正则用于"读取 id 后生成 TOC"。
      * <ul>
-     *     <li>捕获组 1 = 标题级别（数字 1-6）</li>
-     *     <li>捕获组 2 = id 属性值（slug 化后的锚点标识符）</li>
-     *     <li>捕获组 3 = 标题文本内容（可含内联 HTML）</li>
+     * <li>捕获组 1 = 标题级别（数字 1-6）</li>
+     * <li>捕获组 2 = id 属性值（slug 化后的锚点标识符）</li>
+     * <li>捕获组 3 = 标题文本内容（可含内联 HTML）</li>
      * </ul>
      */
-    private static final Pattern HEADING_WITH_ID =
-            Pattern.compile("<h([1-6]) id=\"([^\"]+)\">(.*?)</h\\1>", Pattern.DOTALL);
+    private static final Pattern HEADING_WITH_ID = Pattern.compile("<h([1-6]) id=\"([^\"]+)\">(.*?)</h\\1>",
+            Pattern.DOTALL);
 
     /**
      * 匹配 Obsidian Callout 语法经 Flexmark 渲染后的 HTML 结构。
      * <p>
      * 原始 Markdown 格式为 {@code > [!type] title}，换行后继续以 {@code >} 开头书写正文，
-     * 经 Flexmark 渲染后变为 {@code <blockquote><p>[!type] ...</p>...</blockquote>}。
+     * 经 Flexmark 渲染后变为 {@code <blockquote>
+     * 
+    <p>
+     * [!type] ...
+     * 
+    </p>
+     * ...</blockquote>}。
      * <ul>
-     *     <li>捕获组 1 = callout 类型关键字（如 info、tip、warning、question、failure 等）</li>
-     *     <li>捕获组 2 = 标题文本（{@code [!type]} 之后到 {@code </p>} 之间的内容）</li>
-     *     <li>捕获组 3 = 正文 HTML 内容（首段 {@code </p>} 之后到 {@code </blockquote>} 之间）</li>
+     * <li>捕获组 1 = callout 类型关键字（如 info、tip、warning、question、failure 等）</li>
+     * <li>捕获组 2 = 标题文本（{@code [!type]} 之后到 {@code 
+     * 
+    </p>
+     * } 之间的内容）</li>
+     * <li>捕获组 3 = 正文 HTML 内容（首段 {@code 
+     * 
+    </p>
+     * } 之后到 {@code </blockquote>} 之间）</li>
      * </ul>
      * {@code (?s)} 启用 DOTALL 使 '.' 能匹配正文中的换行。
      */
-    private static final Pattern CALLOUT =
-            Pattern.compile("(?s)<blockquote>\\s*<p>\\[!(\\w+)]\\s*(.*?)</p>(.*?)</blockquote>");
+    private static final Pattern CALLOUT = Pattern
+            .compile("(?s)<blockquote>\\s*<p>\\[!(\\w+)]\\s*(.*?)</p>(.*?)</blockquote>");
 
     /**
      * 匹配 Flexmark 渲染出的 Mermaid 代码块。
      * <p>
      * 原始 Markdown 为 {@code ```mermaid ... ```}，Flexmark 渲染后的 HTML 结构为
-     * {@code <pre><code class="language-mermaid">...</code></pre>}。
+     * {@code 
+     * 
+     * 
+     * 
+     * <pre><code class="language-mermaid">...</code></pre>
+    
+     * 
+     * }。
      * 本正则捕获其中的图表源码，后续将其转换为可被 Mermaid.js 前端库识别的
      * {@code <div class="mermaid">} 结构。
      * <ul>
-     *     <li>捕获组 1 = Mermaid 图表源码（需经 HTML 反转义后才可使用）</li>
+     * <li>捕获组 1 = Mermaid 图表源码（需经 HTML 反转义后才可使用）</li>
      * </ul>
      */
-    private static final Pattern MERMAID_BLOCK =
-            Pattern.compile("(?s)<pre><code class=\"language-mermaid\">(.*?)</code></pre>");
+    private static final Pattern MERMAID_BLOCK = Pattern
+            .compile("(?s)<pre><code class=\"language-mermaid\">(.*?)</code></pre>");
 
     // ==================== 标签提取正则 ====================
 
     /**
      * 匹配已渲染 HTML 中的标签徽章元素。
      * <p>
-     * 由 {@link com.jacolp.converter.MarkdownPublishService} 的 {@code renderMetadata} 方法
+     * 由 {@link com.jacolp.converter.MarkdownPublishService} 的
+     * {@code renderMetadata} 方法
      * 生成的标签结构为 {@code <span class="tag">标签名</span>}，
      * 本正则用于从成品 HTML 中反向提取出标签纯文本。
      * <ul>
-     *     <li>捕获组 1 = 标签文本内容（已经过 {@link #escapeHtml} 编码，需反转义）</li>
+     * <li>捕获组 1 = 标签文本内容（已经过 {@link #escapeHtml} 编码，需反转义）</li>
      * </ul>
      * {@code (?i)} 启用大小写不敏感匹配，兼容手动编写的 HTML。
      */
-    private static final Pattern HTML_TAG_PATTERN =
-            Pattern.compile("(?i)<span class=\"tag\">(.*?)</span>");
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("(?i)<span class=\"tag\">(.*?)</span>");
 
     // ==================== Flexmark 解析器与渲染器 ====================
 
@@ -213,9 +231,29 @@ public class MarkdownHtmlEngine {
      *
      * @param tags       从 Front-Matter 解析出的标签列表
      * @param imageNames 从 Obsidian 图片嵌入语法提取出的图片文件名列表
+     * @param noteLinks  从双链语法中解析出的笔记链接完整信息列表（含 anchor 和 nickname）
      */
-    public record TagsAndImages(List<String> tags, List<String> imageNames) {
+    public record NoteReletionInfo(List<String> tags, List<String> imageNames, List<ParsedNoteLink> noteLinks) {
+
+        /**
+         * 向后兼容：仅返回目标笔记名称列表（去重），供无需感知 anchor/nickname 的旧调用方使用。
+         */
+        public List<String> noteNames() {
+            return noteLinks.stream()
+                    .map(ParsedNoteLink::noteName)
+                    .distinct()
+                    .toList();
+        }
     }
+
+    /**
+     * 从 Obsidian 双链语法 {@code [[note.md#锚点|别名]]} 中解析出的完整链接信息。
+     *
+     * @param noteName 目标笔记的名称（已去除路径前缀、.md 扩展名与锚点/别名部分），不为 null
+     * @param anchor   链接锚点（{@code #} 之后的片段，如 {@code [[note.md#标题]]} 中的 {@code "标题"}），无时为 null
+     * @param nickname 链接别名（{@code |} 之后的显示名，如 {@code [[note.md|别名]]} 中的 {@code "别名"}），无时为 null
+     */
+    public record ParsedNoteLink(String noteName, String anchor, String nickname) {}
 
     // ==================== 构造函数 ====================
 
@@ -227,6 +265,7 @@ public class MarkdownHtmlEngine {
      * 依然正常运行——这些是"兜底基石"，永远不会因为缺少外部插件而失效。
      * <p>
      * 适用于非 Spring 环境下的快速使用：
+     * 
      * <pre>{@code
      * MarkdownHtmlEngine engine = new MarkdownHtmlEngine();
      * HtmlProcessResult result = engine.process(rawMarkdown);
@@ -242,9 +281,9 @@ public class MarkdownHtmlEngine {
      * 初始化 Flexmark 解析器（{@link Parser}）和渲染器（{@link HtmlRenderer}），
      * 并启用以下 GitHub Flavored Markdown (GFM) 扩展：
      * <ul>
-     *     <li>{@link TablesExtension} — GFM 表格语法（{@code | col | col |}）</li>
-     *     <li>{@link StrikethroughExtension} — 删除线语法（{@code ~~text~~}）</li>
-     *     <li>{@link TaskListExtension} — 任务列表语法（{@code - [x]} / {@code - [ ]}）</li>
+     * <li>{@link TablesExtension} — GFM 表格语法（{@code | col | col |}）</li>
+     * <li>{@link StrikethroughExtension} — 删除线语法（{@code ~~text~~}）</li>
+     * <li>{@link TaskListExtension} — 任务列表语法（{@code - [x]} / {@code - [ ]}）</li>
      * </ul>
      * <p>
      * 创建后的实例是线程安全的（Parser 和 HtmlRenderer 均为不可变对象），
@@ -266,8 +305,7 @@ public class MarkdownHtmlEngine {
         options.set(Parser.EXTENSIONS, Arrays.asList(
                 TablesExtension.create(),
                 StrikethroughExtension.create(),
-                TaskListExtension.create()
-        ));
+                TaskListExtension.create()));
 
         // 基于相同配置构建解析器和渲染器，确保两者的扩展设置一致
         this.parser = Parser.builder(options).build();
@@ -281,11 +319,11 @@ public class MarkdownHtmlEngine {
      * <p>
      * 处理流水线（按顺序执行）：
      * <ol>
-     *     <li>提取并移除 YAML Front-Matter</li>
-     *     <li>替换 Obsidian WikiLink 为标准 Markdown 链接</li>
-     *     <li>使用 Flexmark 解析 Markdown 并渲染为 HTML</li>
-     *     <li>后处理：为标题添加锚点 id、转换 Callout、转换 Mermaid</li>
-     *     <li>根据标题层级生成 TOC 目录 HTML</li>
+     * <li>提取并移除 YAML Front-Matter</li>
+     * <li>替换 Obsidian WikiLink 为标准 Markdown 链接</li>
+     * <li>使用 Flexmark 解析 Markdown 并渲染为 HTML</li>
+     * <li>后处理：为标题添加锚点 id、转换 Callout、转换 Mermaid</li>
+     * <li>根据标题层级生成 TOC 目录 HTML</li>
      * </ol>
      * <p>
      * 本方法为纯函数式调用，不涉及任何文件 I/O。
@@ -343,9 +381,10 @@ public class MarkdownHtmlEngine {
      * <p>
      * 支持解析的字段：
      * <ul>
-     *     <li>{@code title} — 文章标题</li>
-     *     <li>{@code create_time} — 创建时间</li>
-     *     <li>{@code tags} — 标签列表（支持 YAML 多行列表语法 {@code "- tag"} 或行内值 {@code "tags: java"}）</li>
+     * <li>{@code title} — 文章标题</li>
+     * <li>{@code create_time} — 创建时间</li>
+     * <li>{@code tags} — 标签列表（支持 YAML 多行列表语法 {@code "- tag"} 或行内值
+     * {@code "tags: java"}）</li>
      * </ul>
      * 若文本不包含 Front-Matter 块，返回 {@link FrontMatter#empty()}。
      * <p>
@@ -407,10 +446,10 @@ public class MarkdownHtmlEngine {
      * <p>
      * 支持的 WikiLink 格式：
      * <ul>
-     *     <li>{@code [[页面名]]} → {@code [页面名](页面名.html)}</li>
-     *     <li>{@code [[页面名|显示文本]]} → {@code [显示文本](页面名.html)}</li>
-     *     <li>{@code [[#章节]]} → {@code [章节](#slugified-章节)}</li>
-     *     <li>{@code [[页面名#章节]]} → {@code [页面名 > 章节](页面名.html#slugified-章节)}</li>
+     * <li>{@code [[页面名]]} → {@code [页面名](页面名.html)}</li>
+     * <li>{@code [[页面名|显示文本]]} → {@code [显示文本](页面名.html)}</li>
+     * <li>{@code [[#章节]]} → {@code [章节](#slugified-章节)}</li>
+     * <li>{@code [[页面名#章节]]} → {@code [页面名 > 章节](页面名.html#slugified-章节)}</li>
      * </ul>
      * <p>
      * 使用 {@link Matcher#appendReplacement} 和 {@link Matcher#appendTail} 进行逐匹配替换，
@@ -436,10 +475,10 @@ public class MarkdownHtmlEngine {
      * <p>
      * 解析逻辑：
      * <ol>
-     *     <li>检测 {@code |} 分隔符，拆分为 target（链接目标）和 alias（显示文本）</li>
-     *     <li>若 target 以 {@code #} 开头，视为当前页面内锚点跳转</li>
-     *     <li>否则检测 target 中的 {@code #} 分隔页面名与章节名</li>
-     *     <li>页面名追加 {@code .html} 后缀，章节名经 {@link #slugify} 处理后作为锚点</li>
+     * <li>检测 {@code |} 分隔符，拆分为 target（链接目标）和 alias（显示文本）</li>
+     * <li>若 target 以 {@code #} 开头，视为当前页面内锚点跳转</li>
+     * <li>否则检测 target 中的 {@code #} 分隔页面名与章节名</li>
+     * <li>页面名追加 {@code .html} 后缀，章节名经 {@link #slugify} 处理后作为锚点</li>
      * </ol>
      *
      * @param raw WikiLink 双方括号内的原始内容（已 trim）
@@ -472,6 +511,8 @@ public class MarkdownHtmlEngine {
             section = target.substring(hashIndex + 1).trim();
         }
 
+        page = stripMarkdownExtension(page);
+
         // 确定显示文本：优先使用别名，其次使用 "页面 > 章节" 或单独页面名
         String text = alias;
         if (text == null || text.isEmpty()) {
@@ -486,6 +527,17 @@ public class MarkdownHtmlEngine {
         return "[" + text + "](" + url + ")";
     }
 
+    private String stripMarkdownExtension(String page) {
+        if (page == null) {
+            return null;
+        }
+        String lower = page.toLowerCase(Locale.ROOT);
+        if (lower.endsWith(".md")) {
+            return page.substring(0, page.length() - 3);
+        }
+        return page;
+    }
+
     // ==================== 后处理方法 ====================
 
     /**
@@ -493,9 +545,10 @@ public class MarkdownHtmlEngine {
      * <p>
      * 处理流水线（顺序执行）：
      * <ol>
-     *     <li>{@link #addHeadingIds} — 为所有标题标签添加锚点 id 属性</li>
-     *     <li>{@link #transformCallouts} — 将 blockquote 中的 Obsidian Callout 转为语义化 div</li>
-     *     <li>{@link #transformMermaid} — 将 Mermaid 代码块转换为可渲染的 div</li>
+     * <li>{@link #addHeadingIds} — 为所有标题标签添加锚点 id 属性</li>
+     * <li>{@link #transformCallouts} — 将 blockquote 中的 Obsidian Callout 转为语义化
+     * div</li>
+     * <li>{@link #transformMermaid} — 将 Mermaid 代码块转换为可渲染的 div</li>
      * </ol>
      * <p>
      * 每一步的输出作为下一步的输入，形成管线处理模式。
@@ -513,7 +566,11 @@ public class MarkdownHtmlEngine {
      * 为 HTML 中所有 h1-h6 标题标签添加唯一的 id 属性。
      * <p>
      * id 值由标题纯文本（去除内联 HTML 标签后）经 {@link #slugify} 处理后生成。
-     * 例如：{@code <h2>Java 并发</h2>} → {@code <h2 id="java-并发">Java 并发</h2>}
+     * 例如：{@code 
+     * 
+    <h2>Java 并发</h2>} → {@code 
+     * 
+    <h2 id="java-并发">Java 并发</h2>}
      * <p>
      * 仅处理尚未携带 id 属性的标题标签（匹配 {@link #HEADING} 正则），
      * 已有 id 的标题不会被重复处理。
@@ -541,9 +598,13 @@ public class MarkdownHtmlEngine {
      * 将 Obsidian Callout 语法（经 Flexmark 渲染后的 blockquote 结构）转换为语义化的 div 容器。
      * <p>
      * 转换前（Flexmark 渲染的 blockquote）：
+     * 
      * <pre>{@code <blockquote><p>[!warning] 注意事项</p><p>详细内容...</p></blockquote>}</pre>
+     * 
      * 转换后（语义化 div）：
-     * <pre>{@code <div class="callout callout-warning"><div class="callout-title">注意事项</div>
+     * 
+     * <pre>{@code <div class="callout callout-warning"><div class=
+     * "callout-title">注意事项</div>
      *   <div class="callout-content"><p>详细内容...</p></div></div>}</pre>
      * <p>
      * 支持的 callout 类型包括但不限于：info、tip、warning、question、failure。
@@ -579,7 +640,14 @@ public class MarkdownHtmlEngine {
     /**
      * 将 Flexmark 渲染出的 Mermaid 代码块转换为可被 Mermaid.js 前端库识别的 div 元素。
      * <p>
-     * 转换前：{@code <pre><code class="language-mermaid">graph TD; A-->B;</code></pre>}
+     * 转换前：{@code 
+     * 
+     * 
+     * 
+     * <pre><code class="language-mermaid">graph TD; A-->B;</code></pre>
+    
+     * 
+     * }
      * 转换后：{@code <div class="mermaid">graph TD; A-->B;</div>}
      * <p>
      * 注意：代码块内容会先经过 {@link #decodeHtml} 反转义，
@@ -610,8 +678,8 @@ public class MarkdownHtmlEngine {
      * <p>
      * 生成的 TOC 包含：
      * <ul>
-     *     <li>固定侧边栏容器 {@code <aside id="tocSidebar">}，支持收起/展开</li>
-     *     <li>浮动操作按钮 {@code <button id="tocFab">}，收起后可通过点击展开</li>
+     * <li>固定侧边栏容器 {@code <aside id="tocSidebar">}，支持收起/展开</li>
+     * <li>浮动操作按钮 {@code <button id="tocFab">}，收起后可通过点击展开</li>
      * </ul>
      *
      * @param htmlBody 标题已带 id 属性的 HTML 正文（需先经过 {@link #addHeadingIds} 处理）
@@ -666,11 +734,11 @@ public class MarkdownHtmlEngine {
      * <p>
      * 处理规则：
      * <ol>
-     *     <li>使用 NFKC 规范化并转为小写</li>
-     *     <li>保留字母、数字和 CJK 统一汉字</li>
-     *     <li>其他字符替换为连字符 {@code -}，连续的非法字符仅产生一个连字符</li>
-     *     <li>去除首尾的连字符</li>
-     *     <li>若结果为空白，返回 {@code "section"} 作为兜底值</li>
+     * <li>使用 NFKC 规范化并转为小写</li>
+     * <li>保留字母、数字和 CJK 统一汉字</li>
+     * <li>其他字符替换为连字符 {@code -}，连续的非法字符仅产生一个连字符</li>
+     * <li>去除首尾的连字符</li>
+     * <li>若结果为空白，返回 {@code "section"} 作为兜底值</li>
      * </ol>
      * <p>
      * 示例：{@code "Java 并发编程"} → {@code "java-并发编程"}，
@@ -703,9 +771,9 @@ public class MarkdownHtmlEngine {
      * <p>
      * 覆盖的 Unicode 区块：
      * <ul>
-     *     <li>CJK Unified Ideographs (U+4E00 – U+9FFF)</li>
-     *     <li>CJK Unified Ideographs Extension A (U+3400 – U+4DBF)</li>
-     *     <li>CJK Unified Ideographs Extension B (U+20000 – U+2A6DF)</li>
+     * <li>CJK Unified Ideographs (U+4E00 – U+9FFF)</li>
+     * <li>CJK Unified Ideographs Extension A (U+3400 – U+4DBF)</li>
+     * <li>CJK Unified Ideographs Extension B (U+20000 – U+2A6DF)</li>
      * </ul>
      * 用于 {@link #slugify} 在生成锚点时保留汉字字符而非替换为连字符。
      *
@@ -766,6 +834,7 @@ public class MarkdownHtmlEngine {
      * 从原始 Markdown 文本中提取标签列表。
      * <p>
      * 解析 YAML Front-Matter 块中的 {@code tags} 字段，支持两种写法：
+     * 
      * <pre>{@code
      * # 写法一：多行列表
      * ---
@@ -787,7 +856,7 @@ public class MarkdownHtmlEngine {
      * @return 标签数组；若无 Front-Matter 或未声明 tags 则返回空数组
      */
     public static String[] extractTagsFromMarkdown(String rawMarkdown) {
-        return scanTagsAndImages(rawMarkdown).tags().toArray(String[]::new);
+        return scanNoteReletionInfo(rawMarkdown).tags().toArray(String[]::new);
     }
 
     /**
@@ -803,24 +872,38 @@ public class MarkdownHtmlEngine {
      * @return 图片文件名列表；若未匹配到合法图片嵌入，返回空列表
      */
     public static List<String> extractImageNamesFromMarkdown(String rawMarkdown) {
-        return scanTagsAndImages(rawMarkdown).imageNames();
+        return scanNoteReletionInfo(rawMarkdown).imageNames();
     }
 
     /**
-     * 单次扫描 Markdown 文本，同时提取 tags 与图片文件名列表。
+     * 从原始 Markdown 文本中提取双链笔记名称（向后兼容版本）。
+     * <p>
+     * 返回去除别名、目录路径、锚点和 {@code .md} 扩展名后的笔记名称列表。
+     * 若需要 anchor / nickname 信息，请直接调用 {@link #scanNoteReletionInfo} 并读取 {@code noteLinks()}。
+     */
+    public static List<String> extractNoteNamesFromMarkdown(String rawMarkdown) {
+        return scanNoteReletionInfo(rawMarkdown).noteNames();
+    }
+
+    /**
+     * 单次扫描 Markdown 文本，同时提取 tags 与 图片文件名 与 笔记文件名 列表。
      * <p>
      * 提取规则：
      * <ul>
-     *     <li>tags：仅从文件头 Front-Matter 中解析 {@code tags} 字段（支持行内值和 YAML 列表项）</li>
-     *     <li>images：全量扫描 {@code ![[...]]}，仅保留常见图片后缀，返回文件名并按出现顺序去重</li>
+     * <li>tags：仅从文件头 Front-Matter 中解析 {@code tags} 字段（支持行内值和 YAML 列表项）</li>
+     * <li>images：全量扫描 {@code ![[...]]}，仅保留常见图片后缀，返回文件名并按出现顺序去重</li>
+     * <li>notes：全量扫描 {@code [[...]]}，返回文件名并按出现顺序去重</li>
      * </ul>
      *
      * @param rawMarkdown 原始 Markdown 文本
-     * @return 同时包含 tags 与 imageNames 的结果对象
+     * @return 同时包含 tags 与 imageNames 与 Notes 的结果对象
      */
-    public static TagsAndImages scanTagsAndImages(String rawMarkdown) {
+    public static NoteReletionInfo scanNoteReletionInfo(String rawMarkdown) {
         List<String> tags = new ArrayList<>();
         LinkedHashSet<String> imageNames = new LinkedHashSet<>();
+        // noteLinks 保持插入顺序，且通过 seenKeys 对四元 (noteName, anchor, nickname) 去重
+        List<ParsedNoteLink> noteLinks = new ArrayList<>();
+        LinkedHashSet<String> seenLinkKeys = new LinkedHashSet<>();
 
         boolean frontMatterStarted = false;
         boolean inFrontMatter = false;
@@ -831,6 +914,7 @@ public class MarkdownHtmlEngine {
             while ((line = reader.readLine()) != null) {
                 String trimmed = line.strip();
 
+                // ======================== Front-Matter 解析阶段 ========================
                 if (!frontMatterStarted) {
                     if ("---".equals(trimmed)) {
                         frontMatterStarted = true;
@@ -857,22 +941,29 @@ public class MarkdownHtmlEngine {
                     }
                 }
 
-                Matcher matcher = IMAGE_EMBED.matcher(line);
-                while (matcher.find()) {
-                    String raw = matcher.group(1).trim();
+                // ======================== 双链扫描阶段（一次扫描） ========================
+                Matcher m = WIKILINK_ANY.matcher(line);
+                while (m.find()) {
+                    boolean isEmbed = m.group(1) != null;  // '!' 存在 → 图片嵌入
+                    String raw = m.group(2).trim();
                     if (raw.isEmpty()) {
                         continue;
                     }
 
+                    // -------- 通用：先拆出别名部分 --------
+                    String nickname = null;
                     String target = raw;
                     int aliasIndex = raw.indexOf('|');
                     if (aliasIndex >= 0) {
+                        nickname = raw.substring(aliasIndex + 1).trim();
+                        if (nickname.isEmpty()) nickname = null;
                         target = raw.substring(0, aliasIndex).trim();
                     }
                     if (target.isEmpty()) {
                         continue;
                     }
 
+                    // -------- 取路径最后一段作为文件名 --------
                     int slashIndex = Math.max(target.lastIndexOf('/'), target.lastIndexOf('\\'));
                     String fileName = slashIndex >= 0 ? target.substring(slashIndex + 1).trim() : target;
                     if (fileName.isEmpty()) {
@@ -880,9 +971,55 @@ public class MarkdownHtmlEngine {
                     }
 
                     String lower = fileName.toLowerCase(Locale.ROOT);
-                    boolean isImage = IMAGE_EXTENSIONS.stream().anyMatch(lower::endsWith);
-                    if (isImage) {
-                        imageNames.add(fileName);
+
+                    if (isEmbed) {
+                        // 嵌入语法：![[...]]。根据后缀判断是否为图片。
+                        boolean isImage = IMAGE_EXTENSIONS.stream().anyMatch(lower::endsWith);
+                        if (isImage) {
+                            imageNames.add(fileName);
+                        }
+                        // 非图片嵌入（如 ![[note.md]]）目前暂不入笔记列表，可根据需要自行扩展
+                    } else {
+                        // 文字双链：[[target]]。纯锚点跳转（[[#section]]）不入笔记列表。
+                        if (target.startsWith("#")) {
+                            continue;
+                        }
+
+                        // -------- 拆出 anchor（# 之后的片段） --------
+                        String anchor = null;
+                        String noteTarget = target;
+                        int hashIndex = target.indexOf('#');
+                        if (hashIndex >= 0) {
+                            String beforeHash = target.substring(0, hashIndex).trim();
+                            if (beforeHash.isEmpty()) {
+                                // [[#section]] 形式，属于内部锚点，跳过
+                                continue;
+                            }
+                            anchor = target.substring(hashIndex + 1).trim();
+                            if (anchor.isEmpty()) anchor = null;
+                            // 用 # 之前的内容重新提取文件名
+                            int slashIndex2 = Math.max(beforeHash.lastIndexOf('/'), beforeHash.lastIndexOf('\\'));
+                            fileName = slashIndex2 >= 0 ? beforeHash.substring(slashIndex2 + 1).trim() : beforeHash;
+                            noteTarget = beforeHash;
+                        }
+                        if (fileName.isEmpty()) {
+                            continue;
+                        }
+
+                        // 笔记命名规范化：去除 .md 后缀（如果存在）
+                        String noteName = fileName;
+                        if (noteName.toLowerCase(Locale.ROOT).endsWith(".md")) {
+                            noteName = noteName.substring(0, noteName.length() - 3).trim();
+                        }
+                        if (noteName.isEmpty()) {
+                            continue;
+                        }
+
+                        // -------- Java 层三元去重：(noteName, anchor, nickname) --------
+                        String dedupeKey = noteName + "\u0000" + anchor + "\u0000" + nickname;
+                        if (seenLinkKeys.add(dedupeKey)) {
+                            noteLinks.add(new ParsedNoteLink(noteName, anchor, nickname));
+                        }
                     }
                 }
             }
@@ -890,7 +1027,7 @@ public class MarkdownHtmlEngine {
             // StringReader 不会抛出实际 I/O 异常，这里仅为满足 AutoCloseable 接口签名
         }
 
-        return new TagsAndImages(List.copyOf(tags), List.copyOf(imageNames));
+        return new NoteReletionInfo(List.copyOf(tags), List.copyOf(imageNames), List.copyOf(noteLinks));
     }
 
     /**
@@ -903,9 +1040,9 @@ public class MarkdownHtmlEngine {
      * <p>
      * 本方法为静态方法，适用于以下场景：
      * <ul>
-     *     <li>从数据库中存储的 HTML 片段中反向提取标签</li>
-     *     <li>对已发布的静态 HTML 文件进行标签索引</li>
-     *     <li>在没有原始 Markdown 源文件时恢复标签信息</li>
+     * <li>从数据库中存储的 HTML 片段中反向提取标签</li>
+     * <li>对已发布的静态 HTML 文件进行标签索引</li>
+     * <li>在没有原始 Markdown 源文件时恢复标签信息</li>
      * </ul>
      * <p>
      * 注意：由于 {@code renderMetadata} 在生成标签时会调用 {@link #escapeHtml} 进行 XSS 转义，

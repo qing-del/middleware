@@ -86,7 +86,7 @@
     </select>
 
     <select id="selectByIds" resultType="com.jacolp.pojo.entity.ImageEntity">
-        SELECT id, user_id, filename, oss_url, storage_type, file_size
+        SELECT id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
         FROM biz_image
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
@@ -102,5 +102,17 @@
             #{id}
         </foreach>
     </delete>
+
+    <!-- 批量查询：命中 (user_id, topic_id, filename(40)) 联合索引 -->
+    <select id="selectByUserIdAndTopicIdAndFilenames" resultType="com.jacolp.pojo.entity.ImageEntity">
+        SELECT id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
+        FROM biz_image
+        WHERE user_id = #{userId}
+          AND topic_id = #{topicId}
+          AND filename IN
+        <foreach collection="filenames" item="filename" open="(" separator="," close=")">
+            #{filename}
+        </foreach>
+    </select>
 
 </mapper>

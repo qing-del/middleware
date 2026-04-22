@@ -3,4 +3,161 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.jacolp.mapper.NoteMapper">
 
+        <resultMap id="NoteEntityMap" type="com.jacolp.pojo.entity.NoteEntity">
+                <id column="id" property="id"/>
+                <result column="user_id" property="userId"/>
+                <result column="topic_id" property="topicId"/>
+                <result column="title" property="title"/>
+                <result column="description" property="description"/>
+                <result column="is_published" property="isPublished"/>
+                <result column="storage_type" property="storageType"/>
+                <result column="is_missing_info" property="isMissingInfo"/>
+                <result column="is_pass" property="isPass"/>
+                <result column="is_deleted" property="isDeleted"/>
+                <result column="md_file_size" property="mdFileSize"/>
+                <result column="create_time" property="createTime"/>
+                <result column="update_time" property="updateTime"/>
+        </resultMap>
+
+        <resultMap id="NoteVOMap" type="com.jacolp.pojo.vo.NoteVO">
+                <id column="id" property="id"/>
+                <result column="user_id" property="userId"/>
+                <result column="topic_id" property="topicId"/>
+                <result column="topic_name" property="topicName"/>
+                <result column="title" property="title"/>
+                <result column="description" property="description"/>
+                <result column="is_published" property="isPublished"/>
+                <result column="storage_type" property="storageType"/>
+                <result column="is_missing_info" property="isMissingInfo"/>
+                <result column="is_pass" property="isPass"/>
+                <result column="is_deleted" property="isDeleted"/>
+                <result column="md_file_size" property="mdFileSize"/>
+                <result column="create_time" property="createTime"/>
+                <result column="update_time" property="updateTime"/>
+        </resultMap>
+
+        <insert id="insertNote" parameterType="com.jacolp.pojo.entity.NoteEntity" useGeneratedKeys="true" keyProperty="id">
+                INSERT INTO biz_note
+                (user_id, topic_id, title, description, is_published, storage_type, is_missing_info, is_pass, is_deleted, md_file_size)
+                VALUES
+                (#{userId}, #{topicId}, #{title}, #{description}, #{isPublished}, #{storageType}, #{isMissingInfo}, #{isPass}, #{isDeleted}, #{mdFileSize})
+        </insert>
+
+        <update id="updateNote" parameterType="com.jacolp.pojo.entity.NoteEntity">
+                UPDATE biz_note
+                <set>
+                        <if test="userId != null">user_id = #{userId},</if>
+                        <if test="topicId != null">topic_id = #{topicId},</if>
+                        <if test="title != null">title = #{title},</if>
+                        <if test="description != null">description = #{description},</if>
+                        <if test="isPublished != null">is_published = #{isPublished},</if>
+                        <if test="storageType != null">storage_type = #{storageType},</if>
+                        <if test="isMissingInfo != null">is_missing_info = #{isMissingInfo},</if>
+                        <if test="isPass != null">is_pass = #{isPass},</if>
+                        <if test="isDeleted != null">is_deleted = #{isDeleted},</if>
+                        <if test="mdFileSize != null">md_file_size = #{mdFileSize},</if>
+                </set>
+                WHERE id = #{id}
+        </update>
+
+        <select id="selectVoById" resultMap="NoteVOMap">
+                SELECT n.id, n.user_id, n.topic_id, t.topic_name, n.title, n.description, n.is_published,
+                           n.storage_type, n.is_missing_info, n.is_pass, n.is_deleted, n.md_file_size,
+                           n.create_time, n.update_time
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                WHERE n.id = #{id}
+        </select>
+
+        <select id="selectByIds" resultMap="NoteEntityMap">
+                SELECT id, user_id, topic_id, title, description,
+                           is_published, storage_type, is_missing_info, is_pass, is_deleted, md_file_size,
+                           create_time, update_time
+                FROM biz_note
+                WHERE id IN
+                <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                </foreach>
+        </select>
+
+        <select id="selectByUserIdAndTitle" resultMap="NoteEntityMap">
+                SELECT id, user_id, topic_id, title, description,
+                           is_published, storage_type, is_missing_info, is_pass, is_deleted, md_file_size,
+                           create_time, update_time
+                FROM biz_note
+                WHERE user_id = #{userId}
+                  AND title = #{title}
+                  AND is_deleted = 0
+                ORDER BY id ASC
+                LIMIT 1
+        </select>
+
+        <!-- 批量查询：命中 (user_id, topic_id, title(30), is_deleted) 联合唯一索引 -->
+        <select id="selectByUserIdAndTopicIdAndTitles" resultMap="NoteEntityMap">
+                SELECT id, user_id, topic_id, title, description,
+                           is_published, storage_type, is_missing_info, is_pass, is_deleted, md_file_size,
+                           create_time, update_time
+                FROM biz_note
+                WHERE user_id = #{userId}
+                  AND topic_id = #{topicId}
+                  AND is_deleted = 0
+                  AND title IN
+                <foreach collection="titles" item="title" open="(" separator="," close=")">
+                        #{title}
+                </foreach>
+        </select>
+
+        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.NoteSimpleVO">
+                SELECT
+                        m.note_id AS id,
+                        m.note_title AS title,
+                        m.is_cross_user AS isCrossUser,
+                        n.is_published AS isPublished,
+                        m.is_deleted AS isDeleted,
+                        m.create_time AS createTime
+                FROM biz_note_image_mapping m
+                LEFT JOIN biz_note n ON n.id = m.note_id
+                WHERE m.image_id = #{imageId}
+                  AND m.is_deleted = 0
+        </select>
+
+        <select id="listByCondition" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.NoteQueryDTO">
+                SELECT n.id, n.user_id, n.topic_id, t.topic_name, n.title, n.description, n.is_published,
+                           n.storage_type, n.is_missing_info, n.is_pass, n.is_deleted, n.md_file_size,
+                           n.create_time, n.update_time
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                <where>
+                        n.is_deleted = 0
+                        <if test="userId != null">AND n.user_id = #{userId}</if>
+                        <if test="topicId != null">AND n.topic_id = #{topicId}</if>
+                        <if test="title != null and title != ''">AND n.title LIKE CONCAT('%', #{title}, '%')</if>
+                        <if test="isPublished != null">AND n.is_published = #{isPublished}</if>
+                        <if test="isPass != null">AND n.is_pass = #{isPass}</if>
+                        <if test="isMissingInfo != null">AND n.is_missing_info = #{isMissingInfo}</if>
+                </where>
+                ORDER BY n.create_time DESC
+        </select>
+
+        <update id="updatePublishStatus">
+                UPDATE biz_note
+                SET is_published = #{isPublished}
+                WHERE id = #{id}
+        </update>
+
+        <update id="updateMissingInfo">
+                UPDATE biz_note
+                SET is_missing_info = #{isMissingInfo}
+                WHERE id = #{id}
+        </update>
+
+        <update id="softDeleteByIds">
+                UPDATE biz_note
+                SET is_deleted = 1
+                WHERE id IN
+                <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                </foreach>
+        </update>
+
 </mapper>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.NoteTagMappingMapper">
+
+    <resultMap id="NoteTagMappingMap" type="com.jacolp.pojo.entity.NoteTagMappingEntity">
+        <id column="id" property="id"/>
+        <result column="note_id" property="noteId"/>
+        <result column="tag_id" property="tagId"/>
+        <result column="parsed_tag_name" property="parsedTagName"/>
+        <result column="is_pass" property="isPass"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByNoteId" resultMap="NoteTagMappingMap">
+        SELECT id, note_id, tag_id, parsed_tag_name, is_pass, is_deleted, create_time, update_time
+        FROM biz_note_tag_mapping
+        WHERE note_id = #{noteId}
+          AND is_deleted = 0
+        ORDER BY create_time ASC
+    </select>
+
+    <select id="selectById" resultMap="NoteTagMappingMap">
+        SELECT id, note_id, tag_id, parsed_tag_name, is_pass, is_deleted, create_time, update_time
+        FROM biz_note_tag_mapping
+        WHERE id = #{id}
+          AND is_deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectTagIdsByNoteId" resultType="java.lang.Long">
+        SELECT tag_id
+        FROM biz_note_tag_mapping
+        WHERE note_id = #{noteId}
+          AND tag_id IS NOT NULL
+          AND is_deleted = 0
+        ORDER BY create_time ASC
+    </select>
+
+    <insert id="batchInsertMappings">
+        INSERT INTO biz_note_tag_mapping
+            (note_id, tag_id, parsed_tag_name, is_pass, is_deleted)
+        VALUES
+        <foreach collection="mappings" item="mapping" separator=",">
+            (#{mapping.noteId}, #{mapping.tagId}, #{mapping.parsedTagName}, #{mapping.isPass}, 0)
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            is_deleted = 0,
+            tag_id = VALUES(tag_id),
+            is_pass = VALUES(is_pass)
+    </insert>
+
+    <update id="bindTagById">
+        UPDATE biz_note_tag_mapping
+        SET tag_id = #{tagId},
+            is_pass = #{isPass},
+            update_time = NOW()
+        WHERE id = #{id}
+          AND is_deleted = 0
+    </update>
+
+    <update id="batchBindTagByIds">
+        UPDATE biz_note_tag_mapping
+        SET tag_id = CASE id
+            <foreach collection="mappings" item="mapping">
+                WHEN #{mapping.id} THEN #{mapping.tagId}
+            </foreach>
+        END,
+            is_pass = CASE id
+            <foreach collection="mappings" item="mapping">
+                WHEN #{mapping.id} THEN #{mapping.isPass}
+            </foreach>
+        END,
+            update_time = NOW()
+        WHERE id IN
+        <foreach collection="mappings" item="mapping" open="(" separator="," close=")">
+            #{mapping.id}
+        </foreach>
+          AND is_deleted = 0
+    </update>
+
+    <update id="unbindTagById">
+        UPDATE biz_note_tag_mapping
+        SET tag_id = NULL,
+            is_pass = 0,
+            update_time = NOW()
+        WHERE id = #{id}
+          AND is_deleted = 0
+    </update>
+
+    <update id="softDeleteByNoteId">
+        UPDATE biz_note_tag_mapping
+        SET is_deleted = 1
+        WHERE note_id = #{noteId}
+    </update>
+
+    <update id="softDeleteByNoteIds">
+        UPDATE biz_note_tag_mapping
+        SET is_deleted = 1
+        WHERE note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </update>
+
+    <update id="softDeleteByNoteIdAndTagIds">
+        UPDATE biz_note_tag_mapping
+        SET is_deleted = 1
+        WHERE note_id = #{noteId}
+          AND tag_id IN
+        <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+            #{tagId}
+        </foreach>
+    </update>
+
+    <delete id="deleteSoftDeletedRows">
+        DELETE FROM biz_note_tag_mapping
+        WHERE is_deleted = 1
+    </delete>
+
+    <select id="countByNoteIdAndPass" resultType="java.lang.Integer">
+        SELECT
+            COUNT(1)
+        FROM biz_note_tag_mapping
+        WHERE note_id = #{noteId}
+          AND is_deleted = 0
+          <if test="isPass != null">
+              AND is_pass = #{isPass}
+          </if>
+    </select>
+</mapper>

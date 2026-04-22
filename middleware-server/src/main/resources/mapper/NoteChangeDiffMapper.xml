@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.NoteChangeDiffMapper">
+
+    <resultMap id="NoteChangeDiffMap" type="com.jacolp.pojo.entity.NoteChangeDiffEntity">
+        <id column="id" property="id"/>
+        <result column="note_id" property="noteId"/>
+        <result column="status" property="status"/>
+        <result column="diff_json" property="diffJson"/>
+        <result column="old_file_size" property="oldFileSize"/>
+        <result column="new_file_size" property="newFileSize"/>
+        <result column="diff_file_size" property="diffFileSize"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByNoteId" resultMap="NoteChangeDiffMap">
+        SELECT id, note_id, status, diff_json, old_file_size, new_file_size, diff_file_size, create_time, update_time
+        FROM biz_note_change_diff
+        WHERE note_id = #{noteId}
+    </select>
+
+    <insert id="upsertDiff" parameterType="com.jacolp.pojo.entity.NoteChangeDiffEntity">
+        INSERT INTO biz_note_change_diff (note_id, status, diff_json, old_file_size, new_file_size, diff_file_size)
+        VALUES (#{noteId}, #{status}, #{diffJson}, #{oldFileSize}, #{newFileSize}, #{diffFileSize})
+        ON DUPLICATE KEY UPDATE
+            status = VALUES(status),
+            diff_json = VALUES(diff_json),
+            old_file_size = VALUES(old_file_size),
+            new_file_size = VALUES(new_file_size),
+            diff_file_size = VALUES(diff_file_size),
+            update_time = NOW()
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE biz_note_change_diff
+        SET status = #{status},
+            update_time = NOW()
+        WHERE note_id = #{noteId}
+    </update>
+
+    <delete id="deleteByNoteId">
+        DELETE FROM biz_note_change_diff WHERE note_id = #{noteId}
+    </delete>
+
+    <delete id="deleteByNoteIds">
+        DELETE FROM biz_note_change_diff WHERE note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </delete>
+
+</mapper>

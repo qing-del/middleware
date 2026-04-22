@@ -199,7 +199,7 @@ INSERT INTO `biz_note_audit_record`
 -- ==========================================
 -- 14. 图片删除死信队列表 (biz_image_delete_dead_letter)
 -- ==========================================
-INSERT INTO `biz_image_delete_dead_letter` (`image_url`, `status`) VALUES
-    ('https://oss.example.com/u2/expired_audit_001.png', 0),
-    ('https://oss.example.com/u1/temp/deprecated_cover.png', 0),
-    ('https://r2.example.com/u3/legacy/old_architecture.png', 1);
+INSERT INTO `biz_image_delete_dead_letter` (`image_url`, `status`, `retry_count`) VALUES
+    ('https://oss.example.com/u2/expired_audit_001.png', 0, 0),
+    ('https://oss.example.com/u1/temp/deprecated_cover.png', 0, 2),
+    ('https://r2.example.com/u3/legacy/old_architecture.png', 1, 1);

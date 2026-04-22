@@ -18,6 +18,7 @@ flowchart TD
     E <--> |N对N 映射表| F
     B --> |1对N| G[每日API使用表 biz_api_daily_usage]
     B --> |1对N| H[API任务记录表 biz_api_task_log]
+    F --> |1对N| I[图片删除死信队列表 biz_image_delete_dead_letter]
 ```
 
 ### 数据表汇总
@@ -37,6 +38,7 @@ flowchart TD
 | 11   | biz_meta_audit_record  | 元数据审核记录表     |
 | 12   | biz_image_audit_record | 图片审核记录表       |
 | 13   | biz_note_audit_record  | 笔记审核记录表       |
+| 14   | biz_image_delete_dead_letter | 图片删除死信队列表 |
 
 ---
 
@@ -65,7 +67,7 @@ flowchart TD
 | password           | char(60)    | 加密密码             | 使用 BCrypt 加密存储                           |
 | nickname           | varchar(50) | 昵称                 | 普通索引 (`idx_nickname` 与 status 联合)       |
 | email              | varchar(100)| 邮箱地址             | 唯一键 (`idx_email`)，可为空                   |
-| role_id            | bigint      | 关联的角色ID         | 默认 3 (普通用户)，普通索引 (`idx_role_id`)    |
+| role_id            | bigint      | 关联的角色ID         | 默认 3 (普通用户)                               |
 | max_storage_bytes  | bigint      | 个性化最大存储空间   | 可为空 (NULL表示使用角色默认值)                |
 | used_storage_bytes | bigint      | 当前已用存储空间 | 单位：字节，默认 0                             |
 | status             | tinyint     | 状态                 | 2:未激活, 1:正常, 0:禁用。联合索引 (`idx_status_role`) |
@@ -107,15 +109,16 @@ flowchart TD
 | id               | bigint       | 主键                 | 自增                                           |
 | user_id          | bigint       | 作者(用户ID)         | 普通索引 (`idx_user_id`)                       |
 | topic_id         | bigint       | 所属主题ID           | 可为空 (未分类)。联合索引 (`idx_topic_deleted`) |
-| title            | varchar(255) | 笔记标题             |                                                |
+| title            | varchar(100) | 笔记标题             |                                                |
+| description      | varchar(255) | 笔记描述             | 可为空                                         |
 | html_file_path   | varchar(500) | HTML文件存储路径     |                                                |
 | md_file_path     | varchar(500) | MD文件存储路径       | 可为空 (可选参数)                              |
 | is_published     | tinyint      | 是否发布             | 1:公开, 0:私密。默认 0                         |
-| storage_type     | tinyint      | 存储方式             | 1:阿里云OSS, 2:Cloudflare R2(预留)             |
+| storage_type     | tinyint      | 存储方式             | 0:本地存储, 1:阿里云OSS, 2:Cloudflare R2(预留) |
 | is_missing_photo | tinyint      | 是否缺少图片         | 0:正常, 1:缺少图片。默认 0                     |
 | is_pass          | tinyint      | 审核状态             | 0:待审核, 1:已通过, 2:已拒绝。默认 0           |
-| is_deleted       | tinyint      | 是否删除(软软删)     | 1:删除, 0:正常。默认 0                         |
-| file_size        | bigint       | 文件大小合计         | HTML+MD总大小(字节)，默认 0                    |
+| is_deleted       | tinyint      | 是否删除(软删)       | 1:删除, 0:正常。默认 0                         |
+| md_file_size     | bigint       | MD文件大小合计       | 单位：字节，默认 0                             |
 | create_time      | datetime     | 创建时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time      | datetime     | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
@@ -159,6 +162,7 @@ flowchart TD
 | note_user_id      | bigint       | 笔记所属用户ID       | 冗余字段，避免JOIN。联合索引 (`idx_note_user_name`) |
 | image_user_id     | bigint       | 图片所属用户ID       | 冗余字段，用于标识是否跨用户引用               |
 | parsed_image_name | varchar(255) | MD中解析出的原始图名 |                                                |
+| note_title        | varchar(100) | 笔记标题             | 冗余字段，用于按笔记标题检索图片               |
 | is_cross_user     | tinyint      | 是否跨用户引用       | 0:同一用户, 1:引用他人。默认 0                 |
 | is_deleted        | tinyint      | 是否已删除(软删)     | 0:正常, 1:删除。相关普通联合索引防止回表       |
 | create_time       | datetime     | 映射创建时间         | 默认 CURRENT_TIMESTAMP                         |
@@ -208,6 +212,19 @@ flowchart TD
 | reject_reason     | varchar(500)  | 拒绝原因             | 可为空 (status=2时填写)                        |
 | create_time       | datetime      | 申请提交时间         | 默认 CURRENT_TIMESTAMP                         |
 | review_time       | datetime      | 审核完成时间         | 可为空                                         |
+
+### 14. biz_image_delete_dead_letter (图片删除死信队列表)
+
+用于记录图片删除失败后的重试任务，支撑异步补偿删除。
+
+| 字段名      | 数据类型      | 说明                 | 备注                                           |
+| ----------- | ------------- | -------------------- | ---------------------------------------------- |
+| id          | bigint        | 主键                 | 自增                                           |
+| image_url   | varchar(1000) | 待删除图片URL        | 保存 OSS/R2 等完整访问地址                     |
+| status      | tinyint       | 删除状态             | 0:等待删除, 1:删除完成。默认 0                 |
+| retry_count | int           | 重试次数             | 默认 0                                         |
+| create_time | datetime      | 入队时间             | 默认 CURRENT_TIMESTAMP                         |
+| update_time | datetime      | 状态更新时间         | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
 ### 12. biz_image_audit_record (图片审核记录表)
 

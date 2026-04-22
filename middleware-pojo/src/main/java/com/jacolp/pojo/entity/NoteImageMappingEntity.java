@@ -33,6 +33,8 @@ public class NoteImageMappingEntity implements Serializable {
 
     private Short isCrossUser;  // 是否跨用户引用（0:否, 1:是）
 
+    private Short isPass;  // 审核状态（0:未通过, 1:已通过）
+
     private Short isDeleted;  // 是否删除（0:正常, 1:已删除）
 
     private LocalDateTime createTime;

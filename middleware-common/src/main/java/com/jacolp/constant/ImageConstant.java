@@ -55,4 +55,5 @@ public class ImageConstant {
     public static final String IMAGE_NOT_OWNER = "不是图片归属者无法修改图片内容";
     public static final String IMAGE_STORAGE_PROVIDER_NOT_SUPPORTED = "当前存储类型暂不支持，请后续接入对应云存储实现";
     public static final String IMAGE_REJECT_REASON_NOT_EMPTY = "拒绝原因不能为空";
+    public static final String IMAGE_NOT_PASS = "图片未通过审核";
 }

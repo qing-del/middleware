@@ -19,11 +19,13 @@ public interface TagMapper {
     @Select("SELECT tag_name FROM biz_tag WHERE user_id = #{userId}")
     List<String> selectTagNamesByUserId(@Param("userId") Long userId);
 
-    @Select("SELECT id, user_id, tag_name, create_time FROM biz_tag WHERE user_id = #{userId} AND tag_name = #{tagName}")
+    @Select("SELECT id, user_id, tag_name, is_pass, create_time FROM biz_tag WHERE user_id = #{userId} AND tag_name = #{tagName}")
     TagEntity selectByUserIdAndTagName(@Param("userId") Long userId, @Param("tagName") String tagName);
 
-    @Select("SELECT id, user_id, tag_name, create_time FROM biz_tag WHERE id = #{id} AND user_id = #{userId}")
+    @Select("SELECT id, user_id, tag_name, is_pass, create_time FROM biz_tag WHERE id = #{id} AND user_id = #{userId}")
     TagEntity selectByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    List<TagEntity> selectByIds(@Param("ids") List<Long> ids);
 
     int updateTag(TagEntity tag);
 
@@ -31,5 +33,13 @@ public interface TagMapper {
 
     int deleteByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 
+    /**
+     * 根据条件查询标签
+     * @param userId
+     * @param keyword
+     * @return
+     */
     List<TagVO> listByCondition(@Param("userId") Long userId, @Param("keyword") String keyword);
+
+    List<TagEntity> selectIdsByNamesAndUserId(List<String> tagNames, Long userId);
 }

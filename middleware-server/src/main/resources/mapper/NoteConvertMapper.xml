@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.NoteConvertMapper">
+
+    <resultMap id="NoteConvertedMap" type="com.jacolp.pojo.entity.NoteConvertedEntity">
+        <id column="id" property="id"/>
+        <result column="note_id" property="noteId"/>
+        <result column="title" property="title"/>
+        <result column="tags_json" property="tagsJson"/>
+        <result column="create_time_str" property="createTimeStr"/>
+        <result column="toc_html" property="tocHtml"/>
+        <result column="body_html" property="bodyHtml"/>
+        <result column="convert_time" property="convertTime"/>
+    </resultMap>
+
+    <select id="selectByNoteId" resultMap="NoteConvertedMap">
+        SELECT id, note_id, title, tags_json, create_time_str, toc_html, body_html, convert_time
+        FROM biz_note_converted
+        WHERE note_id = #{noteId}
+    </select>
+
+    <select id="countByNoteId" resultType="int">
+        SELECT COUNT(1)
+        FROM biz_note_converted
+        WHERE note_id = #{noteId}
+    </select>
+
+    <insert id="upsertConverted" parameterType="com.jacolp.pojo.entity.NoteConvertedEntity">
+        INSERT INTO biz_note_converted (note_id, title, tags_json, create_time_str, toc_html, body_html, convert_time)
+        VALUES (#{noteId}, #{title}, #{tagsJson}, #{createTimeStr}, #{tocHtml}, #{bodyHtml}, NOW())
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            tags_json = VALUES(tags_json),
+            create_time_str = VALUES(create_time_str),
+            toc_html = VALUES(toc_html),
+            body_html = VALUES(body_html),
+            convert_time = NOW()
+    </insert>
+
+    <delete id="deleteByNoteId">
+        DELETE FROM biz_note_converted WHERE note_id = #{noteId}
+    </delete>
+
+    <delete id="deleteByNoteIds">
+        DELETE FROM biz_note_converted WHERE note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </delete>
+
+</mapper>

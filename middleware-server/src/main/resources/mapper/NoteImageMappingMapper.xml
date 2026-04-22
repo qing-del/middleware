@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.NoteImageMappingMapper">
+
+    <resultMap id="NoteImageMappingMap" type="com.jacolp.pojo.entity.NoteImageMappingEntity">
+        <id column="id" property="id"/>
+        <result column="note_id" property="noteId"/>
+        <result column="image_id" property="imageId"/>
+        <result column="note_user_id" property="noteUserId"/>
+        <result column="image_user_id" property="imageUserId"/>
+        <result column="parsed_image_name" property="parsedImageName"/>
+        <result column="note_title" property="noteTitle"/>
+        <result column="is_cross_user" property="isCrossUser"/>
+        <result column="is_pass" property="isPass"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByNoteId" resultMap="NoteImageMappingMap">
+        SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, is_pass, is_deleted, create_time, update_time
+        FROM biz_note_image_mapping
+        WHERE note_id = #{noteId}
+          AND is_deleted = 0
+        ORDER BY create_time ASC
+    </select>
+
+    <select id="selectById" resultMap="NoteImageMappingMap">
+        SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, is_pass, is_deleted, create_time, update_time
+        FROM biz_note_image_mapping
+        WHERE id = #{id}
+          AND is_deleted = 0
+        LIMIT 1
+    </select>
+
+    <insert id="batchInsertMappings">
+        INSERT INTO biz_note_image_mapping
+            (note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, is_pass, is_deleted)
+        VALUES
+        <foreach collection="mappings" item="mapping" separator=",">
+            (#{mapping.noteId}, #{mapping.imageId}, #{mapping.noteUserId}, #{mapping.imageUserId},
+             #{mapping.parsedImageName}, #{mapping.noteTitle}, #{mapping.isCrossUser}, #{mapping.isPass}, 0)
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            is_deleted = 0,
+            image_id = VALUES(image_id),
+            image_user_id = VALUES(image_user_id),
+            is_cross_user = VALUES(is_cross_user),
+            is_pass = VALUES(is_pass),
+            note_title = VALUES(note_title)
+    </insert>
+
+    <update id="bindImageById">
+        UPDATE biz_note_image_mapping
+        SET image_id = #{imageId},
+            image_user_id = #{imageUserId},
+            is_cross_user = #{isCrossUser},
+            is_pass = #{isPass},
+            is_deleted = 0,
+            update_time = NOW()
+        WHERE id = #{id}
+          AND is_deleted = 0
+    </update>
+
+    <update id="batchBindImageByIds">
+        UPDATE biz_note_image_mapping
+        SET image_id = CASE id
+            <foreach collection="mappings" item="mapping">
+                WHEN #{mapping.id} THEN #{mapping.imageId}
+            </foreach>
+        END,
+            image_user_id = CASE id
+            <foreach collection="mappings" item="mapping">
+                WHEN #{mapping.id} THEN #{mapping.imageUserId}
+            </foreach>
+        END,
+            is_cross_user = CASE id
+            <foreach collection="mappings" item="mapping">
+                WHEN #{mapping.id} THEN #{mapping.isCrossUser}
+            </foreach>
+        END,
+            is_pass = CASE id
+            <foreach collection="mappings" item="mapping">
+                WHEN #{mapping.id} THEN #{mapping.isPass}
+            </foreach>
+        END,
+            is_deleted = 0,
+            update_time = NOW()
+        WHERE id IN
+        <foreach collection="mappings" item="mapping" open="(" separator="," close=")">
+            #{mapping.id}
+        </foreach>
+          AND is_deleted = 0
+    </update>
+
+    <update id="unbindImageById">
+        UPDATE biz_note_image_mapping
+        SET image_id = NULL,
+            image_user_id = NULL,
+            is_cross_user = 0,
+            is_pass = 0,
+            update_time = NOW()
+        WHERE id = #{id}
+          AND is_deleted = 0
+    </update>
+
+    <update id="softDeleteByNoteId">
+        UPDATE biz_note_image_mapping
+        SET is_deleted = 1
+        WHERE note_id = #{noteId}
+    </update>
+
+    <update id="softDeleteByNoteIds">
+        UPDATE biz_note_image_mapping
+        SET is_deleted = 1
+        WHERE note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </update>
+
+    <update id="softDeleteByNoteIdAndParsedImageNames">
+        UPDATE biz_note_image_mapping
+        SET is_deleted = 1
+        WHERE note_id = #{noteId}
+          AND parsed_image_name IN
+          <foreach collection="parsedImageNames" item="parsedImageName" open="(" separator="," close=")">
+              #{parsedImageName}
+          </foreach>
+          AND is_deleted = 0
+    </update>
+
+    <delete id="deleteSoftDeletedRows">
+        DELETE FROM biz_note_image_mapping
+        WHERE is_deleted = 1
+    </delete>
+
+    <select id="countByNoteIdAndPass" resultType="java.lang.Integer">
+        SELECT
+            COUNT(1)
+        FROM biz_note_image_mapping
+        WHERE note_id = #{noteId}
+          AND is_deleted = 0
+          <if test="isPass != null">
+              AND is_pass = #{isPass}
+          </if>
+    </select>
+
+</mapper>

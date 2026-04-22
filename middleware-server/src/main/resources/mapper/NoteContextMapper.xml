@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jacolp.mapper.NoteContextMapper">
+
+    <select id="selectByNoteId" parameterType="java.lang.Long" resultType="com.jacolp.pojo.entity.NoteContextEntity">
+        SELECT
+            id, note_id, markdown_content, markdown_content_new, create_time, update_time
+        FROM biz_note_context
+        WHERE note_id = #{noteId}
+    </select>
+
+    <insert id="insertContext" parameterType="com.jacolp.pojo.entity.NoteContextEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_note_context
+            (note_id, markdown_content, markdown_content_new, create_time, update_time)
+        VALUES
+            (#{noteId}, #{markdownContent}, NULL, NOW(), NOW())
+    </insert>
+
+    <update id="updateContext" parameterType="com.jacolp.pojo.entity.NoteContextEntity">
+        UPDATE biz_note_context
+        SET markdown_content = #{markdownContent},
+            markdown_content_new = #{markdownContentNew},
+            update_time = NOW()
+        WHERE note_id = #{noteId}
+    </update>
+
+    <delete id="deleteByNoteId" parameterType="java.lang.Long">
+        DELETE FROM biz_note_context
+        WHERE note_id = #{noteId}
+    </delete>
+
+    <delete id="deleteByNoteIds">
+        DELETE FROM biz_note_context
+        WHERE note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </delete>
+
+</mapper>

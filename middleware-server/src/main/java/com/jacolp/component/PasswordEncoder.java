@@ -1,4 +1,4 @@
-package com.jacolp.utils;
+package com.jacolp.component;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;

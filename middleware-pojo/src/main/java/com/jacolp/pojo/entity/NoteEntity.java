@@ -27,19 +27,15 @@ public class NoteEntity implements Serializable {
 
     private String description;
 
-    private String htmlFilePath;
-
-    private String mdFilePath;
-
-    private Integer isPublished;  // 是否发布：1-公开, 0-私密
+    private Short isPublished;  // 是否发布：1-公开, 0-私密
 
     private Integer storageType;  // 存储方式：0-本地存储, 1-阿里云OSS, 2-Cloudflare R2
 
-    private Integer isMissingPhoto;  // 是否缺少图片：0-正常, 1-缺少图片
+    private Short isMissingInfo;  // 是否缺少标签/图片绑定：0-正常, 1-缺失
 
     private Short isPass;  // 审核状态：0-待审核, 1-已通过, 2-已拒绝
 
-    private Integer isDeleted;  // 是否删除：0-正常, 1-删除
+    private Short isDeleted;  // 是否删除：0-正常, 1-删除
 
     private Long mdFileSize;  // MD文件大小合计(字节)
 

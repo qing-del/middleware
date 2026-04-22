@@ -8,6 +8,8 @@ import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.domain.UserQuoteStorageDO;
 import com.jacolp.result.Result;
+import com.jacolp.enums.StorageOperationType;
+import com.jacolp.pojo.entity.NoteEntity;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -16,6 +18,7 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.annotation.CheckAndUpdateUserStorage;
@@ -23,7 +26,7 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.mapper.ImageMapper;
 import com.jacolp.pojo.entity.UserEntity;
 
-import java.util.Hashtable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -39,7 +42,7 @@ public class CheckAndUpdateUserStorageAspect {
     // 总锁
     private final ReentrantLock lock = new ReentrantLock();
     // 用户id锁
-    private final Hashtable<Long, ReentrantLock> lockMap = new Hashtable<>();
+    private final ConcurrentHashMap<Long, ReentrantLock> lockMap = new ConcurrentHashMap<>();
 
 
     @Autowired private ImageMapper imageMapper;
@@ -58,6 +61,7 @@ public class CheckAndUpdateUserStorageAspect {
      * @return
      * @throws Throwable
      */
+    @Transactional(rollbackFor = Exception.class)
     @Around("checkAndUpdateUserStoragePointcut(checkAndUpdateUserStorage)")
     public Object checkAndUpdateUserStorage(ProceedingJoinPoint joinPoint,
                                             CheckAndUpdateUserStorage checkAndUpdateUserStorage) throws Throwable {
@@ -68,8 +72,8 @@ public class CheckAndUpdateUserStorageAspect {
         Object[] args = joinPoint.getArgs();
         MultipartFile file = null;
         for (Object arg : args) {
-            if (arg instanceof MultipartFile) {
-                file = (MultipartFile) arg;
+            if (arg instanceof MultipartFile multipartFile) {
+                file = multipartFile;
                 break;
             }
         }
@@ -79,7 +83,7 @@ public class CheckAndUpdateUserStorageAspect {
             return joinPoint.proceed();
         }
 
-        long requiredBytes = file.getSize();
+        long requiredBytes = resolveRequiredBytes(joinPoint, checkAndUpdateUserStorage, file);
 
         // 获取用户的存储配额信息
         UserQuoteStorageDO userQuoteStorageDO = userMapper.selectQuoteStorageById(userId);
@@ -103,8 +107,10 @@ public class CheckAndUpdateUserStorageAspect {
             Long actualUsedStorageBytes = actualNoteUsedStorageBytes + actualImageUsedStorageBytes; // 计算总的消耗量
 
             // 这里获取的是从用户表从查询出来的用户存储空间
-            Long cachedUsedStorageBytes = userQuoteStorageDO.getUsedStorageBytes() == null ?
-                    0L : userQuoteStorageDO.getUsedStorageBytes();
+            Long cachedUsedStorageBytes = userQuoteStorageDO.getUsedStorageBytes();
+            if (cachedUsedStorageBytes == null) {
+                cachedUsedStorageBytes = 0L;
+            }
             // 如果不存在则获取用户的角色的存储空间作为默认最大存储空间
             maxStorageBytes = maxStorageBytes == null ?
                     roleMapper.selectMaxStorageById(userQuoteStorageDO.getRoleId()) : maxStorageBytes;
@@ -204,10 +210,38 @@ public class CheckAndUpdateUserStorageAspect {
                     lockMap.remove(userId);     // 移除锁
                 }
             } catch (InterruptedException e) {
-                e.fillInStackTrace();
+                Thread.currentThread().interrupt();
             } finally {
                 if(isLocked) userLock.unlock();      // 如果上了锁就要解锁
             }
         });
+    }
+
+    /**
+     * 解析需要使用的字节数
+      * 修改上传场景返回“新文件-旧文件”的差量，普通上传返回完整文件大小
+     * @param joinPoint
+     * @param checkAndUpdateUserStorage
+     * @param file
+     * @return
+     */
+    private long resolveRequiredBytes(ProceedingJoinPoint joinPoint,
+                                      CheckAndUpdateUserStorage checkAndUpdateUserStorage,
+                                      MultipartFile file) {
+        long fileSize = file.getSize();
+        if (checkAndUpdateUserStorage.operationType() != StorageOperationType.MODIFY) {
+            return fileSize;
+        }
+
+        Object[] args = joinPoint.getArgs();
+        for (Object arg : args) {
+            if (arg instanceof Long noteId) {
+                NoteEntity note = noteMapper.selectById(noteId);
+                if (note != null && note.getMdFileSize() != null) {
+                    return fileSize - note.getMdFileSize();
+                }
+            }
+        }
+        return fileSize;
     }
 }

@@ -17,11 +17,19 @@ public class NoteTagMappingEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private Long noteId;
+    private Long id;
 
-    private Integer isDeleted;
+    private Long noteId;
 
     private Long tagId;
 
+    private String parsedTagName;
+
+    private Short isPass;
+
+    private Short isDeleted;
+
     private LocalDateTime createTime;
+
+    private LocalDateTime updateTime;
 }

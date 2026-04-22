@@ -4,7 +4,6 @@ import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.entity.UserEntity;
-import com.jacolp.utils.PasswordEncoder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

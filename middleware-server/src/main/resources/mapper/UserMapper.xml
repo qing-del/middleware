@@ -12,7 +12,7 @@
         VALUES (#{username}, #{password}, #{roleId}, #{status}, now(), now())
     </insert>
 
-        <update id="updateById" parameterType="com.jacolp.pojo.entity.UserEntity">
+    <update id="updateById" parameterType="com.jacolp.pojo.entity.UserEntity">
                 UPDATE sys_user
                 <set>
                     <if test="username != null and username != ''">
@@ -44,7 +44,7 @@
                 WHERE id = #{id}
         </update>
 
-            <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.UserListDTO">
+    <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.UserListDTO">
                 SELECT
                     id,
                     username,
@@ -91,4 +91,22 @@
         </foreach>
     </select>
 
+    <insert id="upsertUser">
+        insert into sys_user (id, username, nickname, email, role_id, max_storage_bytes,
+                              used_storage_bytes, status, create_time, update_time)
+        values
+        <foreach collection="users" item="user" separator=",">
+            (#{user.id}, #{user.username}, #{user.nickname}, #{user.email}, #{user.roleId}, #{user.maxStorageBytes},
+            #{user.usedStorageBytes}, #{user.status}, now(), now())
+        </foreach>
+        on duplicate key update
+        username = values(username),
+        nickname = values(nickname),
+        email = values(email),
+        role_id = values(role_id),
+        max_storage_bytes = values(max_storage_bytes),
+        used_storage_bytes = values(used_storage_bytes),
+        status = values(status),
+        update_time = now()
+    </insert>
 </mapper>

@@ -34,7 +34,7 @@ public class ImageDeleteTask {
 
         // 如果没有图片，则直接返回
         if (list == null || list.isEmpty()) {
-            log.info("No images to delete");
+            log.debug("No images to delete");
             return;
         }
 
@@ -71,11 +71,11 @@ public class ImageDeleteTask {
             }
         }
 
-        log.info("Delete images from OSS, success: {}, fail: {}", successList.size(), failList.size());
+        log.debug("Delete images from OSS, success: {}, fail: {}", successList.size(), failList.size());
     }
 
     public boolean deleteImage(String ossUrl) {
-        log.info("Delete image from OSS, ossUrl: {}", ossUrl);
+        log.debug("Delete image from OSS, ossUrl: {}", ossUrl);
         String objectKey = extractObjectKeyFromUrl(ossUrl);
         if (objectKey != null) {
             return aliyunOSSOperator.delete(objectKey);
