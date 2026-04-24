@@ -1,6 +1,6 @@
 package com.jacolp.mapper;
 
-import com.jacolp.pojo.dto.NoteQueryDTO;
+import com.jacolp.pojo.dto.note.NoteQueryDTO;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.vo.NoteSimpleVO;
 import com.jacolp.pojo.vo.NoteVO;

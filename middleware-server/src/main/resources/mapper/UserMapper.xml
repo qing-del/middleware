@@ -44,7 +44,7 @@
                 WHERE id = #{id}
         </update>
 
-    <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.UserListDTO">
+    <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.user.UserListDTO">
                 SELECT
                     id,
                     username,

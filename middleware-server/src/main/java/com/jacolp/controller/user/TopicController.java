@@ -1,6 +1,6 @@
 package com.jacolp.controller.user;
 
-import com.jacolp.pojo.dto.UserTopicQueryDTO;
+import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.TopicService;

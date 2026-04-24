@@ -1,11 +1,11 @@
 package com.jacolp.service;
 
-import com.jacolp.pojo.dto.UserAddDTO;
-import com.jacolp.pojo.dto.UserListDTO;
-import com.jacolp.pojo.dto.UserLoginDTO;
-import com.jacolp.pojo.dto.UserModifyDTO;
-import com.jacolp.pojo.dto.UserProfileUpdateDTO;
-import com.jacolp.pojo.dto.UserRegisterDTO;
+import com.jacolp.pojo.dto.user.UserAddDTO;
+import com.jacolp.pojo.dto.user.UserListDTO;
+import com.jacolp.pojo.dto.user.UserLoginDTO;
+import com.jacolp.pojo.dto.user.UserModifyDTO;
+import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
+import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.UserDetailVO;
 import com.jacolp.result.PageResult;

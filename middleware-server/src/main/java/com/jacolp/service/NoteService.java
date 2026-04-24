@@ -1,12 +1,8 @@
 package com.jacolp.service;
 
-import com.jacolp.pojo.dto.NoteChangeConfirmDTO;
-import com.jacolp.pojo.dto.EachMappingBindDTO;
-import com.jacolp.pojo.dto.ImageMappingBindDTO;
-import com.jacolp.pojo.dto.NoteModifyInfoDTO;
-import com.jacolp.pojo.dto.NoteQueryDTO;
-import com.jacolp.pojo.dto.NoteVisibleDTO;
-import com.jacolp.pojo.dto.TagMappingBindDTO;
+import com.jacolp.pojo.dto.note.*;
+import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
+import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.vo.ImageSimpleVO;
 import com.jacolp.pojo.vo.NoteChangeDiffVO;
 import com.jacolp.pojo.vo.NoteConvertResultVO;
@@ -152,7 +148,7 @@ public interface NoteService {
     /**
      * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
      */
-    PageResult listUserNotes(Long userId, com.jacolp.pojo.dto.UserNoteQueryDTO dto);
+    PageResult listUserNotes(Long userId, UserNoteQueryDTO dto);
 
     /**
      * 用户端发起笔记审核申请。

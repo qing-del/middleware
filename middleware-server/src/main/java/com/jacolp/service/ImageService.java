@@ -2,12 +2,13 @@ package com.jacolp.service;
 
 import java.util.List;
 
+import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.vo.ImageBatchDeleteVO;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jacolp.pojo.dto.ImageAuditReviewDTO;
-import com.jacolp.pojo.dto.ImageModifyInfoDTO;
-import com.jacolp.pojo.dto.ImageQueryDTO;
+import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
+import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
+import com.jacolp.pojo.dto.image.ImageQueryDTO;
 import com.jacolp.pojo.vo.ImageVO;
 import com.jacolp.pojo.vo.NoteSimpleVO;
 import com.jacolp.result.PageResult;
@@ -72,7 +73,7 @@ public interface ImageService {
     /**
      * 用户端条件查询：当前用户自己的图片 + 别人已公开的图片。
      */
-    PageResult listUserImages(Long userId, com.jacolp.pojo.dto.UserImageQueryDTO dto);
+    PageResult listUserImages(Long userId, UserImageQueryDTO dto);
 
     /**
      * 用户端发起图片审核申请。

@@ -7,15 +7,15 @@ import com.jacolp.constant.RoleConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.*;
 import com.jacolp.component.PasswordEncoder;
-import com.jacolp.component.UsernameAndPasswordProvider;
 import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.dto.UserAddDTO;
-import com.jacolp.pojo.dto.UserListDTO;
-import com.jacolp.pojo.dto.UserLoginDTO;
-import com.jacolp.pojo.dto.UserModifyDTO;
-import com.jacolp.pojo.dto.UserProfileUpdateDTO;
-import com.jacolp.pojo.dto.UserRegisterDTO;
+import com.jacolp.pojo.dto.user.UserAddDTO;
+import com.jacolp.pojo.dto.user.UserListDTO;
+import com.jacolp.pojo.dto.user.UserLoginDTO;
+import com.jacolp.pojo.dto.user.UserModifyDTO;
+import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
+import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
 import com.jacolp.pojo.vo.UserDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.UserService;
@@ -34,10 +34,12 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
-    @Autowired private UsernameAndPasswordProvider usernameAndPasswordProvider;
 
     @Override
     public UserEntity loginAdmin(UserLoginDTO userLoginDTO) {
+        // 校验用户名和密码非空
+        validUsernameAndPassword(userLoginDTO);
+
         // 通过用户名查询用户
         UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
         if (user == null) {
@@ -71,8 +73,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserEntity loginUser(UserLoginDTO userLoginDTO) {
         // 校验用户名和密码非空
-        usernameAndPasswordProvider.validateUsernameAndPassword(
-                userLoginDTO.getUsername(), userLoginDTO.getPassword());
+        validUsernameAndPassword(userLoginDTO);
 
         // 1. 根据用户名查用户
         UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
@@ -101,10 +102,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public String register(UserRegisterDTO userRegisterDTO) {
         // 校验用户名、密码非空及两次密码一致性
-        usernameAndPasswordProvider.validateRegister(
-                userRegisterDTO.getUsername(),
-                userRegisterDTO.getPassword(),
-                userRegisterDTO.getConfirmPassword());
+        validUsernameAndPassword(userRegisterDTO);
+        if (!userRegisterDTO.getPassword().equals(userRegisterDTO.getConfirmPassword())) {
+            throw new BaseException(UserConstant.PASSWORD_CONFIRM_ERROR);
+        }
 
         // 检查是否存在相同用户名的用户
         UserEntity existed = userMapper.selectByUsername(userRegisterDTO.getUsername());
@@ -215,7 +216,8 @@ public class UserServiceImpl implements UserService {
         }
 
         // 4. Username and password validation
-        usernameAndPasswordProvider.validateUsernameAndPassword(dto.getUsername(), dto.getPassword());
+        validUsernameAndPassword(dto);
+
         UserEntity existed = userMapper.selectByUsername(dto.getUsername());
         if (existed != null) {
             throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
@@ -365,5 +367,26 @@ public class UserServiceImpl implements UserService {
         userMapper.updateById(updateEntity);
 
         log.info("User soft-deleted (account deactivated), userId: {}", userId);
+    }
+
+    /**
+     * 校验用户名和密码
+     * @param provider 用户名与密码提供者
+     */
+    private void validUsernameAndPassword(UsernameAndPasswordProvider provider) {
+        if (provider == null) {
+            log.error("Invalid username and password provider");
+            throw new BaseException(UserConstant.USERNAME_AND_PASSWORD_PROVIDER_ERROR);
+        }
+
+        if (!StringUtils.hasText(provider.getUsername())) {
+            log.error("Invalid username");
+            throw new BaseException(UserConstant.USERNAME_IS_REQUIRED);
+        }
+
+        if (!StringUtils.hasText(provider.getPassword())) {
+            log.error("Invalid password");
+            throw new BaseException(UserConstant.PASSWORD_IS_REQUIRED);
+        }
     }
 }

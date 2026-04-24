@@ -9,6 +9,7 @@ import com.jacolp.constant.TopicConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.mapper.*;
 import com.jacolp.pojo.domain.UserQuoteStorageDO;
+import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.ImageBatchDeleteVO;
@@ -25,9 +26,9 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.domain.ImageNoteCountDO;
-import com.jacolp.pojo.dto.ImageAuditReviewDTO;
-import com.jacolp.pojo.dto.ImageModifyInfoDTO;
-import com.jacolp.pojo.dto.ImageQueryDTO;
+import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
+import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
+import com.jacolp.pojo.dto.image.ImageQueryDTO;
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.vo.ImageVO;
@@ -449,9 +450,9 @@ public class ImageServiceImpl implements ImageService {
      * 用户端条件查询：当前用户自己的图片 + 别人已公开的图片。
      */
     @Override
-    public PageResult listUserImages(Long userId, com.jacolp.pojo.dto.UserImageQueryDTO dto) {
+    public PageResult listUserImages(Long userId, UserImageQueryDTO dto) {
         if (dto == null) {
-            dto = new com.jacolp.pojo.dto.UserImageQueryDTO();
+            dto = new UserImageQueryDTO();
         }
 
         int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();

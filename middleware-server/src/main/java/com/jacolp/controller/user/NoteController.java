@@ -1,7 +1,7 @@
 package com.jacolp.controller.user;
 
 import com.jacolp.context.BaseContext;
-import com.jacolp.pojo.dto.UserNoteQueryDTO;
+import com.jacolp.pojo.dto.note.UserNoteQueryDTO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.NoteService;

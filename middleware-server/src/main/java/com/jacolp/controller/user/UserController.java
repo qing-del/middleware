@@ -1,9 +1,9 @@
 package com.jacolp.controller.user;
 
 import com.jacolp.constant.UserConstant;
-import com.jacolp.pojo.dto.UserLoginDTO;
-import com.jacolp.pojo.dto.UserProfileUpdateDTO;
-import com.jacolp.pojo.dto.UserRegisterDTO;
+import com.jacolp.pojo.dto.user.UserLoginDTO;
+import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
+import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.UserDetailVO;
 import com.jacolp.properties.JwtProperties;

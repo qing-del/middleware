@@ -24,13 +24,9 @@ import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.mapper.TagMapper;
 import com.jacolp.mapper.TopicMapper;
 import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.dto.EachMappingBindDTO;
-import com.jacolp.pojo.dto.ImageMappingBindDTO;
-import com.jacolp.pojo.dto.NoteChangeConfirmDTO;
-import com.jacolp.pojo.dto.NoteModifyInfoDTO;
-import com.jacolp.pojo.dto.NoteQueryDTO;
-import com.jacolp.pojo.dto.NoteVisibleDTO;
-import com.jacolp.pojo.dto.TagMappingBindDTO;
+import com.jacolp.pojo.dto.note.*;
+import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
+import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
 import com.jacolp.pojo.entity.NoteContextEntity;
@@ -894,9 +890,9 @@ public class NoteServiceImpl implements NoteService {
      * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
      */
     @Override
-    public PageResult listUserNotes(Long userId, com.jacolp.pojo.dto.UserNoteQueryDTO dto) {
+    public PageResult listUserNotes(Long userId, UserNoteQueryDTO dto) {
         if (dto == null) {
-            dto = new com.jacolp.pojo.dto.UserNoteQueryDTO();
+            dto = new UserNoteQueryDTO();
         }
 
         int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
