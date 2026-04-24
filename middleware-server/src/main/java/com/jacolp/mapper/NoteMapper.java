@@ -58,6 +58,9 @@ public interface NoteMapper {
 
     int softDeleteByIds(@Param("ids") List<Long> ids);
 
+    int updatePassByIds(@Param("ids") List<Long> ids,
+                        @Param("isPass") Short isPass);
+
     /**
      * 查询用户下指定话题且指定名字的笔记数量
      * <p>只有 `is_deleted = 0` 才会被归纳为存在</p>

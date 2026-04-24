@@ -10,8 +10,12 @@ flowchart TD
     A[角色表 sys_role] --> |1对N| B[用户表 sys_user]
     B --> |1对N| C[主题/分类表 biz_topic]
     B --> |1对N| D[标签表 biz_tag]
-    B --> |1对N| E[笔记/文章表 biz_note]
+    B --> |1对N| E[笔记/文章主表 biz_note]
     B --> |1对N| F[图片映射表 biz_image]
+    E --> |1对1| N1[缓存表 biz_note_converted]
+    E --> |1对1| N2[Diff表 biz_note_change_diff]
+    E --> |1对1| N3[内容表 biz_note_context]
+    E --> |1对N| N4[双链映射表 biz_note_each_mapping]
     C --> |1对N| E
     C --> |1对N| F
     E <--> |N对N 映射表| D
@@ -23,22 +27,26 @@ flowchart TD
 
 ### 数据表汇总
 
-| 序号 | 数据表名               | 中文名称             |
-| ---- | ---------------------- | -------------------- |
-| 1    | sys_role               | 系统角色与额度配置表 |
-| 2    | sys_user               | 用户信息表           |
-| 3    | biz_topic              | 笔记主题/分类表      |
-| 4    | biz_tag                | 笔记标签表           |
-| 5    | biz_note               | 笔记存储记录表       |
-| 6    | biz_note_tag_mapping   | 笔记与标签映射表     |
-| 7    | biz_image              | 图片资源映射表       |
-| 8    | biz_note_image_mapping | 笔记与图片映射表     |
-| 9    | biz_api_daily_usage    | 每日API调用统计表    |
-| 10   | biz_api_task_log       | API异步任务明细表    |
-| 11   | biz_meta_audit_record  | 元数据审核记录表     |
-| 12   | biz_image_audit_record | 图片审核记录表       |
-| 13   | biz_note_audit_record  | 笔记审核记录表       |
-| 14   | biz_image_delete_dead_letter | 图片删除死信队列表 |
+| 序号 | 数据表名               | 中文名称               |
+| ---- | ---------------------- | ---------------------- |
+| 1    | sys_role               | 系统角色与额度配置表   |
+| 2    | sys_user               | 用户信息表             |
+| 3    | biz_topic              | 笔记主题/分类表        |
+| 4    | biz_tag                | 笔记标签表             |
+| 5    | biz_note               | 笔记存储记录表         |
+| 6    | biz_note_converted     | 笔记转换结果缓存表     |
+| 7    | biz_note_change_diff   | 笔记覆盖上传Diff记录表 |
+| 8    | biz_note_context       | 笔记内容表             |
+| 9    | biz_note_each_mapping  | 笔记双链映射表         |
+| 10   | biz_note_tag_mapping   | 笔记与标签映射表       |
+| 11   | biz_image              | 图片资源映射表         |
+| 12   | biz_note_image_mapping | 笔记与图片映射表       |
+| 13   | biz_api_daily_usage    | 每日API调用统计表      |
+| 14   | biz_api_task_log       | API异步任务明细表      |
+| 15   | biz_meta_audit_record  | 元数据审核记录表       |
+| 16   | biz_image_audit_record | 图片审核记录表         |
+| 17   | biz_note_audit_record  | 笔记审核记录表         |
+| 18   | biz_image_delete_dead_letter | 图片删除死信队列表   |
 
 ---
 
@@ -102,7 +110,7 @@ flowchart TD
 
 ### 5. biz_note (笔记存储记录表)
 
-系统的核心业务表，记录每一篇笔记的元数据及文件存储路径。
+系统的核心业务主表，记录每一篇笔记的基础元数据与安全属性。
 
 | 字段名           | 数据类型     | 说明                 | 备注                                           |
 | ---------------- | ------------ | -------------------- | ---------------------------------------------- |
@@ -111,27 +119,90 @@ flowchart TD
 | topic_id         | bigint       | 所属主题ID           | 可为空 (未分类)。联合索引 (`idx_topic_deleted`) |
 | title            | varchar(100) | 笔记标题             |                                                |
 | description      | varchar(255) | 笔记描述             | 可为空                                         |
-| html_file_path   | varchar(500) | HTML文件存储路径     |                                                |
-| md_file_path     | varchar(500) | MD文件存储路径       | 可为空 (可选参数)                              |
 | is_published     | tinyint      | 是否发布             | 1:公开, 0:私密。默认 0                         |
-| storage_type     | tinyint      | 存储方式             | 0:本地存储, 1:阿里云OSS, 2:Cloudflare R2(预留) |
-| is_missing_photo | tinyint      | 是否缺少图片         | 0:正常, 1:缺少图片。默认 0                     |
+| storage_type     | tinyint      | 存储方式             | 0:本地存储, 1:阿里云OSS, 2:Cloudflare R2       |
+| is_missing_info  | tinyint      | 信息是否缺失         | 0:正常, 1:标签或图片未完整绑定。默认 0         |
 | is_pass          | tinyint      | 审核状态             | 0:待审核, 1:已通过, 2:已拒绝。默认 0           |
 | is_deleted       | tinyint      | 是否删除(软删)       | 1:删除, 0:正常。默认 0                         |
 | md_file_size     | bigint       | MD文件大小合计       | 单位：字节，默认 0                             |
 | create_time      | datetime     | 创建时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time      | datetime     | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+### 5.1 biz_note_converted (笔记转换缓存表)
+
+用于缓存 Markdown 引擎解析得到的持久化 HTML 片段与元数据。
+
+| 字段名          | 数据类型     | 说明             | 备注                                       |
+| --------------- | ------------ | ---------------- | ------------------------------------------ |
+| id              | bigint       | 主键             | 自增                                       |
+| note_id         | bigint       | 关联笔记ID       | 唯一键 (`uk_note_id`)                      |
+| title           | varchar(200) | 引擎解析标题     |                                            |
+| tags_json       | text         | 标签列表JSON     | 可为空                                     |
+| create_time_str | varchar(50)  | 原始创建时间     | 可为空                                     |
+| toc_html        | mediumtext   | TOC侧边栏HTML    | 可为空                                     |
+| body_html       | longtext     | 正文HTML片段     | 已替换图片URL及双链解析                    |
+| convert_time    | datetime     | 最近转换时间     | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+### 5.2 biz_note_change_diff (笔记覆盖上传 Diff 记录表)
+
+处理笔记覆盖上传时的文件比对记录，供用户在 Web 面板确认或拒绝。
+
+| 字段名        | 数据类型 | 说明         | 备注                                       |
+| ------------- | -------- | ------------ | ------------------------------------------ |
+| id            | bigint   | 主键         | 自增                                       |
+| note_id       | bigint   | 关联笔记ID   | 唯一键 (`uk_note_id`)                      |
+| status        | tinyint  | 状态         | 0:等待确认, 1:已接受, 2:已拒绝。默认 0     |
+| diff_json     | longtext | Diff内容JSON |                                            |
+| old_file_size | bigint   | 旧文件大小   | 覆盖前大小                                 |
+| new_file_size | bigint   | 新文件大小   | 覆盖后大小                                 |
+| create_time   | datetime | 创建时间     | 默认 CURRENT_TIMESTAMP                     |
+| update_time   | datetime | 更新时间     | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+### 5.3 biz_note_context (笔记内容表)
+
+将原本存储在本地的 Markdown 原文挪入数据库结构化持久保存。
+
+| 字段名               | 数据类型 | 说明           | 备注                                       |
+| -------------------- | -------- | -------------- | ------------------------------------------ |
+| id                   | bigint   | 主键           | 自增                                       |
+| note_id              | bigint   | 关联笔记ID     | 唯一键 (`uk_note_id`)                      |
+| markdown_content     | longtext | MD原始内容     |                                            |
+| markdown_content_new | longtext | MD新版本内容   | 可为空，覆盖上传时临时存储                 |
+| create_time          | datetime | 创建时间       | 默认 CURRENT_TIMESTAMP                     |
+| update_time          | datetime | 更新时间       | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+### 5.4 biz_note_each_mapping (笔记双链映射表)
+
+记录源笔记与目标笔记之间的双链引用关系，支持 Obsidian-style 的锚点和别名特性。
+
+| 字段名           | 数据类型     | 说明           | 备注                                       |
+| ---------------- | ------------ | -------------- | ------------------------------------------ |
+| id               | bigint       | 主键           | 自增                                       |
+| source_note_id   | bigint       | 源笔记ID       | 联合索引 (`idx_source_target`)             |
+| target_note_id   | bigint       | 目标笔记ID     | 联合索引。可为空（未命中时为空）           |
+| parsed_note_name | varchar(255) | 解析出的笔记名 |                                            |
+| anchor           | varchar(255) | 笔记锚点       | 可为空                                     |
+| nickname         | varchar(255) | 笔记别名       | 可为空                                     |
+| is_pass          | tinyint      | 审核状态       | 0:未通过, 1:已通过。默认 0                 |
+| is_deleted       | tinyint      | 是否删除(软删) | 1:删除, 0:正常。默认 0                     |
+| create_time      | datetime     | 创建时间       | 默认 CURRENT_TIMESTAMP                     |
+| update_time      | datetime     | 更新时间       | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+
 ### 6. biz_note_tag_mapping (笔记与标签多对多关联表)
 
-维护单篇笔记与多个标签之间的映射关系。
+维护单篇笔记与多个标签之间的映射关系。增加冗余解析名，便于在用户新建尚未绑定的标签前临时占位或做 UI 上的标记。
 
-| 字段名      | 数据类型 | 说明           | 备注                                      |
-| ----------- | -------- | -------------- | ----------------------------------------- |
-| note_id     | bigint   | 笔记ID         | 联合主键 (`note_id`, `tag_id`)            |
-| tag_id      | bigint   | 标签ID         | 联合主键。联合索引 (`idx_tag_deleted`)    |
-| is_deleted  | tinyint  | 是否删除(软删) | 1:删除, 0:正常。默认 0                    |
-| create_time | datetime | 关联时间       | 默认 CURRENT_TIMESTAMP                    |
+| 字段名          | 数据类型    | 说明                 | 备注                                          |
+| --------------- | ----------- | -------------------- | --------------------------------------------- |
+| id              | bigint      | 主键                 | 自增                                          |
+| note_id         | bigint      | 笔记ID               | 唯一联合键 (`idx_note_tag`)                   |
+| tag_id          | bigint      | 标签ID               | 可为空 (NULL=未绑定)                          |
+| parsed_tag_name | varchar(20) | 解析出的标签名       | 普通联合索引 (`uk_note_tag_name`)             |
+| is_pass         | tinyint     | 审核状态             | 0:未通过, 1:已通过。默认 0                    |
+| is_deleted      | tinyint     | 是否删除(软删)       | 1:删除, 0:正常。默认 0                        |
+| create_time     | datetime    | 关联时间             | 默认 CURRENT_TIMESTAMP                        |
+| update_time     | datetime    | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
 ### 7. biz_image (图片资源映射表)
 
@@ -164,6 +235,7 @@ flowchart TD
 | parsed_image_name | varchar(255) | MD中解析出的原始图名 |                                                |
 | note_title        | varchar(100) | 笔记标题             | 冗余字段，用于按笔记标题检索图片               |
 | is_cross_user     | tinyint      | 是否跨用户引用       | 0:同一用户, 1:引用他人。默认 0                 |
+| is_pass           | tinyint      | 审核状态             | 0:未通过, 1:已通过。默认 0                 |
 | is_deleted        | tinyint      | 是否已删除(软删)     | 0:正常, 1:删除。相关普通联合索引防止回表       |
 | create_time       | datetime     | 映射创建时间         | 默认 CURRENT_TIMESTAMP                         |
 | update_time       | datetime     | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
@@ -213,19 +285,6 @@ flowchart TD
 | create_time       | datetime      | 申请提交时间         | 默认 CURRENT_TIMESTAMP                         |
 | review_time       | datetime      | 审核完成时间         | 可为空                                         |
 
-### 14. biz_image_delete_dead_letter (图片删除死信队列表)
-
-用于记录图片删除失败后的重试任务，支撑异步补偿删除。
-
-| 字段名      | 数据类型      | 说明                 | 备注                                           |
-| ----------- | ------------- | -------------------- | ---------------------------------------------- |
-| id          | bigint        | 主键                 | 自增                                           |
-| image_url   | varchar(1000) | 待删除图片URL        | 保存 OSS/R2 等完整访问地址                     |
-| status      | tinyint       | 删除状态             | 0:等待删除, 1:删除完成。默认 0                 |
-| retry_count | int           | 重试次数             | 默认 0                                         |
-| create_time | datetime      | 入队时间             | 默认 CURRENT_TIMESTAMP                         |
-| update_time | datetime      | 状态更新时间         | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
-
 ### 12. biz_image_audit_record (图片审核记录表)
 
 用于管理图片的公开/私有申请审核流程。
@@ -257,3 +316,16 @@ flowchart TD
 | reject_reason     | varchar(500)  | 拒绝原因             | 可为空 (status=2时填写)                        |
 | create_time       | datetime      | 申请提交时间         | 默认 CURRENT_TIMESTAMP                         |
 | review_time       | datetime      | 审核完成时间         | 可为空                                         |
+
+### 14. biz_image_delete_dead_letter (图片删除死信队列表)
+
+用于记录图片删除失败后的重试任务，支撑异步补偿删除。
+
+| 字段名      | 数据类型      | 说明                 | 备注                                           |
+| ----------- | ------------- | -------------------- | ---------------------------------------------- |
+| id          | bigint        | 主键                 | 自增                                           |
+| image_url   | varchar(1000) | 待删除图片URL        | 保存 OSS/R2 等完整访问地址                     |
+| status      | tinyint       | 删除状态             | 0:等待删除, 1:删除完成。默认 0                 |
+| retry_count | int           | 重试次数             | 默认 0                                         |
+| create_time | datetime      | 入队时间             | 默认 CURRENT_TIMESTAMP                         |
+| update_time | datetime      | 状态更新时间         | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |

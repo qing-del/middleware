@@ -38,4 +38,7 @@ public interface NoteEachMappingMapper {
      */
     int countByNoteIdAndPass(@Param("noteId") Long noteId,
                              @Param("isPass") Short isPass);
+
+    int updateBySourceNoteIds(@Param("sourceNoteIds") List<Long> sourceNoteIds,
+                              @Param("status") Short status);
 }

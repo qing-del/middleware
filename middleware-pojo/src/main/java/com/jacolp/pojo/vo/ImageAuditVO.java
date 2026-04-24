@@ -21,6 +21,8 @@ public class ImageAuditVO implements Serializable {
 
     private Long applicantUserId;
 
+    private String applicantUsername;
+
     private Long imageId;
 
     private String filename;
@@ -40,4 +42,6 @@ public class ImageAuditVO implements Serializable {
     private LocalDateTime createTime;
 
     private LocalDateTime reviewTime;
+
+    private LocalDateTime updateTime;
 }

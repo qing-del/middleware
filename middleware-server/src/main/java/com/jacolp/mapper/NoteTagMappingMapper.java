@@ -42,4 +42,7 @@ public interface NoteTagMappingMapper {
      */
     int countByNoteIdAndPass(@Param("noteId") Long noteId,
                              @Param("isPass") Short isPass);
+
+
+    int updateByTagIds(@Param("tagIds") List<Long> tagIds, @Param("status") Short status);
 }

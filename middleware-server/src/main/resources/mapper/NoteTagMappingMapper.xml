@@ -130,4 +130,14 @@
               AND is_pass = #{isPass}
           </if>
     </select>
+
+    <update id="updateByTagIds">
+        UPDATE biz_note_tag_mapping
+        SET is_pass = #{status},
+            update_time = NOW()
+        WHERE tag_id IN
+        <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+            #{tagId}
+        </foreach>
+    </update>
 </mapper>

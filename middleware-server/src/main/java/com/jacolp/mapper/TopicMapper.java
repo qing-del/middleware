@@ -1,13 +1,14 @@
 package com.jacolp.mapper;
 
-import com.jacolp.pojo.domain.TopicNoteCountDO;
-import com.jacolp.pojo.entity.TopicEntity;
-import com.jacolp.pojo.vo.TopicListVO;
+import java.util.List;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import java.util.List;
+import com.jacolp.pojo.domain.TopicNoteCountDO;
+import com.jacolp.pojo.entity.TopicEntity;
+import com.jacolp.pojo.vo.TopicListVO;
 
 @Mapper
 /**
@@ -51,6 +52,9 @@ public interface TopicMapper {
      * 批量删除主题。
      */
     int deleteByIds(@Param("ids") List<Long> ids);
+
+    int updatePassByIds(@Param("ids") List<Long> ids,
+                        @Param("isPass") Short isPass);
 
     /**
      * 按 ID 检查主题是否存在。

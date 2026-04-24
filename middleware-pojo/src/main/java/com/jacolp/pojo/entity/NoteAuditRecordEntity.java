@@ -34,4 +34,6 @@ public class NoteAuditRecordEntity implements Serializable {
     private LocalDateTime createTime;
 
     private LocalDateTime reviewTime;
+
+    private LocalDateTime updateTime;
 }

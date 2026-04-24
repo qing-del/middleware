@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.mapper.MetaAuditMapper">
+
+    <resultMap id="MetaAuditRecordMap" type="com.jacolp.pojo.entity.MetaAuditRecordEntity">
+        <id column="id" property="id"/>
+        <result column="applicant_user_id" property="applicantUserId"/>
+        <result column="apply_type" property="applyType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="apply_reason" property="applyReason"/>
+        <result column="status" property="status"/>
+        <result column="reviewer_user_id" property="reviewerUserId"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="create_time" property="createTime"/>
+        <result column="review_time" property="reviewTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="MetaAuditVOMap" type="com.jacolp.pojo.vo.MetaAuditVO">
+        <id column="id" property="id"/>
+        <result column="applicant_user_id" property="applicantUserId"/>
+        <result column="applicant_username" property="applicantUsername"/>
+        <result column="apply_type" property="applyType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="target_name" property="targetName"/>
+        <result column="apply_reason" property="applyReason"/>
+        <result column="status" property="status"/>
+        <result column="reviewer_user_id" property="reviewerUserId"/>
+        <result column="reviewer_username" property="reviewerUsername"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="create_time" property="createTime"/>
+        <result column="review_time" property="reviewTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="listByCondition" resultMap="MetaAuditVOMap">
+        SELECT
+            a.id,
+            a.applicant_user_id,
+            u1.username AS applicant_username,
+            a.apply_type,
+            a.target_id,
+            CASE
+                WHEN a.apply_type = 1 THEN t.topic_name
+                WHEN a.apply_type = 2 THEN g.tag_name
+                ELSE NULL
+            END AS target_name,
+            a.apply_reason,
+            a.status,
+            a.reviewer_user_id,
+            u2.username AS reviewer_username,
+            a.reject_reason,
+            a.create_time,
+            a.review_time,
+            a.update_time
+        FROM biz_meta_audit_record a
+        LEFT JOIN sys_user u1 ON u1.id = a.applicant_user_id
+        LEFT JOIN sys_user u2 ON u2.id = a.reviewer_user_id
+        LEFT JOIN biz_topic t ON a.apply_type = 1 AND t.id = a.target_id
+        LEFT JOIN biz_tag g ON a.apply_type = 2 AND g.id = a.target_id
+        <where>
+            <if test="applyType != null">
+                a.apply_type = #{applyType}
+            </if>
+            <if test="status != null">
+                AND a.status = #{status}
+            </if>
+            <if test="applicantUserId != null">
+                AND a.applicant_user_id = #{applicantUserId}
+            </if>
+        </where>
+        ORDER BY a.update_time DESC, a.id DESC
+    </select>
+
+    <select id="selectPendingByIds" resultMap="MetaAuditRecordMap">
+        SELECT id, applicant_user_id, apply_type, target_id, apply_reason, status,
+               reviewer_user_id, reject_reason, create_time, review_time, update_time
+        FROM biz_meta_audit_record
+        WHERE status = 0
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <update id="batchReviewByIds">
+        UPDATE biz_meta_audit_record
+        SET status = #{status},
+            reviewer_user_id = #{reviewerUserId},
+            reject_reason = #{rejectReason},
+            review_time = NOW(),
+            update_time = NOW()
+        WHERE status = 0
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>

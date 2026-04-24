@@ -52,6 +52,15 @@
         </foreach>
     </delete>
 
+    <update id="updatePassByIds">
+        UPDATE biz_tag
+        SET is_pass = #{isPass}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
     <!-- 列表查询（前缀搜索，PageHelper 分页） -->
     <select id="listByCondition" resultType="com.jacolp.pojo.vo.TagVO">
         SELECT id, user_id AS userId, tag_name AS tagName, create_time AS createTime

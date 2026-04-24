@@ -50,4 +50,7 @@ public interface NoteImageMappingMapper {
      */
     int countByNoteIdAndPass(@Param("noteId") Long noteId,
                              @Param("isPass") Short isPass);
+
+    int updateByImageIds(@Param("imageIds") List<Long> imageIds,
+                         @Param("status") Short status);
 }

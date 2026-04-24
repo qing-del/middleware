@@ -160,4 +160,14 @@
                 </foreach>
         </update>
 
+        <update id="updatePassByIds">
+                UPDATE biz_note
+                SET is_pass = #{isPass},
+                    update_time = NOW()
+                WHERE id IN
+                <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                </foreach>
+        </update>
+
 </mapper>

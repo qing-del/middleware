@@ -18,7 +18,7 @@ public interface ImageAuditMapper {
     /**
      * 按审核记录 ID 查询。
      */
-    @Select("SELECT id, applicant_user_id, image_id, apply_reason, status, reviewer_user_id, reject_reason, create_time, review_time FROM biz_image_audit_record WHERE id = #{id}")
+    @Select("SELECT id, applicant_user_id, image_id, apply_reason, status, reviewer_user_id, reject_reason, create_time, review_time, update_time FROM biz_image_audit_record WHERE id = #{id}")
     ImageAuditRecordEntity selectById(@Param("id") Long id);
 
     /**
@@ -40,10 +40,18 @@ public interface ImageAuditMapper {
     /**
      * 条件查询审核列表。
      */
-    List<ImageAuditVO> listByCondition(@Param("status") Short status, @Param("pageNum") Integer pageNum, @Param("pageSize") Integer pageSize);
+    List<ImageAuditVO> listByCondition(@Param("status") Short status,
+                                       @Param("applicantUserId") Long applicantUserId);
 
     /**
      * 查询待审核审核列表。
      */
     List<ImageAuditVO> listPendingAudits();
+
+    List<ImageAuditRecordEntity> selectPendingByIds(@Param("ids") List<Long> ids);
+
+    int batchReviewByIds(@Param("ids") List<Long> ids,
+                         @Param("status") Short status,
+                         @Param("reviewerUserId") Long reviewerUserId,
+                         @Param("rejectReason") String rejectReason);
 }

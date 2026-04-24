@@ -18,12 +18,12 @@ CREATE TABLE `sys_role` (
                             UNIQUE KEY `uk_role_code` (`role_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统角色与额度配置表';
 
--- 初始化角色数据 (max_storage_bytes: CREATOR=100GB, ADMIN=10GB, USER=100MB, VIP=1GB)
+-- 初始化角色数据 (max_storage_bytes: CREATOR=100GB, ADMIN=1GB, USER=100MB, VIP=500MB)
 INSERT INTO `sys_role` (`role_name`, `role_code`, `daily_api_limit`, `max_storage_bytes`) VALUES
                                                                          ('创建者', 'CREATOR', 999999, 107374182400),
-                                                                         ('管理员', 'ADMIN', 1000, 10737418240),
+                                                                         ('管理员', 'ADMIN', 1000, 1073741824),
                                                                          ('普通用户', 'USER', 5, 104857600),
-                                                                         ('高级VIP', 'VIP', 50, 1073741824);
+                                                                         ('高级VIP', 'VIP', 50, 524288000);
 
 
 -- ==========================================
@@ -174,7 +174,7 @@ CREATE TABLE `biz_note_each_mapping` (
     `parsed_note_name` varchar(255) NOT NULL COMMENT '从双链中解析出来的笔记名(对应内联笔记的title)',
     `anchor`           varchar(255) DEFAULT NULL COMMENT '笔记锚点(双链中 # 之后的片段, 如 [[note.md#标题]] 中的"标题")',
     `nickname`         varchar(255) DEFAULT NULL COMMENT '笔记别名(双链中 | 之后的自定义显示名, 如 [[note.md|别名]] 中的"别名")',
-    `is_pass`          tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过)',
+    `is_pass`          tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)',
     `is_deleted`       tinyint      NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
     `create_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -196,7 +196,7 @@ CREATE TABLE `biz_note_tag_mapping` (
                                         `note_id` bigint NOT NULL COMMENT '笔记ID',
                                         `tag_id` bigint DEFAULT NULL COMMENT '标签ID(NULL=未绑定)',
                                         `parsed_tag_name` varchar(20) NOT NULL COMMENT '从笔记中解析出的标签名',
-                                        `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过)',
+                                        `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)',
                                         `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
                                         `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
                                         `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -243,7 +243,7 @@ CREATE TABLE `biz_note_image_mapping` (
     `parsed_image_name` varchar(255) NOT NULL COMMENT '笔记中解析出的原始图片名称(如: 架构图.png)，用于建立名称到URL的映射',
     `note_title`        varchar(100) NOT NULL COMMENT '笔记标题(冗余字段，用于后续按笔记标题搜索图片)',
     `is_cross_user`     tinyint      NOT NULL DEFAULT 0 COMMENT '是否跨用户引用(0:同一用户, 1:引用了其他用户的公开图片)',
-    `is_pass`           tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过)',
+    `is_pass`           tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)',
     `is_deleted`        tinyint      NOT NULL DEFAULT 0 COMMENT '是否已删除(0:正常, 1:已删除，删除时软删)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '映射创建时间(首次解析时间)',
     `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -304,10 +304,12 @@ CREATE TABLE `biz_meta_audit_record` (
     `reject_reason`     varchar(500) DEFAULT NULL COMMENT '拒绝原因(status=2时填写)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请提交时间',
     `review_time`       datetime     DEFAULT NULL COMMENT '审核完成时间',
+    `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_applicant_status` (`applicant_user_id`, `status`), -- 用户查自己的申请
     KEY `idx_status_type`      (`status`, `apply_type`),        -- 管理员批量处理
-    KEY `idx_target`           (`apply_type`, `target_id`)      -- 按类型+目标ID反查审核记录
+    KEY `idx_target`           (`apply_type`, `target_id`),      -- 按类型+目标ID反查审核记录
+    KEY `idx_status_update`    (`status`, `update_time`)         -- 管理员按更新时间拉取
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='主题&标签元数据审核表';
 
 -- ==========================================
@@ -323,10 +325,12 @@ CREATE TABLE `biz_image_audit_record` (
     `reject_reason`     varchar(500) DEFAULT NULL COMMENT '拒绝原因(status=2时填写)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请提交时间',
     `review_time`       datetime     DEFAULT NULL COMMENT '审核完成时间',
+    `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_applicant_status` (`applicant_user_id`, `status`), -- 用户查自己的申请
     KEY `idx_status`           (`status`),                      -- 管理员批量拉待审队列
-    KEY `idx_image_id`         (`image_id`)                     -- 按图片反查审核记录
+    KEY `idx_image_id`         (`image_id`),                     -- 按图片反查审核记录
+    KEY `idx_status_update`    (`status`, `update_time`)         -- 管理员按更新时间拉取
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片审核表';
 
 -- ==========================================
@@ -342,10 +346,12 @@ CREATE TABLE `biz_note_audit_record` (
     `reject_reason`     varchar(500) DEFAULT NULL COMMENT '拒绝原因(status=2时填写)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请提交时间',
     `review_time`       datetime     DEFAULT NULL COMMENT '审核完成时间',
+    `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_applicant_status` (`applicant_user_id`, `status`), -- 用户查自己的申请
     KEY `idx_status`           (`status`),                      -- 管理员批量拉待审队列
-    KEY `idx_note_id`          (`note_id`)                      -- 按笔记反查审核记录
+    KEY `idx_note_id`          (`note_id`),                      -- 按笔记反查审核记录
+    KEY `idx_status_update`    (`status`, `update_time`)         -- 管理员按更新时间拉取
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记审核表';
 
 

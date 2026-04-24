@@ -54,6 +54,9 @@ public interface ImageMapper {
      */
     int deleteByIds(@Param("ids") List<Long> ids);
 
+    int updatePassByIds(@Param("ids") List<Long> ids,
+                        @Param("isPass") Short isPass);
+
     /**
      * 查询用户存储图片的总大小
      * @param userId 用户 ID

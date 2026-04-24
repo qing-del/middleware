@@ -67,103 +67,156 @@ INSERT INTO `biz_tag` (`id`, `user_id`, `tag_name`) VALUES
 -- ==========================================
 -- 5. 笔记/文章主表 (biz_note)
 -- ==========================================
-INSERT INTO `biz_note` (`id`, `user_id`, `topic_id`, `title`, `html_file_path`, `md_file_path`, `is_published`, `storage_type`, `is_missing_photo`) VALUES
-                                                                                                                                                        (1, 1, 1, 'MySQL 索引失效的 10 种场景', '/storage/notes/1/1_index_fail.html', '/storage/notes/1/1_index_fail.md', 1, 0, 0),
-                                                                                                                                                        (2, 1, 1, 'InnoDB 锁机制详述', '/storage/notes/1/2_innodb_lock.html', '/storage/notes/1/2_innodb_lock.md', 1, 0, 1),
-                                                                                                                                                        (3, 2, 8, '2024 年第一篇随笔', '/storage/notes/2/3_essay_01.html', NULL, 0, 0, 0),
-                                                                                                                                                        (4, 3, 10, '分布式事务一致性方案', 'https://my-bucket.oss-cn-beijing.aliyuncs.com/notes/4_dist_tx.html', NULL, 1, 1, 0),
-                                                                                                                                                        (5, 1, 3, 'Redis 持久化机制详解', '/storage/notes/1/5_redis_persist.html', '/storage/notes/1/5_redis_persist.md', 1, 0, 0),
-                                                                                                                                                        (6, 1, 2, 'Spring Boot 3.x.x 新特性', '/storage/notes/1/6_springboot_new.html', '/storage/notes/1/6_springboot_new.md', 1, 0, 0),
-                                                                                                                                                        (7, 1, 7, '动态规划解题模板', '/storage/notes/1/7_dp_template.html', '/storage/notes/1/7_dp_template.md', 1, 0, 0),
-                                                                                                                                                        (8, 1, 10, '微服务架构设计模式', '/storage/notes/1/8_microservice.html', '/storage/notes/1/8_microservice.md', 1, 0, 0),
-                                                                                                                                                        (9, 1, 4, 'Docker 容器网络配置', '/storage/notes/1/9_docker_network.html', '/storage/notes/1/9_docker_network.md', 1, 0, 0),
-                                                                                                                                                        (10, 1, 6, 'Linux 性能监控工具', '/storage/notes/1/10_linux_perf.html', '/storage/notes/1/10_linux_perf.md', 1, 0, 0),
-                                                                                                                                                        (11, 1, 1, 'MySQL 慢查询优化', '/storage/notes/1/11_slow_query.html', '/storage/notes/1/11_slow_query.md', 1, 0, 0),
-                                                                                                                                                        (12, 1, 2, 'Spring Security 实战', '/storage/notes/1/12_spring_security.html', '/storage/notes/1/12_spring_security.md', 1, 0, 0),
-                                                                                                                                                        (13, 1, 5, 'Vue3 Composition API', '/storage/notes/1/13_vue3_comp.html', '/storage/notes/1/13_vue3_comp.md', 1, 0, 0);
+INSERT INTO `biz_note` (`id`, `user_id`, `topic_id`, `title`, `description`, `is_published`, `storage_type`, `is_missing_info`, `is_pass`, `is_deleted`, `md_file_size`) VALUES
+(1, 1, 1, 'MySQL 索引失效的 10 种场景', '详细分析各种失效场景及底层逻辑', 1, 0, 0, 1, 0, 10240),
+(2, 1, 1, 'InnoDB 锁机制详述', NULL, 1, 0, 1, 1, 0, 5000),
+(3, 2, 8, '2024 年第一篇随笔', '', 0, 0, 0, 0, 1, 300),
+(4, 3, 10, '分布式事务一致性方案', '深入讨论两阶段提交、TCC等', 1, 1, 0, 1, 0, 8900),
+(5, 1, 3, 'Redis 持久化机制详解', 'RDB 与 AOF 大比拼', 1, 0, 0, 1, 0, 12000),
+(6, 1, 2, 'Spring Boot 3.x.x 新特性', '升级指南与特性一览', 1, 0, 0, 1, 0, 4500),
+(7, 1, 7, '动态规划解题模板', '附带LeetCode高频题解', 1, 0, 0, 1, 0, 3200),
+(8, 1, 10, '微服务架构设计模式', '包含 API网关、服务发现等模式', 1, 0, 0, 1, 0, 15000),
+(9, 1, 4, 'Docker 容器网络配置', 'bridge, host, none模式解析', 1, 0, 0, 1, 0, 4100),
+(10, 1, 6, 'Linux 性能监控工具', 'top, vmstat, iostat实战', 1, 0, 0, 1, 0, 6000),
+(11, 1, 1, 'MySQL 慢查询优化', '开启与分析慢查询日志', 1, 0, 0, 1, 0, 8000),
+(12, 1, 2, 'Spring Security 实战', '从零搭建认证授权中心', 1, 0, 0, 1, 0, 9500),
+(13, 1, 5, 'Vue3 Composition API', 'setup 函数的最佳实践', 1, 0, 0, 1, 0, 2000),
+-- 边界用例与异常数据
+(14, 2, NULL, '未分类的孤独笔记', '没有归属主题的笔记', 0, 0, 0, 0, 0, 100),
+(15, 3, 10, '非常长的标题测试非常长的标题测试非常长的标题测试非常长的标题测试非常长的标题测试标题长度极限测试', '测试超长标题情况', 1, 2, 0, 2, 0, 123456789),
+(16, 1, 1, '特殊字符标题!@#$%^&*()_+{}|:<>?-=[]\\;,./', '测试各种特殊字符和emoji 🚀', 0, 0, 1, 0, 0, 50),
+(17, 1, 3, '已删除的Redis笔记', '应该在查询通常时过滤掉', 1, 0, 0, 1, 1, 800);
+
+
+-- ==========================================
+-- 5.1 笔记转换缓存表 (biz_note_converted)
+-- ==========================================
+INSERT INTO `biz_note_converted` (`note_id`, `title`, `tags_json`, `create_time_str`, `toc_html`, `body_html`) VALUES
+(1, 'MySQL 索引失效的 10 种场景', '["性能优化", "面试必考"]', '2024-05-10', '<ul><li><a href="#id1">失效场景一</a></li></ul>', '<h1 id="id1">失效场景一：不满足最左匹配</h1><p>详细内容...</p>'),
+(2, 'InnoDB 锁机制详述', '["底层原理"]', '2024-05-11', NULL, '<h1>行锁与表锁</h1><p>这是部分内容...</p>'),
+(4, '分布式事务一致性方案', '["高并发", "分布式"]', '2024-05-12', '<ul><li><a href="#1">2PC</a></li></ul>', '<h1 id="1">2PC两阶段提交</h1><p>...</p>'),
+(17, '已删除的Redis笔记', '[]', '2024-01-01', NULL, '<p>此笔记已被删除的缓存内容</p>');
+
+
+-- ==========================================
+-- 5.2 笔记覆盖上传 Diff 记录表 (biz_note_change_diff)
+-- ==========================================
+INSERT INTO `biz_note_change_diff` (`note_id`, `status`, `diff_json`, `old_file_size`, `new_file_size`) VALUES
+(1, 0, '{"additions": 10, "deletions": 2}', 10000, 10240),
+(5, 1, '{"additions": 5, "deletions": 5}', 12000, 12000),
+(6, 2, '{"additions": 0, "deletions": 40}', 5000, 4500);
+
+
+-- ==========================================
+-- 5.3 笔记内容表 (biz_note_context)
+-- ==========================================
+INSERT INTO `biz_note_context` (`note_id`, `markdown_content`, `markdown_content_new`) VALUES
+(1, '# 失效场景一：不满足最左匹配\n不要用 `SELECT *`', '# 失效场景一：不满足最左匹配\n不要用 `SELECT *`并且注意联合索引顺序。'),
+(2, '# 行锁与表锁\nInnoDB默认是行锁。', NULL),
+(4, '# 2PC两阶段提交\n引入协调者角色。', NULL),
+(14, '# 孤独笔记\n没有任何主题', NULL),
+(16, '# 特殊字符\n!@#$%', NULL);
+
+
+-- ==========================================
+-- 5.4 笔记双链映射表 (biz_note_each_mapping)
+-- ==========================================
+INSERT INTO `biz_note_each_mapping` (`source_note_id`, `target_note_id`, `parsed_note_name`, `anchor`, `nickname`, `is_pass`, `is_deleted`) VALUES
+(1, 2, 'InnoDB 锁机制详述', '行锁', '锁的知识点', 1, 0),
+(1, 11, 'MySQL 慢查询优化', NULL, NULL, 1, 0),
+(4, NULL, '未创建的微服务治理笔记', '限流降级', '微服务限流', 0, 0),
+(5, 17, '已删除的Redis笔记', NULL, '软删引用', 1, 1),
+(8, 4, '分布式事务一致性方案', NULL, '事务方案复用', 1, 0),
+(12, NULL, '空白笔记引用', '', '', 0, 0),
+(13, NULL, '引用带着极其反常长长长长长长名称的笔记测试', NULL, '极长别名极长别名极长别名极长别名极长别名极长别名', 0, 0);
 
 
 -- ==========================================
 -- 6. 笔记-标签 多对多关联 (biz_note_tag_mapping)
--- 扩展关联关系以使用新增的标签
 -- ==========================================
-INSERT INTO `biz_note_tag_mapping` (`note_id`, `tag_id`) VALUES
-                                                             (1, 1),   -- MySQL 索引失效 → 性能优化
-                                                             (1, 2),   -- MySQL 索引失效 → 源码阅读
-                                                             (1, 3),   -- MySQL 索引失效 → 面试必考
-                                                             (2, 1),   -- InnoDB 锁机制 → 性能优化
-                                                             (2, 5),   -- InnoDB 锁机制 → 底层原理
-                                                             (2, 3),   -- InnoDB 锁机制 → 面试必考
-                                                             (3, 11),  -- 随笔 → 踩坑记录
-                                                             (3, 14),  -- 随笔 → 日常总结
-                                                             (4, 16),  -- 分布式事务 → 高并发
-                                                             (4, 17),  -- 分布式事务 → 分布式
-                                                             (4, 18),  -- 分布式事务 → 系统设计
-                                                             (5, 1),   -- Redis 持久化 → 性能优化
-                                                             (5, 2),   -- Redis 持久化 → 源码阅读
-                                                             (5, 9),   -- Redis 持久化 → 中间件
-                                                             (6, 3),   -- Spring Boot 新特性 → 面试必考
-                                                             (6, 7),   -- Spring Boot 新特性 → 避坑指南
-                                                             (7, 4),   -- 动态规划 → 算法
-                                                             (7, 3),   -- 动态规划 → 面试必考
-                                                             (8, 8),   -- 微服务架构 → 架构模式
-                                                             (8, 17),  -- 微服务架构 → 分布式
-                                                             (8, 18),  -- 微服务架构 → 系统设计
-                                                             (9, 6),   -- Docker 网络 → 最佳实践
-                                                             (9, 10),  -- Docker 网络 → 工具使用
-                                                             (10, 1),  -- Linux 性能监控 → 性能优化
-                                                             (10, 10), -- Linux 性能监控 → 工具使用
-                                                             (11, 1),  -- MySQL 慢查询 → 性能优化
-                                                             (11, 7),  -- MySQL 慢查询 → 避坑指南
-                                                             (12, 3),  -- Spring Security → 面试必考
-                                                             (12, 4),  -- Spring Security → 实战案例
-                                                             (13, 6),  -- Vue3 Composition API → 最佳实践
-                                                             (13, 10); -- Vue3 Composition API → 工具使用
+INSERT INTO `biz_note_tag_mapping` (`note_id`, `tag_id`, `parsed_tag_name`, `is_pass`, `is_deleted`) VALUES
+(1, 1, '性能优化', 1, 0),
+(1, 2, '源码阅读', 1, 0),
+(1, 3, '面试必考', 1, 0),
+(2, 1, '性能优化', 1, 0),
+(2, 5, '底层原理', 1, 0),
+(2, 3, '面试必考', 1, 0),
+(3, 11, '踩坑记录', 0, 1),
+(3, 14, '日常总结', 0, 1),
+(4, 16, '高并发', 1, 0),
+(4, 17, '分布式', 1, 0),
+(4, 18, '系统设计', 1, 0),
+(5, 1, '性能优化', 1, 0),
+(5, 2, '源码阅读', 1, 0),
+(5, 9, '中间件', 1, 0),
+(6, 3, '面试必考', 1, 0),
+(6, 7, '避坑指南', 1, 0),
+(7, 12, '算法', 1, 0),
+(7, 3, '面试必考', 1, 0),
+(8, 8, '架构模式', 1, 0),
+(8, 17, '分布式', 1, 0),
+(8, 18, '系统设计', 1, 0),
+(9, 6, '最佳实践', 1, 0),
+(9, 10, '工具使用', 1, 0),
+(10, 1, '性能优化', 1, 0),
+(10, 10, '工具使用', 1, 0),
+(11, 1, '性能优化', 1, 0),
+(11, 7, '避坑指南', 1, 0),
+(12, 3, '面试必考', 1, 0),
+(12, 4, '实战案例', 1, 0),
+(13, 6, '最佳实践', 1, 0),
+(13, 10, '工具使用', 1, 0),
+-- 测试孤儿标签（即文本解析出来但并没有创建在biz_tag中，tag_id为空）
+(16, NULL, '未收录的自定义神仙标签', 0, 0),
+(17, 1, '性能优化', 1, 1); -- 笔记已被删除的标签
 
 
 -- ==========================================
 -- 7. 图片资源映射表 (biz_image)
--- 说明：biz_image 仅支持云存储(1=阿里云OSS, 2=Cloudflare R2预留)
 -- ==========================================
 INSERT INTO `biz_image` (`id`, `user_id`, `topic_id`, `filename`, `oss_url`, `storage_type`, `file_size`, `is_public`, `is_pass`) VALUES
-                                                                                                              (1, 1, 1, 'mysql_b_tree.png', 'https://oss.example.com/u1/mysql_b_tree.png', 1, 102455, 1, 1),
-                                                                                                              (2, 1, 1, 'explain_result.jpg', 'https://oss.example.com/u1/explain_result.jpg', 1, 56789, 0, 1),
-                                                                                                              (3, 3, 10, 'raft_protocol.png', 'https://oss.example.com/u3/raft_protocol.png', 1, 204800, 1, 1),
-                                                                                                              (4, 2, 8, 'daily_note_cover.png', 'https://oss.example.com/u2/daily_note_cover.png', 1, 40960, 0, 0),
-                                                                                                              (5, 3, 10, 'eventual_consistency.png', 'https://r2.example.com/u3/eventual_consistency.png', 2, 99888, 1, 0);
+(1, 1, 1, 'mysql_b_tree.png', 'https://oss.example.com/u1/mysql_b_tree.png', 1, 102455, 1, 1),
+(2, 1, 1, 'explain_result.jpg', 'https://oss.example.com/u1/explain_result.jpg', 1, 56789, 0, 1),
+(3, 3, 10, 'raft_protocol.png', 'https://oss.example.com/u3/raft_protocol.png', 1, 204800, 1, 1),
+(4, 2, 8, 'daily_note_cover.png', 'https://oss.example.com/u2/daily_note_cover.png', 1, 40960, 0, 0),
+(5, 3, 10, 'eventual_consistency.png', 'https://r2.example.com/u3/eventual_consistency.png', 2, 99888, 1, 0),
+(6, 1, NULL, '未分类孤儿图___#$!~.png', 'https://oss.example.com/u1/weird_name.png', 1, 10, 1, 1);
 
 
 -- ==========================================
 -- 8. 每日 API 调用统计表 (biz_api_daily_usage)
--- 模拟用户今日已使用的额度
 -- ==========================================
 INSERT INTO `biz_api_daily_usage` (`user_id`, `record_date`, `used_count`) VALUES
-                                                                               (1, CURDATE(), 50),     -- 管理员今天用了 50 次
-                                                                               (2, CURDATE(), 5),      -- 普通用户张三今天已经用完了（上限5次）
-                                                                               (3, CURDATE(), 10),     -- VIP 李四今天用了 10 次
-                                                                               (2, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 3),
-                                                                               (3, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 35);
+(1, CURDATE(), 50),
+(2, CURDATE(), 5),
+(3, CURDATE(), 10),
+(2, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 3),
+(3, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 35),
+(1, DATE_SUB(CURDATE(), INTERVAL 365 DAY), 9999); -- 一年前的边界数据
 
 
 -- ==========================================
 -- 9. API 异步任务明细表 (biz_api_task_log)
 -- ==========================================
 INSERT INTO `biz_api_task_log` (`user_id`, `task_type`, `task_status`, `result_url`, `error_msg`, `finish_time`) VALUES
-                                                                                                                     (1, 'analyze_text', 1, 'https://oss.example.com/res/report_001.pdf', NULL, NOW()),
-                                                                                                                     (2, 'generate_audio', 2, NULL, 'Python Script Timeout: Connection refused', NOW()),
-                                                                                                                     (3, 'analyze_text', 0, NULL, NULL, NULL); -- 处理中任务
+(1, 'analyze_text', 1, 'https://oss.example.com/res/report_001.pdf', NULL, NOW()),
+(2, 'generate_audio', 2, NULL, 'Python Script Timeout: Connection refused', NOW()),
+(3, 'analyze_text', 0, NULL, NULL, NULL),
+(1, 'unknown_task_edge_case', 2, NULL, 'Max retries exceeded with Exception: NullPointer', NOW());
 
 
 -- ==========================================
 -- 10. 笔记-图片引用映射表 (biz_note_image_mapping)
 -- ==========================================
 INSERT INTO `biz_note_image_mapping`
-(`note_id`, `image_id`, `note_user_id`, `image_user_id`, `parsed_image_name`, `note_title`, `is_cross_user`, `is_deleted`) VALUES
-    (1, 1, 1, 1, 'mysql_b_tree.png', 'MySQL 索引失效的 10 种场景', 0, 0),
-    (1, 2, 1, 1, 'explain_result.jpg', 'MySQL 索引失效的 10 种场景', 0, 0),
-    (4, 3, 3, 3, 'raft_protocol.png', '分布式事务一致性方案', 0, 0),
-    (8, 3, 1, 3, 'raft_protocol.png', '微服务架构设计模式', 1, 0),
-    (3, 4, 2, 2, 'daily_note_cover.png', '2024 年第一篇随笔', 0, 1);
+(`note_id`, `image_id`, `note_user_id`, `image_user_id`, `parsed_image_name`, `note_title`, `is_cross_user`, `is_pass`, `is_deleted`) VALUES
+(1, 1, 1, 1, 'mysql_b_tree.png', 'MySQL 索引失效的 10 种场景', 0, 1, 0),
+(1, 2, 1, 1, 'explain_result.jpg', 'MySQL 索引失效的 10 种场景', 0, 1, 0),
+(4, 3, 3, 3, 'raft_protocol.png', '分布式事务一致性方案', 0, 1, 0),
+(8, 3, 1, 3, 'raft_protocol.png', '微服务架构设计模式', 1, 1, 0),
+(3, 4, 2, 2, 'daily_note_cover.png', '2024 年第一篇随笔', 0, 0, 1),
+-- 图片尚未绑定的情况(解析出了图片名字，但是未找到相应的资源)
+(2, NULL, 1, NULL, 'not_exist_image.gif', 'InnoDB 锁机制详述', 0, 0, 0);
 
 
 -- ==========================================
@@ -171,9 +224,10 @@ INSERT INTO `biz_note_image_mapping`
 -- ==========================================
 INSERT INTO `biz_meta_audit_record`
 (`applicant_user_id`, `apply_type`, `target_id`, `apply_reason`, `status`, `reviewer_user_id`, `reject_reason`, `review_time`) VALUES
-    (2, 1, 8, '申请将主题公开给团队共享', 1, 1, NULL, NOW()),
-    (2, 2, 11, '该标签用于项目复盘', 2, 1, '标签描述过于模糊，请补充语义', NOW()),
-    (3, 1, 10, '申请加急审核架构主题', 0, NULL, NULL, NULL);
+(2, 1, 8, '申请将主题公开给团队共享', 1, 1, NULL, NOW()),
+(2, 2, 11, '该标签用于项目复盘', 2, 1, '标签描述过于模糊，请补充语义', NOW()),
+(3, 1, 10, '申请加急审核架构主题', 0, NULL, NULL, NULL),
+(1, 2, 9999, '测试不存在的审核目标ID', 0, NULL, NULL, NULL);
 
 
 -- ==========================================
@@ -181,9 +235,9 @@ INSERT INTO `biz_meta_audit_record`
 -- ==========================================
 INSERT INTO `biz_image_audit_record`
 (`applicant_user_id`, `image_id`, `apply_reason`, `status`, `reviewer_user_id`, `reject_reason`, `review_time`) VALUES
-    (2, 4, '封面图用于公开笔记，申请通过审核', 0, NULL, NULL, NULL),
-    (3, 5, '该图为原创架构图，申请公开引用', 2, 1, '当前图片清晰度不足，请重新上传高清版本', NOW()),
-    (1, 1, '用于公共知识库示例图', 1, 1, NULL, NOW());
+(2, 4, '封面图用于公开笔记，申请通过审核', 0, NULL, NULL, NULL),
+(3, 5, '该图为原创架构图，申请公开引用', 2, 1, '当前图片清晰度不足，请重新上传高清版本', NOW()),
+(1, 1, '用于公共知识库示例图', 1, 1, NULL, NOW());
 
 
 -- ==========================================
@@ -191,15 +245,16 @@ INSERT INTO `biz_image_audit_record`
 -- ==========================================
 INSERT INTO `biz_note_audit_record`
 (`applicant_user_id`, `note_id`, `apply_reason`, `status`, `reviewer_user_id`, `reject_reason`, `review_time`) VALUES
-    (2, 3, '内容已补充完整，申请发布', 0, NULL, NULL, NULL),
-    (1, 2, '技术笔记申请公开', 1, 1, NULL, NOW()),
-    (3, 4, '申请首页推荐', 2, 1, '内容缺少可复现步骤，请补充后重提', NOW());
+(2, 3, '内容已补充完整，申请发布', 0, NULL, NULL, NULL),
+(1, 2, '技术笔记申请公开', 1, 1, NULL, NOW()),
+(3, 4, '申请首页推荐', 2, 1, '内容缺少可复现步骤，请补充后重提', NOW());
 
 
 -- ==========================================
 -- 14. 图片删除死信队列表 (biz_image_delete_dead_letter)
 -- ==========================================
 INSERT INTO `biz_image_delete_dead_letter` (`image_url`, `status`, `retry_count`) VALUES
-    ('https://oss.example.com/u2/expired_audit_001.png', 0, 0),
-    ('https://oss.example.com/u1/temp/deprecated_cover.png', 0, 2),
-    ('https://r2.example.com/u3/legacy/old_architecture.png', 1, 1);
+('https://oss.example.com/u2/expired_audit_001.png', 0, 0),
+('https://oss.example.com/u1/temp/deprecated_cover.png', 0, 2),
+('https://r2.example.com/u3/legacy/old_architecture.png', 1, 1),
+('https://invalid-url.com/what/ever/test', 0, 999); -- 重试次数爆炸的死信边界

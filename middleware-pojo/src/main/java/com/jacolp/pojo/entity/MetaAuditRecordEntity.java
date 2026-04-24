@@ -37,4 +37,6 @@ public class MetaAuditRecordEntity implements Serializable {
     private LocalDateTime createTime;
 
     private LocalDateTime reviewTime;
+
+    private LocalDateTime updateTime;
 }

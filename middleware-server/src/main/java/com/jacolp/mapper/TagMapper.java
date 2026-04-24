@@ -33,6 +33,9 @@ public interface TagMapper {
 
     int deleteByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 
+    int updatePassByIds(@Param("ids") List<Long> ids,
+                        @Param("isPass") Short isPass);
+
     /**
      * 根据条件查询标签
      * @param userId

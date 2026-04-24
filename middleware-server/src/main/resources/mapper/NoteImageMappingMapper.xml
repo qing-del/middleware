@@ -147,4 +147,15 @@
           </if>
     </select>
 
+    <update id="updateByImageIds">
+        UPDATE biz_note_image_mapping
+        SET is_pass = #{status},
+            update_time = NOW()
+        WHERE image_id IN
+        <foreach collection="imageIds" item="imageId" open="(" separator="," close=")">
+            #{imageId}
+        </foreach>
+          AND is_deleted = 0
+    </update>
+
 </mapper>

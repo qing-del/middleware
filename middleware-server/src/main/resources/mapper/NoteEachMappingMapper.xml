@@ -115,4 +115,15 @@
           </if>
     </select>
 
+    <update id="updateBySourceNoteIds">
+        UPDATE biz_note_each_mapping
+        SET is_pass = #{status},
+            update_time = NOW()
+        WHERE source_note_id IN
+        <foreach collection="sourceNoteIds" item="sourceNoteId" open="(" separator="," close=")">
+            #{sourceNoteId}
+        </foreach>
+          AND is_deleted = 0
+    </update>
+
 </mapper>
