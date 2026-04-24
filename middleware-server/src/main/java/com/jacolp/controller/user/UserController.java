@@ -2,8 +2,10 @@ package com.jacolp.controller.user;
 
 import com.jacolp.constant.UserConstant;
 import com.jacolp.pojo.dto.UserLoginDTO;
+import com.jacolp.pojo.dto.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.pojo.vo.UserDetailVO;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.Result;
 import com.jacolp.service.UserService;
@@ -13,10 +15,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,5 +52,31 @@ public class UserController {
     public Result<String> register(@RequestBody UserRegisterDTO userRegisterDTO) {
         log.info("User register: {}", userRegisterDTO.getUsername());
         return Result.success(userService.register(userRegisterDTO));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "获取当前用户信息",
+            description = "从 JWT 中解析当前用户ID，查询并返回用户详情（不含密码等敏感字段）。")
+    public Result<UserDetailVO> getCurrentUser() {
+        log.info("User get current user info");
+        return Result.success(userService.getCurrentUser());
+    }
+
+    @PutMapping("/me")
+    @Operation(summary = "更新当前用户信息",
+            description = "仅允许修改当前登录用户自身的昵称、邮箱等资料字段；存储空间配额等受限字段仅在具备对应权限时允许修改。")
+    public Result<String> updateCurrentUser(@RequestBody UserProfileUpdateDTO dto) {
+        log.info("User update profile");
+        userService.updateCurrentUserProfile(dto);
+        return Result.success("更新成功");
+    }
+
+    @DeleteMapping("/me")
+    @Operation(summary = "删除账户（软删除）",
+            description = "将当前登录用户账户状态更新为软删除状态，保留历史数据，避免物理删除造成关联记录丢失。")
+    public Result<String> deleteCurrentUser() {
+        log.info("User soft-delete account");
+        userService.deleteCurrentUser();
+        return Result.success("账户已删除");
     }
 }

@@ -4,8 +4,10 @@ import com.jacolp.pojo.dto.UserAddDTO;
 import com.jacolp.pojo.dto.UserListDTO;
 import com.jacolp.pojo.dto.UserLoginDTO;
 import com.jacolp.pojo.dto.UserModifyDTO;
+import com.jacolp.pojo.dto.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.pojo.vo.UserDetailVO;
 import com.jacolp.result.PageResult;
 
 import java.util.List;
@@ -35,4 +37,13 @@ public interface UserService {
 
     // 获取用户信息
     UserEntity getUserById(Long id);
+
+    // 用户端：获取当前登录用户详情（不含密码）
+    UserDetailVO getCurrentUser();
+
+    // 用户端：更新当前登录用户的个人资料
+    void updateCurrentUserProfile(UserProfileUpdateDTO dto);
+
+    // 用户端：软删除当前登录用户账户
+    void deleteCurrentUser();
 }

@@ -7,18 +7,22 @@ import com.jacolp.constant.RoleConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.*;
 import com.jacolp.component.PasswordEncoder;
+import com.jacolp.component.UsernameAndPasswordProvider;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.UserAddDTO;
 import com.jacolp.pojo.dto.UserListDTO;
 import com.jacolp.pojo.dto.UserLoginDTO;
 import com.jacolp.pojo.dto.UserModifyDTO;
+import com.jacolp.pojo.dto.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.pojo.vo.UserDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.UserService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,6 +34,7 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
+    @Autowired private UsernameAndPasswordProvider usernameAndPasswordProvider;
 
     @Override
     public UserEntity loginAdmin(UserLoginDTO userLoginDTO) {
@@ -65,15 +70,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserEntity loginUser(UserLoginDTO userLoginDTO) {
-        // 检查用户名是否为空
-        if (!StringUtils.hasText(userLoginDTO.getUsername())) {
-            throw new BaseException(UserConstant.USERNAME_IS_REQUIRED);
-        }
-        
-        // 检查密码是否为空，避免后续密码比对出现无意义调用
-        if (!StringUtils.hasText(userLoginDTO.getPassword())) {
-            throw new BaseException(UserConstant.PASSWORD_IS_REQUIRED);
-        }
+        // 校验用户名和密码非空
+        usernameAndPasswordProvider.validateUsernameAndPassword(
+                userLoginDTO.getUsername(), userLoginDTO.getPassword());
 
         // 1. 根据用户名查用户
         UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
@@ -101,20 +100,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public String register(UserRegisterDTO userRegisterDTO) {
-        // 检查用户名是否为空
-        if (!StringUtils.hasText(userRegisterDTO.getUsername())) {
-            throw new BaseException(UserConstant.USERNAME_IS_REQUIRED);
-        }
-
-        // 检查密码是否为空
-        if (!StringUtils.hasText(userRegisterDTO.getPassword()) || !StringUtils.hasText(userRegisterDTO.getConfirmPassword())) {
-            throw new BaseException(UserConstant.PASSWORD_IS_REQUIRED);
-        }
-
-        // 检查两次密码是否一致
-        if (!userRegisterDTO.getPassword().equals(userRegisterDTO.getConfirmPassword())) {
-            throw new BaseException(UserConstant.PASSWORD_CONFIRM_ERROR);
-        }
+        // 校验用户名、密码非空及两次密码一致性
+        usernameAndPasswordProvider.validateRegister(
+                userRegisterDTO.getUsername(),
+                userRegisterDTO.getPassword(),
+                userRegisterDTO.getConfirmPassword());
 
         // 检查是否存在相同用户名的用户
         UserEntity existed = userMapper.selectByUsername(userRegisterDTO.getUsername());
@@ -224,13 +214,8 @@ public class UserServiceImpl implements UserService {
             throw new PermissionDeniedException("权限不足：只能创建权限低于自身的账户");
         }
 
-        // 4. Username uniqueness check
-        if (!StringUtils.hasText(dto.getUsername())) {
-            throw new BaseException(UserConstant.USERNAME_IS_REQUIRED);
-        }
-        if (!StringUtils.hasText(dto.getPassword())) {
-            throw new BaseException(UserConstant.PASSWORD_IS_REQUIRED);
-        }
+        // 4. Username and password validation
+        usernameAndPasswordProvider.validateUsernameAndPassword(dto.getUsername(), dto.getPassword());
         UserEntity existed = userMapper.selectByUsername(dto.getUsername());
         if (existed != null) {
             throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
@@ -317,5 +302,68 @@ public class UserServiceImpl implements UserService {
         user.setPassword(null);
         user.setUpdateTime(null);
         return user;
+    }
+
+    @Override
+    public UserDetailVO getCurrentUser() {
+        Long userId = BaseContext.getCurrentId();
+        UserEntity user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+        }
+
+        // 转换为 VO，排除密码等敏感字段
+        UserDetailVO vo = new UserDetailVO();
+        BeanUtils.copyProperties(user, vo);
+        vo.setId(null);
+        return vo;
+    }
+
+    @Override
+    public void updateCurrentUserProfile(UserProfileUpdateDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+        UserEntity user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+        }
+
+        // 构建更新实体，仅设置非空字段
+        UserEntity updateEntity = new UserEntity();
+        updateEntity.setId(userId);
+
+        if (StringUtils.hasText(dto.getNickname())) {
+            updateEntity.setNickname(dto.getNickname());
+        }
+        if (StringUtils.hasText(dto.getEmail())) {
+            updateEntity.setEmail(dto.getEmail());
+        }
+
+        // maxStorageBytes 仅管理员/创建者可修改
+        if (dto.getMaxStorageBytes() != null) {
+            if (user.getRoleId() > RoleConstant.ADMIN) {
+                throw new PermissionDeniedException("权限不足：仅管理员和创建者可以修改存储空间配额");
+            }
+            updateEntity.setMaxStorageBytes(dto.getMaxStorageBytes());
+        }
+
+        userMapper.updateById(updateEntity);
+        log.info("User profile updated, userId: {}", userId);
+    }
+
+    @Override
+    public void deleteCurrentUser() {
+        Long userId = BaseContext.getCurrentId();
+        UserEntity user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+        }
+
+        // 软删除：仅更新状态为已删除，保留历史数据
+        UserEntity updateEntity = new UserEntity();
+        updateEntity.setId(userId);
+        updateEntity.setStatus(UserConstant.DELETED_STATUS);
+        userMapper.updateById(updateEntity);
+
+        log.info("User soft-deleted (account deactivated), userId: {}", userId);
     }
 }
