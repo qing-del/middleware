@@ -174,7 +174,7 @@ CREATE TABLE `biz_note_each_mapping` (
     `parsed_note_name` varchar(255) NOT NULL COMMENT '从双链中解析出来的笔记名(对应内联笔记的title)',
     `anchor`           varchar(255) DEFAULT NULL COMMENT '笔记锚点(双链中 # 之后的片段, 如 [[note.md#标题]] 中的"标题")',
     `nickname`         varchar(255) DEFAULT NULL COMMENT '笔记别名(双链中 | 之后的自定义显示名, 如 [[note.md|别名]] 中的"别名")',
-    `is_pass`          tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)',
+    `is_pass`          tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)(代表target是否通过)',
     `is_deleted`       tinyint      NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
     `create_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

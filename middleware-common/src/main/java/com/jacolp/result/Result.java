@@ -29,6 +29,7 @@ public class Result<T> implements Serializable {
     public static <T> Result<T> success(T object) {
         Result<T> result = new Result<T>();
         result.data = object;
+        result.msg = "success";
         result.code = SUCCESS;
         return result;
     }

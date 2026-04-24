@@ -119,7 +119,7 @@
         UPDATE biz_note_each_mapping
         SET is_pass = #{status},
             update_time = NOW()
-        WHERE source_note_id IN
+        WHERE target_note_id IN
         <foreach collection="sourceNoteIds" item="sourceNoteId" open="(" separator="," close=")">
             #{sourceNoteId}
         </foreach>

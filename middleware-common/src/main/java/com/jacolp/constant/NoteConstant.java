@@ -72,6 +72,7 @@ public class NoteConstant {
     public static final String NOTE_NOT_OWNER = "只能操作自己的笔记";
     public static final String NOTE_ALREADY_PASSED = "该笔记已通过审核";
     public static final String NOTE_AUDIT_PENDING = "该笔记已有待审核的申请";
+    public static final String NOTE_NOT_PASS = "该笔记未通过审核";
 
     private NoteConstant() {
     }

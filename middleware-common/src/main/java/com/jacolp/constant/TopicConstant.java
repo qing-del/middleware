@@ -14,4 +14,5 @@ public class TopicConstant {
     public static final String TOPIC_ADD_FAILED = "新增主题失败";
     public static final String TOPIC_UPDATE_FAILED = "修改主题失败";
     public static final String TOPIC_DELETE_FAILED = "删除主题失败";
+    public static final String TOPIC_SUBMIT_AUDIT_FAILED = "提交主题审核失败";
 }

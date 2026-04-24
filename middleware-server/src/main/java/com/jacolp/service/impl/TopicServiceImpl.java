@@ -246,7 +246,10 @@ public class TopicServiceImpl implements TopicService {
         record.setApplicantUserId(userId);
         record.setApplyType(AuditConstant.TOPIC_APPLY_TYPE);
         record.setTargetId(topicId);
-        metaAuditMapper.insertAuditRecord(record);
+        int count = metaAuditMapper.insertAuditRecord(record);
+        if (count <= 0) {
+            throw new BaseException(TopicConstant.TOPIC_SUBMIT_AUDIT_FAILED);
+        }
     }
 
     /**

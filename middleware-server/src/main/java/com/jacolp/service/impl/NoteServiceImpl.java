@@ -580,6 +580,11 @@ public class NoteServiceImpl implements NoteService {
                 throw new BaseException(NoteConstant.NOTE_EACH_NOT_PASS);
             }
 
+            // 4. 校验笔记本身是否通过
+            if (!TagConstant.IS_PASS.equals(noteMapper.selectById(noteId).getIsPass())) {
+                throw new BaseException(NoteConstant.NOTE_NOT_PASS);
+            }
+
             count = noteMapper.updatePublishStatus(noteId, NoteConstant.IS_PUBLISHED_YES);
         } else {
             count = noteMapper.updatePublishStatus(noteId, NoteConstant.IS_PUBLISHED_NO);

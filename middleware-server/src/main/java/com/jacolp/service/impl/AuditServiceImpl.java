@@ -41,20 +41,28 @@ import com.jacolp.service.AuditService;
 
 import lombok.extern.slf4j.Slf4j;
 
-@Service
 @Slf4j
+@Service
 public class AuditServiceImpl implements AuditService {
+
+    private static class ReviewContext {
+        private List<Long> ids;
+        private Short status;
+        private Long reviewerUserId;
+        private String rejectReason;
+    }
 
     @Autowired private MetaAuditMapper metaAuditMapper;
     @Autowired private ImageAuditMapper imageAuditMapper;
-    @Autowired private NoteAuditMapper noteAuditMapper;
 
+    @Autowired private NoteAuditMapper noteAuditMapper;
     @Autowired private TopicMapper topicMapper;
     @Autowired private TagMapper tagMapper;
     @Autowired private ImageMapper imageMapper;
     @Autowired private NoteMapper noteMapper;
     @Autowired private NoteTagMappingMapper noteTagMappingMapper;
     @Autowired private NoteImageMappingMapper noteImageMappingMapper;
+
     @Autowired private NoteEachMappingMapper noteEachMappingMapper;
 
 
@@ -294,13 +302,6 @@ public class AuditServiceImpl implements AuditService {
      */
     private int normalizePageSize(Integer pageSize) {
         return pageSize == null || pageSize <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : pageSize;
-    }
-
-    private static class ReviewContext {
-        private List<Long> ids;
-        private Short status;
-        private Long reviewerUserId;
-        private String rejectReason;
     }
 
     /**

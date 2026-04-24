@@ -18,5 +18,7 @@ public class TagVO implements Serializable {
 
     private String tagName;
 
+    private Short isPass;
+
     private LocalDateTime createTime;
 }

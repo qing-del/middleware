@@ -20,6 +20,8 @@ public class TopicListVO implements Serializable {
 
     private Long noteCount;
 
+    private Short isPass;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

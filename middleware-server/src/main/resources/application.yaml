@@ -9,8 +9,10 @@ spring:
     password: ${jacolp.datasource.password}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      keep-alive-time: 50000  # 50 秒尝试一次保持 TCP 连接
+      keep-alive-time: 50000  # 50 秒尝试一次保持 TCP 连接（可以用于分布式的时候防止NAT老化）
       connection-test-query: SELECT 1
+      minimum-idle: 5 # 最小空闲连接数（预热）
+      maximum-pool-size: 20 # 最大连接数
 
 jacolp:
   admin:

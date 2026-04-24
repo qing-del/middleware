@@ -89,6 +89,7 @@
             t.id,
             t.topic_name AS topicName,
             t.sort_order AS sortOrder,
+            t.is_pass AS isPass,
             t.create_time AS createTime,
             t.update_time AS updateTime,
             IFNULL(n.note_count, 0) AS noteCount
