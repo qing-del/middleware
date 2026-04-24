@@ -124,4 +124,19 @@
         </foreach>
     </select>
 
+    <!-- 用户端列表查询：自己的图片 + 别人已公开的图片 -->
+    <select id="listByUserCondition" resultMap="ImageVO">
+        SELECT
+            id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
+        FROM biz_image
+        <where>
+            (user_id = #{userId} OR is_public = 1)
+            <if test="topicId != null">AND topic_id = #{topicId}</if>
+            <if test="filename != null and filename != ''">
+                AND filename LIKE CONCAT(#{filename}, '%')
+            </if>
+        </where>
+        ORDER BY upload_time DESC
+    </select>
+
 </mapper>

@@ -148,4 +148,14 @@ public interface NoteService {
     void unbindEachMapping(Long mappingId);
 
     Boolean checkRelationCompletion(Long noteId);
+
+    /**
+     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     */
+    PageResult listUserNotes(Long userId, com.jacolp.pojo.dto.UserNoteQueryDTO dto);
+
+    /**
+     * 用户端发起笔记审核申请。
+     */
+    void submitNoteAudit(Long noteId);
 }

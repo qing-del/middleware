@@ -98,4 +98,9 @@
         </foreach>
     </update>
 
+    <insert id="insertAuditRecord" parameterType="com.jacolp.pojo.entity.MetaAuditRecordEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_meta_audit_record (applicant_user_id, apply_type, target_id, apply_reason, status, create_time)
+        VALUES (#{applicantUserId}, #{applyType}, #{targetId}, #{applyReason}, 0, NOW())
+    </insert>
+
 </mapper>

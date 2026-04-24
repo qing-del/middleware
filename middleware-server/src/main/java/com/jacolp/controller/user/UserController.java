@@ -31,7 +31,8 @@ public class UserController {
     @Autowired private UserService userService;
 
     @PostMapping("/login")
-    @Operation(summary = "用户登录", description = "先校验用户名和密码是否匹配，登录成功后将用户 ID 写入 JWT claims 并签发令牌返回；后续接口会通过该 token 解析当前用户。")
+    @Operation(summary = "用户登录",
+            description = "先校验用户名和密码是否匹配，登录成功后将用户 ID 写入 JWT claims 并签发令牌返回；后续接口会通过该 token 解析当前用户。")
     public Result<String> login(@RequestBody UserLoginDTO userLoginDTO) {
         log.info("User login: {}", userLoginDTO.getUsername());
 
@@ -47,7 +48,8 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    @Operation(summary = "用户注册", description = "创建普通用户账号前会先校验入参合法性，并在服务层完成账号初始化、默认角色设置和密码落库，返回注册结果。")
+    @Operation(summary = "用户注册",
+            description = "创建普通用户账号前会先校验入参合法性，并在服务层完成账号初始化、默认角色设置和密码落库，返回注册结果。")
     public Result<String> register(@RequestBody UserRegisterDTO userRegisterDTO) {
         log.info("User register: {}", userRegisterDTO.getUsername());
         return Result.success(userService.register(userRegisterDTO));

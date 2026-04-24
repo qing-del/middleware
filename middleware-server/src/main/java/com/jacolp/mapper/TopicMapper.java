@@ -61,4 +61,9 @@ public interface TopicMapper {
      */
     @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_topic WHERE id = #{topicId}")
     int countById(Long topicId);
+
+    /**
+     * 用户端条件查询：当前用户自己的主题 + 别人已通过审核的主题。
+     */
+    List<TopicListVO> listByUserCondition(@Param("userId") Long userId, @Param("keyword") String keyword);
 }

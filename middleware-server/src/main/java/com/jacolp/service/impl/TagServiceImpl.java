@@ -7,12 +7,15 @@ import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
+import com.jacolp.mapper.MetaAuditMapper;
 import com.jacolp.mapper.TagMapper;
 import com.jacolp.pojo.domain.TagNoteCountDO;
 import com.jacolp.pojo.dto.TagAddDTO;
 import com.jacolp.pojo.dto.TagBatchAddDTO;
 import com.jacolp.pojo.dto.TagModifyDTO;
 import com.jacolp.pojo.dto.TagQueryDTO;
+import com.jacolp.pojo.dto.UserTagQueryDTO;
+import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.TagEntity;
 import com.jacolp.pojo.vo.TagBatchAddVO;
 import com.jacolp.pojo.vo.TagVO;
@@ -36,6 +39,9 @@ public class TagServiceImpl implements TagService {
 
     @Autowired
     private TagMapper tagMapper;
+
+    @Autowired
+    private MetaAuditMapper metaAuditMapper;
 
     @Override
     public void addTag(TagAddDTO dto) {
@@ -179,6 +185,52 @@ public class TagServiceImpl implements TagService {
         List<TagVO> records = tagMapper.listByCondition(userId, normalizeKeyword(dto.getKeyword()));
         PageInfo<TagVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 用户端条件查询：当前用户自己的标签 + 别人已通过审核的标签。
+     */
+    @Override
+    public PageResult listUserTags(UserTagQueryDTO dto) {
+        if (dto == null) {
+            dto = new UserTagQueryDTO();
+        }
+        Long userId = BaseContext.getCurrentId();
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        List<TagVO> records = tagMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()));
+        PageInfo<TagVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 用户端发起标签审核申请。
+     */
+    @Override
+    public void submitTagAudit(Long tagId) {
+        Long userId = BaseContext.getCurrentId();
+        validateTagId(tagId);
+
+        TagEntity tag = tagMapper.selectByIdAndUserId(tagId, userId);
+        if (tag == null) {
+            throw new BaseException(TagConstant.TAG_NOT_FOUND);
+        }
+        if (AuditConstant.PASS.equals(tag.getIsPass())) {
+            throw new BaseException("该标签已通过审核");
+        }
+        int pendingCount = metaAuditMapper.countPendingAuditByApplyTypeAndTargetId(AuditConstant.TAG_APPLY_TYPE, tagId);
+        if (pendingCount > 0) {
+            throw new BaseException("该标签已有待审核的申请");
+        }
+
+        MetaAuditRecordEntity record = new MetaAuditRecordEntity();
+        record.setApplicantUserId(userId);
+        record.setApplyType(AuditConstant.TAG_APPLY_TYPE);
+        record.setTargetId(tagId);
+        metaAuditMapper.insertAuditRecord(record);
     }
 
     private String normalizeTagName(String tagName) {

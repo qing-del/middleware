@@ -87,4 +87,9 @@
         </foreach>
     </update>
 
+    <insert id="insertAuditRecord" parameterType="com.jacolp.pojo.entity.NoteAuditRecordEntity" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_note_audit_record (applicant_user_id, note_id, apply_reason, status, create_time)
+        VALUES (#{applicantUserId}, #{noteId}, #{applyReason}, 0, NOW())
+    </insert>
+
 </mapper>

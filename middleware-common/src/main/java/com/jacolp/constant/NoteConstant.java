@@ -68,6 +68,10 @@ public class NoteConstant {
     public static final String NOTE_DELETE_FAILED = "笔记删除失败";
     public static final String NOTE_VISIBLE_UPDATE_FAILED = "笔记公开状态更新失败";
     public static final String NOTE_EACH_NOT_PASS = "内联笔记未通过审核";
+    public static final String NOTE_ID_INVALID = "笔记 ID 不合法";
+    public static final String NOTE_NOT_OWNER = "只能操作自己的笔记";
+    public static final String NOTE_ALREADY_PASSED = "该笔记已通过审核";
+    public static final String NOTE_AUDIT_PENDING = "该笔记已有待审核的申请";
 
     private NoteConstant() {
     }

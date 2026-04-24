@@ -2,6 +2,7 @@ package com.jacolp.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.constant.UserConstant;
+import com.jacolp.context.BaseContext;
 import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.Result;
@@ -56,7 +57,9 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             Claims claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
             Long userId = Long.valueOf(claims.get(UserConstant.USER_ID_CLAIM).toString());
             log.info("Current user ID: {}", userId);
-            // 3、通过，放行
+            // 3、将用户 ID 存入线程上下文
+            BaseContext.setCurrentId(userId);
+            // 4、通过，放行
             return true;
         } catch (Exception ex) {
             // 4、不通过，响应401状态码
@@ -94,5 +97,6 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         log.debug("Request completed for user interceptor");
+        BaseContext.remove();
     }
 }

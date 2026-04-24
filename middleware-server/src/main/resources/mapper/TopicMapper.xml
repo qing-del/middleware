@@ -83,4 +83,29 @@
         </foreach>
     </update>
 
+    <!-- 用户端列表查询：自己的主题 + 别人已通过审核的主题 -->
+    <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.TopicListVO">
+        SELECT
+            t.id,
+            t.topic_name AS topicName,
+            t.sort_order AS sortOrder,
+            t.create_time AS createTime,
+            t.update_time AS updateTime,
+            IFNULL(n.note_count, 0) AS noteCount
+        FROM biz_topic t
+        LEFT JOIN (
+            SELECT topic_id, COUNT(1) AS note_count
+            FROM biz_note
+            WHERE is_deleted = 0
+            GROUP BY topic_id
+        ) n ON t.id = n.topic_id
+        <where>
+            (t.user_id = #{userId} OR t.is_pass = 1)
+            <if test="keyword != null and keyword != ''">
+                AND t.topic_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY t.sort_order ASC, t.update_time DESC, t.id DESC
+    </select>
+
 </mapper>

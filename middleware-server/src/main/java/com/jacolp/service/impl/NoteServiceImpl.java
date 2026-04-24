@@ -18,6 +18,7 @@ import com.jacolp.mapper.NoteContextMapper;
 import com.jacolp.mapper.NoteConvertMapper;
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
+import com.jacolp.mapper.NoteAuditMapper;
 import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.mapper.TagMapper;
@@ -34,6 +35,7 @@ import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
 import com.jacolp.pojo.entity.NoteContextEntity;
 import com.jacolp.pojo.entity.NoteConvertedEntity;
+import com.jacolp.pojo.entity.NoteAuditRecordEntity;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
@@ -85,6 +87,7 @@ public class NoteServiceImpl implements NoteService {
     @Autowired private NoteEachMappingMapper noteEachMappingMapper;
     @Autowired private NoteTagMappingMapper noteTagMappingMapper;
     @Autowired private NoteImageMappingMapper noteImageMappingMapper;
+    @Autowired private NoteAuditMapper noteAuditMapper;
 
     // ==== 来自其他模块的 Mapper ====
     @Autowired private TagMapper tagMapper;
@@ -878,13 +881,63 @@ public class NoteServiceImpl implements NoteService {
         Long userId = BaseContext.getCurrentId();
         NoteEntity note = validateOwnedNote(noteId, userId);
 
-        // 在校验完整性前，先尝试批量补绑定“现在已存在且可绑定”的资源。
+        // 在校验完整性前，先尝试批量补绑定”现在已存在且可绑定”的资源。
         syncBindableMappings(noteId, userId, note.getTopicId());
 
         // 基于三类映射结果计算完整性，并同步回写笔记主表。
         boolean complete = isRelationComplete(noteId);
         noteMapper.updateMissingInfo(noteId, complete ? NoteConstant.NOT_MISSED_INFO : NoteConstant.MISSED_INFO);
         return complete;
+    }
+
+    /**
+     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     */
+    @Override
+    public PageResult listUserNotes(Long userId, com.jacolp.pojo.dto.UserNoteQueryDTO dto) {
+        if (dto == null) {
+            dto = new com.jacolp.pojo.dto.UserNoteQueryDTO();
+        }
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        String title = (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) ? dto.getTitle().trim() : null;
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), title);
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 用户端发起笔记审核申请。
+     */
+    @Override
+    public void submitNoteAudit(Long noteId) {
+        Long userId = BaseContext.getCurrentId();
+        if (noteId == null || noteId <= 0) {
+            throw new BaseException(NoteConstant.NOTE_ID_INVALID);
+        }
+
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException(NoteConstant.NOTE_NOT_OWNER);
+        }
+        if (AuditConstant.PASS.equals(note.getIsPass())) {
+            throw new BaseException(NoteConstant.NOTE_ALREADY_PASSED);
+        }
+        int pendingCount = noteAuditMapper.countPendingAuditByNoteId(noteId);
+        if (pendingCount > 0) {
+            throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
+        }
+
+        NoteAuditRecordEntity record = new NoteAuditRecordEntity();
+        record.setApplicantUserId(userId);
+        record.setNoteId(noteId);
+        noteAuditMapper.insertAuditRecord(record);
     }
 
     /**

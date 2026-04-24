@@ -75,4 +75,11 @@ public interface NoteMapper {
             "title = #{originalFilename} and " +
             "is_deleted = 0")
     int countByUserIdAndTopicIdAndTitle(Long userId, Long topicId, String originalFilename);
+
+    /**
+     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     */
+    List<NoteVO> listByUserCondition(@Param("userId") Long userId,
+                                     @Param("topicId") Long topicId,
+                                     @Param("title") String title);
 }

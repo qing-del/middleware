@@ -87,4 +87,11 @@ public interface ImageMapper {
     List<ImageEntity> selectByUserIdAndTopicIdAndFilenames(@Param("userId") Long userId,
                                                            @Param("topicId") Long topicId,
                                                            @Param("filenames") List<String> filenames);
+
+    /**
+     * 用户端条件查询：当前用户自己的图片 + 别人已公开的图片。
+     */
+    List<ImageVO> listByUserCondition(@Param("userId") Long userId,
+                                      @Param("topicId") Long topicId,
+                                      @Param("filename") String filename);
 }

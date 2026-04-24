@@ -99,4 +99,18 @@
             #{tagName}
         </foreach>
     </select>
+
+    <!-- 用户端列表查询：自己的标签 + 别人已通过审核的标签 -->
+    <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.TagVO">
+        SELECT id, user_id AS userId, tag_name AS tagName, create_time AS createTime
+        FROM biz_tag
+        <where>
+            (user_id = #{userId} OR is_pass = 1)
+            <if test="keyword != null and keyword != ''">
+                AND tag_name LIKE CONCAT(#{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
 </mapper>

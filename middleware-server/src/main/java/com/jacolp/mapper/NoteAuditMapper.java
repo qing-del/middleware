@@ -4,6 +4,7 @@ import com.jacolp.pojo.entity.NoteAuditRecordEntity;
 import com.jacolp.pojo.vo.NoteAuditVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -19,4 +20,9 @@ public interface NoteAuditMapper {
                          @Param("status") Short status,
                          @Param("reviewerUserId") Long reviewerUserId,
                          @Param("rejectReason") String rejectReason);
+
+    int insertAuditRecord(NoteAuditRecordEntity record);
+
+    @Select("SELECT COUNT(*) FROM biz_note_audit_record WHERE note_id = #{noteId} AND status = 0")
+    int countPendingAuditByNoteId(@Param("noteId") Long noteId);
 }

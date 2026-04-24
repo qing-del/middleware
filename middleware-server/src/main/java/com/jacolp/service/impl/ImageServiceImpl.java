@@ -3,6 +3,7 @@ package com.jacolp.service.impl;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.PageConstant;
 import com.jacolp.constant.TopicConstant;
 import com.jacolp.constant.UserConstant;
@@ -442,6 +443,54 @@ public class ImageServiceImpl implements ImageService {
         }
 
         imageAuditMapper.updateAuditRecord(auditRecord);
+    }
+
+    /**
+     * 用户端条件查询：当前用户自己的图片 + 别人已公开的图片。
+     */
+    @Override
+    public PageResult listUserImages(Long userId, com.jacolp.pojo.dto.UserImageQueryDTO dto) {
+        if (dto == null) {
+            dto = new com.jacolp.pojo.dto.UserImageQueryDTO();
+        }
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        String filename = (dto.getFilename() != null && !dto.getFilename().trim().isEmpty()) ? dto.getFilename().trim() : null;
+        List<ImageVO> records = imageMapper.listByUserCondition(userId, dto.getTopicId(), filename);
+        PageInfo<ImageVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 用户端发起图片审核申请。
+     */
+    @Override
+    public void submitImageAudit(Long imageId) {
+        Long userId = BaseContext.getCurrentId();
+        validateImageId(imageId);
+
+        ImageEntity image = imageMapper.selectById(imageId);
+        if (image == null) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+        if (!image.getUserId().equals(userId)) {
+            throw new BaseException("只能申请审核自己的图片");
+        }
+        if (AuditConstant.PASS.equals(image.getIsPass())) {
+            throw new BaseException("该图片已通过审核");
+        }
+        int pendingCount = imageAuditMapper.countPendingAuditByImageId(imageId);
+        if (pendingCount > 0) {
+            throw new BaseException("该图片已有待审核的申请");
+        }
+
+        ImageAuditRecordEntity record = new ImageAuditRecordEntity();
+        record.setApplicantUserId(userId);
+        record.setImageId(imageId);
+        imageAuditMapper.insertAuditRecord(record);
     }
 
 

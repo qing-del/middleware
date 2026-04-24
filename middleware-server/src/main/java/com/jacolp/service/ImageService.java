@@ -68,4 +68,14 @@ public interface ImageService {
      * 管理员审核图片。
      */
     void auditReviewImage(ImageAuditReviewDTO dto);
+
+    /**
+     * 用户端条件查询：当前用户自己的图片 + 别人已公开的图片。
+     */
+    PageResult listUserImages(Long userId, com.jacolp.pojo.dto.UserImageQueryDTO dto);
+
+    /**
+     * 用户端发起图片审核申请。
+     */
+    void submitImageAudit(Long imageId);
 }

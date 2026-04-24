@@ -7,11 +7,14 @@ import com.jacolp.constant.TopicConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
+import com.jacolp.mapper.MetaAuditMapper;
 import com.jacolp.mapper.TopicMapper;
 import com.jacolp.pojo.domain.TopicNoteCountDO;
 import com.jacolp.pojo.dto.TopicAddDTO;
 import com.jacolp.pojo.dto.TopicListDTO;
 import com.jacolp.pojo.dto.TopicModifyDTO;
+import com.jacolp.pojo.dto.UserTopicQueryDTO;
+import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.TopicEntity;
 import com.jacolp.pojo.vo.TopicDetailVO;
 import com.jacolp.pojo.vo.TopicListVO;
@@ -40,6 +43,9 @@ public class TopicServiceImpl implements TopicService {
 
     @Autowired
     private TopicMapper topicMapper;
+
+    @Autowired
+    private MetaAuditMapper metaAuditMapper;
 
     /**
      * 新增主题。
@@ -191,6 +197,56 @@ public class TopicServiceImpl implements TopicService {
         if (count <= 0) {
             throw new BaseException(TopicConstant.TOPIC_DELETE_FAILED);
         }
+    }
+
+    /**
+     * 用户端条件查询：当前用户自己的主题 + 别人已通过审核的主题。
+     */
+    @Override
+    public PageResult listUserTopics(UserTopicQueryDTO dto) {
+        if (dto == null) {
+            dto = new UserTopicQueryDTO();
+        }
+        Long userId = BaseContext.getCurrentId();
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        List<TopicListVO> records = topicMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()));
+        PageInfo<TopicListVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 用户端发起主题审核申请。
+     */
+    @Override
+    public void submitTopicAudit(Long topicId) {
+        Long userId = BaseContext.getCurrentId();
+        validateTopicId(topicId);
+
+        TopicEntity topic = topicMapper.selectById(topicId);
+        if (topic == null) {
+            throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
+        }
+        if (!topic.getUserId().equals(userId)) {
+            throw new BaseException("只能申请审核自己的主题");
+        }
+        if (AuditConstant.PASS.equals(topic.getIsPass())) {
+            throw new BaseException("该主题已通过审核");
+        }
+        // 检查是否已有待审核记录
+        int pendingCount = metaAuditMapper.countPendingAuditByApplyTypeAndTargetId(AuditConstant.TOPIC_APPLY_TYPE, topicId);
+        if (pendingCount > 0) {
+            throw new BaseException("该主题已有待审核的申请");
+        }
+
+        MetaAuditRecordEntity record = new MetaAuditRecordEntity();
+        record.setApplicantUserId(userId);
+        record.setApplyType(AuditConstant.TOPIC_APPLY_TYPE);
+        record.setTargetId(topicId);
+        metaAuditMapper.insertAuditRecord(record);
     }
 
     /**
