@@ -67,7 +67,7 @@ public class ImageServiceImpl implements ImageService {
      * 1. 按 (user_id, topic_id, filename) 校验唯一性。
      * 2. 写入物理文件。
      * 3. 写入数据库记录。
-     * 4. 累加用户已用存储空间。
+     * 4. 累加用户已用存储空间。（已经在切面类中完成了这种重复的操作，并且做了并发安全的控制）
      */
     @Override
     public ImageVO uploadImage(MultipartFile file, Long topicId) {

@@ -175,7 +175,8 @@ public class ImageController {
      * 5.10 审核图片（管理员）。
      */
     @PutMapping("/audit/review")
-    @Operation(summary = "审核图片", description = "管理员根据审核申请执行通过或拒绝；通过时将图片审核状态置为通过，拒绝时必须给出拒绝原因并同步回写审核记录。")
+    @Operation(summary = "审核图片",
+            description = "管理员根据审核申请执行通过或拒绝；通过时将图片审核状态置为通过，拒绝时必须给出拒绝原因并同步回写审核记录。(开发的时候不要调用这个接口，因为在认证控制器里面已经有图片审核的接口了)")
     public Result<String> auditReview(@RequestBody ImageAuditReviewDTO dto) {
         log.info("Admin audit review image, auditId: {}, approved: {}", dto.getAuditId(), dto.getApproved());
         imageService.auditReviewImage(dto);

@@ -48,7 +48,6 @@ public class UserImageServiceImpl implements UserImageService {
     private AliyunOSSOperator aliyunOSSOperator;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public UserImageDetailVO uploadImage(MultipartFile file, Long topicId) {
         Long userId = BaseContext.getCurrentId();
         String filename = file.getOriginalFilename();
@@ -63,21 +62,6 @@ public class UserImageServiceImpl implements UserImageService {
             int count = topicMapper.countById(topicId);
             if (count <= 0) {
                 throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
-            }
-        }
-
-        // 校验文件大小是否在用户剩余配额内
-        UserQuoteStorageDO storageInfo = userMapper.selectQuoteStorageById(userId);
-        if (storageInfo == null) {
-            throw new BaseException("获取用户存储信息失败");
-        }
-
-        Long maxStorageBytes = storageInfo.getMaxStorageBytes();
-        Long usedStorageBytes = storageInfo.getUsedStorageBytes();
-        if (maxStorageBytes != null && usedStorageBytes != null) {
-            Long remaining = maxStorageBytes - usedStorageBytes;
-            if (remaining < file.getSize()) {
-                throw new BaseException("存储配额不足，剩余空间: " + remaining + " 字节");
             }
         }
 
@@ -104,16 +88,8 @@ public class UserImageServiceImpl implements UserImageService {
 
         int insertCount = imageMapper.insertImage(image);
         if (insertCount <= 0) {
+            log.error("Image upload operation is failed, url: {}", ossUrl);
             throw new BaseException("图片上传失败");
-        }
-
-        // 更新用户已用存储空间
-        UserEntity user = new UserEntity();
-        user.setId(userId);
-        user.setUsedStorageBytes(usedStorageBytes + file.getSize());
-        int countUser = userMapper.updateById(user);
-        if (countUser <= 0) {
-            throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
         }
 
         // 转换为 VO 返回
