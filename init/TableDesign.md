@@ -64,6 +64,13 @@ flowchart TD
 | create_time       | datetime    | 创建时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time       | datetime    | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_role_code | 唯一索引 | role_code | 角色标识唯一 |
+
 ### 2. sys_user (用户信息表)
 
 用于存储登录用户的基本信息及个体资源使用情况。
@@ -82,6 +89,16 @@ flowchart TD
 | create_time        | datetime    | 注册时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time        | datetime    | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_username | 唯一索引 | username | 登录账号唯一 |
+| idx_email | 唯一索引 | email | 邮箱地址唯一 |
+| idx_nickname | 普通索引 | nickname, status | 昵称与状态联合索引 |
+| idx_status_role | 普通索引 | status, role_id | 状态与角色联合索引 |
+
 ### 3. biz_topic (笔记主题/分类表)
 
 用于存储用户创建的笔记分类体系，不同用户的数据相互隔离。
@@ -96,6 +113,15 @@ flowchart TD
 | create_time | datetime    | 创建时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time | datetime    | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_user_id | 普通索引 | user_id | 创建者ID索引 |
+| idx_user_sort_update | 普通索引 | user_id, sort_order, update_time | 用户、排序、更新时间联合索引 |
+| uk_topic_user | 唯一索引 | topic_name, user_id | 主题名称与用户联合唯一 |
+
 ### 4. biz_tag (笔记标签表)
 
 用于存储用户创建的标签体系，可被多篇笔记复用。
@@ -107,6 +133,14 @@ flowchart TD
 | tag_name    | varchar(20) | 标签名称             | 联合唯一键 (`uk_tag_user`：tag_name+user_id)   |
 | is_pass     | tinyint     | 审核状态             | 0:待审核, 1:已通过, 2:已拒绝。默认 0           |
 | create_time | datetime    | 创建时间             | 默认 CURRENT_TIMESTAMP                         |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_user_id | 普通索引 | user_id | 创建者ID索引 |
+| uk_tag_user | 唯一索引 | tag_name, user_id | 标签名称与用户联合唯一 |
 
 ### 5. biz_note (笔记存储记录表)
 
@@ -128,6 +162,15 @@ flowchart TD
 | create_time      | datetime     | 创建时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time      | datetime     | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_user_id | 普通索引 | user_id | 作者ID索引 |
+| idx_user_topic_title_deleted | 普通索引 | user_id, topic_id, title(30), is_deleted | 用户、主题、标题、删除状态联合索引 |
+| idx_topic_deleted | 普通索引 | topic_id, is_deleted | 主题与删除状态联合索引 |
+
 ### 5.1 biz_note_converted (笔记转换缓存表)
 
 用于缓存 Markdown 引擎解析得到的持久化 HTML 片段与元数据。
@@ -142,6 +185,13 @@ flowchart TD
 | toc_html        | mediumtext   | TOC侧边栏HTML    | 可为空                                     |
 | body_html       | longtext     | 正文HTML片段     | 已替换图片URL及双链解析                    |
 | convert_time    | datetime     | 最近转换时间     | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_note_id | 唯一索引 | note_id | 关联笔记ID唯一 |
 
 ### 5.2 biz_note_change_diff (笔记覆盖上传 Diff 记录表)
 
@@ -158,6 +208,13 @@ flowchart TD
 | create_time   | datetime | 创建时间     | 默认 CURRENT_TIMESTAMP                     |
 | update_time   | datetime | 更新时间     | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_note_id | 唯一索引 | note_id | 关联笔记ID唯一 |
+
 ### 5.3 biz_note_context (笔记内容表)
 
 将原本存储在本地的 Markdown 原文挪入数据库结构化持久保存。
@@ -170,6 +227,13 @@ flowchart TD
 | markdown_content_new | longtext | MD新版本内容   | 可为空，覆盖上传时临时存储                 |
 | create_time          | datetime | 创建时间       | 默认 CURRENT_TIMESTAMP                     |
 | update_time          | datetime | 更新时间       | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_note_id | 唯一索引 | note_id | 关联笔记ID唯一 |
 
 ### 5.4 biz_note_each_mapping (笔记双链映射表)
 
@@ -188,6 +252,15 @@ flowchart TD
 | create_time      | datetime     | 创建时间       | 默认 CURRENT_TIMESTAMP                     |
 | update_time      | datetime     | 更新时间       | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_source_target | 普通索引 | source_note_id, target_note_id | 源笔记与目标笔记联合索引 |
+| idx_target | 普通索引 | target_note_id | 目标笔记ID索引 |
+| idx_delete | 普通索引 | is_deleted | 删除状态索引 |
+| idx_note_deleted_pass | 普通索引 | source_note_id, is_deleted, is_pass | 源笔记、删除状态、审核状态联合索引 |
 
 ### 6. biz_note_tag_mapping (笔记与标签多对多关联表)
 
@@ -203,6 +276,16 @@ flowchart TD
 | is_deleted      | tinyint     | 是否删除(软删)       | 1:删除, 0:正常。默认 0                        |
 | create_time     | datetime    | 关联时间             | 默认 CURRENT_TIMESTAMP                        |
 | update_time     | datetime    | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_note_tag | 唯一索引 | note_id, tag_id | 笔记与标签联合唯一 |
+| uk_note_tag_name | 普通索引 | note_id, parsed_tag_name | 笔记与解析标签名联合索引 |
+| idx_tag_deleted | 普通索引 | tag_id, is_deleted | 标签与删除状态联合索引 |
+| idx_note_deleted_pass | 普通索引 | note_id, is_deleted, is_pass | 笔记、删除状态、审核状态联合索引 |
 
 ### 7. biz_image (图片资源映射表)
 
@@ -220,6 +303,15 @@ flowchart TD
 | is_public    | tinyint       | 是否公开             | 0:私有仅本人可引用, 1:公开可被其他用户搜索复用。联合索引 (`idx_public_filename`) |
 | is_pass      | tinyint       | 审核状态             | 0:待审核, 1:已通过, 2:已拒绝。默认 0           |
 | upload_time  | datetime      | 上传时间             | 默认 CURRENT_TIMESTAMP                         |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_user_topic_filename | 普通索引 | user_id, topic_id, filename(40) | 用户、主题、文件名联合索引 |
+| idx_topic_public_filename | 普通索引 | topic_id, is_public, filename(40) | 主题、公开状态、文件名联合索引 |
+| idx_public_filename | 普通索引 | is_public, filename(40) | 公开状态与文件名联合索引 |
 
 ### 8. biz_note_image_mapping (笔记与图片映射表)
 
@@ -240,6 +332,17 @@ flowchart TD
 | create_time       | datetime     | 映射创建时间         | 默认 CURRENT_TIMESTAMP                         |
 | update_time       | datetime     | 更新时间             | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_note_image | 唯一索引 | note_id, image_id | 笔记与图片联合唯一 |
+| idx_image_id | 普通索引 | image_id | 图片ID索引 |
+| idx_note_user_name | 普通索引 | note_user_id, parsed_image_name, is_deleted | 笔记用户、解析图片名、删除状态联合索引 |
+| idx_note_deleted_pass | 普通索引 | note_id, is_deleted, is_pass | 笔记、删除状态、审核状态联合索引 |
+| idx_is_deleted | 普通索引 | is_deleted | 删除状态索引 |
+
 ### 9. biz_api_daily_usage (每日API调用次数统计表)
 
 按日统计用户的 API 调用情况，便于执行限流逻辑。
@@ -252,6 +355,13 @@ flowchart TD
 | used_count  | int      | 当日已调用次数   | 默认 0                                         |
 | create_time | datetime | 首次调用时间     | 默认 CURRENT_TIMESTAMP                         |
 | update_time | datetime | 最后更新时间     | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| uk_user_date | 唯一索引 | user_id, record_date | 用户与日期联合唯一 |
 
 ### 10. biz_api_task_log (API异步任务明细表)
 
@@ -267,6 +377,13 @@ flowchart TD
 | error_msg   | text          | 失败时的错误信息 | 可为空                                         |
 | create_time | datetime      | 任务提交时间     | 默认 CURRENT_TIMESTAMP                         |
 | finish_time | datetime      | 任务完成时间     | 可为空                                         |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_user_id | 普通索引 | user_id | 调用者ID索引 |
 
 ### 11. biz_meta_audit_record (元数据审核记录表)
 
@@ -285,6 +402,16 @@ flowchart TD
 | create_time       | datetime      | 申请提交时间         | 默认 CURRENT_TIMESTAMP                         |
 | review_time       | datetime      | 审核完成时间         | 可为空                                         |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_applicant_status | 普通索引 | applicant_user_id, status | 申请者与状态联合索引 |
+| idx_status_type | 普通索引 | status, apply_type | 状态与申请类型联合索引 |
+| idx_target | 普通索引 | apply_type, target_id | 申请类型与目标ID联合索引 |
+| idx_status_update | 普通索引 | status, update_time | 状态与更新时间联合索引 |
+
 ### 12. biz_image_audit_record (图片审核记录表)
 
 用于管理图片的公开/私有申请审核流程。
@@ -300,6 +427,16 @@ flowchart TD
 | reject_reason     | varchar(500)  | 拒绝原因             | 可为空 (status=2时填写)                        |
 | create_time       | datetime      | 申请提交时间         | 默认 CURRENT_TIMESTAMP                         |
 | review_time       | datetime      | 审核完成时间         | 可为空                                         |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_applicant_status | 普通索引 | applicant_user_id, status | 申请者与状态联合索引 |
+| idx_status | 普通索引 | status | 状态索引 |
+| idx_image_id | 普通索引 | image_id | 图片ID索引 |
+| idx_status_update | 普通索引 | status, update_time | 状态与更新时间联合索引 |
 
 ### 13. biz_note_audit_record (笔记审核记录表)
 
@@ -317,6 +454,16 @@ flowchart TD
 | create_time       | datetime      | 申请提交时间         | 默认 CURRENT_TIMESTAMP                         |
 | review_time       | datetime      | 审核完成时间         | 可为空                                         |
 
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_applicant_status | 普通索引 | applicant_user_id, status | 申请者与状态联合索引 |
+| idx_status | 普通索引 | status | 状态索引 |
+| idx_note_id | 普通索引 | note_id | 笔记ID索引 |
+| idx_status_update | 普通索引 | status, update_time | 状态与更新时间联合索引 |
+
 ### 14. biz_image_delete_dead_letter (图片删除死信队列表)
 
 用于记录图片删除失败后的重试任务，支撑异步补偿删除。
@@ -329,3 +476,10 @@ flowchart TD
 | retry_count | int           | 重试次数             | 默认 0                                         |
 | create_time | datetime      | 入队时间             | 默认 CURRENT_TIMESTAMP                         |
 | update_time | datetime      | 状态更新时间         | 默认 CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
+
+#### 索引与约束
+
+| 索引名 | 类型 | 字段 | 说明 |
+|--------|------|------|------|
+| PRIMARY | 主键 | id | 自增主键 |
+| idx_status_update | 普通索引 | status, update_time | 状态与更新时间联合索引 |

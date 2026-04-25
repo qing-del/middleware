@@ -13,6 +13,8 @@ import com.jacolp.pojo.dto.note.UserNoteDetailDTO;
 import com.jacolp.pojo.dto.note.UserNoteSearchDTO;
 import com.jacolp.pojo.dto.note.UserNoteUpdateDTO;
 import com.jacolp.pojo.entity.*;
+import com.jacolp.pojo.vo.note.NoteConvertMetaVO;
+import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.pojo.vo.note.NoteVO;
 import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
@@ -325,6 +327,74 @@ public class UserNoteServiceImpl implements UserNoteService {
                 storageInfo.getUsedStorageBytes() - note.getMdFileSize()));
             userMapper.updateById(user);
         }
+    }
+
+    @Override
+    public String getNoteSource(Long noteId) {
+        Long userId = BaseContext.getCurrentId();
+
+        // 查询笔记
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null || note.getIsDeleted() == NoteConstant.DELETED) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        // 校验笔记归属
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException("只能查看自己的笔记");
+        }
+
+        // 查询笔记内容
+        NoteContextEntity context = noteContextMapper.selectByNoteId(noteId);
+        if (context == null) {
+            throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
+        }
+
+        return context.getMarkdownContent();
+    }
+
+    @Override
+    public NoteConvertResultVO getNoteConvertedHtml(Long noteId) {
+        Long userId = BaseContext.getCurrentId();
+
+        // 查询笔记
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null || note.getIsDeleted() == NoteConstant.DELETED) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        // 校验笔记归属
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException("只能查看自己的笔记");
+        }
+
+        // 查询转换结果
+        NoteConvertedEntity converted = noteConvertMapper.selectByNoteId(noteId);
+        if (converted == null) {
+            throw new BaseException("笔记尚未转换，请先转换笔记");
+        }
+
+        // 查询标签
+        List<Long> tagIds = noteTagMappingMapper.selectTagIdsByNoteId(noteId);
+        List<String> tags = List.of();
+        if (tagIds != null && !tagIds.isEmpty()) {
+            List<TagEntity> tagEntities = tagMapper.selectByIds(tagIds);
+            tags = tagEntities.stream().map(TagEntity::getTagName).collect(Collectors.toList());
+        }
+
+        // 构建元数据
+        NoteConvertMetaVO meta = new NoteConvertMetaVO();
+        meta.setTitle(note.getTitle());
+        meta.setTags(tags);
+        meta.setCreateTime(note.getCreateTime().toString());
+
+        // 组装返回结果
+        NoteConvertResultVO vo = new NoteConvertResultVO();
+        vo.setMeta(meta);
+        vo.setTocHtml(converted.getTocHtml());
+        vo.setBodyHtml(converted.getBodyHtml());
+
+        return vo;
     }
 
     @Override

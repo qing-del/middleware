@@ -95,7 +95,6 @@ public class TagController {
     /**
      * 删除标签
      * <p>根据标签ID删除标签。执行软删除，保留关联历史。仅允许删除自己的标签。</p>
-     *
      * @param id 标签ID
      * @return 删除结果提示
      */
@@ -109,30 +108,31 @@ public class TagController {
 
     /**
      * 绑定标签到资源
-     * <p>将标签绑定到笔记或主题。绑定前会校验标签归属和目标资源的存在性。targetType可选值：note（绑定到笔记）、topic（绑定到主题）</p>
+     * <p>将标签绑定到笔记。绑定前会校验标签归属和目标资源的存在性。</p>
      *
      * @param dto 绑定请求，包含标签ID、目标资源ID、目标资源类型
      * @return 绑定结果提示
      */
     @PostMapping("/assign")
-    @Operation(summary = "绑定标签到资源", description = "将标签绑定到笔记或主题。绑定前会校验标签归属和目标资源的存在性。targetType可选值：note（绑定到笔记）、topic（绑定到主题）")
+    @Operation(summary = "绑定标签到资源",
+            description = "将标签绑定到笔记或主题。绑定前会校验标签归属和目标资源的存在性。")
     public Result<String> assign(@RequestBody UserTagAssignDTO dto) {
-        log.info("User assign tag {} to {} {}", dto.getTagId(), dto.getTargetType(), dto.getTargetId());
+        log.info("User assign tag {} to note {}", dto.getTagId(), dto.getTargetId());
         userTagService.assignTag(dto);
         return Result.success("绑定成功");
     }
 
     /**
      * 解除标签绑定
-     * <p>解除标签与笔记或主题之间的绑定关系。仅允许操作自己的标签和资源。targetType可选值：note（从笔记解除）、topic（从主题解除）</p>
+     * <p>解除标签与笔记的绑定关系。仅允许操作自己的标签和资源。</p>
      *
      * @param dto 解除绑定请求，包含标签ID、目标资源ID、目标资源类型
      * @return 解除绑定结果提示
      */
     @PostMapping("/remove")
-    @Operation(summary = "解除标签绑定", description = "解除标签与笔记或主题之间的绑定关系。仅允许操作自己的标签和资源。targetType可选值：note（从笔记解除）、topic（从主题解除）")
+    @Operation(summary = "解除标签绑定", description = "解除标签与笔记之间的绑定关系。仅允许操作自己的标签和资源。")
     public Result<String> remove(@RequestBody UserTagRemoveDTO dto) {
-        log.info("User remove tag {} from {} {}", dto.getTagId(), dto.getTargetType(), dto.getTargetId());
+        log.info("User remove tag {} from note {}", dto.getTagId(), dto.getTargetId());
         userTagService.removeTag(dto);
         return Result.success("解除绑定成功");
     }

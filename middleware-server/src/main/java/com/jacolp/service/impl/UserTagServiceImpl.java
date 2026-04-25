@@ -1,5 +1,6 @@
 package com.jacolp.service.impl;
 
+import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
@@ -90,7 +91,7 @@ public class UserTagServiceImpl implements UserTagService {
         TagEntity tag = new TagEntity();
         tag.setUserId(userId);
         tag.setTagName(tagName);
-        tag.setIsPass((short) 1); // 默认通过审核
+        tag.setIsPass(TagConstant.IS_NOT_PASS); // 默认没通过
 
         int count = tagMapper.insertTag(tag);
         if (count <= 0) {
@@ -120,6 +121,7 @@ public class UserTagServiceImpl implements UserTagService {
             throw new BaseException("该标签正在被使用，无法删除");
         }
 
+        // TODO 标签软删除方案
         // 软删除标签（如果实体有isDeleted字段，这里需要软删除逻辑）
         // 由于当前TagEntity没有isDeleted字段，暂时使用物理删除
         // 如果需要软删除，需要在TagEntity中添加isDeleted字段
@@ -146,26 +148,14 @@ public class UserTagServiceImpl implements UserTagService {
             throw new BaseException("目标资源ID无效");
         }
 
-        // 校验目标资源类型
-        if (!StringUtils.hasText(dto.getTargetType()) ||
-            (!"note".equals(dto.getTargetType()) && !"topic".equals(dto.getTargetType()))) {
-            throw new BaseException("目标资源类型无效，只支持 note 或 topic");
-        }
-
         // 校验标签归属
         TagEntity tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
 
-        // 根据目标资源类型处理绑定
-        if ("note".equals(dto.getTargetType())) {
-            // 绑定到笔记
-            assignTagToNote(dto.getTagId(), dto.getTargetId(), userId);
-        } else {
-            // 绑定到主题
-            assignTagToTopic(dto.getTagId(), dto.getTargetId(), userId);
-        }
+        // 绑定标签
+        assignTagToNote(tag, dto.getTargetId(), userId);
     }
 
     @Override
@@ -183,35 +173,23 @@ public class UserTagServiceImpl implements UserTagService {
             throw new BaseException("目标资源ID无效");
         }
 
-        // 校验目标资源类型
-        if (!StringUtils.hasText(dto.getTargetType()) ||
-            (!"note".equals(dto.getTargetType()) && !"topic".equals(dto.getTargetType()))) {
-            throw new BaseException("目标资源类型无效，只支持 note 或 topic");
-        }
-
         // 校验标签归属
         TagEntity tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
 
-        // 根据目标资源类型处理解除绑定
-        if ("note".equals(dto.getTargetType())) {
-            // 从笔记解除绑定
-            removeTagFromNote(dto.getTagId(), dto.getTargetId(), userId);
-        } else {
-            // 从主题解除绑定
-            removeTagFromTopic(dto.getTagId(), dto.getTargetId(), userId);
-        }
+        // 从笔记解除绑定
+        removeTagFromNote(tag, dto.getTargetId(), userId);
     }
 
     /**
      * 将标签绑定到笔记
-     * @param tagId 标签ID
+     * @param tag 标签
      * @param noteId 笔记ID
      * @param userId 用户ID
      */
-    private void assignTagToNote(Long tagId, Long noteId, Long userId) {
+    private void assignTagToNote(TagEntity tag, Long noteId, Long userId) {
         // 校验笔记归属
         NoteEntity note = noteMapper.selectById(noteId);
         if (note == null || note.getIsDeleted() == 1) {
@@ -224,8 +202,9 @@ public class UserTagServiceImpl implements UserTagService {
         // 检查是否已绑定
         List<NoteTagMappingEntity> existingMappings = noteTagMappingMapper.selectByNoteId(noteId);
         for (NoteTagMappingEntity mapping : existingMappings) {
-            if (mapping.getTagId() != null && mapping.getTagId().equals(tagId) &&
-                mapping.getIsDeleted() == 0) {
+            if (mapping.getTagId() != null
+                    && mapping.getTagId().equals(tag.getId())
+                    && NoteConstant.NOT_DELETED.equals(mapping.getIsDeleted())) {
                 throw new BaseException("该标签已绑定到此笔记");
             }
         }
@@ -233,10 +212,8 @@ public class UserTagServiceImpl implements UserTagService {
         // 创建绑定关系
         NoteTagMappingEntity mapping = new NoteTagMappingEntity();
         mapping.setNoteId(noteId);
-        mapping.setTagId(tagId);
-        mapping.setParsedTagName("");
-        mapping.setIsPass((short) 1);
-        mapping.setIsDeleted((short) 0);
+        BeanUtils.copyProperties(tag, mapping);
+        mapping.setIsDeleted(NoteConstant.NOT_DELETED); // 标签没有“软删除”标记
 
         int count = noteTagMappingMapper.batchInsertMappings(List.of(mapping));
         if (count <= 0) {
@@ -245,34 +222,12 @@ public class UserTagServiceImpl implements UserTagService {
     }
 
     /**
-     * 将标签绑定到主题
-     * @param tagId 标签ID
-     * @param topicId 主题ID
-     * @param userId 用户ID
-     */
-    private void assignTagToTopic(Long tagId, Long topicId, Long userId) {
-        // 校验主题归属
-        TopicEntity topic = topicMapper.selectById(topicId);
-        if (topic == null) {
-            throw new BaseException("主题不存在");
-        }
-        if (!topic.getUserId().equals(userId)) {
-            throw new BaseException("只能绑定到自己的主题");
-        }
-
-        // 注意：当前设计可能没有topic-tag映射表
-        // 如果需要topic-tag绑定，可能需要创建新的映射表
-        // 这里暂时抛出异常提示
-        throw new BaseException("暂不支持标签绑定到主题");
-    }
-
-    /**
      * 从笔记解除标签绑定
-     * @param tagId 标签ID
+     * @param tag 标签
      * @param noteId 笔记ID
      * @param userId 用户ID
      */
-    private void removeTagFromNote(Long tagId, Long noteId, Long userId) {
+    private void removeTagFromNote(TagEntity tag, Long noteId, Long userId) {
         // 校验笔记归属
         NoteEntity note = noteMapper.selectById(noteId);
         if (note == null || note.getIsDeleted() == 1) {
@@ -286,8 +241,9 @@ public class UserTagServiceImpl implements UserTagService {
         List<NoteTagMappingEntity> mappings = noteTagMappingMapper.selectByNoteId(noteId);
         NoteTagMappingEntity targetMapping = null;
         for (NoteTagMappingEntity mapping : mappings) {
-            if (mapping.getTagId() != null && mapping.getTagId().equals(tagId) &&
-                mapping.getIsDeleted() == 0) {
+            if (mapping.getTagId() != null
+                    && mapping.getTagId().equals(tag.getId())
+                    && NoteConstant.NOT_DELETED.equals(mapping.getIsDeleted())) {
                 targetMapping = mapping;
                 break;
             }

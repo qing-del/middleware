@@ -53,4 +53,12 @@ public interface TagMapper {
      * 用户端条件查询：当前用户自己的标签 + 别人已通过审核的标签。
      */
     List<TagVO> listByUserCondition(@Param("userId") Long userId, @Param("keyword") String keyword);
+
+    /**
+     * 根据标签id查询标签
+     * @param tagId
+     * @return
+     */
+    @Select("SELECT * FROM biz_tag WHERE id = #{tagId}")
+    TagEntity selectById(Long tagId);
 }

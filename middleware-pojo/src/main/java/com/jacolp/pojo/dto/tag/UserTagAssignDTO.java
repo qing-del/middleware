@@ -17,9 +17,6 @@ public class UserTagAssignDTO implements Serializable {
     @Schema(description = "标签ID", example = "1", required = true)
     private Long tagId;
 
-    @Schema(description = "目标资源ID（笔记ID或主题ID）", example = "1", required = true)
+    @Schema(description = "目标资源ID（笔记ID）", example = "1", required = true)
     private Long targetId;
-
-    @Schema(description = "目标资源类型：note-笔记，topic-主题", example = "note", required = true)
-    private String targetType;
 }

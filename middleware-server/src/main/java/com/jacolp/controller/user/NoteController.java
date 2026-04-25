@@ -5,6 +5,7 @@ import com.jacolp.pojo.dto.note.UserNoteDetailDTO;
 import com.jacolp.pojo.dto.note.UserNoteQueryDTO;
 import com.jacolp.pojo.dto.note.UserNoteSearchDTO;
 import com.jacolp.pojo.dto.note.UserNoteUpdateDTO;
+import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 /**
  * 用户端笔记控制器
@@ -115,6 +117,39 @@ public class NoteController {
         UserNoteDetailDTO dto = new UserNoteDetailDTO();
         dto.setId(id);
         UserNoteDetailVO result = userNoteService.getNoteDetail(dto);
+        return Result.success(result);
+    }
+
+    /**
+     * 获取笔记Markdown源内容
+     * <p>根据笔记ID查询笔记的原始Markdown内容，以纯文本形式返回。仅允许查看自己的笔记。</p>
+     *
+     * @param id 笔记ID
+     * @return Markdown源内容（纯文本）
+     */
+    @GetMapping(value = "/source/{id}", produces = MediaType.TEXT_PLAIN_VALUE)
+    @Operation(summary = "获取笔记Markdown源内容", description = "根据笔记ID查询笔记的原始Markdown内容，以纯文本形式返回。仅允许查看自己的笔记。")
+    public String getSource(
+            @Parameter(description = "笔记ID")
+            @PathVariable Long id) {
+        log.info("User get note source: {}", id);
+        return userNoteService.getNoteSource(id);
+    }
+
+    /**
+     * 获取笔记转换后的HTML内容
+     * <p>根据笔记ID查询笔记转换后的HTML内容，包含目录HTML和正文HTML，以及笔记元数据（标题、标签、创建时间）。仅允许查看自己的笔记。</p>
+     *
+     * @param id 笔记ID
+     * @return 转换后的HTML内容，包含目录、正文和元数据
+     */
+    @GetMapping("/converted/{id}")
+    @Operation(summary = "获取笔记转换后的HTML内容", description = "根据笔记ID查询笔记转换后的HTML内容，包含目录HTML和正文HTML，以及笔记元数据（标题、标签、创建时间）。仅允许查看自己的笔记。")
+    public Result<NoteConvertResultVO> getConvertedHtml(
+            @Parameter(description = "笔记ID")
+            @PathVariable Long id) {
+        log.info("User get note converted HTML: {}", id);
+        NoteConvertResultVO result = userNoteService.getNoteConvertedHtml(id);
         return Result.success(result);
     }
 
