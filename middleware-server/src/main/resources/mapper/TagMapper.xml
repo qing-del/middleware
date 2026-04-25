@@ -62,7 +62,7 @@
     </update>
 
     <!-- 列表查询（前缀搜索，PageHelper 分页） -->
-    <select id="listByCondition" resultType="com.jacolp.pojo.vo.TagVO">
+    <select id="listByCondition" resultType="com.jacolp.pojo.vo.tag.TagVO">
         SELECT id, user_id AS userId, tag_name AS tagName, create_time AS createTime
         FROM biz_tag
         <where>
@@ -101,7 +101,7 @@
     </select>
 
     <!-- 用户端列表查询：自己的标签 + 别人已通过审核的标签 -->
-    <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.TagVO">
+    <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.tag.TagVO">
         SELECT id, user_id AS userId, tag_name AS tagName, create_time AS createTime
         FROM biz_tag
         <where>

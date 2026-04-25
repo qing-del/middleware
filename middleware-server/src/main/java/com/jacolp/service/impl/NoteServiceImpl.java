@@ -39,7 +39,7 @@ import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
 import com.jacolp.pojo.entity.TopicEntity;
 import com.jacolp.pojo.entity.UserEntity;
-import com.jacolp.pojo.vo.ImageSimpleVO;
+import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
 import com.jacolp.pojo.vo.note.NoteConvertMetaVO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;

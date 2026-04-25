@@ -33,9 +33,9 @@ import com.jacolp.pojo.dto.note.NoteAuditListDTO;
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.NoteAuditRecordEntity;
-import com.jacolp.pojo.vo.ImageAuditVO;
-import com.jacolp.pojo.vo.MetaAuditVO;
-import com.jacolp.pojo.vo.NoteAuditVO;
+import com.jacolp.pojo.vo.audit.ImageAuditVO;
+import com.jacolp.pojo.vo.audit.MetaAuditVO;
+import com.jacolp.pojo.vo.audit.NoteAuditVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
 

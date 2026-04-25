@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.jacolp.pojo.vo.ImageSimpleVO;
+import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

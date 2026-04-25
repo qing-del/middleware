@@ -19,7 +19,7 @@
                 <result column="update_time" property="updateTime"/>
         </resultMap>
 
-        <resultMap id="NoteVOMap" type="com.jacolp.pojo.vo.NoteVO">
+        <resultMap id="NoteVOMap" type="com.jacolp.pojo.vo.note.NoteVO">
                 <id column="id" property="id"/>
                 <result column="user_id" property="userId"/>
                 <result column="topic_id" property="topicId"/>
@@ -107,7 +107,7 @@
                 </foreach>
         </select>
 
-        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.NoteSimpleVO">
+        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.note.NoteSimpleVO">
                 SELECT
                         m.note_id AS id,
                         m.note_title AS title,

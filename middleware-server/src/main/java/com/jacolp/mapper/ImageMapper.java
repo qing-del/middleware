@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Select;
 
 import com.jacolp.pojo.domain.ImageNoteCountDO;
 import com.jacolp.pojo.entity.ImageEntity;
-import com.jacolp.pojo.vo.ImageVO;
+import com.jacolp.pojo.vo.image.ImageVO;
 
 /**
  * 图片数据访问层。

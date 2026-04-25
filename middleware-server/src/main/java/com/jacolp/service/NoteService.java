@@ -3,7 +3,7 @@ package com.jacolp.service;
 import com.jacolp.pojo.dto.note.*;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.vo.ImageSimpleVO;
+import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;

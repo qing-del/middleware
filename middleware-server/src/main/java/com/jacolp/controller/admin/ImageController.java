@@ -5,7 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import com.jacolp.enums.StorageOperationType;
-import com.jacolp.pojo.vo.ImageBatchDeleteVO;
+import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

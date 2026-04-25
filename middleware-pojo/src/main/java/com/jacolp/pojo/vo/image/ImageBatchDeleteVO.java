@@ -1,4 +1,4 @@
-package com.jacolp.pojo.vo;
+package com.jacolp.pojo.vo.image;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
-import com.jacolp.pojo.vo.ImageAuditVO;
+import com.jacolp.pojo.vo.audit.ImageAuditVO;
 
 /**
  * 图片审核记录数据访问层。

@@ -3,13 +3,13 @@ package com.jacolp.service;
 import java.util.List;
 
 import com.jacolp.pojo.dto.image.UserImageQueryDTO;
-import com.jacolp.pojo.vo.ImageBatchDeleteVO;
+import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
 import com.jacolp.pojo.dto.image.ImageQueryDTO;
-import com.jacolp.pojo.vo.ImageVO;
+import com.jacolp.pojo.vo.image.ImageVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 
