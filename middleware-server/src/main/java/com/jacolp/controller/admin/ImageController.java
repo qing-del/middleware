@@ -25,7 +25,7 @@ import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
 import com.jacolp.pojo.dto.image.ImagePublicDTO;
 import com.jacolp.pojo.dto.image.ImageQueryDTO;
-import com.jacolp.pojo.vo.NoteSimpleVO;
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.ImageService;

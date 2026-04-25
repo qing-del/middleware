@@ -4,7 +4,7 @@ import com.jacolp.pojo.dto.topic.TopicAddDTO;
 import com.jacolp.pojo.dto.topic.TopicListDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
 import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
-import com.jacolp.pojo.vo.TopicDetailVO;
+import com.jacolp.pojo.vo.topic.TopicDetailVO;
 import com.jacolp.result.PageResult;
 
 import java.util.List;

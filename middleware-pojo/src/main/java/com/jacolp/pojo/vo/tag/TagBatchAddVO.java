@@ -1,4 +1,4 @@
-package com.jacolp.pojo.vo;
+package com.jacolp.pojo.vo.tag;
 
 import java.io.Serializable;
 import java.util.List;

@@ -35,37 +35,17 @@ public class DataInitializer implements CommandLineRunner {
             creator = userMapper.selectByUsername(adminUsername);
         }
 
-        if (creator == null) {
-            // 如果不存在则创建一个
-            creator = new UserEntity();
-            creator.setId(1L);
-            creator.setUsername(adminUsername);
-            creator.setPassword(passwordEncoder.encode(adminPassword));
-            creator.setRoleId(RoleConstant.CREATOR);
-            creator.setStatus(UserConstant.DEFAULT_STATUS);
-            int count = userMapper.insertCreator(creator);
-            if (count <= 0) {
-                log.error("Failed to create admin account!");
-            }
-            log.info("Admin Account was created!");
-        } else {
-            // 如果存在
-            log.warn("The account that userId is 1 already exists!");
-            // 对帐号进行数据匹配
-            if (!creator.getUsername().equals(adminUsername)) {
-                creator.setUsername(adminUsername);
-            }
-            boolean valid = passwordEncoder.matches(adminPassword, creator.getPassword());
-            if (!valid) {
-                creator.setPassword(passwordEncoder.encode(adminPassword));
-            }
-            creator.setRoleId(RoleConstant.CREATOR);
-            creator.setStatus(1);
-
-            int count = userMapper.updateById(creator);
-            if (count <= 0) {
-                log.error("Failed to update admin account!");
-            }
+        // 强制加入一个创建者角色
+        creator = new UserEntity();
+        creator.setId(1L);
+        creator.setUsername(adminUsername);
+        creator.setPassword(passwordEncoder.encode(adminPassword));
+        creator.setRoleId(RoleConstant.CREATOR);
+        creator.setStatus(UserConstant.ACTIVE_STATUS);
+        int count = userMapper.upsertCreator(creator);
+        if (count <= 0) {
+            log.error("Failed to create admin account!");
+            throw new RuntimeException("Failed to create admin account!");
         }
 
         log.warn("The creator account init!");

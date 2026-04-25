@@ -32,7 +32,7 @@ import com.jacolp.pojo.dto.image.ImageQueryDTO;
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.vo.ImageVO;
-import com.jacolp.pojo.vo.NoteSimpleVO;
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.ImageService;
 

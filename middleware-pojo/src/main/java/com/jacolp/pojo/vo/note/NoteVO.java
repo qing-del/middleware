@@ -1,4 +1,4 @@
-package com.jacolp.pojo.vo;
+package com.jacolp.pojo.vo.note;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;

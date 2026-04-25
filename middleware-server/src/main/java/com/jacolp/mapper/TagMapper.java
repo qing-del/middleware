@@ -2,7 +2,7 @@ package com.jacolp.mapper;
 
 import com.jacolp.pojo.domain.TagNoteCountDO;
 import com.jacolp.pojo.entity.TagEntity;
-import com.jacolp.pojo.vo.TagVO;
+import com.jacolp.pojo.vo.tag.TagVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;

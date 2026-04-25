@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 
 import com.jacolp.pojo.domain.TopicNoteCountDO;
 import com.jacolp.pojo.entity.TopicEntity;
-import com.jacolp.pojo.vo.TopicListVO;
+import com.jacolp.pojo.vo.topic.TopicListVO;
 
 @Mapper
 /**

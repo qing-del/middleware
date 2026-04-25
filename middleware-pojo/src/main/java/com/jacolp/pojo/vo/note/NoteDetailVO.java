@@ -1,9 +1,10 @@
-package com.jacolp.pojo.vo;
+package com.jacolp.pojo.vo.note;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.jacolp.pojo.vo.ImageSimpleVO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

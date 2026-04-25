@@ -5,7 +5,6 @@ import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TopicConstant;
-import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.*;
@@ -14,8 +13,8 @@ import com.jacolp.pojo.dto.note.UserNoteDetailDTO;
 import com.jacolp.pojo.dto.note.UserNoteSearchDTO;
 import com.jacolp.pojo.dto.note.UserNoteUpdateDTO;
 import com.jacolp.pojo.entity.*;
-import com.jacolp.pojo.vo.NoteVO;
-import com.jacolp.pojo.vo.UserNoteDetailVO;
+import com.jacolp.pojo.vo.note.NoteVO;
+import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.UserNoteService;
 import lombok.extern.slf4j.Slf4j;
@@ -154,7 +153,7 @@ public class UserNoteServiceImpl implements UserNoteService {
         PageHelper.startPage(pageNum, pageSize);
 
         // 查询当前用户的笔记
-        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), dto.getTitle());
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), dto.getKeyword());
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }

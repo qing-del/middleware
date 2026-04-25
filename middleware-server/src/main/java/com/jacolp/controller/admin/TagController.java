@@ -4,7 +4,7 @@ import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
 import com.jacolp.pojo.dto.tag.TagModifyDTO;
 import com.jacolp.pojo.dto.tag.TagQueryDTO;
-import com.jacolp.pojo.vo.TagBatchAddVO;
+import com.jacolp.pojo.vo.tag.TagBatchAddVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.TagService;

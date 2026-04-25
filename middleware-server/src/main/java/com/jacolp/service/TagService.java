@@ -5,7 +5,7 @@ import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
 import com.jacolp.pojo.dto.tag.TagModifyDTO;
 import com.jacolp.pojo.dto.tag.TagQueryDTO;
 import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
-import com.jacolp.pojo.vo.TagBatchAddVO;
+import com.jacolp.pojo.vo.tag.TagBatchAddVO;
 import com.jacolp.result.PageResult;
 
 import java.util.List;
