@@ -9,38 +9,23 @@ import java.io.Serializable;
  * 用户端笔记搜索 DTO
  */
 @Data
-@Schema(description = "用户端笔记搜索请求")
+@Schema(description = "笔记搜索/查询请求")
 public class UserNoteSearchDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 搜索关键词
-     */
-    @Schema(description = "搜索关键词", required = true)
+    @Schema(description = "搜索关键词（支持标题模糊搜索）", example = "Java")
     private String keyword;
 
-    /**
-     * 主题ID
-     */
-    @Schema(description = "主题ID")
+    @Schema(description = "主题ID", example = "1")
     private Long topicId;
 
-    /**
-     * 标签ID
-     */
-    @Schema(description = "标签ID")
+    @Schema(description = "标签ID", example = "1")
     private Long tagId;
 
-    /**
-     * 页码
-     */
-    @Schema(description = "页码")
+    @Schema(description = "页码（默认1）", example = "1")
     private Integer pageNum;
 
-    /**
-     * 每页大小
-     */
-    @Schema(description = "每页大小")
+    @Schema(description = "每页大小（默认10）", example = "10")
     private Integer pageSize;
 }

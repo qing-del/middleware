@@ -9,32 +9,20 @@ import java.io.Serializable;
  * 用户端更新笔记内容 DTO
  */
 @Data
-@Schema(description = "用户端更新笔记内容请求")
+@Schema(description = "更新笔记内容请求")
 public class UserNoteUpdateDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 笔记ID
-     */
-    @Schema(description = "笔记ID", required = true)
+    @Schema(description = "笔记ID", example = "1", required = true)
     private Long id;
 
-    /**
-     * 主题ID
-     */
-    @Schema(description = "主题ID")
+    @Schema(description = "主题ID", example = "1")
     private Long topicId;
 
-    /**
-     * 笔记标题
-     */
-    @Schema(description = "笔记标题")
+    @Schema(description = "笔记标题", example = "更新后的标题")
     private String title;
 
-    /**
-     * 笔记描述
-     */
-    @Schema(description = "笔记描述")
+    @Schema(description = "笔记描述", example = "更新后的描述")
     private String description;
 }

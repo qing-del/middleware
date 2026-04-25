@@ -9,26 +9,17 @@ import java.io.Serializable;
  * 用户端解除标签绑定 DTO
  */
 @Data
-@Schema(description = "用户端解除标签绑定请求")
+@Schema(description = "解除标签绑定请求")
 public class UserTagRemoveDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 标签ID
-     */
-    @Schema(description = "标签ID", required = true)
+    @Schema(description = "标签ID", example = "1", required = true)
     private Long tagId;
 
-    /**
-     * 目标资源ID（笔记ID或主题ID）
-     */
-    @Schema(description = "目标资源ID（笔记ID或主题ID）", required = true)
+    @Schema(description = "目标资源ID（笔记ID或主题ID）", example = "1", required = true)
     private Long targetId;
 
-    /**
-     * 目标资源类型
-     */
-    @Schema(description = "目标资源类型", required = true)
+    @Schema(description = "目标资源类型：note-笔记，topic-主题", example = "note", required = true)
     private String targetType;
 }

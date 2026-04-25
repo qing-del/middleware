@@ -19,21 +19,12 @@ public class UserTagSimpleVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 标签ID
-     */
-    @Schema(description = "标签ID")
+    @Schema(description = "标签ID", example = "1")
     private Long id;
 
-    /**
-     * 标签名称
-     */
-    @Schema(description = "标签名称")
+    @Schema(description = "标签名称", example = "Java")
     private String tagName;
 
-    /**
-     * 创建时间
-     */
-    @Schema(description = "创建时间")
+    @Schema(description = "创建时间", example = "2024-01-15T10:30:00")
     private LocalDateTime createTime;
 }

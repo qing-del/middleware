@@ -20,57 +20,30 @@ public class UserNoteDetailVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 笔记ID
-     */
-    @Schema(description = "笔记ID")
+    @Schema(description = "笔记ID", example = "1")
     private Long id;
 
-    /**
-     * 笔记标题
-     */
-    @Schema(description = "笔记标题")
+    @Schema(description = "笔记标题", example = "我的第一篇笔记")
     private String title;
 
-    /**
-     * 笔记描述
-     */
-    @Schema(description = "笔记描述")
+    @Schema(description = "笔记描述", example = "这是一篇关于Java的笔记")
     private String description;
 
-    /**
-     * Markdown原文
-     */
-    @Schema(description = "Markdown原文")
+    @Schema(description = "Markdown原文", example = "# 标题\\n\\n这是正文内容...")
     private String markdownContent;
 
-    /**
-     * 渲染后的HTML
-     */
-    @Schema(description = "渲染后的HTML")
+    @Schema(description = "渲染后的HTML", example = "<h1>标题</h1><p>这是正文内容...</p>")
     private String htmlContent;
 
-    /**
-     * 标签列表
-     */
-    @Schema(description = "标签列表")
+    @Schema(description = "标签列表", example = "[\"Java\", \"Spring\"]")
     private List<String> tags;
 
-    /**
-     * 创建时间
-     */
-    @Schema(description = "创建时间")
+    @Schema(description = "创建时间", example = "2024-01-15T10:30:00")
     private LocalDateTime createTime;
 
-    /**
-     * 更新时间
-     */
-    @Schema(description = "更新时间")
+    @Schema(description = "更新时间", example = "2024-01-15T12:00:00")
     private LocalDateTime updateTime;
 
-    /**
-     * 是否发布
-     */
-    @Schema(description = "是否发布")
+    @Schema(description = "是否发布：0-否，1-是", example = "1")
     private Short isPublished;
 }
