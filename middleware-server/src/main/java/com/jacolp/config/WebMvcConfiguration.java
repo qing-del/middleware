@@ -26,6 +26,8 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         log.info("Start registering custom interceptors...");
+
+        // 管理端拦截器
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns("/admin/user/login")
@@ -36,12 +38,14 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html"
-                );;
+                );
 
+        // 用户端拦截器
         registry.addInterceptor(jwtTokenUserInterceptor)
                 .addPathPatterns("/user/**")
                 .excludePathPatterns("/user/user/login")
-                .excludePathPatterns("/user/user/register");
+                .excludePathPatterns("/user/user/register")
+                .excludePathPatterns("user/user/active/");  // 排除激活账号的接口
     }
 
     /**

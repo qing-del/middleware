@@ -1,7 +1,7 @@
 package com.jacolp.mapper;
 
 import com.jacolp.pojo.domain.UserQuoteStorageDO;
-import com.jacolp.pojo.dto.UserListDTO;
+import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -17,7 +17,7 @@ public interface UserMapper {
     @Select("select * from sys_user where username = #{username}")
     UserEntity selectByUsername(String username);
 
-    int insertCreator(UserEntity user);
+    int upsertCreator(UserEntity user);
 
     int updateById(UserEntity user);
 

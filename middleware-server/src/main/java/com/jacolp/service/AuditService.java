@@ -1,9 +1,9 @@
 package com.jacolp.service;
 
-import com.jacolp.pojo.dto.AuditBatchReviewDTO;
-import com.jacolp.pojo.dto.ImageAuditListDTO;
-import com.jacolp.pojo.dto.MetaAuditListDTO;
-import com.jacolp.pojo.dto.NoteAuditListDTO;
+import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
+import com.jacolp.pojo.dto.image.ImageAuditListDTO;
+import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
+import com.jacolp.pojo.dto.note.NoteAuditListDTO;
 import com.jacolp.result.PageResult;
 
 public interface AuditService {

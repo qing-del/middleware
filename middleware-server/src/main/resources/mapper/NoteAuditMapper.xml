@@ -16,7 +16,7 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <resultMap id="NoteAuditVOMap" type="com.jacolp.pojo.vo.NoteAuditVO">
+    <resultMap id="NoteAuditVOMap" type="com.jacolp.pojo.vo.audit.NoteAuditVO">
         <id column="id" property="id"/>
         <result column="applicant_user_id" property="applicantUserId"/>
         <result column="applicant_username" property="applicantUsername"/>

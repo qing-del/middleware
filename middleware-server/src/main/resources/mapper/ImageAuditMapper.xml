@@ -4,7 +4,7 @@
 <mapper namespace="com.jacolp.mapper.ImageAuditMapper">
 
     <!-- resultMap：将数据库字段映射到 VO -->
-    <resultMap id="ImageAuditVO" type="com.jacolp.pojo.vo.ImageAuditVO">
+    <resultMap id="ImageAuditVO" type="com.jacolp.pojo.vo.audit.ImageAuditVO">
         <id column="id" property="id"/>
         <result column="applicant_user_id" property="applicantUserId"/>
         <result column="applicant_username" property="applicantUsername"/>

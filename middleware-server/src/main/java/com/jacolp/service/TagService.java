@@ -1,11 +1,11 @@
 package com.jacolp.service;
 
-import com.jacolp.pojo.dto.TagAddDTO;
-import com.jacolp.pojo.dto.TagBatchAddDTO;
-import com.jacolp.pojo.dto.TagModifyDTO;
-import com.jacolp.pojo.dto.TagQueryDTO;
-import com.jacolp.pojo.dto.UserTagQueryDTO;
-import com.jacolp.pojo.vo.TagBatchAddVO;
+import com.jacolp.pojo.dto.tag.TagAddDTO;
+import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
+import com.jacolp.pojo.dto.tag.TagModifyDTO;
+import com.jacolp.pojo.dto.tag.TagQueryDTO;
+import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
+import com.jacolp.pojo.vo.tag.TagBatchAddVO;
 import com.jacolp.result.PageResult;
 
 import java.util.List;

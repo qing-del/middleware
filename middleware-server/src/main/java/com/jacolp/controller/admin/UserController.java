@@ -2,11 +2,11 @@ package com.jacolp.controller.admin;
 
 import com.jacolp.annotation.RequireSuperiorRole;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.pojo.dto.UserAddDTO;
-import com.jacolp.pojo.dto.UserListDTO;
-import com.jacolp.pojo.dto.UserLoginDTO;
-import com.jacolp.pojo.dto.UserModifyDTO;
-import com.jacolp.pojo.dto.UserStatusDTO;
+import com.jacolp.pojo.dto.user.UserAddDTO;
+import com.jacolp.pojo.dto.user.UserListDTO;
+import com.jacolp.pojo.dto.user.UserLoginDTO;
+import com.jacolp.pojo.dto.user.UserModifyDTO;
+import com.jacolp.pojo.dto.user.UserStatusDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.PageResult;

@@ -24,13 +24,9 @@ import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.mapper.TagMapper;
 import com.jacolp.mapper.TopicMapper;
 import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.dto.EachMappingBindDTO;
-import com.jacolp.pojo.dto.ImageMappingBindDTO;
-import com.jacolp.pojo.dto.NoteChangeConfirmDTO;
-import com.jacolp.pojo.dto.NoteModifyInfoDTO;
-import com.jacolp.pojo.dto.NoteQueryDTO;
-import com.jacolp.pojo.dto.NoteVisibleDTO;
-import com.jacolp.pojo.dto.TagMappingBindDTO;
+import com.jacolp.pojo.dto.note.*;
+import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
+import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
 import com.jacolp.pojo.entity.NoteContextEntity;
@@ -43,20 +39,20 @@ import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
 import com.jacolp.pojo.entity.TopicEntity;
 import com.jacolp.pojo.entity.UserEntity;
-import com.jacolp.pojo.vo.ImageSimpleVO;
-import com.jacolp.pojo.vo.NoteChangeDiffVO;
-import com.jacolp.pojo.vo.NoteConvertMetaVO;
-import com.jacolp.pojo.vo.NoteConvertResultVO;
-import com.jacolp.pojo.vo.NoteDetailVO;
-import com.jacolp.pojo.vo.NoteDiffVO;
-import com.jacolp.pojo.vo.NoteEachSimpleVO;
-import com.jacolp.pojo.vo.NoteEachMappingRowVO;
-import com.jacolp.pojo.vo.NoteImageMappingRowVO;
-import com.jacolp.pojo.vo.NoteModifyDiffDetailVO;
-import com.jacolp.pojo.vo.NoteRelationDetailVO;
-import com.jacolp.pojo.vo.NoteTagMappingRowVO;
-import com.jacolp.pojo.vo.NoteUploadVO;
-import com.jacolp.pojo.vo.NoteVO;
+import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
+import com.jacolp.pojo.vo.note.NoteConvertMetaVO;
+import com.jacolp.pojo.vo.note.NoteConvertResultVO;
+import com.jacolp.pojo.vo.note.NoteDetailVO;
+import com.jacolp.pojo.vo.note.NoteDiffVO;
+import com.jacolp.pojo.vo.note.NoteEachSimpleVO;
+import com.jacolp.pojo.vo.note.NoteEachMappingRowVO;
+import com.jacolp.pojo.vo.note.NoteImageMappingRowVO;
+import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
+import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.pojo.vo.note.NoteTagMappingRowVO;
+import com.jacolp.pojo.vo.note.NoteUploadVO;
+import com.jacolp.pojo.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.NoteService;
 import lombok.extern.slf4j.Slf4j;
@@ -899,9 +895,9 @@ public class NoteServiceImpl implements NoteService {
      * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
      */
     @Override
-    public PageResult listUserNotes(Long userId, com.jacolp.pojo.dto.UserNoteQueryDTO dto) {
+    public PageResult listUserNotes(Long userId, UserNoteQueryDTO dto) {
         if (dto == null) {
-            dto = new com.jacolp.pojo.dto.UserNoteQueryDTO();
+            dto = new UserNoteQueryDTO();
         }
 
         int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();

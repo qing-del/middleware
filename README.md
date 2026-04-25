@@ -78,6 +78,35 @@ Then start the server module:
 mvn -pl middleware-server spring-boot:run
 ```
 
+---
+
+## User API Overview
+
+All user endpoints are under `/user` and require JWT authentication via `Authorization: Bearer <token>` header.
+
+### Topic API (`/user/topic`)
+- 条件查询主题列表（自己 + 别人已审核的主题）
+- 发起主题审核申请
+
+### Tag API (`/user/tag`)
+- 条件查询标签列表（自己 + 别人已审核的标签）
+- 发起标签审核申请
+- 查询/创建/删除自己的标签
+- 绑定/解除标签与笔记或主题的关联
+
+### Image API (`/user/image`)
+- 条件查询图片列表（自己 + 别人已公开的图片）
+- 发起图片审核申请
+- 上传/查看/删除自己的图片
+
+### Note API (`/user/note`)
+- 条件查询笔记列表（自己 + 别人已发布的笔记）
+- 发起笔记审核申请
+- 创建/查询/更新/删除自己的笔记
+- 全文搜索笔记
+
+---
+
 ## Security Notes
 
 1. Do not keep default admin credentials in production.

@@ -1,9 +1,9 @@
 package com.jacolp.mapper;
 
-import com.jacolp.pojo.dto.NoteQueryDTO;
+import com.jacolp.pojo.dto.note.NoteQueryDTO;
 import com.jacolp.pojo.entity.NoteEntity;
-import com.jacolp.pojo.vo.NoteSimpleVO;
-import com.jacolp.pojo.vo.NoteVO;
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
+import com.jacolp.pojo.vo.note.NoteVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -78,6 +78,9 @@ public interface NoteMapper {
 
     /**
      * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     * @param userId 用户 ID
+     * @param topicId 主题 ID
+     * @param title 笔记标题的关键词
      */
     List<NoteVO> listByUserCondition(@Param("userId") Long userId,
                                      @Param("topicId") Long topicId,

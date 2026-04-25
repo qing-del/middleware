@@ -19,7 +19,7 @@
                 <result column="update_time" property="updateTime"/>
         </resultMap>
 
-        <resultMap id="NoteVOMap" type="com.jacolp.pojo.vo.NoteVO">
+        <resultMap id="NoteVOMap" type="com.jacolp.pojo.vo.note.NoteVO">
                 <id column="id" property="id"/>
                 <result column="user_id" property="userId"/>
                 <result column="topic_id" property="topicId"/>
@@ -107,7 +107,7 @@
                 </foreach>
         </select>
 
-        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.NoteSimpleVO">
+        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.note.NoteSimpleVO">
                 SELECT
                         m.note_id AS id,
                         m.note_title AS title,
@@ -121,7 +121,7 @@
                   AND m.is_deleted = 0
         </select>
 
-        <select id="listByCondition" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.NoteQueryDTO">
+        <select id="listByCondition" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.note.NoteQueryDTO">
                 SELECT n.id, n.user_id, n.topic_id, t.topic_name, n.title, n.description, n.is_published,
                            n.storage_type, n.is_missing_info, n.is_pass, n.is_deleted, n.md_file_size,
                            n.create_time, n.update_time

@@ -2,9 +2,15 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.jacolp.mapper.UserMapper">
-        <insert id="insertCreator" parameterType="com.jacolp.pojo.entity.UserEntity">
+        <insert id="upsertCreator" parameterType="com.jacolp.pojo.entity.UserEntity">
                 INSERT INTO sys_user (id, username, password, role_id, status, create_time, update_time)
                 VALUES (#{id}, #{username}, #{password}, #{roleId}, #{status}, now(), now())
+                ON DUPLICATE KEY UPDATE
+                username = #{username},
+                password = #{password},
+                role_id = #{roleId},
+                status = #{status},
+                update_time = now()
         </insert>
 
     <insert id="insertUser" parameterType="com.jacolp.pojo.entity.UserEntity" useGeneratedKeys="true" keyProperty="id">
@@ -44,7 +50,7 @@
                 WHERE id = #{id}
         </update>
 
-    <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.UserListDTO">
+    <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.user.UserListDTO">
                 SELECT
                     id,
                     username,

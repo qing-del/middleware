@@ -26,7 +26,7 @@
     </update>
 
     <!-- 主题列表查询：左连接笔记统计，支持关键词过滤 -->
-    <select id="listByCondition" resultType="com.jacolp.pojo.vo.TopicListVO">
+    <select id="listByCondition" resultType="com.jacolp.pojo.vo.topic.TopicListVO">
         SELECT
             t.id,
             t.topic_name AS topicName,
@@ -84,7 +84,7 @@
     </update>
 
     <!-- 用户端列表查询：自己的主题 + 别人已通过审核的主题 -->
-    <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.TopicListVO">
+    <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.topic.TopicListVO">
         SELECT
             t.id,
             t.topic_name AS topicName,
