@@ -54,6 +54,7 @@ import com.jacolp.pojo.vo.note.NoteImageMappingRowVO;
 import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteTagMappingRowVO;
+import com.jacolp.pojo.vo.note.NoteStatsVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.pojo.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
@@ -928,6 +929,19 @@ public class NoteServiceImpl implements NoteService {
         record.setApplicantUserId(userId);
         record.setNoteId(noteId);
         noteAuditMapper.insertAuditRecord(record);
+    }
+
+    /**
+     * 获取当前用户笔记统计。
+     */
+    @Override
+    public NoteStatsVO getUserNoteStats() {
+        Long userId = BaseContext.getCurrentId();
+        // TODO 笔记不好走 索引下推 后续再想一想怎么优化
+        long noteTotalCount = noteMapper.countByUserId(userId);
+        long publicNoteCount = noteMapper.countPublicByUserId(userId);
+        long approvedNoteCount = noteMapper.countApprovedByUserId(userId);
+        return new NoteStatsVO(noteTotalCount, publicNoteCount, approvedNoteCount);
     }
 
     /**

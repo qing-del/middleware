@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import com.jacolp.pojo.domain.TopicNoteCountDO;
+import com.jacolp.pojo.dto.topic.TopicNoteCountDTO;
 import com.jacolp.pojo.entity.TopicEntity;
 import com.jacolp.pojo.vo.topic.TopicListVO;
 
@@ -46,7 +46,7 @@ public interface TopicMapper {
     /**
      * 删除前校验：查询目标主题及其未删除笔记数。
      */
-    List<TopicNoteCountDO> selectDeleteChecksByIds(@Param("ids") List<Long> ids);
+    List<TopicNoteCountDTO> selectDeleteChecksByIds(@Param("ids") List<Long> ids);
 
     /**
      * 批量删除主题。
@@ -66,4 +66,16 @@ public interface TopicMapper {
      * 用户端条件查询：当前用户自己的主题 + 别人已通过审核的主题。
      */
     List<TopicListVO> listByUserCondition(@Param("userId") Long userId, @Param("keyword") String keyword);
+
+    /**
+     * 统计指定用户的主题数量。
+     */
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_topic WHERE user_id = #{userId}")
+    long countByUserId(@Param("userId") Long userId);
+
+    /**
+     * 统计指定用户已通过审核的主题数量。
+     */
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_topic WHERE user_id = #{userId} AND is_pass = 1")
+    long countPassedByUserId(@Param("userId") Long userId);
 }

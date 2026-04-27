@@ -1,16 +1,13 @@
 package com.jacolp.service.impl;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
-import com.jacolp.annotation.StorageHandler;
-import com.jacolp.constant.AuditConstant;
-import com.jacolp.constant.PageConstant;
-import com.jacolp.constant.TopicConstant;
-import com.jacolp.mapper.*;
-import com.jacolp.pojo.dto.image.UserImageQueryDTO;
-import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
-import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -20,16 +17,29 @@ import org.springframework.web.multipart.MultipartFile;
 import com.aliyun.oss.AliyunOSSOperator;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.jacolp.constant.AuditConstant;
+import com.jacolp.constant.ImageConstant;
+import com.jacolp.constant.PageConstant;
+import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.StorageUpdateContext;
-import com.jacolp.constant.ImageConstant;
 import com.jacolp.exception.BaseException;
-import com.jacolp.pojo.domain.ImageNoteCountDO;
+import com.jacolp.mapper.ImageAuditMapper;
+import com.jacolp.mapper.ImageDeleteDeadLetterMapper;
+import com.jacolp.mapper.ImageMapper;
+import com.jacolp.mapper.NoteMapper;
+import com.jacolp.mapper.TopicMapper;
+import com.jacolp.mapper.UserMapper;
+import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
 import com.jacolp.pojo.dto.image.ImageQueryDTO;
+import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
+import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
 import com.jacolp.pojo.entity.ImageEntity;
+import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
+import com.jacolp.pojo.vo.image.ImageStatsVO;
 import com.jacolp.pojo.vo.image.ImageVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
@@ -259,11 +269,11 @@ public class ImageServiceImpl implements ImageService {
         Set<Long> idSet = new LinkedHashSet<>(ids);
 
         // 查询删除检查
-        List<ImageNoteCountDO> deleteChecks = imageMapper.selectDeleteChecksByIds(new ArrayList<>(idSet));
+        List<ImageNoteCountDTO> deleteChecks = imageMapper.selectDeleteChecksByIds(new ArrayList<>(idSet));
 
         // 检查所有引用情况
         List<String> inUseImageNames = new ArrayList<>();
-        for (ImageNoteCountDO check : deleteChecks) {
+        for (ImageNoteCountDTO check : deleteChecks) {
             if (check.getRefCount() != null && check.getRefCount() > 0) {
                 inUseImageNames.add(check.getFilename());
             }
@@ -479,6 +489,17 @@ public class ImageServiceImpl implements ImageService {
         record.setApplicantUserId(userId);
         record.setImageId(imageId);
         imageAuditMapper.insertAuditRecord(record);
+    }
+
+    /**
+     * 获取当前用户图片统计。
+     */
+    @Override
+    public ImageStatsVO getUserImageStats() {
+        Long userId = BaseContext.getCurrentId();
+        long imageCount = imageMapper.countByUserId(userId);
+        long passedCount = imageMapper.countPassedByUserId(userId);
+        return new ImageStatsVO(imageCount, passedCount);
     }
 
 

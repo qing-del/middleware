@@ -1,13 +1,14 @@
 package com.jacolp.service;
 
+import java.util.List;
+
 import com.jacolp.pojo.dto.topic.TopicAddDTO;
 import com.jacolp.pojo.dto.topic.TopicListDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
 import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
 import com.jacolp.pojo.vo.topic.TopicDetailVO;
+import com.jacolp.pojo.vo.topic.TopicStatsVO;
 import com.jacolp.result.PageResult;
-
-import java.util.List;
 
 public interface TopicService {
 
@@ -30,4 +31,9 @@ public interface TopicService {
      * 用户端发起主题审核申请。
      */
     void submitTopicAudit(Long topicId);
+
+    /**
+     * 获取当前用户主题统计。
+     */
+    TopicStatsVO getUserTopicStats();
 }

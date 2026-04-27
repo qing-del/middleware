@@ -1,6 +1,6 @@
 package com.jacolp.mapper;
 
-import com.jacolp.pojo.domain.UserQuoteStorageDO;
+import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import org.apache.ibatis.annotations.Mapper;
@@ -30,14 +30,14 @@ public interface UserMapper {
     List<UserEntity> listByCondition(UserListDTO userListDTO);
 
     @Select("select role_id, max_storage_bytes, used_storage_bytes as usedStorageBytes from sys_user where id = #{id}")
-    UserQuoteStorageDO selectQuoteStorageById(Long id);
+    UserQuoteStorageDTO selectQuoteStorageById(Long id);
 
     /**
      * 批量查询用户存储信息
      * @param userIds 用户ID列表
      * @return 用户存储信息列表
      */
-    List<UserQuoteStorageDO> selectQuoteStorageByIds(@Param("ids") List<Long> userIds);
+    List<UserQuoteStorageDTO> selectQuoteStorageByIds(@Param("ids") List<Long> userIds);
 
     /**
      * 批量更新用户存储（仅更新 used_storage_bytes）

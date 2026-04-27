@@ -1,5 +1,14 @@
 package com.jacolp.service.impl;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
@@ -9,7 +18,7 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.MetaAuditMapper;
 import com.jacolp.mapper.TopicMapper;
-import com.jacolp.pojo.domain.TopicNoteCountDO;
+import com.jacolp.pojo.dto.topic.TopicNoteCountDTO;
 import com.jacolp.pojo.dto.topic.TopicAddDTO;
 import com.jacolp.pojo.dto.topic.TopicListDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
@@ -18,17 +27,11 @@ import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.TopicEntity;
 import com.jacolp.pojo.vo.topic.TopicDetailVO;
 import com.jacolp.pojo.vo.topic.TopicListVO;
+import com.jacolp.pojo.vo.topic.TopicStatsVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.TopicService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Topic 领域服务实现。
@@ -179,13 +182,13 @@ public class TopicServiceImpl implements TopicService {
             throw new BaseException("待删除的主题 ID 列表不能为空");
         }
 
-        List<TopicNoteCountDO> deleteChecks = topicMapper.selectDeleteChecksByIds(ids);
+        List<TopicNoteCountDTO> deleteChecks = topicMapper.selectDeleteChecksByIds(ids);
         if (deleteChecks.size() != ids.size()) {
             throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
         }
 
         // 业务约束：主题下有未删除笔记则不允许删除
-        for (TopicNoteCountDO topic : deleteChecks) {
+        for (TopicNoteCountDTO topic : deleteChecks) {
             if (topic.getNoteCount() != null && topic.getNoteCount() > 0) {
                 throw new BaseException(TopicConstant.TOPIC_DELETE_NOT_ALLOWED_PREFIX
                         + topic.getTopicName()
@@ -250,6 +253,17 @@ public class TopicServiceImpl implements TopicService {
         if (count <= 0) {
             throw new BaseException(TopicConstant.TOPIC_SUBMIT_AUDIT_FAILED);
         }
+    }
+
+    /**
+     * 获取当前用户主题统计。
+     */
+    @Override
+    public TopicStatsVO getUserTopicStats() {
+        Long userId = BaseContext.getCurrentId();
+        long topicCount = topicMapper.countByUserId(userId);
+        long passedCount = topicMapper.countPassedByUserId(userId);
+        return new TopicStatsVO(topicCount, passedCount);
     }
 
     /**

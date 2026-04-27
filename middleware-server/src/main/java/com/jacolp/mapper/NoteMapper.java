@@ -1,15 +1,16 @@
 package com.jacolp.mapper;
 
-import com.jacolp.pojo.dto.note.NoteQueryDTO;
-import com.jacolp.pojo.entity.NoteEntity;
-import com.jacolp.pojo.vo.note.NoteSimpleVO;
-import com.jacolp.pojo.vo.note.NoteVO;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.jacolp.pojo.dto.note.NoteQueryDTO;
+import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
+import com.jacolp.pojo.vo.note.NoteVO;
 
 @Mapper
 public interface NoteMapper {
@@ -75,6 +76,24 @@ public interface NoteMapper {
             "title = #{originalFilename} and " +
             "is_deleted = 0")
     int countByUserIdAndTopicIdAndTitle(Long userId, Long topicId, String originalFilename);
+
+        /**
+         * 统计指定用户的笔记总数（未删除）。
+         */
+        @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_note WHERE user_id = #{userId} AND is_deleted = 0")
+        long countByUserId(@Param("userId") Long userId);
+
+        /**
+         * 统计指定用户的公开笔记数量（未删除 + 已发布）。
+         */
+        @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_note WHERE user_id = #{userId} AND is_deleted = 0 AND is_published = 1")
+        long countPublicByUserId(@Param("userId") Long userId);
+
+        /**
+         * 统计指定用户已通过审核的笔记数量（未删除 + is_pass = 1）。
+         */
+        @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_note WHERE user_id = #{userId} AND is_deleted = 0 AND is_pass = 1")
+        long countApprovedByUserId(@Param("userId") Long userId);
 
     /**
      * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。

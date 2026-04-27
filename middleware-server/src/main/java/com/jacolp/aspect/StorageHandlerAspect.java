@@ -7,7 +7,7 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.domain.UserQuoteStorageDO;
+import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.result.Result;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.entity.NoteEntity;
@@ -128,7 +128,7 @@ public class StorageHandlerAspect {
         }
 
         // 查询用户已使用的配额
-        UserQuoteStorageDO quote = userMapper.selectQuoteStorageById(userId);
+        UserQuoteStorageDTO quote = userMapper.selectQuoteStorageById(userId);
         long currentUsed = quote.getUsedStorageBytes() != null ? quote.getUsedStorageBytes() : 0L;
         long newUsed = Math.max(0L, currentUsed - fileSize);    // 保底最小为 0
 
@@ -239,7 +239,7 @@ public class StorageHandlerAspect {
      */
     private CachedStorageInfo loadCachedStorageInfo(Long userId) {
         // 尝试从用户表中获取存储信息
-        UserQuoteStorageDO quote = userMapper.selectQuoteStorageById(userId);
+        UserQuoteStorageDTO quote = userMapper.selectQuoteStorageById(userId);
         if (quote == null) {
             throw new BaseException(UserConstant.NOT_FIND_USER);
         }
@@ -380,11 +380,11 @@ public class StorageHandlerAspect {
      */
     private void batchUpdateUserStorage(Map<Long, Long> userStorageMap) {
         List<Long> userIds = new ArrayList<>(userStorageMap.keySet());
-        List<UserQuoteStorageDO> userStorageList = userMapper.selectQuoteStorageByIds(userIds); // 批量查询
+        List<UserQuoteStorageDTO> userStorageList = userMapper.selectQuoteStorageByIds(userIds); // 批量查询
 
         // 构建 userId → 存储信息映射
-        Map<Long, UserQuoteStorageDO> infoMap = new HashMap<>();
-        for (UserQuoteStorageDO info : userStorageList) {
+        Map<Long, UserQuoteStorageDTO> infoMap = new HashMap<>();
+        for (UserQuoteStorageDTO info : userStorageList) {
             infoMap.put(info.getId(), info);
         }
 
@@ -394,7 +394,7 @@ public class StorageHandlerAspect {
             Long userId = entry.getKey();
             Long deltaBytes = entry.getValue();
 
-            UserQuoteStorageDO info = infoMap.get(userId);
+            UserQuoteStorageDTO info = infoMap.get(userId);
             if (info != null) {
                 long currentUsed = info.getUsedStorageBytes() != null ? info.getUsedStorageBytes() : 0L;
                 long newUsed = Math.max(0L, currentUsed - deltaBytes);  // 最小不能为 负数

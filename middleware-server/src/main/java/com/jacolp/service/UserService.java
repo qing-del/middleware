@@ -1,5 +1,7 @@
 package com.jacolp.service;
 
+import java.util.List;
+
 import com.jacolp.pojo.dto.user.UserAddDTO;
 import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
@@ -8,9 +10,8 @@ import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.user.UserDetailVO;
+import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.result.PageResult;
-
-import java.util.List;
 
 public interface UserService {
     // 管理端登录，返回通过校验后的用户信息
@@ -40,6 +41,9 @@ public interface UserService {
 
     // 用户端：获取当前登录用户详情（不含密码）
     UserDetailVO getCurrentUser();
+
+    // 用户端：获取当前登录用户概览信息（不含ID）
+    UserOverviewVO getUserOverview();
 
     /** 用户端：更新当前登录用户的个人资料 */
     void updateCurrentUserProfile(UserProfileUpdateDTO dto);

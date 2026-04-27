@@ -1,13 +1,14 @@
 package com.jacolp.mapper;
 
-import com.jacolp.pojo.domain.TagNoteCountDO;
-import com.jacolp.pojo.entity.TagEntity;
-import com.jacolp.pojo.vo.tag.TagVO;
+import java.util.List;
+
+import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import java.util.List;
+import com.jacolp.pojo.entity.TagEntity;
+import com.jacolp.pojo.vo.tag.TagVO;
 
 @Mapper
 public interface TagMapper {
@@ -32,7 +33,7 @@ public interface TagMapper {
 
     int updateTag(TagEntity tag);
 
-    List<TagNoteCountDO> selectDeleteChecksByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
+    List<TagNoteCountDTO> selectDeleteChecksByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 
     int deleteByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 
@@ -61,4 +62,16 @@ public interface TagMapper {
      */
     @Select("SELECT * FROM biz_tag WHERE id = #{tagId}")
     TagEntity selectById(Long tagId);
+
+    /**
+     * 统计指定用户的标签数量。
+     */
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_tag WHERE user_id = #{userId}")
+    long countByUserId(@Param("userId") Long userId);
+
+    /**
+     * 统计指定用户已通过审核的标签数量。
+     */
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_tag WHERE user_id = #{userId} AND is_pass = 1")
+    long countPassedByUserId(@Param("userId") Long userId);
 }

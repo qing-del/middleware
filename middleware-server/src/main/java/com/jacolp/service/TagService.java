@@ -1,14 +1,15 @@
 package com.jacolp.service;
 
+import java.util.List;
+
 import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
 import com.jacolp.pojo.dto.tag.TagModifyDTO;
 import com.jacolp.pojo.dto.tag.TagQueryDTO;
 import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
 import com.jacolp.pojo.vo.tag.TagBatchAddVO;
+import com.jacolp.pojo.vo.tag.TagStatsVO;
 import com.jacolp.result.PageResult;
-
-import java.util.List;
 
 public interface TagService {
 
@@ -31,4 +32,9 @@ public interface TagService {
      * 用户端发起标签审核申请。
      */
     void submitTagAudit(Long tagId);
+
+    /**
+     * 获取当前用户标签统计。
+     */
+    TagStatsVO getUserTagStats();
 }

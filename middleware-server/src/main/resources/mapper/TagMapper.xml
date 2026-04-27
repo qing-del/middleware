@@ -27,7 +27,7 @@
     </update>
 
     <!-- 删除前校验：统计各 tag 的关联笔记数 -->
-    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.domain.TagNoteCountDO">
+    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.dto.tag.TagNoteCountDTO">
         SELECT
             t.id AS tagId,
             t.tag_name AS tagName,

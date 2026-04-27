@@ -65,7 +65,7 @@ CREATE TABLE `biz_topic` (
                              `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                              `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                              PRIMARY KEY (`id`),
-                             KEY `idx_user_id` (`user_id`),
+                             KEY `idx_user_pass` (`user_id`, `is_pass`),
                              KEY `idx_user_sort_update` (`user_id`, `sort_order`, `update_time`),
                              UNIQUE KEY `uk_topic_user` (`topic_name`, `user_id`) -- 同一个用户不能创建同名的主题
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记主题/分类表';
@@ -82,7 +82,7 @@ CREATE TABLE `biz_tag` (
                            `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
                            `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                            PRIMARY KEY (`id`),
-                           KEY `idx_user_id` (`user_id`),
+                           KEY `idx_user_pass` (`user_id`, `is_pass`),  -- 用于统计
                            UNIQUE KEY `uk_tag_user` (`tag_name`, `user_id`) -- 同一个用户不能创建同名的标签
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记标签表';
 
@@ -201,7 +201,7 @@ CREATE TABLE `biz_note_tag_mapping` (
                                         `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
                                         `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                                         PRIMARY KEY (`id`),
-                                        UNIQUE KEY `idx_note_tag` (`note_id`, `tag_id`),
+                                        UNIQUE KEY `idx_note_tag` (`note_id`, `tag_id`),    -- 用于统计
                                         KEY `uk_note_tag_name` (`note_id`, parsed_tag_name),
                                         KEY `idx_tag_deleted` (`tag_id`, `is_deleted`), -- 方便通过 tag_id 反查所有 note_id
                                         KEY `idx_note_deleted_pass` (`note_id`, `is_deleted`, `is_pass`) -- 方便发布前要做count(1)做优化
@@ -226,7 +226,8 @@ CREATE TABLE `biz_image` (
                              -- 对于 (uk_user_topic_filename) 采取 Java 层逻辑唯一索引
                              KEY `uk_user_topic_filename` (`user_id`, `topic_id`, filename(40)), -- 用户查询自己有哪些图片可以使用
                              KEY `idx_topic_public_filename` (`topic_id`, `is_public`, filename(40)), -- 用于查询某个主题下的所有图片(同时支持前缀模糊查询文件名)
-                             KEY `idx_public_filename` (`is_public`, filename(40)) -- 用于公共图片库按文件名搜索
+                             KEY `idx_public_filename` (`is_public`, filename(40)), -- 用于公共图片库按文件名搜索
+                             KEY `idx_user_pass` (`user_id`, `is_pass`) -- 方便统计
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片资源映射表';
 
 

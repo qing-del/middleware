@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import com.jacolp.pojo.domain.ImageNoteCountDO;
+import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.vo.image.ImageVO;
 
@@ -47,7 +47,7 @@ public interface ImageMapper {
     /**
      * 删除前校验：查询目标图片及其被引用次数。
      */
-    List<ImageNoteCountDO> selectDeleteChecksByIds(@Param("ids") List<Long> ids);
+    List<ImageNoteCountDTO> selectDeleteChecksByIds(@Param("ids") List<Long> ids);
 
     /**
      * 批量删除图片。
@@ -94,4 +94,16 @@ public interface ImageMapper {
     List<ImageVO> listByUserCondition(@Param("userId") Long userId,
                                       @Param("topicId") Long topicId,
                                       @Param("filename") String filename);
+
+    /**
+     * 统计指定用户的图片数量。
+     */
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_image WHERE user_id = #{userId}")
+    long countByUserId(@Param("userId") Long userId);
+
+    /**
+     * 统计指定用户已通过审核的图片数量。
+     */
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_image WHERE user_id = #{userId} AND is_pass = 1")
+    long countPassedByUserId(@Param("userId") Long userId);
 }

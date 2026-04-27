@@ -1,4 +1,4 @@
-package com.jacolp.pojo.domain;
+package com.jacolp.pojo.dto.image;
 
 import java.io.Serializable;
 
@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ImageNoteCountDO implements Serializable {
+public class ImageNoteCountDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

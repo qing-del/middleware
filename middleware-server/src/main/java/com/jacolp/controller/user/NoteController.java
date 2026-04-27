@@ -1,25 +1,34 @@
 package com.jacolp.controller.user;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.jacolp.context.BaseContext;
 import com.jacolp.pojo.dto.note.UserNoteDetailDTO;
 import com.jacolp.pojo.dto.note.UserNoteQueryDTO;
 import com.jacolp.pojo.dto.note.UserNoteSearchDTO;
 import com.jacolp.pojo.dto.note.UserNoteUpdateDTO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
+import com.jacolp.pojo.vo.note.NoteStatsVO;
 import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.NoteService;
 import com.jacolp.service.UserNoteService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.http.MediaType;
 
 /**
  * 用户端笔记控制器
@@ -28,7 +37,7 @@ import org.springframework.http.MediaType;
 @RestController("User-NoteController")
 @RequestMapping("/user/note")
 @Slf4j
-@Tag(name = "User-笔记管理", description = "用户端笔记管理接口")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记管理", description = "用户端笔记管理接口")
 public class NoteController {
 
     @Autowired
@@ -50,6 +59,16 @@ public class NoteController {
         Long userId = BaseContext.getCurrentId();
         log.info("User list notes, userId: {}, topicId: {}", userId, dto.getTopicId());
         return Result.success(noteService.listUserNotes(userId, dto));
+    }
+
+    /**
+     * 获取当前用户笔记统计。
+     */
+    @GetMapping("/stats")
+    @Operation(summary = "获取用户笔记统计", description = "返回当前用户的笔记总数、公开笔记数、已通过审核笔记数。")
+    public Result<NoteStatsVO> getStats() {
+        log.info("User get note stats");
+        return Result.success(noteService.getUserNoteStats());
     }
 
     /**

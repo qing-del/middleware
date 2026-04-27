@@ -1,5 +1,16 @@
 package com.jacolp.service.impl;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
@@ -9,7 +20,7 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.MetaAuditMapper;
 import com.jacolp.mapper.TagMapper;
-import com.jacolp.pojo.domain.TagNoteCountDO;
+import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
 import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
 import com.jacolp.pojo.dto.tag.TagModifyDTO;
@@ -18,20 +29,12 @@ import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.TagEntity;
 import com.jacolp.pojo.vo.tag.TagBatchAddVO;
+import com.jacolp.pojo.vo.tag.TagStatsVO;
 import com.jacolp.pojo.vo.tag.TagVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.TagService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -147,12 +150,12 @@ public class TagServiceImpl implements TagService {
         }
 
         Long userId = BaseContext.getCurrentId();
-        List<TagNoteCountDO> checks = tagMapper.selectDeleteChecksByIds(userId, ids);
+        List<TagNoteCountDTO> checks = tagMapper.selectDeleteChecksByIds(userId, ids);
         if (checks.size() != ids.size()) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
 
-        for (TagNoteCountDO check : checks) {
+        for (TagNoteCountDTO check : checks) {
             if (check.getNoteCount() != null && check.getNoteCount() > 0) {
                 throw new BaseException(TagConstant.TAG_DELETE_NOT_ALLOWED_PREFIX
                         + check.getTagName()
@@ -231,6 +234,17 @@ public class TagServiceImpl implements TagService {
         record.setApplyType(AuditConstant.TAG_APPLY_TYPE);
         record.setTargetId(tagId);
         metaAuditMapper.insertAuditRecord(record);
+    }
+
+    /**
+     * 获取当前用户标签统计。
+     */
+    @Override
+    public TagStatsVO getUserTagStats() {
+        Long userId = BaseContext.getCurrentId();
+        long tagCount = tagMapper.countByUserId(userId);
+        long passedCount = tagMapper.countPassedByUserId(userId);
+        return new TagStatsVO(tagCount, passedCount);
     }
 
     private String normalizeTagName(String tagName) {

@@ -51,7 +51,7 @@
     </select>
 
     <!-- 删除前校验查询：获取每个主题的未删除笔记数 -->
-    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.domain.TopicNoteCountDO">
+    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.dto.topic.TopicNoteCountDTO">
         SELECT
             t.topic_name AS topicName,
             COUNT(n.id) AS noteCount

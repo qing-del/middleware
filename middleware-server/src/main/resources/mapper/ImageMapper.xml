@@ -71,7 +71,7 @@
     </select>
 
     <!-- 删除前校验：查询每张图片及其被引用次数 -->
-    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.domain.ImageNoteCountDO">
+    <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.dto.image.ImageNoteCountDTO">
         SELECT
             i.id AS imageId,
             i.filename,

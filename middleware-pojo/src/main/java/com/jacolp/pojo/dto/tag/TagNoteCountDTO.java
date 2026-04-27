@@ -1,4 +1,4 @@
-package com.jacolp.pojo.domain;
+package com.jacolp.pojo.dto.tag;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TagNoteCountDO {
+public class TagNoteCountDTO {
 
     private Long tagId;
 

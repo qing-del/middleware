@@ -1,7 +1,16 @@
 package com.jacolp.service;
 
-import com.jacolp.pojo.dto.note.*;
+import java.util.List;
+
+import org.springframework.web.multipart.MultipartFile;
+
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
+import com.jacolp.pojo.dto.note.EachMappingBindDTO;
+import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
+import com.jacolp.pojo.dto.note.NoteModifyInfoDTO;
+import com.jacolp.pojo.dto.note.NoteQueryDTO;
+import com.jacolp.pojo.dto.note.NoteVisibleDTO;
+import com.jacolp.pojo.dto.note.UserNoteQueryDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
@@ -10,11 +19,9 @@ import com.jacolp.pojo.vo.note.NoteDetailVO;
 import com.jacolp.pojo.vo.note.NoteDiffVO;
 import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.pojo.vo.note.NoteStatsVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.result.PageResult;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 public interface NoteService {
 
@@ -154,4 +161,9 @@ public interface NoteService {
      * 用户端发起笔记审核申请。
      */
     void submitNoteAudit(Long noteId);
+
+    /**
+     * 获取当前用户笔记统计。
+     */
+    NoteStatsVO getUserNoteStats();
 }

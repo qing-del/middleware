@@ -1,23 +1,31 @@
 package com.jacolp.controller.user;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.jacolp.pojo.dto.tag.UserTagAddDTO;
 import com.jacolp.pojo.dto.tag.UserTagAssignDTO;
 import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
 import com.jacolp.pojo.dto.tag.UserTagRemoveDTO;
+import com.jacolp.pojo.vo.tag.TagStatsVO;
 import com.jacolp.pojo.vo.tag.UserTagSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.TagService;
 import com.jacolp.service.UserTagService;
+
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 用户端标签控制器
@@ -47,6 +55,16 @@ public class TagController {
     public Result<PageResult> list(@RequestBody UserTagQueryDTO dto) {
         log.info("User list tags, keyword: {}", dto.getKeyword());
         return Result.success(tagService.listUserTags(dto));
+    }
+
+    /**
+     * 获取当前用户标签统计。
+     */
+    @GetMapping("/stats")
+    @Operation(summary = "获取用户标签统计", description = "返回当前用户的标签总数和已通过审核数。")
+    public Result<TagStatsVO> getStats() {
+        log.info("User get tag stats");
+        return Result.success(tagService.getUserTagStats());
     }
 
     /**

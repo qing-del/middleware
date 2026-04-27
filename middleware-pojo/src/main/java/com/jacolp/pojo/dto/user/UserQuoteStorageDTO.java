@@ -1,4 +1,4 @@
-package com.jacolp.pojo.domain;
+package com.jacolp.pojo.dto.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserQuoteStorageDO {
+public class UserQuoteStorageDTO {
     private Long id;
     private Long roleId;
     private Long maxStorageBytes;

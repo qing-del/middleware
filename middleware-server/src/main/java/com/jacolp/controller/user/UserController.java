@@ -1,5 +1,18 @@
 package com.jacolp.controller.user;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
@@ -7,20 +20,17 @@ import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.user.UserDetailVO;
+import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.Result;
 import com.jacolp.service.UserService;
 import com.jacolp.utils.JwtUtil;
+
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController("User-UserController")
 @RequestMapping("/user/user")
@@ -62,6 +72,14 @@ public class UserController {
     public Result<UserDetailVO> getCurrentUser() {
         log.info("User get current user info");
         return Result.success(userService.getCurrentUser());
+    }
+
+    @GetMapping("/overview")
+    @Operation(summary = "获取用户概览",
+            description = "返回当前用户的基本信息，不包含资源统计数据。")
+    public Result<UserOverviewVO> getOverview() {
+        log.info("User get overview");
+        return Result.success(userService.getUserOverview());
     }
 
     @PutMapping("/me")

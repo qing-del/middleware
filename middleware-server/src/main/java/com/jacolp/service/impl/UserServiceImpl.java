@@ -1,12 +1,26 @@
 package com.jacolp.service.impl;
 
+import java.util.List;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.jacolp.annotation.RequireValidRole;
-import com.jacolp.constant.PageConstant;
-import com.jacolp.constant.UserConstant;
-import com.jacolp.constant.RoleConstant;
-import com.jacolp.context.BaseContext;
-import com.jacolp.exception.*;
 import com.jacolp.component.PasswordEncoder;
+import com.jacolp.constant.PageConstant;
+import com.jacolp.constant.RoleConstant;
+import com.jacolp.constant.UserConstant;
+import com.jacolp.context.BaseContext;
+import com.jacolp.exception.AuthenticationException;
+import com.jacolp.exception.BaseException;
+import com.jacolp.exception.NotFindUserException;
+import com.jacolp.exception.PasswordIncorrectException;
+import com.jacolp.exception.PermissionDeniedException;
+import com.jacolp.exception.UserIsBanException;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserAddDTO;
 import com.jacolp.pojo.dto.user.UserListDTO;
@@ -17,17 +31,11 @@ import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
 import com.jacolp.pojo.vo.user.UserDetailVO;
+import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.UserService;
-import com.github.pagehelper.PageHelper;
-import com.github.pagehelper.PageInfo;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
-import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -321,6 +329,22 @@ public class UserServiceImpl implements UserService {
         UserDetailVO vo = new UserDetailVO();
         BeanUtils.copyProperties(user, vo);
         vo.setId(null);
+        return vo;
+    }
+
+    /**
+     * 获取当前登录用户概览信息（不含用户ID）。
+     */
+    @Override
+    public UserOverviewVO getUserOverview() {
+        Long userId = BaseContext.getCurrentId();
+        UserEntity user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+        }
+
+        UserOverviewVO vo = new UserOverviewVO();
+        BeanUtils.copyProperties(user, vo);
         return vo;
     }
 

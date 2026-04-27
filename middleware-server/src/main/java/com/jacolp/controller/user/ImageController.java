@@ -1,21 +1,31 @@
 package com.jacolp.controller.user;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.jacolp.annotation.StorageHandler;
 import com.jacolp.context.BaseContext;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.dto.image.UserImageQueryDTO;
+import com.jacolp.pojo.vo.image.ImageStatsVO;
 import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.ImageService;
 import com.jacolp.service.UserImageService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 用户端图片控制器
@@ -46,6 +56,16 @@ public class ImageController {
         log.info("User list images, userId: {}, topicId: {}", userId, dto.getTopicId());
         return Result.success(imageService.listUserImages(userId, dto));
     }
+
+        /**
+         * 获取当前用户图片统计。
+         */
+        @GetMapping("/stats")
+        @Operation(summary = "获取用户图片统计", description = "返回当前用户的图片总数和已通过审核数。")
+        public Result<ImageStatsVO> getStats() {
+                log.info("User get image stats");
+                return Result.success(imageService.getUserImageStats());
+        }
 
     /**
      * 发起图片审核申请

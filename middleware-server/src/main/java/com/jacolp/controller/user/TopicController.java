@@ -1,19 +1,23 @@
 package com.jacolp.controller.user;
 
-import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
-import com.jacolp.service.TopicService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
+import com.jacolp.pojo.vo.topic.TopicStatsVO;
+import com.jacolp.result.PageResult;
+import com.jacolp.result.Result;
+import com.jacolp.service.TopicService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController("User-TopicController")
 @RequestMapping("/user/topic")
@@ -31,6 +35,14 @@ public class TopicController {
     public Result<PageResult> list(@RequestBody UserTopicQueryDTO dto) {
         log.info("User list topics, keyword: {}", dto.getKeyword());
         return Result.success(topicService.listUserTopics(dto));
+    }
+
+    @GetMapping("/stats")
+    @Operation(summary = "获取用户主题统计",
+            description = "返回当前用户的主题总数和已通过审核数。")
+    public Result<TopicStatsVO> getStats() {
+        log.info("User get topic stats");
+        return Result.success(topicService.getUserTopicStats());
     }
 
     @PostMapping("/submitAudit")

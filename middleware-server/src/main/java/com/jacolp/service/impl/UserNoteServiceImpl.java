@@ -8,7 +8,8 @@ import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.*;
-import com.jacolp.pojo.domain.TagNoteCountDO;
+import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
+import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.note.UserNoteDetailDTO;
 import com.jacolp.pojo.dto.note.UserNoteSearchDTO;
 import com.jacolp.pojo.dto.note.UserNoteUpdateDTO;
@@ -20,7 +21,6 @@ import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.UserNoteService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +32,6 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -84,7 +83,7 @@ public class UserNoteServiceImpl implements UserNoteService {
         validateTopic(topicId);
 
         // 校验文件大小是否在用户剩余配额内
-        com.jacolp.pojo.domain.UserQuoteStorageDO storageInfo =
+        UserQuoteStorageDTO storageInfo =
             userMapper.selectQuoteStorageById(userId);
         if (storageInfo != null && storageInfo.getMaxStorageBytes() != null) {
             Long maxStorageBytes = storageInfo.getMaxStorageBytes();
@@ -232,7 +231,7 @@ public class UserNoteServiceImpl implements UserNoteService {
             }
 
             // 校验文件大小变化
-            com.jacolp.pojo.domain.UserQuoteStorageDO storageInfo =
+            UserQuoteStorageDTO storageInfo =
                 userMapper.selectQuoteStorageById(userId);
             if (storageInfo != null && storageInfo.getMaxStorageBytes() != null) {
                 Long maxStorageBytes = storageInfo.getMaxStorageBytes();
@@ -302,8 +301,8 @@ public class UserNoteServiceImpl implements UserNoteService {
         }
 
         // 检查是否有标签引用该笔记
-        List<TagNoteCountDO> tagChecks = tagMapper.selectDeleteChecksByIds(userId, List.of(id));
-        for (TagNoteCountDO check : tagChecks) {
+        List<TagNoteCountDTO> tagChecks = tagMapper.selectDeleteChecksByIds(userId, List.of(id));
+        for (TagNoteCountDTO check : tagChecks) {
             if (check.getNoteCount() != null && check.getNoteCount() > 0) {
                 throw new BaseException("该笔记正在被标签引用，无法删除");
             }
@@ -318,7 +317,7 @@ public class UserNoteServiceImpl implements UserNoteService {
         }
 
         // 更新用户已用存储空间
-        com.jacolp.pojo.domain.UserQuoteStorageDO storageInfo =
+        UserQuoteStorageDTO storageInfo =
             userMapper.selectQuoteStorageById(userId);
         if (storageInfo != null && storageInfo.getUsedStorageBytes() != null) {
             UserEntity user = new UserEntity();
