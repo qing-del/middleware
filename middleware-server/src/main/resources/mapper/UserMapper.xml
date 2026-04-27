@@ -115,4 +115,28 @@
         status = values(status),
         update_time = now()
     </insert>
+
+    <select id="selectQuoteStorageByIds" resultType="com.jacolp.pojo.domain.UserQuoteStorageDO">
+        SELECT
+            id,
+            role_id,
+            max_storage_bytes,
+            used_storage_bytes AS usedStorageBytes
+        FROM sys_user
+        WHERE id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="batchUpsertStorage">
+        INSERT INTO sys_user (id, used_storage_bytes)
+        VALUES
+        <foreach item="user" collection="users" separator=",">
+            (#{user.id}, #{user.usedStorageBytes})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            used_storage_bytes = VALUES(used_storage_bytes),
+            update_time = NOW()
+    </insert>
 </mapper>

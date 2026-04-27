@@ -3,16 +3,10 @@ package com.jacolp.service.impl;
 import com.aliyun.oss.AliyunOSSOperator;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.constant.TopicConstant;
-import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.ImageMapper;
 import com.jacolp.mapper.TopicMapper;
-import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.domain.UserQuoteStorageDO;
-import com.jacolp.pojo.entity.ImageEntity;
-import com.jacolp.pojo.entity.TopicEntity;
-import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.service.UserImageService;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +18,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
+import com.jacolp.context.StorageUpdateContext;
+import com.jacolp.pojo.entity.ImageEntity;
 
 /**
  * 用户端图片服务实现
@@ -37,9 +34,6 @@ public class UserImageServiceImpl implements UserImageService {
 
     @Autowired
     private ImageMapper imageMapper;
-
-    @Autowired
-    private UserMapper userMapper;
 
     @Autowired
     private TopicMapper topicMapper;
@@ -152,25 +146,14 @@ public class UserImageServiceImpl implements UserImageService {
         }
 
         // 删除数据库记录
-        List<Long> ids = new ArrayList<>();
-        ids.add(id);
-        int deleteCount = imageMapper.deleteByIds(ids);
+        int deleteCount = imageMapper.deleteByIds(List.of(id));
         if (deleteCount <= 0) {
             throw new BaseException("删除图片失败");
         }
 
-        // 更新用户已用存储空间
-        UserQuoteStorageDO storageInfo = userMapper.selectQuoteStorageById(userId);
-        if (storageInfo != null && storageInfo.getUsedStorageBytes() != null) {
-            Long usedStorageBytes = storageInfo.getUsedStorageBytes();
-            UserEntity user = new UserEntity();
-            user.setId(userId);
-            user.setUsedStorageBytes(Math.max(0L, usedStorageBytes - image.getFileSize()));
-            int countUser = userMapper.updateById(user);
-            if (countUser <= 0) {
-                throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
-            }
-        }
+        // 通过 ThreadLocal 传递被删文件大小，供 StorageHandlerAspect 使用
+        Map<Long, Long> userStorageMap = Map.of(userId, image.getFileSize());
+        StorageUpdateContext.setStorageMap(userStorageMap);
     }
 
     /**

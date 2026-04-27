@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserQuoteStorageDO {
+    private Long id;
     private Long roleId;
     private Long maxStorageBytes;
     private Long usedStorageBytes;

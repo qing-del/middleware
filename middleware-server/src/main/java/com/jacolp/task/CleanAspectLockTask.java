@@ -1,6 +1,6 @@
 package com.jacolp.task;
 
-import com.jacolp.aspect.CheckAndUpdateUserStorageAspect;
+import com.jacolp.aspect.StorageHandlerAspect;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 @Slf4j
 public class CleanAspectLockTask {
-    @Autowired private CheckAndUpdateUserStorageAspect checkAndUpdateUserStorageAspect;
+    @Autowired private StorageHandlerAspect storageHandlerAspect;
 
     /**
      * 定时清理 AOP 锁。
@@ -20,7 +20,7 @@ public class CleanAspectLockTask {
     @Scheduled(fixedRateString = "${jacolp.aspect.lock.clean-aop-time:60}", timeUnit = TimeUnit.MINUTES)
     public void clean() {
         log.debug("Clean aspect lock map");
-        checkAndUpdateUserStorageAspect.clearLockMap();
+        storageHandlerAspect.clearLockMap();
         log.debug("Clean aspect lock map done");
     }
 }

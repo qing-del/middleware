@@ -5,12 +5,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.jacolp.annotation.StorageHandler;
 import com.jacolp.constant.*;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.NoteImageResolveContext;
+import com.jacolp.context.StorageUpdateContext;
 import com.jacolp.converter.MarkdownHtmlEngine;
 import com.jacolp.converter.MarkdownHtmlEngine.FrontMatter;
 import com.jacolp.converter.MarkdownHtmlEngine.HtmlProcessResult;
+import com.jacolp.enums.StorageOperationType;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.ImageMapper;
 import com.jacolp.mapper.NoteChangeDiffMapper;
@@ -141,7 +144,7 @@ public class NoteServiceImpl implements NoteService {
         NoteUploadVO vo = new NoteUploadVO();
         vo.setNoteId(noteId);
         // 这里使用批量查询计算缺失图片，避免逐条查询导致 O(n) 次网络 IO。
-        vo.setMissingImages(resolveMissingImages(userId, topicId, imageNames));
+        vo.setMissingImages(resolveMissingImages(userId, topicId, imageNames)); // TODO 后续加入其他缺失的信息
         return vo;
     }
 
@@ -245,11 +248,11 @@ public class NoteServiceImpl implements NoteService {
             // TODO 后续可以在 modifyUpload 中就新文本扫描出来的标签、图片、内联笔记这些数据做一个 json 保存起来，这里直接从数据库中读取 避免二次扫描文本
 
             // 用新内容覆盖旧内容，清除新版本。
-            contextEntity.setMarkdownContent(newMarkdown);
-            contextEntity.setMarkdownContentNew(null);
-            noteContextMapper.updateContext(contextEntity);
+            contextEntity.setMarkdownContent(newMarkdown);  // 用新内容覆盖旧内容
+            contextEntity.setMarkdownContentNew(null);  // 清除新版本
+            noteContextMapper.updateContext(contextEntity); // 更新到 DB
 
-            // 更新标签、图片映射表
+            // 更新标签、图片映射表（采取先全部删除，然后又全部插入新的策略）
             noteTagMappingMapper.softDeleteByNoteId(noteId);
             noteImageMappingMapper.softDeleteByNoteId(noteId);
             noteEachMappingMapper.softDeleteBySourceNoteId(noteId);
@@ -426,7 +429,6 @@ public class NoteServiceImpl implements NoteService {
      * @param noteId 笔记 ID
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void publishNote(Long noteId) {
         // 验证笔记是否已转换
         if (noteConvertMapper.countByNoteId(noteId) <= 0) {
@@ -446,7 +448,7 @@ public class NoteServiceImpl implements NoteService {
      * @param ids 笔记 ID 列表
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
+    @StorageHandler(operationType = StorageOperationType.BATCH_DELETE)
     public void adminDeleteNotes(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BaseException("待删除的笔记 ID 列表不能为空");
@@ -474,27 +476,14 @@ public class NoteServiceImpl implements NoteService {
         noteImageMappingMapper.softDeleteByNoteIds(ids);
 
         // 批量标记软删除
-        noteMapper.softDeleteByIds(ids);
-
-        // 批量查询用户
-        List<UserEntity> users = userMapper.selectByIds(userIds);
-
-        if (users.size() != userIds.size()) {
-            // TODO 后续加入一个异步记录到错误日志里面
-            log.error("The picture is associated with a non-existent user.");
+        int affected = noteMapper.softDeleteByIds(ids);
+        if (affected < ids.size()) {
+            log.error("Some notes related to non-existed note!");
+            throw new BaseException(NoteConstant.DELETE_NOTE_NOT_EXIST);
         }
 
-        // 批量更新用户存储空间
-        for (UserEntity user : users) {
-            user.setUsedStorageBytes(
-                    Math.max(user.getUsedStorageBytes() - userStorageMap.get(user.getId()), 0L));
-        }
-
-        int count = userMapper.upsertUser(users);
-        if (count < users.size()) {
-            log.error("Failed to update user storage!");
-            throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
-        }
+        // 需要将 Map 记录到上下文方便切面类来处理
+        StorageUpdateContext.setStorageMap(userStorageMap);
     }
 
     /**

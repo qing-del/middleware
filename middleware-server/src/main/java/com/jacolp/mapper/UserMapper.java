@@ -33,6 +33,20 @@ public interface UserMapper {
     UserQuoteStorageDO selectQuoteStorageById(Long id);
 
     /**
+     * 批量查询用户存储信息
+     * @param userIds 用户ID列表
+     * @return 用户存储信息列表
+     */
+    List<UserQuoteStorageDO> selectQuoteStorageByIds(@Param("ids") List<Long> userIds);
+
+    /**
+     * 批量更新用户存储（仅更新 used_storage_bytes）
+     * @param users 用户列表
+     * @return 更新数量
+     */
+    int batchUpsertStorage(@Param("users") List<UserEntity> users);
+
+    /**
      * 批量 <b>插入/更新</b> 用户
      * <p><b>不会修改密码</b></p>
      * @param users

@@ -1,6 +1,6 @@
 package com.jacolp.controller.admin;
 
-import com.jacolp.annotation.CheckAndUpdateUserStorage;
+import com.jacolp.annotation.StorageHandler;
 import com.jacolp.annotation.NoteFileLimit;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
@@ -52,7 +52,7 @@ public class NoteController {
 
     @PostMapping("/upload")
     @NoteFileLimit
-    @CheckAndUpdateUserStorage(operationType = StorageOperationType.UPLOAD)
+    @StorageHandler(operationType = StorageOperationType.UPLOAD)
     @Operation(summary = "上传笔记",
             description = "从当前登录用户上下文获取 userId 后上传 Markdown 文件，先校验主题是否存在与同主题同名唯一性，再一次性扫描标签、图片和双链引用并建立映射；同时落库笔记原文、初始化缺失状态，最终返回 noteId 与缺失图片列表。")
     public Result<NoteUploadVO> upload(
@@ -64,7 +64,7 @@ public class NoteController {
 
     @PutMapping("/upload/{noteId}")
     @NoteFileLimit
-    @CheckAndUpdateUserStorage(operationType = StorageOperationType.UPLOAD)
+    @StorageHandler(operationType = StorageOperationType.MODIFY)
     @Operation(summary = "修改笔记源文件",
             description = "校验笔记归属后读取旧 Markdown 内容，与新文件一起重新扫描标签、图片和双链引用并计算 Diff；新内容仅写入临时版本和变更记录，等待后续确认或回滚。")
     public Result<NoteDiffVO> modifySource(
@@ -119,7 +119,7 @@ public class NoteController {
 
     @PutMapping("/publish/{noteId}/{status}")
     @Operation(summary = "设置笔记发布状态",
-            description = "根据 status 设置笔记发布或下架；发布时必须已存在转换缓存，并且标签、图片、双链三类关联都已通过审核，否则拒绝发布。")
+            description = "根据 status 设置笔记发布或下架；发布时必须已存在转换缓存，并且标签、图片、双链三类关联都已通过审核，以及笔记本身通过审核，否则拒绝发布。")
     public Result<String> setPublishStatus(
             @Parameter(description = "笔记ID") @PathVariable Long noteId,
             @Parameter(description = "发布状态（1:发布, 0:下架）") @PathVariable Short status) {
@@ -129,7 +129,8 @@ public class NoteController {
     }
 
     @DeleteMapping("/delete")
-    @Operation(summary = "批量删除笔记", description = "批量删除笔记主记录并同步清理转换结果、Diff、内容和三类关联映射，随后回收当前用户已占用的存储空间。")
+    @Operation(summary = "批量删除笔记",
+            description = "批量删除笔记主记录并同步清理转换结果、Diff、内容和三类关联映射，随后回收当前用户已占用的存储空间。")
     public Result<String> delete(@Parameter(description = "笔记ID，使用英文逗号分隔") @RequestParam String ids) {
         List<Long> idList = IdParserUtil.parseIds(ids, "笔记");
         log.info("Admin delete notes, ids: {}", idList);
@@ -138,14 +139,16 @@ public class NoteController {
     }
 
     @GetMapping("/images/{noteId}")
-    @Operation(summary = "查询笔记关联图片", description = "按笔记 ID 读取图片映射及图片基础信息，返回给前端用于绑定状态展示、差异确认和详情页渲染。")
+    @Operation(summary = "查询笔记关联图片",
+            description = "按笔记 ID 读取图片映射及图片基础信息，返回给前端用于绑定状态展示、差异确认和详情页渲染。")
     public Result<List<ImageSimpleVO>> listImages(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin list note images, noteId: {}", noteId);
         return Result.success(noteService.listImagesByNoteId(noteId));
     }
 
     @PutMapping("/info")
-    @Operation(summary = "修改笔记元信息", description = "修改笔记标题、描述和主题等基础元数据，不变更 Markdown 正文；修改前会校验目标主题有效性和同主题同名唯一性。")
+    @Operation(summary = "修改笔记元信息",
+            description = "修改笔记标题、描述和主题等基础元数据，不变更 Markdown 正文；修改前会校验目标主题有效性和同主题同名唯一性。")
     public Result<String> modifyInfo(@RequestBody NoteModifyInfoDTO dto) {
         log.info("Admin modify note info, noteId: {}", dto.getId());
         noteService.modifyInfo(dto);
@@ -153,35 +156,40 @@ public class NoteController {
     }
 
     @PostMapping("/list")
-    @Operation(summary = "分页查询笔记", description = "按用户、主题、标题、发布状态、审核状态和缺失状态等条件分页查询笔记列表，并按创建时间倒序返回。")
+    @Operation(summary = "分页查询笔记",
+            description = "按用户、主题、标题、发布状态、审核状态和缺失状态等条件分页查询笔记列表，并按创建时间倒序返回。")
     public Result<PageResult> list(@RequestBody NoteQueryDTO dto) {
         log.info("Admin list notes, dto:{}", dto);
         return Result.success(noteService.listNotes(dto));
     }
 
     @GetMapping("/info/{noteId}")
-    @Operation(summary = "查询笔记详情", description = "返回笔记基础元数据，并聚合标签、图片、双链映射及已转换内容，供前端详情页一次性加载。")
+    @Operation(summary = "查询笔记详情",
+            description = "返回笔记基础元数据，并聚合标签、图片、双链映射及已转换内容，供前端详情页一次性加载。")
     public Result<NoteDetailVO> info(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin get note info, noteId: {}", noteId);
         return Result.success(noteService.getInfo(noteId));
     }
 
     @GetMapping("/open/{noteId}")
-    @Operation(summary = "打开笔记内容", description = "读取指定笔记的已转换结果（TOC + 正文 HTML），仅在笔记已发布且已转换的情况下返回，用于前端阅读页渲染。")
+    @Operation(summary = "打开笔记内容",
+            description = "读取指定笔记的已转换结果（TOC + 正文 HTML），仅在笔记已发布且已转换的情况下返回，用于前端阅读页渲染。")
     public Result<NoteConvertResultVO> open(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin open note, noteId: {}", noteId);
         return Result.success(noteService.adminOpenNote(noteId));
     }
 
     @GetMapping("/relation/{noteId}")
-    @Operation(summary = "查询笔记关联映射", description = "查询笔记与标签、图片、双链笔记三类关联的全部映射行、绑定状态和缺失标记，用于编辑器联动展示。")
+    @Operation(summary = "查询笔记关联映射",
+            description = "查询笔记与标签、图片、双链笔记三类关联的全部映射行、绑定状态和缺失标记，用于编辑器联动展示。")
     public Result<NoteRelationDetailVO> relationInfo(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin get note relation info, noteId: {}", noteId);
         return Result.success(noteService.getRelationInfo(noteId));
     }
 
     @PutMapping("/relation/tag/bind")
-    @Operation(summary = "绑定标签映射", description = "为指定标签映射行绑定目标标签，绑定前会校验名称一致性与标签审核状态，成功后刷新笔记缺失信息。")
+    @Operation(summary = "绑定标签映射",
+            description = "为指定标签映射行绑定目标标签，绑定前会校验名称一致性与标签审核状态，成功后刷新笔记缺失信息。")
     public Result<String> bindTag(@RequestBody TagMappingBindDTO dto) {
         log.info("Admin bind tag mapping, mappingId: {}, tagId: {}", dto.getMappingId(), dto.getTagId());
         noteService.bindTagMapping(dto);
@@ -189,7 +197,8 @@ public class NoteController {
     }
 
     @DeleteMapping("/relation/tag/unbind/{mappingId}")
-    @Operation(summary = "解绑标签映射", description = "解除指定标签映射行与标签的绑定关系，清空 tagId 与审核标记后重新计算笔记缺失信息。")
+    @Operation(summary = "解绑标签映射",
+            description = "解除指定标签映射行与标签的绑定关系，清空 tagId 与审核标记后重新计算笔记缺失信息。")
     public Result<String> unbindTag(@Parameter(description = "映射行ID") @PathVariable Long mappingId) {
         log.info("Admin unbind tag mapping, mappingId: {}", mappingId);
         noteService.unbindTagMapping(mappingId);
@@ -197,7 +206,8 @@ public class NoteController {
     }
 
     @PutMapping("/relation/image/bind")
-    @Operation(summary = "绑定图片映射", description = "为指定图片映射行绑定目标图片，绑定前会校验文件名一致性和图片审核状态，同时计算是否跨用户引用。")
+    @Operation(summary = "绑定图片映射",
+            description = "为指定图片映射行绑定目标图片，绑定前会校验文件名一致性和图片审核状态，同时计算是否跨用户引用。")
     public Result<String> bindImage(@RequestBody ImageMappingBindDTO dto) {
         log.info("Admin bind image mapping, mappingId: {}, imageId: {}", dto.getMappingId(), dto.getImageId());
         noteService.bindImageMapping(dto);
@@ -205,7 +215,8 @@ public class NoteController {
     }
 
     @DeleteMapping("/relation/image/unbind/{mappingId}")
-    @Operation(summary = "解绑图片映射", description = "解除指定图片映射行的图片绑定，清空 imageId 和跨用户标记，并重新判断笔记是否仍存在缺失信息。")
+    @Operation(summary = "解绑图片映射",
+            description = "解除指定图片映射行的图片绑定，清空 imageId 和跨用户标记，并重新判断笔记是否仍存在缺失信息。")
     public Result<String> unbindImage(@Parameter(description = "映射行ID") @PathVariable Long mappingId) {
         log.info("Admin unbind image mapping, mappingId: {}", mappingId);
         noteService.unbindImageMapping(mappingId);
@@ -213,7 +224,8 @@ public class NoteController {
     }
 
     @PutMapping("/relation/each/bind")
-    @Operation(summary = "绑定双链笔记映射", description = "为指定双链映射行绑定目标笔记，绑定前会校验标题匹配、目标笔记审核状态和删除状态，成功后刷新缺失信息。")
+    @Operation(summary = "绑定双链笔记映射",
+            description = "为指定双链映射行绑定目标笔记，绑定前会校验标题匹配、目标笔记审核状态和删除状态，成功后刷新缺失信息。")
     public Result<String> bindEach(@RequestBody EachMappingBindDTO dto) {
         log.info("Admin bind note-each mapping, mappingId: {}, noteId: {}", dto.getMappingId(), dto.getNoteId());
         noteService.bindEachMapping(dto);
@@ -221,7 +233,8 @@ public class NoteController {
     }
 
     @DeleteMapping("/relation/each/unbind/{mappingId}")
-    @Operation(summary = "解绑双链笔记映射", description = "解除指定双链映射行与目标笔记的绑定关系，清空 targetNoteId 后重算笔记关联完整性。")
+    @Operation(summary = "解绑双链笔记映射",
+            description = "解除指定双链映射行与目标笔记的绑定关系，清空 targetNoteId 后重算笔记关联完整性。")
     public Result<String> unbindEach(@Parameter(description = "映射行ID") @PathVariable Long mappingId) {
         log.info("Admin unbind note-each mapping, mappingId: {}", mappingId);
         noteService.unbindEachMapping(mappingId);
@@ -229,7 +242,8 @@ public class NoteController {
     }
 
     @PostMapping("/relation/check/{noteId}")
-    @Operation(summary = "校验关联完整性", description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，并将结果回写到 isMissingInfo 字段。")
+    @Operation(summary = "校验关联完整性",
+            description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，并将结果回写到 isMissingInfo 字段。")
     public Result<Boolean> checkRelationCompletion(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin check note relation completion, noteId: {}", noteId);
         return Result.success(noteService.checkRelationCompletion(noteId));

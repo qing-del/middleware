@@ -73,6 +73,7 @@ public class NoteConstant {
     public static final String NOTE_ALREADY_PASSED = "该笔记已通过审核";
     public static final String NOTE_AUDIT_PENDING = "该笔记已有待审核的申请";
     public static final String NOTE_NOT_PASS = "该笔记未通过审核";
+    public static final String DELETE_NOTE_NOT_EXIST = "需要删除的笔记不存在";
 
     private NoteConstant() {
     }

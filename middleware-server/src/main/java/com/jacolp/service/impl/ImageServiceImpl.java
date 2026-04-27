@@ -3,15 +3,13 @@ package com.jacolp.service.impl;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import com.jacolp.annotation.StorageHandler;
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.PageConstant;
 import com.jacolp.constant.TopicConstant;
-import com.jacolp.constant.UserConstant;
 import com.jacolp.mapper.*;
-import com.jacolp.pojo.domain.UserQuoteStorageDO;
 import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
-import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +21,7 @@ import com.aliyun.oss.AliyunOSSOperator;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.context.BaseContext;
+import com.jacolp.context.StorageUpdateContext;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.domain.ImageNoteCountDO;
@@ -278,6 +277,7 @@ public class ImageServiceImpl implements ImageService {
 
         // 创建一个用于存储用户示范空间量的映射表
         HashMap<Long, Long> userStorageMap = new HashMap<>();
+        StorageUpdateContext.setStorageMap(userStorageMap);
         ImageBatchDeleteVO result = new ImageBatchDeleteVO(
                 new ArrayList<>(),
                 new ArrayList<>(),
@@ -323,19 +323,6 @@ public class ImageServiceImpl implements ImageService {
         if (deleteCount < idSet.size()) {
             throw new BaseException("图片删除失败");
         }
-
-        // 更新用户空间量
-        userStorageMap.forEach((userId, storageSize) -> {
-            UserQuoteStorageDO userStorageInfo = userMapper.selectQuoteStorageById(userId);
-            UserEntity user = new UserEntity();
-            user.setId(userId);
-            user.setUsedStorageBytes(userStorageInfo.getUsedStorageBytes() - storageSize);
-            int countUser = userMapper.updateById(user);
-            if (countUser <= 0) {
-                log.error("更新用户空间量失败，userId: {}", userId);
-                throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
-            }
-        });
 
         return result;
     }

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.jacolp.annotation.StorageHandler;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jacolp.annotation.CheckAndUpdateUserStorage;
 import com.jacolp.annotation.ImageLimit;
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
@@ -61,8 +61,9 @@ public class ImageController {
      */
     @PostMapping("/upload")
     @ImageLimit
-    @CheckAndUpdateUserStorage(operationType = StorageOperationType.UPLOAD)
-    @Operation(summary = "上传图片", description = "从当前登录用户上下文获取 userId 后，将图片上传到默认对象存储并创建图片记录；上传前会先经过文件大小、后缀和存储配额校验，成功后返回可访问地址。")
+    @StorageHandler(operationType = StorageOperationType.UPLOAD)
+    @Operation(summary = "上传图片",
+            description = "从当前登录用户上下文获取 userId 后，将图片上传到默认对象存储并创建图片记录；上传前会先经过文件大小、后缀和存储配额校验，成功后返回可访问地址。")
     public Result<String> upload(
             @RequestParam(required = false) Long topicId,
             @Parameter(description = "图片文件") @RequestParam MultipartFile file) {
@@ -78,8 +79,9 @@ public class ImageController {
      */
     @PutMapping("/modify-file")
     @ImageLimit
-    @CheckAndUpdateUserStorage(operationType = StorageOperationType.UPLOAD)
-    @Operation(summary = "替换图片源文件", description = "校验图片归属与存储类型后，覆盖上传新的图片文件并更新 ossUrl 和 fileSize；当前实现仅支持已接入的云存储类型。")
+    @StorageHandler(operationType = StorageOperationType.MODIFY)
+    @Operation(summary = "替换图片源文件",
+            description = "校验图片归属与存储类型后，覆盖上传新的图片文件并更新 ossUrl 和 fileSize；当前实现仅支持已接入的云存储类型。")
     public Result<String> modifyFile(
             @Parameter(description = "图片ID") @RequestParam Long id,
             @Parameter(description = "新文件") @RequestParam MultipartFile file) {
@@ -92,7 +94,8 @@ public class ImageController {
      * 5.3 修改图片信息（改名/换主题）。
      */
     @PutMapping("/modify-info")
-    @Operation(summary = "修改图片元信息", description = "修改图片名称或主题归属等元信息，不替换图片二进制内容；修改文件名时会做同用户同主题唯一性校验。")
+    @Operation(summary = "修改图片元信息",
+            description = "修改图片名称或主题归属等元信息，不替换图片二进制内容；修改文件名时会做同用户同主题唯一性校验。")
     public Result<String> modifyInfo(@RequestBody ImageModifyInfoDTO dto) {
         log.info("Admin modify image info, id: {}", dto.getId());
         imageService.modifyImageInfo(dto);
@@ -103,7 +106,8 @@ public class ImageController {
      * 5.4 云厂商迁移入口（默认阿里云 OSS，R2 预留）。
      */
     @PutMapping("/transfer-to-cloud")
-    @Operation(summary = "迁移图片到云存储", description = "批量触发图片存储介质迁移流程，默认处理阿里云 OSS 入口并预留 R2 等多云扩展；按图片 ID 逐条处理，失败项会记录日志。")
+    @Operation(summary = "迁移图片到云存储",
+            description = "批量触发图片存储介质迁移流程，默认处理阿里云 OSS 入口并预留 R2 等多云扩展；按图片 ID 逐条处理，失败项会记录日志。")
     public Result<String> transferToCloud(
             @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
         List<Long> idList = parseIds(ids);
@@ -116,7 +120,8 @@ public class ImageController {
      * 5.5 已废弃：不再支持转为本地存储。
      */
     @PutMapping("/transfer-to-local")
-    @Operation(summary = "迁移到本地存储（已废弃）", description = "历史兼容接口，当前本地存储方案已下线，不再提供实际迁移逻辑，仅用于兼容旧调用方。")
+    @Operation(summary = "迁移到本地存储（已废弃）",
+            description = "历史兼容接口，当前本地存储方案已下线，不再提供实际迁移逻辑，仅用于兼容旧调用方。")
     public Result<String> transferToLocal(
             @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
         List<Long> idList = parseIds(ids);
@@ -129,7 +134,9 @@ public class ImageController {
      * 5.6 批量删除图片。
      */
     @DeleteMapping("/delete")
-    @Operation(summary = "批量删除图片", description = "批量删除图片前会先检查是否被笔记引用，若存在引用则整批拒绝；删除成功后会同步回收用户存储并记录死信队列。")
+    @StorageHandler(operationType = com.jacolp.enums.StorageOperationType.BATCH_DELETE)
+    @Operation(summary = "批量删除图片",
+            description = "批量删除图片前会先检查是否被笔记引用，若存在引用则整批拒绝；删除成功后会同步回收用户存储并记录死信队列。")
     public Result<ImageBatchDeleteVO> delete(
             @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
         List<Long> idList = parseIds(ids);
@@ -141,7 +148,8 @@ public class ImageController {
      * 5.7 获取图片列表。
      */
     @PostMapping("/list")
-    @Operation(summary = "分页查询图片", description = "按用户、主题、文件名、公开状态和审核状态等条件分页查询图片列表，便于管理端筛选与审核。")
+    @Operation(summary = "分页查询图片",
+            description = "按用户、主题、文件名、公开状态和审核状态等条件分页查询图片列表，便于管理端筛选与审核。")
     public Result<PageResult> list(@RequestBody ImageQueryDTO dto) {
         log.info("Admin list images, userId: {}, topicId: {}", dto.getUserId(), dto.getTopicId());
         return Result.success(imageService.listImages(dto));
@@ -151,7 +159,8 @@ public class ImageController {
      * 5.8 查询图片关联的笔记列表。
      */
     @GetMapping("/notes/{imageId}")
-    @Operation(summary = "查询图片关联笔记", description = "查询当前图片被哪些笔记引用，返回笔记简要信息，便于评估删除、迁移或审核影响。")
+    @Operation(summary = "查询图片关联笔记",
+            description = "查询当前图片被哪些笔记引用，返回笔记简要信息，便于评估删除、迁移或审核影响。")
     public Result<List<NoteSimpleVO>> listNotes(
             @Parameter(description = "图片ID") @PathVariable Long imageId) {
         log.info("Admin list notes by image, imageId: {}", imageId);
@@ -162,7 +171,8 @@ public class ImageController {
      * 5.9 公开/取消公开图片。
      */
     @PostMapping("/public/{isPublic}")
-    @Operation(summary = "设置图片公开状态", description = "切换图片公开/私有状态，修改后会影响跨用户复用和前端可见范围。")
+    @Operation(summary = "设置图片公开状态",
+            description = "切换图片公开/私有状态，修改后会影响跨用户复用和前端可见范围。")
     public Result<String> setPublic(
             @Parameter(description = "是否公开（0:私有, 1:公开）") @PathVariable Short isPublic,
             @RequestBody ImagePublicDTO dto) {

@@ -1,6 +1,6 @@
 package com.jacolp.controller.user;
 
-import com.jacolp.annotation.CheckAndUpdateUserStorage;
+import com.jacolp.annotation.StorageHandler;
 import com.jacolp.context.BaseContext;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.dto.image.UserImageQueryDTO;
@@ -11,7 +11,6 @@ import com.jacolp.service.ImageService;
 import com.jacolp.service.UserImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +71,7 @@ public class ImageController {
      * @param topicId 所属主题ID（可选），用于分类管理
      * @return 上传后的图片详情，包含访问URL和元数据
      */
-    @CheckAndUpdateUserStorage(operationType = StorageOperationType.UPLOAD)
+    @StorageHandler(operationType = StorageOperationType.UPLOAD)
     @PostMapping
     @Operation(summary = "上传图片",
             description = "上传图片到云存储（阿里云OSS）。会自动校验文件大小是否在用户剩余配额内，并记录图片元数据。")
@@ -111,7 +110,7 @@ public class ImageController {
      * @param id 图片ID
      * @return 删除结果提示
      */
-    @CheckAndUpdateUserStorage(operationType = StorageOperationType.DELETE)
+    @StorageHandler(operationType = StorageOperationType.DELETE)
     @DeleteMapping("/{id}")
     @Operation(summary = "删除图片",
             description = "根据图片ID删除图片。从云存储删除对应对象文件，并从数据库删除图片记录。仅允许删除自己的图片。")
