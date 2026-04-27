@@ -92,7 +92,6 @@ public class NoteServiceImpl implements NoteService {
     @Autowired private TagMapper tagMapper;
     @Autowired private ImageMapper imageMapper;
     @Autowired private TopicMapper topicMapper;
-    @Autowired private UserMapper userMapper;
 
     // ==== 来自 common 模块的 Bean 对象 ====
     @Autowired private MarkdownHtmlEngine markdownHtmlEngine;
@@ -143,8 +142,9 @@ public class NoteServiceImpl implements NoteService {
         // 构建返回结果
         NoteUploadVO vo = new NoteUploadVO();
         vo.setNoteId(noteId);
-        // 这里使用批量查询计算缺失图片，避免逐条查询导致 O(n) 次网络 IO。
-        vo.setMissingImages(resolveMissingImages(userId, topicId, imageNames)); // TODO 后续加入其他缺失的信息
+        // 这里使用批量查询计算缺失关联信息，避免逐条查询导致 O(n) 次网络 IO。
+        vo.setMissingImages(resolveMissingImages(userId, topicId, imageNames));
+        vo.setMissingNoteNames(resolveMissingNoteNames(userId, topicId, noteLinks));
         return vo;
     }
 
@@ -1337,6 +1337,36 @@ public class NoteServiceImpl implements NoteService {
     }
 
     /**
+     * 批量查询笔记双链并计算缺失笔记名。
+     * <p>通过一条 IN 查询完成比对，网络 IO 复杂度为 O(1)</p>
+     * @param userId 用户ID
+     * @param topicId 主题ID
+     * @param noteLinks 解析出的双链笔记列表
+     * @return 缺失的内链笔记名称列表
+     */
+    private List<String> resolveMissingNoteNames(Long userId, Long topicId,
+            List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
+        if (noteLinks == null || noteLinks.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> names = normalizeDistinctList(
+                noteLinks.stream().map(MarkdownHtmlEngine.ParsedNoteLink::noteName).toList());
+        if (names.isEmpty()) {
+            return List.of();
+        }
+
+        List<NoteEntity> found = noteMapper.selectByUserIdAndTopicIdAndTitles(userId, topicId, names);
+        Set<String> foundTitles = found == null ? Set.of() : found.stream()
+                .filter(note -> note.getIsDeleted() == null
+                        || note.getIsDeleted().equals(NoteConstant.NOT_DELETED))
+                .map(NoteEntity::getTitle)
+                .collect(Collectors.toSet());
+
+        return names.stream().filter(name -> !foundTitles.contains(name)).toList();
+    }
+
+    /**
      * 检查缺失的标签
      * <p>仅会查询标签的内容是否为空 不为空即为全部存在</p>
      * @return 缺失标签返回 true 否则返回 false
@@ -1355,27 +1385,7 @@ public class NoteServiceImpl implements NoteService {
      * @return 缺失笔记返回 true 否则返回 false
      */
     private boolean hasMissingNotes(Long userId, Long topicId, List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
-        if (noteLinks == null || noteLinks.isEmpty()) {
-            return false;
-        }
-        List<String> names = noteLinks.stream()
-                .map(MarkdownHtmlEngine.ParsedNoteLink::noteName)
-                .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
-        if (names.isEmpty()) {
-            return false;
-        }
-
-        List<NoteEntity> found = noteMapper.selectByUserIdAndTopicIdAndTitles(userId, topicId, names);
-        Set<String> foundTitles = found == null ? Set.of() : found.stream()
-                .filter(note -> note.getIsDeleted() == null
-                                || note.getIsDeleted().equals(NoteConstant.NOT_DELETED))
-                .map(NoteEntity::getTitle)
-                .collect(Collectors.toSet());
-
-        // 如果存在标签 不被 foundTitles 包含 则会返回 true  -> 说明缺失标签
-        return names.stream().anyMatch(name -> !foundTitles.contains(name));
+        return !resolveMissingNoteNames(userId, topicId, noteLinks).isEmpty();
     }
 
     /**
