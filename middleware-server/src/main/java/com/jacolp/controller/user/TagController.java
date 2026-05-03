@@ -21,7 +21,6 @@ import com.jacolp.pojo.vo.tag.UserTagSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.TagService;
-import com.jacolp.service.UserTagService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,9 +38,6 @@ public class TagController {
 
     @Autowired
     private TagService tagService;
-
-    @Autowired
-    private UserTagService userTagService;
 
     /**
      * 条件查询标签列表
@@ -92,7 +88,7 @@ public class TagController {
     @Operation(summary = "查询当前用户标签列表", description = "查询当前登录用户创建的所有标签，返回标签的基本信息（ID、名称、创建时间）。")
     public Result<List<UserTagSimpleVO>> listMyTags() {
         log.info("User query tag list");
-        return Result.success(userTagService.listTags());
+        return Result.success(tagService.listUserTagSimples());
     }
 
     /**
@@ -106,7 +102,7 @@ public class TagController {
     @Operation(summary = "创建标签", description = "创建新标签，标签所有者自动设为当前登录用户。标签名称在同一用户下不能重复。")
     public Result<String> create(@RequestBody UserTagAddDTO dto) {
         log.info("User create tag: {}", dto.getTagName());
-        userTagService.createTag(dto);
+        tagService.addUserTag(dto);
         return Result.success("创建成功");
     }
 
@@ -120,7 +116,7 @@ public class TagController {
     @Operation(summary = "删除标签", description = "根据标签ID删除标签。执行软删除，保留关联历史。仅允许删除自己的标签。")
     public Result<String> delete(@PathVariable Long id) {
         log.info("User delete tag: {}", id);
-        userTagService.deleteTag(id);
+        tagService.deleteUserTag(id);
         return Result.success("删除成功");
     }
 
@@ -136,7 +132,7 @@ public class TagController {
             description = "将标签绑定到笔记或主题。绑定前会校验标签归属和目标资源的存在性。")
     public Result<String> assign(@RequestBody UserTagAssignDTO dto) {
         log.info("User assign tag {} to note {}", dto.getTagId(), dto.getTargetId());
-        userTagService.assignTag(dto);
+        tagService.assignUserTag(dto);
         return Result.success("绑定成功");
     }
 
@@ -151,7 +147,7 @@ public class TagController {
     @Operation(summary = "解除标签绑定", description = "解除标签与笔记之间的绑定关系。仅允许操作自己的标签和资源。")
     public Result<String> remove(@RequestBody UserTagRemoveDTO dto) {
         log.info("User remove tag {} from note {}", dto.getTagId(), dto.getTargetId());
-        userTagService.removeTag(dto);
+        tagService.removeUserTag(dto);
         return Result.success("解除绑定成功");
     }
 }

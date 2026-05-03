@@ -7,6 +7,7 @@ import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserModifyDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
+import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.user.UserDetailVO;
@@ -65,4 +66,8 @@ public interface UserService {
      * @return 放行获取激活码返回 true，否则返回 false
      */
     boolean checkActivationStatus(Long userId);
+
+    UserQuoteStorageDTO getUserQuoteStorage(Long userId);
+
+    void updateUserStorageUsed(Long userId, Long usedStorageBytes);
 }

@@ -4,11 +4,17 @@ import java.util.List;
 
 import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
+import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
 import com.jacolp.pojo.dto.tag.TagModifyDTO;
 import com.jacolp.pojo.dto.tag.TagQueryDTO;
+import com.jacolp.pojo.dto.tag.UserTagAddDTO;
+import com.jacolp.pojo.dto.tag.UserTagAssignDTO;
 import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
+import com.jacolp.pojo.dto.tag.UserTagRemoveDTO;
+import com.jacolp.pojo.entity.TagEntity;
 import com.jacolp.pojo.vo.tag.TagBatchAddVO;
 import com.jacolp.pojo.vo.tag.TagStatsVO;
+import com.jacolp.pojo.vo.tag.UserTagSimpleVO;
 import com.jacolp.result.PageResult;
 
 public interface TagService {
@@ -37,4 +43,35 @@ public interface TagService {
      * 获取当前用户标签统计。
      */
     TagStatsVO getUserTagStats();
+
+    /**
+     * 根据ID和用户ID查询标签，供其他Service内部调用。
+     */
+    TagEntity getByIdAndUserId(Long id, Long userId);
+
+    /**
+     * 根据ID列表批量查询标签，供其他Service内部调用。
+     */
+    List<TagEntity> getByIds(List<Long> ids);
+
+    /**
+     * 根据标签名列表和用户ID批量查询标签，供其他Service内部调用。
+     */
+    List<TagEntity> getByNamesAndUserId(List<String> names, Long userId);
+
+    // ===== 用户端方法 =====
+
+    List<UserTagSimpleVO> listUserTagSimples();
+
+    void addUserTag(UserTagAddDTO dto);
+
+    void deleteUserTag(Long id);
+
+    void assignUserTag(UserTagAssignDTO dto);
+
+    void removeUserTag(UserTagRemoveDTO dto);
+
+    List<TagNoteCountDTO> listDeleteChecksByIds(Long userId, List<Long> ids);
+
+    int updatePassStatusByIds(List<Long> ids, Short isPass);
 }

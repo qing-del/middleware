@@ -53,4 +53,11 @@ public interface NoteImageMappingMapper {
 
     int updateByImageIds(@Param("imageIds") List<Long> imageIds,
                          @Param("status") Short status);
+
+    /**
+     * 统计指定笔记的未绑定图片数量
+     * @param noteId 笔记 id
+     * @return 未绑定图片映射行数量
+     */
+    int countByNoteIdAndImageIdIsNull(@Param("noteId") Long noteId);
 }

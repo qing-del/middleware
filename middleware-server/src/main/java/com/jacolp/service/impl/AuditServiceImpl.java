@@ -14,18 +14,12 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.PageConstant;
+import com.jacolp.enums.NoteStatus;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.ImageAuditMapper;
-import com.jacolp.mapper.ImageMapper;
 import com.jacolp.mapper.MetaAuditMapper;
 import com.jacolp.mapper.NoteAuditMapper;
-import com.jacolp.mapper.NoteEachMappingMapper;
-import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.mapper.NoteMapper;
-import com.jacolp.mapper.NoteTagMappingMapper;
-import com.jacolp.mapper.TagMapper;
-import com.jacolp.mapper.TopicMapper;
 import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
 import com.jacolp.pojo.dto.image.ImageAuditListDTO;
 import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
@@ -38,6 +32,11 @@ import com.jacolp.pojo.vo.audit.MetaAuditVO;
 import com.jacolp.pojo.vo.audit.NoteAuditVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
+import com.jacolp.service.ImageService;
+import com.jacolp.service.NoteRelationService;
+import com.jacolp.service.NoteService;
+import com.jacolp.service.TagService;
+import com.jacolp.service.TopicService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,16 +53,13 @@ public class AuditServiceImpl implements AuditService {
 
     @Autowired private MetaAuditMapper metaAuditMapper;
     @Autowired private ImageAuditMapper imageAuditMapper;
-
     @Autowired private NoteAuditMapper noteAuditMapper;
-    @Autowired private TopicMapper topicMapper;
-    @Autowired private TagMapper tagMapper;
-    @Autowired private ImageMapper imageMapper;
-    @Autowired private NoteMapper noteMapper;
-    @Autowired private NoteTagMappingMapper noteTagMappingMapper;
-    @Autowired private NoteImageMappingMapper noteImageMappingMapper;
 
-    @Autowired private NoteEachMappingMapper noteEachMappingMapper;
+    @Autowired private TopicService topicService;
+    @Autowired private TagService tagService;
+    @Autowired private ImageService imageService;
+    @Autowired private NoteService noteService;
+    @Autowired private NoteRelationService noteRelationService;
 
 
     /**
@@ -159,7 +155,7 @@ public class AuditServiceImpl implements AuditService {
         }
 
         if (!topicIds.isEmpty()) {
-            topicMapper.updatePassByIds(topicIds, context.status);
+            topicService.updatePassStatusByIds(topicIds, context.status);
         }
         if (!tagIds.isEmpty()) {
             updateTagsAndTagMappingsPass(tagIds, context, affected);
@@ -234,6 +230,48 @@ public class AuditServiceImpl implements AuditService {
         }
 
         return affected;
+    }
+
+    // ===== 供其他 Service 调用的内部方法 =====
+
+    @Override
+    public boolean hasPendingMetaAudit(Short applyType, Long targetId) {
+        return metaAuditMapper.countPendingAuditByApplyTypeAndTargetId(applyType, targetId) > 0;
+    }
+
+    @Override
+    public void createMetaAuditRecord(MetaAuditRecordEntity record) {
+        metaAuditMapper.insertAuditRecord(record);
+    }
+
+    @Override
+    public ImageAuditRecordEntity getImageAuditRecordById(Long id) {
+        return imageAuditMapper.selectById(id);
+    }
+
+    @Override
+    public boolean hasPendingImageAudit(Long imageId) {
+        return imageAuditMapper.countPendingAuditByImageId(imageId) > 0;
+    }
+
+    @Override
+    public void createImageAuditRecord(ImageAuditRecordEntity record) {
+        imageAuditMapper.insertAuditRecord(record);
+    }
+
+    @Override
+    public void updateImageAuditRecord(ImageAuditRecordEntity record) {
+        imageAuditMapper.updateAuditRecord(record);
+    }
+
+    @Override
+    public boolean hasPendingNoteAudit(Long noteId) {
+        return noteAuditMapper.countPendingAuditByNoteId(noteId) > 0;
+    }
+
+    @Override
+    public void createNoteAuditRecord(NoteAuditRecordEntity record) {
+        noteAuditMapper.insertAuditRecord(record);
     }
 
     /**
@@ -314,9 +352,8 @@ public class AuditServiceImpl implements AuditService {
      */
     private void updateTagsAndTagMappingsPass(List<Long> tagIds, ReviewContext context, int affected) {
         // 批量更新标签状态。
-        int count = tagMapper.updatePassByIds(tagIds, context.status);
-        // 批量更新标签映射状态。
-        noteTagMappingMapper.updateByTagIds(tagIds, context.status);
+        int count = tagService.updatePassStatusByIds(tagIds, context.status);
+        noteRelationService.updateTagMappingPassByTagIds(tagIds, context.status);
         // 保守校验：如果业务表更新行数不足，直接回滚。
         if (count < affected) {
             log.error("Failed to update tag status! : {}", tagIds);
@@ -334,9 +371,8 @@ public class AuditServiceImpl implements AuditService {
      */
     private void updateImagesAndImageMappingsPass(List<Long> imageIds, ReviewContext context, int affected) {
         // 批量更新图片状态。
-        int count = imageMapper.updatePassByIds(imageIds, context.status);
-        // 批量更新图片映射状态。
-        noteImageMappingMapper.updateByImageIds(imageIds, context.status);
+        int count = imageService.updatePassStatusByIds(imageIds, context.status);
+        noteRelationService.updateImageMappingPassByImageIds(imageIds, context.status);
         // 保守校验：业务表更新必须跟审核表影响行数一致。
         if (count < affected) {
             log.error("Failed to update image status! : {}", imageIds);
@@ -347,16 +383,17 @@ public class AuditServiceImpl implements AuditService {
     /**
      * 批量审核笔记及其内联映射。
      * <p>先更新 biz_note，再回写对应的 biz_note_each_mapping，保持审核状态一致。</p>
-     *
+     * <p>同时会检查影响行数是否 和 需要被影响的行数 是否一致</p>
      * @param noteIds 笔记ID列表
      * @param context 审核上下文
      * @param affected 本次审核表实际影响行数
      */
     private void updateNotesAndEachMappingsPass(List<Long> noteIds, ReviewContext context, int affected) {
-        // 批量更新笔记状态。
-        int count = noteMapper.updatePassByIds(noteIds, context.status);
-        // 批量更新内联映射状态。
-        noteEachMappingMapper.updateBySourceNoteIds(noteIds, context.status);
+        // 批量更新笔记状态。将审核状态映射为 NoteStatus
+        Short noteStatus = context.status.equals(AuditConstant.PASS) ?
+                NoteStatus.APPROVED.getCode() : NoteStatus.REJECTED.getCode();
+        int count = noteService.updateStatusByIds(noteIds, noteStatus);
+        noteRelationService.updateEachMappingPassBySourceNoteIds(noteIds, context.status);
         // 保守校验：业务表更新必须跟审核表影响行数一致。
         if (count < affected) {
             log.error("Failed to update note status! : {}", noteIds);

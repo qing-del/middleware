@@ -61,7 +61,6 @@ public class ImageController {
      */
     @PostMapping("/upload")
     @ImageLimit
-    @StorageHandler(operationType = StorageOperationType.UPLOAD)
     @Operation(summary = "上传图片",
             description = "从当前登录用户上下文获取 userId 后，将图片上传到默认对象存储并创建图片记录；上传前会先经过文件大小、后缀和存储配额校验，成功后返回可访问地址。")
     public Result<String> upload(
@@ -79,7 +78,6 @@ public class ImageController {
      */
     @PutMapping("/modify-file")
     @ImageLimit
-    @StorageHandler(operationType = StorageOperationType.MODIFY)
     @Operation(summary = "替换图片源文件",
             description = "校验图片归属与存储类型后，覆盖上传新的图片文件并更新 ossUrl 和 fileSize；当前实现仅支持已接入的云存储类型。")
     public Result<String> modifyFile(
@@ -134,7 +132,6 @@ public class ImageController {
      * 5.6 批量删除图片。
      */
     @DeleteMapping("/delete")
-    @StorageHandler(operationType = com.jacolp.enums.StorageOperationType.BATCH_DELETE)
     @Operation(summary = "批量删除图片",
             description = "批量删除图片前会先检查是否被笔记引用，若存在引用则整批拒绝；删除成功后会同步回收用户存储并记录死信队列。")
     public Result<ImageBatchDeleteVO> delete(

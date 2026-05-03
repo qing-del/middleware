@@ -15,7 +15,7 @@ public class NoteModifyInfoDTO implements Serializable {
 
     private Long id;
 
-    private String title;
+    private String title;   // TODO 让笔记信息修改不能改title(*)
 
     private String description;
 

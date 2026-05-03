@@ -10,10 +10,16 @@ import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.pojo.dto.note.NoteModifyInfoDTO;
 import com.jacolp.pojo.dto.note.NoteQueryDTO;
 import com.jacolp.pojo.dto.note.NoteVisibleDTO;
+import com.jacolp.pojo.dto.note.UserNoteDetailDTO;
 import com.jacolp.pojo.dto.note.UserNoteQueryDTO;
+import com.jacolp.pojo.dto.note.UserNoteSearchDTO;
+import com.jacolp.pojo.dto.note.UserNoteUpdateDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
+import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
+import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
 import com.jacolp.pojo.vo.note.NoteDiffVO;
@@ -21,6 +27,7 @@ import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteStatsVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
+import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 
 public interface NoteService {
@@ -127,7 +134,7 @@ public interface NoteService {
      * @param noteId
      * @return
      */
-    NoteDetailVO getInfo(Long noteId);
+    NoteDetailVO adminGetInfo(Long noteId);
 
     /**
      * 获取笔记内容
@@ -150,12 +157,12 @@ public interface NoteService {
 
     void unbindEachMapping(Long mappingId);
 
-    Boolean checkRelationCompletion(Long noteId);
+    NoteCheckBindingVO checkRelationCompletion(Long noteId);
 
     /**
      * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
      */
-    PageResult listUserNotes(Long userId, UserNoteQueryDTO dto);
+    PageResult listUserNotes(UserNoteQueryDTO dto);
 
     /**
      * 用户端发起笔记审核申请。
@@ -166,4 +173,28 @@ public interface NoteService {
      * 获取当前用户笔记统计。
      */
     NoteStatsVO getUserNoteStats();
+
+    // ===== 用户端方法 =====
+
+    Long createUserNote(MultipartFile file, Long topicId);
+
+    PageResult listUserNotesBySearch(UserNoteSearchDTO dto);
+
+    UserNoteDetailVO getUserNoteDetail(UserNoteDetailDTO dto);
+
+    String getUserNoteSource(Long noteId);
+
+    NoteConvertResultVO getUserNoteConvertedHtml(Long noteId);
+
+    void updateUserNote(MultipartFile file, UserNoteUpdateDTO dto);
+
+    void deleteUserNote(Long id);
+
+    PageResult searchUserNotes(UserNoteSearchDTO dto);
+
+    NoteEntity getNoteEntityById(Long id);
+
+    List<NoteSimpleVO> listNoteSimplesByImageId(Long imageId);
+
+    int updateStatusByIds(List<Long> ids, Short status);
 }

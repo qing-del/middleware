@@ -45,4 +45,11 @@ public interface NoteTagMappingMapper {
 
 
     int updateByTagIds(@Param("tagIds") List<Long> tagIds, @Param("status") Short status);
+
+    /**
+     * 统计指定笔记的未绑定标签数量
+     * @param noteId 笔记 id
+     * @return 未绑定标签映射行数量
+     */
+    int countByNoteIdAndTargetIdIsNull(@Param("noteId") Long noteId);
 }

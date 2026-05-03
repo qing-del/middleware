@@ -16,6 +16,8 @@ public class NoteUploadVO implements Serializable {
 
     private Long noteId;
 
+    private List<String> missingTags;
+
     private List<String> missingImages;
 
     private List<String> missingNoteNames;

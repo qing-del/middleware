@@ -13,7 +13,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoteEntity implements Serializable {
+public class
+NoteEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -27,15 +28,13 @@ public class NoteEntity implements Serializable {
 
     private String description;
 
-    private Short isPublished;  // 是否发布：1-公开, 0-私密
-
     private Integer storageType;  // 存储方式：0-本地存储, 1-阿里云OSS, 2-Cloudflare R2
 
-    private Short isMissingInfo;  // 是否缺少标签/图片绑定：0-正常, 1-缺失
+    private Short status;  // 笔记状态：0-已创建,1-缺失信息,2-待转换,3-已转换,4-审核中,5-已通过,6-已公开,7-已拒绝,8-已删除
 
-    private Short isPass;  // 审核状态：0-待审核, 1-已通过, 2-已拒绝
+    private Integer missingInfoMask;  // 缺失信息掩码：1-标签,2-图片,4-内联笔记
 
-    private Short isDeleted;  // 是否删除：0-正常, 1-删除
+    private Integer missingCount;  // 缺失信息数量，为0时自动扫描并触发状态转换
 
     private Long mdFileSize;  // MD文件大小合计(字节)
 

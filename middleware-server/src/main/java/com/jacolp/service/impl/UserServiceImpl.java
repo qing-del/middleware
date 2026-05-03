@@ -27,6 +27,7 @@ import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserModifyDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
+import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
@@ -450,6 +451,19 @@ public class UserServiceImpl implements UserService {
         // TODO 后续可以加入一个邮箱正则表达式检查
 
         return user.getStatus() == UserConstant.UNACTIVE_STATUS;
+    }
+
+    @Override
+    public UserQuoteStorageDTO getUserQuoteStorage(Long userId) {
+        return userMapper.selectQuoteStorageById(userId);
+    }
+
+    @Override
+    public void updateUserStorageUsed(Long userId, Long usedStorageBytes) {
+        UserEntity user = new UserEntity();
+        user.setId(userId);
+        user.setUsedStorageBytes(usedStorageBytes);
+        userMapper.updateById(user);
     }
 
     /**

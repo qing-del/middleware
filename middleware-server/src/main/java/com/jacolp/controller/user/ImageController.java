@@ -20,7 +20,6 @@ import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.ImageService;
-import com.jacolp.service.UserImageService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,8 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 public class ImageController {
 
     @Autowired private ImageService imageService;
-
-    @Autowired private UserImageService userImageService;
 
     /**
      * 条件查询图片列表
@@ -101,7 +98,7 @@ public class ImageController {
             @Parameter(description = "所属主题ID（可选，不传默认分到“未归类”）")
             @RequestParam(value = "topicId", required = false) Long topicId) {
         log.info("User upload image: {}, topicId: {}", file.getOriginalFilename(), topicId);
-        UserImageDetailVO result = userImageService.uploadImage(file, topicId);
+        UserImageDetailVO result = imageService.uploadUserImage(file, topicId);
         return Result.success(result);
     }
 
@@ -119,7 +116,7 @@ public class ImageController {
             @Parameter(description = "图片ID")
             @PathVariable Long id) {
         log.info("User get image detail: {}", id);
-        UserImageDetailVO result = userImageService.getImageDetail(id);
+        UserImageDetailVO result = imageService.getUserImageDetail(id);
         return Result.success(result);
     }
 
@@ -138,7 +135,7 @@ public class ImageController {
             @Parameter(description = "图片ID")
             @PathVariable Long id) {
         log.info("User delete image: {}", id);
-        userImageService.deleteImage(id);
+        imageService.deleteUserImage(id);
         return Result.success("删除成功");
     }
 }

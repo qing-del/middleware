@@ -26,15 +26,13 @@ public class NoteVO implements Serializable {
 
     private String description;
 
-    private Short isPublished;
-
     private Integer storageType;
 
-    private Short isMissingInfo;
+    private Short status;  // 笔记状态
 
-    private Short isPass;
+    private Integer missingInfoMask;  // 缺失信息掩码
 
-    private Short isDeleted;
+    private Integer missingCount;  // 缺失信息数量
 
     private Long mdFileSize;
 

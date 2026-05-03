@@ -27,6 +27,8 @@ public class NoteConstant {
     public static final Integer NOTE_DIFF_STATUS_CONFIRMED = 1;
     public static final Integer NOTE_DIFF_STATUS_CANCELED = 2;
 
+    public static final String NOTE_DIFF_EXIST = "已存在未处理的改变";
+
     /**
      * 笔记是否删除：0-未删除，1-已删除
      */
@@ -48,8 +50,25 @@ public class NoteConstant {
 
     public static final Integer DEFAULT_STORAGE_TYPE = STORAGE_TYPE_LOCAL;
 
-    public static final Short IS_PUBLISHED_NO = 0;
-    public static final Short IS_PUBLISHED_YES = 1;
+    /**
+     * 笔记状态常量
+     */
+    public static final Short STATUS_NEW = 0;
+    public static final Short STATUS_PENDING_INFO = 1;
+    public static final Short STATUS_READY_TO_CONVERT = 2;
+    public static final Short STATUS_CONVERTED = 3;
+    public static final Short STATUS_PENDING_AUDIT = 4;
+    public static final Short STATUS_APPROVED = 5;
+    public static final Short STATUS_PUBLISHED = 6;
+    public static final Short STATUS_REJECTED = 7;
+    public static final Short STATUS_DELETED = 8;
+
+    /**
+     * 缺失信息掩码常量
+     */
+    public static final Integer MISSING_TAG = 0b001;
+    public static final Integer MISSING_IMAGE = 0b010;
+    public static final Integer MISSING_NOTE = 0b100;
 
     public static final String NOTE_NOT_FOUND = "未找到目标笔记";
     public static final String NOTE_CONTENT_NOT_FOUND = "笔记内容未找到";

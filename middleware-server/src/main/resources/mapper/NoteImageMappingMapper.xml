@@ -158,4 +158,12 @@
           AND is_deleted = 0
     </update>
 
+    <select id="countByNoteIdAndImageIdIsNull" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM biz_note_image_mapping
+        WHERE note_id = #{noteId}
+          AND image_id IS NULL
+          AND is_deleted = 0
+    </select>
+
 </mapper>

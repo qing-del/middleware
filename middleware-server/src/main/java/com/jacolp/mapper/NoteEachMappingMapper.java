@@ -41,4 +41,11 @@ public interface NoteEachMappingMapper {
 
     int updateBySourceNoteIds(@Param("sourceNoteIds") List<Long> sourceNoteIds,
                               @Param("status") Short status);
+
+    /**
+     * 统计指定笔记的未绑定内联笔记数量
+     * @param noteId 笔记 id
+     * @return 未绑定内联笔记映射行数量
+     */
+    int countByNoteIdAndTargetIdIsNull(@Param("noteId") Long noteId);
 }

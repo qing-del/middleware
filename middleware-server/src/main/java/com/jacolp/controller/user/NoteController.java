@@ -24,7 +24,6 @@ import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.NoteService;
-import com.jacolp.service.UserNoteService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,9 +42,6 @@ public class NoteController {
     @Autowired
     private NoteService noteService;
 
-    @Autowired
-    private UserNoteService userNoteService;
-
     /**
      * 条件查询笔记列表
      * <p>查询当前用户自己的笔记 + 别人已发布的笔记。支持按主题 ID、标题筛选，分页返回。</p>
@@ -54,18 +50,19 @@ public class NoteController {
      * @return 分页后的笔记列表
      */
     @PostMapping("/list")
-    @Operation(summary = "条件查询笔记列表", description = "查询当前用户自己的笔记 + 别人已发布的笔记。支持按主题 ID、标题筛选，分页返回。")
+    @Operation(summary = "条件查询笔记列表",
+            description = "查询当前用户自己的笔记 + 别人已发布的笔记。支持按主题 ID、标题筛选，分页返回。")
     public Result<PageResult> list(@RequestBody UserNoteQueryDTO dto) {
-        Long userId = BaseContext.getCurrentId();
-        log.info("User list notes, userId: {}, topicId: {}", userId, dto.getTopicId());
-        return Result.success(noteService.listUserNotes(userId, dto));
+        log.info("User list notes, topicId: {}",dto.getTopicId());
+        return Result.success(noteService.listUserNotes(dto));
     }
 
     /**
      * 获取当前用户笔记统计。
      */
     @GetMapping("/stats")
-    @Operation(summary = "获取用户笔记统计", description = "返回当前用户的笔记总数、公开笔记数、已通过审核笔记数。")
+    @Operation(summary = "获取用户笔记统计",
+            description = "返回当前用户的笔记总数、公开笔记数、已通过审核笔记数。")
     public Result<NoteStatsVO> getStats() {
         log.info("User get note stats");
         return Result.success(noteService.getUserNoteStats());
@@ -79,7 +76,8 @@ public class NoteController {
      * @return 审核申请提交结果
      */
     @PostMapping("/submitAudit")
-    @Operation(summary = "发起笔记审核申请", description = "传入笔记 ID，发起对该笔记的审核申请。仅允许申请审核自己的笔记，且该笔记不能已通过审核或已有待审核申请。")
+    @Operation(summary = "发起笔记审核申请",
+            description = "传入笔记 ID，发起对该笔记的审核申请。仅允许申请审核自己的笔记，且该笔记不能已通过审核或已有待审核申请。")
     public Result<String> submitAudit(@RequestParam Long id) {
         log.info("User submit note audit, noteId: {}", id);
         noteService.submitNoteAudit(id);
@@ -95,14 +93,15 @@ public class NoteController {
      * @return 创建成功的笔记ID
      */
     @PostMapping
-    @Operation(summary = "创建笔记", description = "通过上传 .md 文件创建笔记内容。会自动解析文件中的标签、图片、内联笔记等关联信息，并建立关联映射。")
+    @Operation(summary = "创建笔记",
+            description = "通过上传 .md 文件创建笔记内容。会自动解析文件中的标签、图片、内联笔记等关联信息，并建立关联映射。")
     public Result<Long> create(
             @Parameter(description = ".md 格式的笔记文件")
             @RequestParam("file") MultipartFile file,
             @Parameter(description = "所属主题ID（可选）")
             @RequestParam(value = "topicId", required = false) Long topicId) {
         log.info("User create note: {}, topicId: {}", file.getOriginalFilename(), topicId);
-        Long noteId = userNoteService.createNote(file, topicId);
+        Long noteId = noteService.uploadNote(file, topicId).getNoteId();
         return Result.success(noteId);
     }
 
@@ -114,10 +113,11 @@ public class NoteController {
      * @return 分页后的笔记列表
      */
     @GetMapping
-    @Operation(summary = "查询当前用户笔记列表", description = "仅查询当前用户的笔记，支持按主题、关键词等条件筛选。")
+    @Operation(summary = "查询当前用户笔记列表",
+            description = "仅查询当前用户的笔记，支持按主题、关键词等条件筛选。")
     public Result<PageResult> listMyNotes(UserNoteSearchDTO dto) {
         log.info("User list notes, topicId: {}, keyword: {}", dto.getTopicId(), dto.getKeyword());
-        return Result.success(userNoteService.listNotes(dto));
+        return Result.success(noteService.listUserNotesBySearch(dto));
     }
 
     /**
@@ -128,14 +128,15 @@ public class NoteController {
      * @return 笔记详情，包含原文、渲染后的HTML、标签列表等
      */
     @GetMapping("/{id}")
-    @Operation(summary = "查看笔记详情", description = "根据笔记ID查询详情，返回笔记原文（Markdown）和渲染后的HTML内容，以及标签列表、创建时间等信息。")
+    @Operation(summary = "查看笔记详情",
+            description = "根据笔记ID查询详情，返回笔记原文（Markdown）和渲染后的HTML内容，以及标签列表、创建时间等信息。")
     public Result<UserNoteDetailVO> getDetail(
             @Parameter(description = "笔记ID")
             @PathVariable Long id) {
         log.info("User get note detail: {}", id);
         UserNoteDetailDTO dto = new UserNoteDetailDTO();
         dto.setId(id);
-        UserNoteDetailVO result = userNoteService.getNoteDetail(dto);
+        UserNoteDetailVO result = noteService.getUserNoteDetail(dto);
         return Result.success(result);
     }
 
@@ -147,12 +148,13 @@ public class NoteController {
      * @return Markdown源内容（纯文本）
      */
     @GetMapping(value = "/source/{id}", produces = MediaType.TEXT_PLAIN_VALUE)
-    @Operation(summary = "获取笔记Markdown源内容", description = "根据笔记ID查询笔记的原始Markdown内容，以纯文本形式返回。仅允许查看自己的笔记。")
+    @Operation(summary = "获取笔记Markdown源内容",
+            description = "根据笔记ID查询笔记的原始Markdown内容，以纯文本形式返回。仅允许查看自己的笔记。")
     public String getSource(
             @Parameter(description = "笔记ID")
             @PathVariable Long id) {
         log.info("User get note source: {}", id);
-        return userNoteService.getNoteSource(id);
+        return noteService.getUserNoteSource(id);
     }
 
     /**
@@ -163,12 +165,13 @@ public class NoteController {
      * @return 转换后的HTML内容，包含目录、正文和元数据
      */
     @GetMapping("/converted/{id}")
-    @Operation(summary = "获取笔记转换后的HTML内容", description = "根据笔记ID查询笔记转换后的HTML内容，包含目录HTML和正文HTML，以及笔记元数据（标题、标签、创建时间）。仅允许查看自己的笔记。")
+    @Operation(summary = "获取笔记转换后的HTML内容",
+            description = "根据笔记ID查询笔记转换后的HTML内容，包含目录HTML和正文HTML，以及笔记元数据（标题、标签、创建时间）。仅允许查看自己的笔记。")
     public Result<NoteConvertResultVO> getConvertedHtml(
             @Parameter(description = "笔记ID")
             @PathVariable Long id) {
         log.info("User get note converted HTML: {}", id);
-        NoteConvertResultVO result = userNoteService.getNoteConvertedHtml(id);
+        NoteConvertResultVO result = noteService.getUserNoteConvertedHtml(id);
         return Result.success(result);
     }
 
@@ -182,7 +185,8 @@ public class NoteController {
      * @return 更新结果提示
      */
     @PutMapping("/{id}")
-    @Operation(summary = "更新笔记内容", description = "用新上传的 Markdown 内容替换原有内容，自动更新解析结果和渲染缓存。支持仅更新标题、描述、主题等元信息。")
+    @Operation(summary = "更新笔记内容",
+            description = "用新上传的 Markdown 内容替换原有内容，自动更新解析结果和渲染缓存。支持仅更新标题、描述、主题等元信息。")
     public Result<String> update(
             @PathVariable Long id,
             @Parameter(description = "新的 .md 文件（可选）")
@@ -190,7 +194,7 @@ public class NoteController {
             @RequestBody UserNoteUpdateDTO dto) {
         log.info("User update note: {}", id);
         dto.setId(id);
-        userNoteService.updateNote(file, dto);
+        noteService.updateUserNote(file, dto);  // TODO 让其调用 noteService.modifyNoteSource() 方法
         return Result.success("更新成功");
     }
 
@@ -202,12 +206,13 @@ public class NoteController {
      * @return 删除结果提示
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "删除笔记", description = "根据笔记ID删除笔记。执行软删除，保留关联历史数据。仅允许删除自己的笔记。")
+    @Operation(summary = "删除笔记",
+            description = "根据笔记ID删除笔记。执行软删除，保留关联历史数据。仅允许删除自己的笔记。")
     public Result<String> delete(
             @Parameter(description = "笔记ID")
             @PathVariable Long id) {
         log.info("User delete note: {}", id);
-        userNoteService.deleteNote(id);
+        noteService.deleteUserNote(id);
         return Result.success("删除成功");
     }
 
@@ -219,9 +224,10 @@ public class NoteController {
      * @return 分页后的搜索结果
      */
     @GetMapping("/search")
-    @Operation(summary = "全文搜索笔记", description = "仅搜索当前用户的笔记，基于标题和内容做关键词检索。")
+    @Operation(summary = "全文搜索笔记",
+            description = "仅搜索当前用户的笔记，基于标题和内容做关键词检索。")
     public Result<PageResult> search(UserNoteSearchDTO dto) {
         log.info("User search notes, keyword: {}", dto.getKeyword());
-        return Result.success(userNoteService.searchNotes(dto));
+        return Result.success(noteService.searchUserNotes(dto));
     }
 }

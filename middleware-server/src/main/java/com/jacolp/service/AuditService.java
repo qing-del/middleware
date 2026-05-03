@@ -4,6 +4,9 @@ import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
 import com.jacolp.pojo.dto.image.ImageAuditListDTO;
 import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
 import com.jacolp.pojo.dto.note.NoteAuditListDTO;
+import com.jacolp.pojo.entity.ImageAuditRecordEntity;
+import com.jacolp.pojo.entity.MetaAuditRecordEntity;
+import com.jacolp.pojo.entity.NoteAuditRecordEntity;
 import com.jacolp.result.PageResult;
 
 public interface AuditService {
@@ -58,4 +61,22 @@ public interface AuditService {
      * @return 实际处理条数
      */
     int batchReviewNote(AuditBatchReviewDTO dto);
+
+    // ===== 供其他 Service 调用的内部方法 =====
+
+    boolean hasPendingMetaAudit(Short applyType, Long targetId);
+
+    void createMetaAuditRecord(MetaAuditRecordEntity record);
+
+    ImageAuditRecordEntity getImageAuditRecordById(Long id);
+
+    boolean hasPendingImageAudit(Long imageId);
+
+    void createImageAuditRecord(ImageAuditRecordEntity record);
+
+    void updateImageAuditRecord(ImageAuditRecordEntity record);
+
+    boolean hasPendingNoteAudit(Long noteId);
+
+    void createNoteAuditRecord(NoteAuditRecordEntity record);
 }

@@ -1,8 +1,6 @@
 package com.jacolp.controller.admin;
 
-import com.jacolp.annotation.StorageHandler;
 import com.jacolp.annotation.NoteFileLimit;
-import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
@@ -11,6 +9,7 @@ import com.jacolp.pojo.dto.note.NoteQueryDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
+import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
 import com.jacolp.pojo.vo.note.NoteDiffVO;
@@ -52,7 +51,6 @@ public class NoteController {
 
     @PostMapping("/upload")
     @NoteFileLimit
-    @StorageHandler(operationType = StorageOperationType.UPLOAD)
     @Operation(summary = "上传笔记",
             description = "从当前登录用户上下文获取 userId 后上传 Markdown 文件，先校验主题是否存在与同主题同名唯一性，再一次性扫描标签、图片和双链引用并建立映射；同时落库笔记原文、初始化缺失状态，最终返回 noteId 与缺失图片列表。")
     public Result<NoteUploadVO> upload(
@@ -64,7 +62,6 @@ public class NoteController {
 
     @PutMapping("/upload/{noteId}")
     @NoteFileLimit
-    @StorageHandler(operationType = StorageOperationType.MODIFY)
     @Operation(summary = "修改笔记源文件",
             description = "校验笔记归属后读取旧 Markdown 内容，与新文件一起重新扫描标签、图片和双链引用并计算 Diff；新内容仅写入临时版本和变更记录，等待后续确认或回滚。")
     public Result<NoteDiffVO> modifySource(
@@ -168,7 +165,7 @@ public class NoteController {
             description = "返回笔记基础元数据，并聚合标签、图片、双链映射及已转换内容，供前端详情页一次性加载。")
     public Result<NoteDetailVO> info(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin get note info, noteId: {}", noteId);
-        return Result.success(noteService.getInfo(noteId));
+        return Result.success(noteService.adminGetInfo(noteId));
     }
 
     @GetMapping("/open/{noteId}")
@@ -243,8 +240,8 @@ public class NoteController {
 
     @PostMapping("/relation/check/{noteId}")
     @Operation(summary = "校验关联完整性",
-            description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，并将结果回写到 isMissingInfo 字段。")
-    public Result<Boolean> checkRelationCompletion(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
+            description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，会自动转换笔记状态。")
+    public Result<NoteCheckBindingVO> checkRelationCompletion(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin check note relation completion, noteId: {}", noteId);
         return Result.success(noteService.checkRelationCompletion(noteId));
     }

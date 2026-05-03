@@ -6,28 +6,32 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.annotation.StorageHandler;
-import com.jacolp.constant.*;
+import com.jacolp.constant.AuditConstant;
+import com.jacolp.constant.ImageConstant;
+import com.jacolp.constant.NoteConstant;
+import com.jacolp.constant.PageConstant;
+import com.jacolp.constant.TagConstant;
+import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.context.StorageUpdateContext;
 import com.jacolp.converter.MarkdownHtmlEngine;
 import com.jacolp.converter.MarkdownHtmlEngine.FrontMatter;
 import com.jacolp.converter.MarkdownHtmlEngine.HtmlProcessResult;
+import com.jacolp.enums.NoteStatus;
+import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.ImageMapper;
 import com.jacolp.mapper.NoteChangeDiffMapper;
 import com.jacolp.mapper.NoteContextMapper;
 import com.jacolp.mapper.NoteConvertMapper;
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.mapper.NoteAuditMapper;
 import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
-import com.jacolp.mapper.TagMapper;
-import com.jacolp.mapper.TopicMapper;
-import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.note.*;
+import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
+import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.ImageEntity;
@@ -40,10 +44,10 @@ import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
-import com.jacolp.pojo.entity.TopicEntity;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
+import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteConvertMetaVO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
@@ -53,12 +57,19 @@ import com.jacolp.pojo.vo.note.NoteEachMappingRowVO;
 import com.jacolp.pojo.vo.note.NoteImageMappingRowVO;
 import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.pojo.vo.note.NoteTagMappingRowVO;
 import com.jacolp.pojo.vo.note.NoteStatsVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.pojo.vo.note.NoteVO;
+import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
+import com.jacolp.service.AuditService;
+import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteService;
+import com.jacolp.service.TagService;
+import com.jacolp.service.TopicService;
+import com.jacolp.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
@@ -87,16 +98,19 @@ public class NoteServiceImpl implements NoteService {
     @Autowired private NoteEachMappingMapper noteEachMappingMapper;
     @Autowired private NoteTagMappingMapper noteTagMappingMapper;
     @Autowired private NoteImageMappingMapper noteImageMappingMapper;
-    @Autowired private NoteAuditMapper noteAuditMapper;
 
-    // ==== 来自其他模块的 Mapper ====
-    @Autowired private TagMapper tagMapper;
-    @Autowired private ImageMapper imageMapper;
-    @Autowired private TopicMapper topicMapper;
+    // ==== 来自其他模块的 Service ====
+    @Autowired private TopicService topicService;
+    @Autowired private TagService tagService;
+    @Autowired private ImageService imageService;
+    @Autowired private AuditService auditService;
+    @Autowired private UserService userService;
 
     // ==== 来自 common 模块的 Bean 对象 ====
     @Autowired private MarkdownHtmlEngine markdownHtmlEngine;
     @Autowired private ObjectMapper objectMapper;
+
+
 
     /**
      * 上传笔记
@@ -107,6 +121,7 @@ public class NoteServiceImpl implements NoteService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @StorageHandler(operationType = StorageOperationType.UPLOAD)
     public NoteUploadVO uploadNote(MultipartFile file, Long topicId) {
         // 获取当前用户ID
         Long userId = BaseContext.getCurrentId();
@@ -144,8 +159,9 @@ public class NoteServiceImpl implements NoteService {
         NoteUploadVO vo = new NoteUploadVO();
         vo.setNoteId(noteId);
         // 这里使用批量查询计算缺失关联信息，避免逐条查询导致 O(n) 次网络 IO。
-        vo.setMissingImages(resolveMissingImages(userId, topicId, imageNames));
-        vo.setMissingNoteNames(resolveMissingNoteNames(userId, topicId, noteLinks));
+        vo.setMissingTags(tags);
+        vo.setMissingImages(imageNames);
+        vo.setMissingNoteNames(noteLinks.stream().map(MarkdownHtmlEngine.ParsedNoteLink::noteName).toList());
         return vo;
     }
 
@@ -157,6 +173,7 @@ public class NoteServiceImpl implements NoteService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @StorageHandler(operationType = StorageOperationType.MODIFY)
     public NoteDiffVO modifyNoteSource(Long noteId, MultipartFile file) {
         // 获取当前用户ID
         Long userId = BaseContext.getCurrentId();
@@ -164,6 +181,11 @@ public class NoteServiceImpl implements NoteService {
 
         // 格式化文件名
         normalizeFilename(file.getOriginalFilename());
+
+        // 检查该笔记是否有待确认的diff数据行
+        if (noteChangeDiffMapper.countByNoteIdAndStatus(noteId, NoteConstant.NOTE_DIFF_STATUS_PENDING) != 0) {
+            throw new BaseException(NoteConstant.NOTE_DIFF_EXIST);
+        }
 
         // 从数据库读取旧内容
         NoteContextEntity oldContext = noteContextMapper.selectByNoteId(noteId);
@@ -194,6 +216,7 @@ public class NoteServiceImpl implements NoteService {
         diffEntity.setNoteId(noteId);
         diffEntity.setStatus(NoteConstant.NOTE_DIFF_STATUS_PENDING); // 待确认
         diffEntity.setDiffJson(writeJson(diffVO));
+        diffEntity.setScanJson(writeJson(newScan)); // 保存新文本扫描结果，避免 confirmChange 二次扫描
         // diff = newFileSize - oldFileSize;
         diffEntity.setOldFileSize(oldFileSize);
         diffEntity.setNewFileSize(newFileSize);
@@ -207,11 +230,15 @@ public class NoteServiceImpl implements NoteService {
      * <p>这里确认修改之后，并<b>不会</b>将笔记的发布状态改为<b>未发布</b></p>
      * <p>这里会将笔记的 md 内容做修改</p>
      * <p>并且将 diff 数据做好修改，仅此而已</p>
-     * <p>也不会删除 笔记-转化 的记录行 -> 说明如果笔记处于发布状态，则别人依旧是可以查询到旧的转换记录行</p>
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public NoteChangeDiffVO confirmChange(Long noteId, NoteChangeConfirmDTO dto) {
+        // 校验请求参数
+        if (dto == null || dto.getConfirm() == null) {
+            throw new BaseException("确认参数不能为空");
+        }
+
         // 获取当前用户ID
         Long userId = BaseContext.getCurrentId();
         NoteEntity existed = validateOwnedNote(noteId, userId);
@@ -220,11 +247,6 @@ public class NoteServiceImpl implements NoteService {
         NoteChangeDiffEntity diffEntity = noteChangeDiffMapper.selectByNoteId(noteId);
         if (diffEntity == null) {
             throw new BaseException(NoteConstant.NOTE_CHANGE_DIFF_NOT_FOUND);
-        }
-
-        // 校验请求参数
-        if (dto == null || dto.getConfirm() == null) {
-            throw new BaseException("确认参数不能为空");
         }
 
         // 通过数据库查询 笔记-内容 记录行
@@ -242,11 +264,12 @@ public class NoteServiceImpl implements NoteService {
         if (Boolean.TRUE.equals(dto.getConfirm())) {
             // 确认：用新内容覆盖旧内容
             String newMarkdown = contextEntity.getMarkdownContentNew();
-            MarkdownHtmlEngine.NoteReletionInfo scan = MarkdownHtmlEngine.scanNoteReletionInfo(newMarkdown);
+
+            // 从 modifyNoteSource 时保存的 scanJson 中读取扫描结果，避免二次扫描 Markdown 文本
+            MarkdownHtmlEngine.NoteReletionInfo scan = parseScanJson(diffEntity.getScanJson());
             List<String> currentTags = normalizeDistinctList(scan.tags());
             List<String> currentImages = normalizeDistinctList(scan.imageNames());
             List<MarkdownHtmlEngine.ParsedNoteLink> currentNoteLinks = List.copyOf(scan.noteLinks());
-            // TODO 后续可以在 modifyUpload 中就新文本扫描出来的标签、图片、内联笔记这些数据做一个 json 保存起来，这里直接从数据库中读取 避免二次扫描文本
 
             // 用新内容覆盖旧内容，清除新版本。
             contextEntity.setMarkdownContent(newMarkdown);  // 用新内容覆盖旧内容
@@ -265,7 +288,11 @@ public class NoteServiceImpl implements NoteService {
             long baseSize = safeLong(existed.getMdFileSize());
             long deltaSize = safeLong(diffEntity.getNewFileSize()) - safeLong(diffEntity.getOldFileSize());
             existed.setMdFileSize(Math.max(0L, baseSize + deltaSize));
-            existed.setIsMissingInfo(resolveMissingInfo(userId, existed.getTopicId(), currentTags, currentImages, currentNoteLinks));
+
+            // 修改笔记后状态回到 NEW
+            existed.setStatus(NoteStatus.NEW.getCode());
+
+            // 更新笔记到 DB
             noteMapper.updateNote(existed);
 
             // 更新 笔记-差异 数据行的状态
@@ -323,12 +350,9 @@ public class NoteServiceImpl implements NoteService {
         String newSource = contextEntity.getMarkdownContentNew();
 
         NoteChangeDiffVO diffVO = new NoteChangeDiffVO();
+        BeanUtils.copyProperties(diffEntity, diffVO);
         diffVO.setNoteId(noteId);
-        diffVO.setStatus(diffEntity.getStatus());
-        diffVO.setOldFileSize(diffEntity.getOldFileSize());
-        diffVO.setNewFileSize(diffEntity.getNewFileSize());
         diffVO.setDiffFileSize(safeLong(diffEntity.getNewFileSize()) - safeLong(diffEntity.getOldFileSize()));
-        diffVO.setDiff(parseDiff(diffEntity.getDiffJson()));
         return new NoteModifyDiffDetailVO(noteId, oldSource, newSource, diffVO);
     }
 
@@ -366,8 +390,10 @@ public class NoteServiceImpl implements NoteService {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
 
-        // 校验是否做了信息转换
-        if (note.getIsMissingInfo() != null && note.getIsMissingInfo().equals(NoteConstant.MISSED_INFO)) {
+        // 校验是否已准备好所有的关联信息
+        NoteStatus noteStatus = NoteStatus.fromCode(note.getStatus());
+        if (noteStatus == NoteStatus.PENDING_INFO
+                || (note.getMissingCount() != null && note.getMissingCount() > 0)) {
             throw new BaseException(NoteConstant.NOTE_MISSING_INFO);
         }
 
@@ -376,8 +402,8 @@ public class NoteServiceImpl implements NoteService {
         if (context == null) {
             throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
         }
-        String rawMarkdown = context.getMarkdownContent();
-        String fallbackTitle = stripMarkdownExtension(note.getTitle());
+        String rawMarkdown = context.getMarkdownContent();  // 笔记源内容
+        String fallbackTitle = stripMarkdownExtension(note.getTitle()); // 备用标题
 
         try {
             // 给插件链提供当前笔记上下文（例如图片解析阶段需要 noteId）。
@@ -395,8 +421,9 @@ public class NoteServiceImpl implements NoteService {
             converted.setCreateTimeStr(meta.createTime());
             converted.setTocHtml(result.tocHtml());
             converted.setBodyHtml(result.bodyHtml());
-            noteConvertMapper.upsertConverted(converted);
+            noteConvertMapper.upsertConverted(converted);   // 如果笔记存在转换信息行，则更新
 
+            // 检查转换信息中是否存在标题，则使用新扫描出来的标题
             if (StringUtils.hasText(meta.title()) && !meta.title().equals(note.getTitle())) {
                 note.setTitle(meta.title());
                 noteMapper.updateNote(note);
@@ -410,17 +437,14 @@ public class NoteServiceImpl implements NoteService {
 
     /**
      * 删除笔记转换结果 -- (管理员)
-     * <p>
-     * 不做笔记归属权的校验，直接删除笔记转换结果
-     * </p>
-     * 
+     * <p>不做笔记归属权的校验，直接删除笔记转换结果</p>
      * @param noteId 笔记 ID
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void adminDeleteConverted(Long noteId) {
         noteConvertMapper.deleteByNoteId(noteId); // 删除转换结果
-        noteMapper.updatePublishStatus(noteId, NoteConstant.IS_PUBLISHED_NO); // 更新发布状态为 未发布
+        noteMapper.updateStatus(noteId, NoteStatus.READY_TO_CONVERT.getCode()); // 下架：PUBLISHED → REDY_TO_CONVERT
     }
 
     /**
@@ -435,8 +459,16 @@ public class NoteServiceImpl implements NoteService {
         if (noteConvertMapper.countByNoteId(noteId) <= 0) {
             throw new BaseException(NoteConstant.NOTE_NOT_CONVERTED);
         }
-        // 更新笔记为发布装填
-        int count = noteMapper.updatePublishStatus(noteId, NoteConstant.IS_PUBLISHED_YES);
+
+        // 检查是否处于可发布的状态
+        NoteStatus noteStatus = NoteStatus.fromCode(noteMapper.selectStatusById(noteId));
+        if (!noteStatus.canTransitionTo(NoteStatus.PUBLISHED)) {
+            log.error("Invalid status transition: {} → {}", noteStatus, NoteStatus.PUBLISHED);
+            throw new BaseException("不合法的状态转换");
+        }
+
+        // 更新笔记为发布状态
+        int count = noteMapper.updateStatus(noteId, NoteStatus.PUBLISHED.getCode());
         if (count <= 0) {
             log.error("Convented result related to non-existed note!");
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
@@ -460,11 +492,20 @@ public class NoteServiceImpl implements NoteService {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
 
+        // 校验状态：PENDING_AUDIT 和 PUBLISHED 状态不能删除
+        for (NoteEntity note : notes) {
+            NoteStatus status = NoteStatus.fromCode(note.getStatus());
+            if (status == NoteStatus.PENDING_AUDIT) {
+                throw new BaseException("笔记【" + note.getTitle() + "】正在审核中，不能删除");
+            }
+            if (status == NoteStatus.PUBLISHED) {
+                throw new BaseException("笔记【" + note.getTitle() + "】已公开，请先下架后再删除");
+            }
+        }
+
         // Map<UserId, Storage>
         Map<Long, Long> userStorageMap = new LinkedHashMap<>();
-        ArrayList<Long> userIds = new ArrayList<>(ids);
         for (NoteEntity note : notes) {
-            userIds.add(note.getUserId());
             userStorageMap.merge(note.getUserId(), safeLong(note.getMdFileSize()), Long::sum);
         }
 
@@ -476,12 +517,8 @@ public class NoteServiceImpl implements NoteService {
         noteTagMappingMapper.softDeleteByNoteIds(ids);
         noteImageMappingMapper.softDeleteByNoteIds(ids);
 
-        // 批量标记软删除
-        int affected = noteMapper.softDeleteByIds(ids);
-        if (affected < ids.size()) {
-            log.error("Some notes related to non-existed note!");
-            throw new BaseException(NoteConstant.DELETE_NOTE_NOT_EXIST);
-        }
+        // 使用新方法更新状态为 DELETED
+        noteMapper.updateStatusByIds(ids, NoteStatus.DELETED.getCode());
 
         // 需要将 Map 记录到上下文方便切面类来处理
         StorageUpdateContext.setStorageMap(userStorageMap);
@@ -513,14 +550,14 @@ public class NoteServiceImpl implements NoteService {
     public void adminSetVisible(Short isVisible, NoteVisibleDTO dto) {
         int count;
 
-        if (isVisible != null && isVisible.equals(NoteConstant.IS_PUBLISHED_YES)) {
+        if (isVisible != null && isVisible.equals(NoteStatus.PUBLISHED.getCode())) {
             // 如果传入的设置可见参数不为 null 且 isVisible 为 1
             if (noteConvertMapper.countByNoteId(dto.getId()) <= 0) {
                 throw new BaseException(NoteConstant.NOTE_NOT_CONVERTED);
             }
-            count = noteMapper.updatePublishStatus(dto.getId(), NoteConstant.IS_PUBLISHED_YES);
+            count = noteMapper.updateStatus(dto.getId(), NoteStatus.PUBLISHED.getCode());
         } else {
-            count = noteMapper.updatePublishStatus(dto.getId(), NoteConstant.IS_PUBLISHED_NO);
+            count = noteMapper.updateStatus(dto.getId(), NoteStatus.APPROVED.getCode());
         }
 
         if (count < 1) {
@@ -539,15 +576,29 @@ public class NoteServiceImpl implements NoteService {
      */
     @Override
     public void setNotePublishStatus(Long noteId, Short status) {
-        int count;
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
 
-        if (status != null && status.equals(NoteConstant.IS_PUBLISHED_YES)) {
-            // 如果状态为 1（发布），需要检查笔记是否已转换
+        NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
+
+        NoteStatus targetStatus;
+        if (status != null && status.equals(NoteStatus.PUBLISHED.getCode())) {
+            // 发布：APPROVED → PUBLISHED
+            targetStatus = NoteStatus.PUBLISHED;
+
+            // 检查笔记是否已转换
             if (noteConvertMapper.countByNoteId(noteId) <= 0) {
                 throw new BaseException(NoteConstant.NOTE_NOT_CONVERTED);
             }
 
-            // 如果是已转换，则对通过性做校验
+            // 校验笔记本身是否通过
+            if (!currentStatus.isApproved() && !currentStatus.isPublished()) {
+                throw new BaseException(NoteConstant.NOTE_NOT_PASS);
+            }
+
+            // 对通过性做校验
             // 1. 标签通过性校验
             if (noteTagMappingMapper.countByNoteIdAndPass(noteId, TagConstant.IS_PASS)
             != noteTagMappingMapper.countByNoteIdAndPass(noteId, null)) {
@@ -565,17 +616,21 @@ public class NoteServiceImpl implements NoteService {
             != noteEachMappingMapper.countByNoteIdAndPass(noteId, null)) {
                 throw new BaseException(NoteConstant.NOTE_EACH_NOT_PASS);
             }
-
-            // 4. 校验笔记本身是否通过
-            if (!TagConstant.IS_PASS.equals(noteMapper.selectById(noteId).getIsPass())) {
-                throw new BaseException(NoteConstant.NOTE_NOT_PASS);
-            }
-
-            count = noteMapper.updatePublishStatus(noteId, NoteConstant.IS_PUBLISHED_YES);
         } else {
-            count = noteMapper.updatePublishStatus(noteId, NoteConstant.IS_PUBLISHED_NO);
+            // 下架：PUBLISHED → APPROVED
+            targetStatus = NoteStatus.APPROVED;
         }
 
+        // 状态转换校验
+        if (!currentStatus.canTransitionTo(targetStatus)) {
+            throw new BaseException(String.format(
+                "无法从 %s 状态转换到 %s 状态",
+                currentStatus.getDesc(),
+                targetStatus.getDesc()
+            ));
+        }
+
+        int count = noteMapper.updateStatus(noteId, targetStatus.getCode());
         if (count < 1) {
             log.error("Failed to update note publish status! This is likely because the note does not exist!");
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
@@ -606,10 +661,16 @@ public class NoteServiceImpl implements NoteService {
             note.setTopicId(dto.getTopicId());
         }
 
+        // TODO 如果笔记信息修改不能改title 则这里不用检查了(*)
         // 检查是否可以修改
         if (noteMapper.countByUserIdAndTopicIdAndTitle(note.getUserId(), note.getTopicId(), note.getTitle()) > 0) {
             throw new BaseException("你在对应主题下已存在同名的笔记，无法修改！");
         }
+
+        // TODO 加入状态校验（如果是处于审核中、已发布的笔记无法修改，似乎状态机里面就的转换检查方法就可以检查）(*)
+
+        // 修改笔记后状态回到 PENDING_AUDIT 待审核
+        note.setStatus(NoteStatus.PENDING_AUDIT.getCode());
 
         int count = noteMapper.updateNote(note);
 
@@ -643,19 +704,19 @@ public class NoteServiceImpl implements NoteService {
      * @return
      */
     @Override
-    public NoteDetailVO getInfo(Long noteId) {
+    public NoteDetailVO adminGetInfo(Long noteId) {
         NoteEntity note = noteMapper.selectById(noteId);
 
-        if (note.getIsDeleted() != null && note.getIsDeleted().equals(NoteConstant.DELETED)) {
+        if (NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
 
         // 封装基本的信息
         NoteVO noteVO = new NoteVO();
         BeanUtils.copyProperties(note, noteVO);
-        // TODO 如果后续在笔记数据行中冗余了 topic_name 就可以不做这一次查询了
+        // TODO 如果后续在笔记数据行中冗余了 topic_name 就可以不做这一次查询了(*)
         if (note.getTopicId() != null) {
-            noteVO.setTopicName(topicMapper.selectById(note.getTopicId()).getTopicName());
+            noteVO.setTopicName(topicService.getTopicById(note.getTopicId()).getTopicName());
         }
 
 
@@ -666,7 +727,7 @@ public class NoteServiceImpl implements NoteService {
         List<Long> tagIds = noteTagMappingMapper.selectTagIdsByNoteId(noteId);
         detailVO.setTags(tagIds == null || tagIds.isEmpty()
                 ? List.of()
-                : tagMapper.selectByIds(tagIds).stream().map(TagEntity::getTagName).toList());
+                : tagService.getByIds(tagIds).stream().map(TagEntity::getTagName).toList());
 
         // 获取图片
         detailVO.setImages(getImageSimpleVOS(noteId));
@@ -687,7 +748,7 @@ public class NoteServiceImpl implements NoteService {
                 targetTitleMap = Map.of();
             } else {
                 targetTitleMap = noteMapper.selectByIds(targetIds).stream()
-                        .filter(n -> n.getIsDeleted() == null || n.getIsDeleted().equals(NoteConstant.NOT_DELETED))
+                        .filter(n -> n.getStatus() == null || !NoteStatus.fromCode(n.getStatus()).isDeleted())
                         .collect(Collectors.toMap(NoteEntity::getId, NoteEntity::getTitle, (left, right) -> left));
             }
 
@@ -718,12 +779,6 @@ public class NoteServiceImpl implements NoteService {
      */
     @Override
     public NoteConvertResultVO adminOpenNote(Long noteId) {
-        // 校验笔记是否存在 和 是否删除
-        NoteEntity note = noteMapper.selectById(noteId);
-        if (note == null || note.getIsDeleted() != null && note.getIsDeleted().equals(NoteConstant.DELETED)) {
-            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
-        }
-
         // 获取转换结果内容
         NoteConvertedEntity converted = noteConvertMapper.selectByNoteId(noteId);
         if (converted == null) {
@@ -742,6 +797,7 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
     public void bindTagMapping(TagMappingBindDTO dto) {
         // 1) 基础参数校验：映射行ID + 标签ID。
         if (dto == null || dto.getMappingId() == null || dto.getTagId() == null) {
@@ -751,7 +807,7 @@ public class NoteServiceImpl implements NoteService {
 
         // 2) 校验映射行归属与目标标签存在性。
         NoteTagMappingEntity mapping = requireOwnedTagMapping(dto.getMappingId(), userId);
-        TagEntity targetTag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
+        TagEntity targetTag = tagService.getByIdAndUserId(dto.getTagId(), userId);
         if (targetTag == null) {
             throw new BaseException("目标标签不存在");
         }
@@ -771,6 +827,7 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
     public void unbindTagMapping(Long mappingId) {
         Long userId = BaseContext.getCurrentId();
         // 先校验归属，再解绑，最后重算 is_missing_info。
@@ -781,6 +838,7 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
     public void bindImageMapping(ImageMappingBindDTO dto) {
         // 1) 基础参数校验：映射行ID + 图片ID。
         if (dto == null || dto.getMappingId() == null || dto.getImageId() == null) {
@@ -790,7 +848,7 @@ public class NoteServiceImpl implements NoteService {
 
         // 2) 校验映射归属和目标图片存在。
         NoteImageMappingEntity mapping = requireOwnedImageMapping(dto.getMappingId(), userId);
-        ImageEntity targetImage = imageMapper.selectById(dto.getImageId());
+        ImageEntity targetImage = imageService.getById(dto.getImageId());
         if (targetImage == null) {
             throw new BaseException("目标图片不存在");
         }
@@ -818,7 +876,8 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void unbindImageMapping(Long mappingId) {
+    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
+    public void unbindImageMapping(Long mappingId) {    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
         Long userId = BaseContext.getCurrentId();
         // 先做归属校验，解绑后再统一重算缺失状态。
         NoteImageMappingEntity mapping = requireOwnedImageMapping(mappingId, userId);
@@ -828,6 +887,7 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
     public void bindEachMapping(EachMappingBindDTO dto) {
         // 1) 基础参数校验：映射行ID + 目标笔记ID。
         if (dto == null || dto.getMappingId() == null || dto.getNoteId() == null) {
@@ -838,7 +898,7 @@ public class NoteServiceImpl implements NoteService {
         // 2) 校验映射归属与目标笔记存在性。
         NoteEachMappingEntity mapping = requireOwnedEachMapping(dto.getMappingId(), userId);
         NoteEntity targetNote = noteMapper.selectById(dto.getNoteId());
-        if (targetNote == null || NoteConstant.DELETED.equals(targetNote.getIsDeleted())) {
+        if (targetNote == null || NoteStatus.fromCode(targetNote.getStatus()).isDeleted()) {
             throw new BaseException("目标笔记不存在");
         }
 
@@ -846,7 +906,8 @@ public class NoteServiceImpl implements NoteService {
         if (!Objects.equals(mapping.getParsedNoteName(), targetNote.getTitle())) {
             throw new BaseException("笔记标题与映射行解析名称不一致，无法绑定");
         }
-        if (!AuditConstant.PASS.equals(targetNote.getIsPass())) {
+        NoteStatus targetStatus = NoteStatus.fromCode(targetNote.getStatus());
+        if (!targetStatus.isApproved() && !targetStatus.isPublished()) {
             throw new BaseException("目标笔记未通过审核，无法绑定");
         }
 
@@ -857,7 +918,8 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void unbindEachMapping(Long mappingId) {
+    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
+    public void unbindEachMapping(Long mappingId) { // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新(*)
         Long userId = BaseContext.getCurrentId();
         // 解绑后也需要按最新映射重新计算完整性。
         NoteEachMappingEntity mapping = requireOwnedEachMapping(mappingId, userId);
@@ -867,42 +929,59 @@ public class NoteServiceImpl implements NoteService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Boolean checkRelationCompletion(Long noteId) {
+    // TODO 上提到 NoteFacade，然后通过新的 Mask 位运算和 Count 计数来进行更新（这里保留强制触发扫描，这个是有兜底作用的）(*)
+    public NoteCheckBindingVO checkRelationCompletion(Long noteId) {
         // 只允许笔记所有者触发完整性校验。
         Long userId = BaseContext.getCurrentId();
         NoteEntity note = validateOwnedNote(noteId, userId);
 
-        // 在校验完整性前，先尝试批量补绑定”现在已存在且可绑定”的资源。
+        NoteCheckBindingVO result = new NoteCheckBindingVO();
+        result.setNoteId(noteId);
+
+        // 获取笔记状态
+        NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
+
+        // 批量补绑定”现在已存在且可绑定”的资源
         syncBindableMappings(noteId, userId, note.getTopicId());
 
-        // 基于三类映射结果计算完整性，并同步回写笔记主表。
-        boolean complete = isRelationComplete(noteId);
-        noteMapper.updateMissingInfo(noteId, complete ? NoteConstant.NOT_MISSED_INFO : NoteConstant.MISSED_INFO);
-        return complete;
-    }
+        // 计算缺失信息掩码和数量
+        int missingMask = calculateMissingMaskFromRelations(noteId);
+        int missingCount = countInitMissingBits(missingMask);
 
-    /**
-     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
-     */
-    @Override
-    public PageResult listUserNotes(Long userId, UserNoteQueryDTO dto) {
-        if (dto == null) {
-            dto = new UserNoteQueryDTO();
+        // 获取缺失列表
+        List<String> missingTags = getMissingTagNames(noteId);
+        List<String> missingImages = getMissingImageNames(noteId);
+        List<String> missingNoteNames = getMissingEachNoteNames(noteId);
+
+        // 检查是否信息完整
+        boolean isComplete = missingCount == 0;
+
+        // 确定最终状态
+        NoteStatus targetStatus = currentStatus;
+        if (currentStatus == NoteStatus.NEW) {
+            targetStatus = NoteStatus.PENDING_INFO;
+        } else if (isComplete && currentStatus == NoteStatus.PENDING_INFO) {
+            targetStatus = NoteStatus.READY_TO_CONVERT;
         }
 
-        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
-        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : dto.getPageSize();
-        PageHelper.startPage(pageNum, pageSize);
+        // 一次性更新所有字段
+        noteMapper.updateNoteFieldsForCheck(noteId, targetStatus.getCode(), missingMask, missingCount);
 
-        String title = (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) ? dto.getTitle().trim() : null;
-        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), title);
-        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
-        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+        // 构建返回结果
+        result.setStatus(targetStatus.getCode());
+        result.setStatusDesc(targetStatus.getDesc());
+        result.setComplete(isComplete);
+        result.setMissingTags(missingTags);
+        result.setMissingImages(missingImages);
+        result.setMissingNoteNames(missingNoteNames);
+
+        return result;
     }
 
     /**
      * 用户端发起笔记审核申请。
      */
+    // TODO 这里先行提取到 NoteFacade 中（需要完全重构还得配合 AuditService 重构）
     @Override
     public void submitNoteAudit(Long noteId) {
         Long userId = BaseContext.getCurrentId();
@@ -917,18 +996,18 @@ public class NoteServiceImpl implements NoteService {
         if (!note.getUserId().equals(userId)) {
             throw new BaseException(NoteConstant.NOTE_NOT_OWNER);
         }
-        if (AuditConstant.PASS.equals(note.getIsPass())) {
+        NoteStatus status = NoteStatus.fromCode(note.getStatus());
+        if (status.isApproved() || status.isPublished()) {
             throw new BaseException(NoteConstant.NOTE_ALREADY_PASSED);
         }
-        int pendingCount = noteAuditMapper.countPendingAuditByNoteId(noteId);
-        if (pendingCount > 0) {
+        if (auditService.hasPendingNoteAudit(noteId)) {
             throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
         }
 
         NoteAuditRecordEntity record = new NoteAuditRecordEntity();
         record.setApplicantUserId(userId);
         record.setNoteId(noteId);
-        noteAuditMapper.insertAuditRecord(record);
+        auditService.createNoteAuditRecord(record);
     }
 
     /**
@@ -942,6 +1021,344 @@ public class NoteServiceImpl implements NoteService {
         long publicNoteCount = noteMapper.countPublicByUserId(userId);
         long approvedNoteCount = noteMapper.countApprovedByUserId(userId);
         return new NoteStatsVO(noteTotalCount, publicNoteCount, approvedNoteCount);
+    }
+
+    // ===== 用户端方法 =====
+
+    /**
+     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     */
+    @Override
+    public PageResult listUserNotes(UserNoteQueryDTO dto) {
+        if (dto == null) {
+            dto = new UserNoteQueryDTO();
+        }
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        String title = (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) ? dto.getTitle().trim() : null;
+        List<NoteVO> records = noteMapper.listByUserCondition(BaseContext.getCurrentId(), dto.getTopicId(), title);
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    // TODO 删掉，使用 upload 即可，校验配额使用 @StorageHandler 注解的切面类即可
+    public Long createUserNote(MultipartFile file, Long topicId) {
+        Long userId = BaseContext.getCurrentId();
+
+        String originalFilename = normalizeFilename(file.getOriginalFilename());
+        if (!originalFilename.toLowerCase().endsWith(NoteConstant.ALLOWED_NOTE_FORMAT)) {
+            throw new BaseException(NoteConstant.NOTE_INVALID_FORMAT);
+        }
+
+        validateTopic(topicId);
+
+        UserQuoteStorageDTO storageInfo = userService.getUserQuoteStorage(userId);
+        if (storageInfo != null && storageInfo.getMaxStorageBytes() != null) {
+            Long maxStorageBytes = storageInfo.getMaxStorageBytes();
+            Long usedStorageBytes = storageInfo.getUsedStorageBytes();
+            if (usedStorageBytes != null && maxStorageBytes < usedStorageBytes + file.getSize()) {
+                throw new BaseException("存储配额不足");
+            }
+        }
+
+        String markdownContent;
+        try {
+            markdownContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            throw new BaseException(NoteConstant.NOTE_FILE_READ_ERROR);
+        }
+
+        String title = stripMarkdownExtension(originalFilename);
+        if (noteMapper.countByUserIdAndTopicIdAndTitle(userId, topicId, title) != 0) {
+            throw new BaseException("已在对应主题下存在同名笔记");
+        }
+
+        NoteEntity note = new NoteEntity();
+        note.setUserId(userId);
+        note.setTopicId(topicId);
+        note.setTitle(title);
+        note.setDescription(null);
+        note.setStorageType(NoteConstant.DEFAULT_STORAGE_TYPE);
+        note.setStatus(NoteStatus.NEW.getCode());
+        note.setMissingInfoMask(0);
+        note.setMissingCount(0);
+        note.setMdFileSize(file.getSize());
+        note.setCreateTime(LocalDateTime.now());
+        note.setUpdateTime(LocalDateTime.now());
+
+        int count = noteMapper.insertNote(note);
+        if (count <= 0) {
+            throw new BaseException("创建笔记失败");
+        }
+
+        NoteContextEntity context = new NoteContextEntity();
+        context.setNoteId(note.getId());
+        context.setMarkdownContent(markdownContent);
+        noteContextMapper.insertContext(context);
+
+        if (storageInfo != null && storageInfo.getUsedStorageBytes() != null) {
+            userService.updateUserStorageUsed(userId, storageInfo.getUsedStorageBytes() + file.getSize());
+        }
+
+        return note.getId();
+    }
+
+    @Override
+    public PageResult listUserNotesBySearch(UserNoteSearchDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), dto.getKeyword());
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    @Override
+    public UserNoteDetailVO getUserNoteDetail(UserNoteDetailDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+
+        NoteEntity note = noteMapper.selectById(dto.getId());
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException("只能查看自己的笔记");
+        }
+
+        NoteContextEntity context = noteContextMapper.selectByNoteId(dto.getId());
+        if (context == null) {
+            throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
+        }
+
+        NoteConvertedEntity converted = noteConvertMapper.selectByNoteId(dto.getId());
+
+        List<Long> tagIds = noteTagMappingMapper.selectTagIdsByNoteId(dto.getId());
+        List<String> tags = List.of();
+        if (tagIds != null && !tagIds.isEmpty()) {
+            List<TagEntity> tagEntities = tagService.getByIds(tagIds);
+            tags = tagEntities.stream().map(TagEntity::getTagName).collect(Collectors.toList());
+        }
+
+        UserNoteDetailVO vo = new UserNoteDetailVO();
+        BeanUtils.copyProperties(note, vo);
+        vo.setMarkdownContent(context.getMarkdownContent());
+        vo.setHtmlContent(converted != null ? converted.getBodyHtml() : null);
+        vo.setTags(tags);
+        return vo;
+    }
+
+    @Override
+    public String getUserNoteSource(Long noteId) {
+        Long userId = BaseContext.getCurrentId();
+
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException("只能查看自己的笔记");
+        }
+
+        NoteContextEntity context = noteContextMapper.selectByNoteId(noteId);
+        if (context == null) {
+            throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
+        }
+
+        return context.getMarkdownContent();
+    }
+
+    @Override
+    public NoteConvertResultVO getUserNoteConvertedHtml(Long noteId) {
+        Long userId = BaseContext.getCurrentId();
+
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException("只能查看自己的笔记");
+        }
+
+        NoteConvertedEntity converted = noteConvertMapper.selectByNoteId(noteId);
+        if (converted == null) {
+            throw new BaseException("笔记尚未转换，请先转换笔记");
+        }
+
+        List<Long> tagIds = noteTagMappingMapper.selectTagIdsByNoteId(noteId);
+        List<String> tags = List.of();
+        if (tagIds != null && !tagIds.isEmpty()) {
+            List<TagEntity> tagEntities = tagService.getByIds(tagIds);
+            tags = tagEntities.stream().map(TagEntity::getTagName).collect(Collectors.toList());
+        }
+
+        NoteConvertMetaVO meta = new NoteConvertMetaVO();
+        meta.setTitle(note.getTitle());
+        meta.setTags(tags);
+        meta.setCreateTime(note.getCreateTime().toString());
+
+        NoteConvertResultVO vo = new NoteConvertResultVO();
+        vo.setMeta(meta);
+        vo.setTocHtml(converted.getTocHtml());
+        vo.setBodyHtml(converted.getBodyHtml());
+
+        return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateUserNote(MultipartFile file, UserNoteUpdateDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+
+        NoteEntity note = noteMapper.selectById(dto.getId());
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException("只能修改自己的笔记");
+        }
+
+        if (file != null && !file.isEmpty()) {
+            String originalFilename = normalizeFilename(file.getOriginalFilename());
+            if (!originalFilename.toLowerCase().endsWith(NoteConstant.ALLOWED_NOTE_FORMAT)) {
+                throw new BaseException(NoteConstant.NOTE_INVALID_FORMAT);
+            }
+
+            UserQuoteStorageDTO storageInfo = userService.getUserQuoteStorage(userId);
+            if (storageInfo != null && storageInfo.getMaxStorageBytes() != null) {
+                Long maxStorageBytes = storageInfo.getMaxStorageBytes();
+                Long usedStorageBytes = storageInfo.getUsedStorageBytes();
+                long sizeDiff = file.getSize() - note.getMdFileSize();
+                if (usedStorageBytes != null && maxStorageBytes < usedStorageBytes + sizeDiff) {
+                    throw new BaseException("存储配额不足");
+                }
+            }
+
+            String markdownContent;
+            try {
+                markdownContent = new String(file.getBytes(), StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                throw new BaseException(NoteConstant.NOTE_FILE_READ_ERROR);
+            }
+
+            NoteContextEntity context = noteContextMapper.selectByNoteId(dto.getId());
+            if (context == null) {
+                throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
+            }
+            context.setMarkdownContent(markdownContent);
+            noteContextMapper.updateContext(context);
+
+            note.setMdFileSize(file.getSize());
+            note.setStatus(NoteStatus.NEW.getCode());
+            noteConvertMapper.deleteByNoteId(dto.getId());
+        }
+
+        if (StringUtils.hasText(dto.getTitle())) {
+            note.setTitle(dto.getTitle());
+        }
+        if (dto.getDescription() != null) {
+            note.setDescription(dto.getDescription());
+        }
+        if (dto.getTopicId() != null) {
+            validateTopic(dto.getTopicId());
+            note.setTopicId(dto.getTopicId());
+        }
+        note.setUpdateTime(LocalDateTime.now());
+
+        int count = noteMapper.updateNote(note);
+        if (count <= 0) {
+            throw new BaseException("更新笔记失败");
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteUserNote(Long id) {
+        Long userId = BaseContext.getCurrentId();
+
+        NoteEntity note = noteMapper.selectById(id);
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException("只能删除自己的笔记");
+        }
+
+        NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
+        if (currentStatus == NoteStatus.PENDING_AUDIT) {
+            throw new BaseException("笔记正在审核中，不能删除");
+        }
+        if (currentStatus == NoteStatus.PUBLISHED) {
+            throw new BaseException("笔记已公开，请先下架后再删除");
+        }
+
+        List<TagNoteCountDTO> tagChecks = tagService.listDeleteChecksByIds(userId, List.of(id));
+        for (TagNoteCountDTO check : tagChecks) {
+            if (check.getNoteCount() != null && check.getNoteCount() > 0) {
+                throw new BaseException("该笔记正在被标签引用，无法删除");
+            }
+        }
+
+        noteConvertMapper.deleteByNoteId(id);
+        noteContextMapper.deleteByNoteId(id);
+        noteEachMappingMapper.softDeleteBySourceNoteId(id);
+        noteTagMappingMapper.softDeleteByNoteId(id);
+        noteImageMappingMapper.softDeleteByNoteId(id);
+
+        int count = noteMapper.updateStatus(id, NoteStatus.DELETED.getCode());
+        if (count <= 0) {
+            throw new BaseException("删除笔记失败");
+        }
+
+        UserQuoteStorageDTO storageInfo = userService.getUserQuoteStorage(userId);
+        if (storageInfo != null && storageInfo.getUsedStorageBytes() != null) {
+            userService.updateUserStorageUsed(userId, Math.max(0L, storageInfo.getUsedStorageBytes() - note.getMdFileSize()));
+        }
+    }
+
+    @Override
+    public PageResult searchUserNotes(UserNoteSearchDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+
+        if (!StringUtils.hasText(dto.getKeyword())) {
+            throw new BaseException("搜索关键词不能为空");
+        }
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        String keyword = dto.getKeyword().trim();
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), keyword);
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    @Override
+    public NoteEntity getNoteEntityById(Long id) {
+        return noteMapper.selectById(id);
+    }
+
+    @Override
+    public List<NoteSimpleVO> listNoteSimplesByImageId(Long imageId) {
+        return noteMapper.selectNoteSimpleByImageId(imageId);
+    }
+
+    @Override
+    public int updateStatusByIds(List<Long> ids, Short status) {
+        return noteMapper.updateStatusByIds(ids, status);
     }
 
     /**
@@ -977,7 +1394,7 @@ public class NoteServiceImpl implements NoteService {
             return;
         }
 
-        List<TagEntity> tags = Optional.ofNullable(tagMapper.selectIdsByNamesAndUserId(parsedNames, userId))
+        List<TagEntity> tags = Optional.ofNullable(tagService.getByNamesAndUserId(parsedNames, userId))
                 .orElse(List.of());
         if (tags.isEmpty()) {
             return;
@@ -1033,7 +1450,7 @@ public class NoteServiceImpl implements NoteService {
         }
 
         List<ImageEntity> images = Optional.ofNullable(
-                imageMapper.selectByUserIdAndTopicIdAndFilenames(userId, topicId, parsedNames))
+                imageService.getByUserIdAndTopicIdAndFilenames(userId, topicId, parsedNames))
                 .orElse(List.of());
         if (images.isEmpty()) {
             return;
@@ -1114,7 +1531,11 @@ public class NoteServiceImpl implements NoteService {
         List<NoteEachMappingEntity> toBind = new ArrayList<>();
         for (NoteEachMappingEntity mapping : mappings) {
             NoteEntity target = noteMap.get(mapping.getParsedNoteName());
-            if (target == null || !AuditConstant.PASS.equals(target.getIsPass())) {
+            if (target == null) {
+                continue;
+            }
+            NoteStatus targetNoteStatus = NoteStatus.fromCode(target.getStatus());
+            if (!targetNoteStatus.isApproved() && !targetNoteStatus.isPublished()) {
                 continue;
             }
             if (Objects.equals(mapping.getTargetNoteId(), target.getId())
@@ -1136,10 +1557,8 @@ public class NoteServiceImpl implements NoteService {
 
     /**
      * 插入笔记的基础数据
-     * <p>
-     * 这里只会检查 image 是否存在来初始最开始的 IsMissingInfo
-     * </p>
-     * 
+     * <p>上传后默认为 NEW 状态，不进行数据库查询判断是否有缺失信息</p>
+     * <p>直接根据扫描结果设置 missingInfoMask 和 missingCount</p>
      * @param userId
      * @param topicId
      * @param originalFilename
@@ -1154,12 +1573,18 @@ public class NoteServiceImpl implements NoteService {
         note.setTopicId(topicId);
         note.setTitle(stripMarkdownExtension(originalFilename));
         note.setDescription(null);
-        note.setIsPublished(NoteConstant.IS_PUBLISHED_NO);
         note.setStorageType(NoteConstant.DEFAULT_STORAGE_TYPE);
-        note.setIsMissingInfo(resolveMissingInfo(userId, topicId, tags, imageNames, noteLinks));
-        note.setIsPass(AuditConstant.WAIT); // 插进来先待审核
-        note.setIsDeleted(NoteConstant.NOT_DELETED);
         note.setMdFileSize(fileSize);
+
+        // 计算缺失信息掩码和数量
+        int missingMask = calculateInitMissingInfoMask(tags, imageNames, noteLinks);
+        int missingCount = countInitMissingBits(missingMask);
+
+        // 统一设置为 NEW 状态
+        note.setStatus(NoteStatus.NEW.getCode());
+        note.setMissingInfoMask(missingMask);
+        note.setMissingCount(missingCount);
+
         if (noteMapper.insertNote(note) <= 0) {
             throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
         }
@@ -1167,16 +1592,32 @@ public class NoteServiceImpl implements NoteService {
     }
 
     /**
+     * 计算缺失信息掩码
+     * <p>- 有关联就算是缺失</p>
+     */
+    private int calculateInitMissingInfoMask(List<String> tags, List<String> imageNames, List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
+        int missingMask = 0;
+        if (tags != null && !tags.isEmpty()) {
+            missingMask |= NoteConstant.MISSING_TAG;
+        }
+        if (imageNames != null && !imageNames.isEmpty()) {
+            missingMask |= NoteConstant.MISSING_IMAGE;
+        }
+        if (noteLinks != null && !noteLinks.isEmpty()) {
+            missingMask |= NoteConstant.MISSING_NOTE;
+        }
+        return missingMask;
+    }
+
+    /**
      * 批量建立 note-image 映射关系
-     * <p>底层会检查数有没有合法的数据行存在，也就是对应的数据行</p>
-     * <p>如果存在，不会重新插入，同时检查这条数据行的删除标记标记为 0</p>
-     * <p> 如果不存在，则插入一条新的数据行</p>
+     * <p>直接插入映射行，不进行自动绑定（image_id 为 null）</p>
+     * <p>如果不存在，则插入一条新的数据行</p>
      */
     private void persistRelationMappings(Long userId, Long noteId, String noteTitle,
                                          List<String> tags, List<String> imageNames) {
-        // 先保证标签实体存在（不存在则补建），再落库标签映射。
-        Map<String, TagEntity> tagMap = resolveTagMap(userId, tags);
-        List<NoteTagMappingEntity> tagMappings = buildTagMappings(noteId, tags, tagMap);
+        // 建立标签映射（不创建标签，直接插入映射行）
+        List<NoteTagMappingEntity> tagMappings = buildTagMappings(noteId, tags);
         if (!tagMappings.isEmpty()) {
             noteTagMappingMapper.batchInsertMappings(tagMappings);
         }
@@ -1191,6 +1632,7 @@ public class NoteServiceImpl implements NoteService {
      * 批量建立 note-each 映射关系
      * <p>从笔记头部解析出标签，然后建立映射</p>
      * <p>建立从笔记双链中解析出来的图片、笔记</p>
+     * <p>这里不会进行自动绑定，只会单纯建立映射行</p>
      */
     private void persistRelationMappings(Long userId, Long noteId, String noteTitle,
             List<String> tags, List<String> imageNames, List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
@@ -1198,17 +1640,18 @@ public class NoteServiceImpl implements NoteService {
         persistRelationMappings(userId, noteId, noteTitle, tags, imageNames);
 
         // 建立 note-each 映射
-        List<NoteEachMappingEntity> eachMappings = buildEachMappings(userId, noteId, noteLinks);
+        List<NoteEachMappingEntity> eachMappings = buildEachMappings(noteId, noteLinks);
         if (!eachMappings.isEmpty()) {
             noteEachMappingMapper.batchInsertMappings(eachMappings);
         }
     }
 
     /**
-     * 批量建立 note-tag 映射关系
+     * 批量建立 note-tag 映射关系（不自动创建标签）
+     * <p>标签以”解析出的 tagName”为行粒度，便于后续按映射行绑定/解绑。</p>
+     * <p>默认 tag_id 为 null，is_pass 为 WAIT，等待用户检查绑定</p>
      */
-    private List<NoteTagMappingEntity> buildTagMappings(Long noteId, List<String> tags, Map<String, TagEntity> tagMap) {
-        // 标签以“解析出的 tagName”为行粒度，便于后续按映射行绑定/解绑。
+    private List<NoteTagMappingEntity> buildTagMappings(Long noteId, List<String> tags) {
         List<String> parsedTags = normalizeDistinctList(tags);
         if (parsedTags.isEmpty()) {
             return List.of();
@@ -1216,14 +1659,11 @@ public class NoteServiceImpl implements NoteService {
 
         List<NoteTagMappingEntity> mappings = new ArrayList<>();
         for (String parsedTagName : parsedTags) {
-            TagEntity tag = tagMap.get(parsedTagName);
             NoteTagMappingEntity mapping = new NoteTagMappingEntity();
             mapping.setNoteId(noteId);
-            mapping.setTagId(tag == null ? null : tag.getId());
+            mapping.setTagId(null);  // 默认不绑定
             mapping.setParsedTagName(parsedTagName);
-            mapping.setIsPass(tag != null && AuditConstant.PASS.equals(tag.getIsPass())
-                    ? AuditConstant.PASS
-                    : AuditConstant.WAIT);
+            mapping.setIsPass(AuditConstant.WAIT);  // 默认待审核
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
             mapping.setCreateTime(LocalDateTime.now());
             mappings.add(mapping);
@@ -1232,7 +1672,8 @@ public class NoteServiceImpl implements NoteService {
     }
 
     /**
-     * 批量建立 note-image 映射关系 map 表
+     * 批量建立 note-image 映射关系（不自动绑定）
+     * <p>直接插入映射行，不进行自动绑定（image_id 为 null）</p>
      */
     private List<NoteImageMappingEntity> buildImageMappings(Long noteId, Long userId, String noteTitle,
             List<String> imageNames) {
@@ -1241,232 +1682,48 @@ public class NoteServiceImpl implements NoteService {
             return List.of();
         }
 
-        // 获取来源笔记所在的话题 ID
-        Long topicId = noteMapper.selectById(noteId).getTopicId();
-
-        // 批量查询：命中 (user_id, topic_id, filename(40)) 联合索引，避免 N+1
-        List<ImageEntity> found = imageMapper.selectByUserIdAndTopicIdAndFilenames(userId, topicId, names);
-        Map<String, ImageEntity> imageMap = found == null || found.isEmpty()
-                ? Collections.emptyMap()
-                : found.stream().collect(Collectors.toMap(ImageEntity::getFilename, img -> img));
-
-        // 构建映射列表；找不到的图片 imageId 置 null，留给用户后续自行绑定
         List<NoteImageMappingEntity> mappings = new ArrayList<>();
         for (String imageName : names) {
-            ImageEntity image = imageMap.get(imageName);
             NoteImageMappingEntity mapping = new NoteImageMappingEntity();
             mapping.setNoteId(noteId);
             mapping.setNoteUserId(userId);
             mapping.setNoteTitle(noteTitle);
             mapping.setParsedImageName(imageName);
+            mapping.setImageId(null);  // 默认不绑定
+            mapping.setImageUserId(null);
+            mapping.setIsCrossUser(NoteConstant.NOT_IS_CROSS_USER);
+            mapping.setIsPass(AuditConstant.WAIT);
             mapping.setCreateTime(LocalDateTime.now());
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
-            if (image != null) {
-                // 图片存在时绑定 image_id；跨用户引用会标记 is_cross_user。
-                mapping.setImageId(image.getId());
-                mapping.setImageUserId(image.getUserId());
-                mapping.setIsCrossUser(
-                        image.getUserId() != null && !image.getUserId().equals(userId) ? NoteConstant.IS_CROSS_USER
-                                : NoteConstant.NOT_IS_CROSS_USER);
-                mapping.setIsPass(AuditConstant.PASS.equals(image.getIsPass()) ? AuditConstant.PASS : AuditConstant.WAIT);
-            } else {
-                // 图片缺失时先保留解析名，后续可补图再重新转换。
-                mapping.setImageId(null);
-                mapping.setImageUserId(null);
-                mapping.setIsCrossUser(NoteConstant.NOT_IS_CROSS_USER);
-                mapping.setIsPass(AuditConstant.WAIT);
-            }
             mappings.add(mapping);
         }
         return mappings;
     }
 
     /**
-     * 构建 note-each 映射实体列表。
-     * <p>
-     * 一次性批量查询目标笔记，避免 N+1。
-     * 由于 {@code ParsedNoteLink} 已经在引擎扫描阶段完成了 (noteName, anchor, nickname)
-     * 三元去重，此处仅按 noteName 批量查询就能得到 targetNoteId。
-     * </p>
+     * 构建 note-each 映射实体列表（不自动绑定）
+     * <p>直接插入映射行，不进行自动绑定（target_note_id 为 null）</p>
      */
-    private List<NoteEachMappingEntity> buildEachMappings(Long userId, Long sourceNoteId,
+    private List<NoteEachMappingEntity> buildEachMappings(Long sourceNoteId,
             List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
         if (noteLinks == null || noteLinks.isEmpty()) {
             return List.of();
         }
 
-        // 提取笔记名列表（去重），一次性批量查询
-        List<String> names = noteLinks.stream()
-                .map(MarkdownHtmlEngine.ParsedNoteLink::noteName)
-                .distinct()
-                .toList();
-
-        // 获取来源笔记所在的话题 ID
-        Long topicId = noteMapper.selectById(sourceNoteId).getTopicId();
-
-        // 批量查询：命中 (user_id, topic_id, title(30), is_deleted) 联合唯一索引，避免 N+1
-        List<NoteEntity> found = noteMapper.selectByUserIdAndTopicIdAndTitles(userId, topicId, names);
-        Map<String, NoteEntity> noteMap = found == null || found.isEmpty()
-                ? Collections.emptyMap()
-                : found.stream().collect(Collectors.toMap(NoteEntity::getTitle, n -> n));
-
-        // 构建映射列表；找不到目标笔记时 targetNoteId 置 null，留给用户后续自行绑定
         List<NoteEachMappingEntity> mappings = new ArrayList<>();
         for (MarkdownHtmlEngine.ParsedNoteLink link : noteLinks) {
-            NoteEntity target = noteMap.get(link.noteName());
             NoteEachMappingEntity mapping = new NoteEachMappingEntity();
             mapping.setSourceNoteId(sourceNoteId);
-            mapping.setTargetNoteId(target == null ? null : target.getId());
+            mapping.setTargetNoteId(null);  // 默认不绑定
             mapping.setParsedNoteName(link.noteName());
-            mapping.setAnchor(link.anchor());      // 可为 null
-            mapping.setNickname(link.nickname());  // 可为 null
-            mapping.setIsPass(target != null && AuditConstant.PASS.equals(target.getIsPass())
-                    ? AuditConstant.PASS
-                    : AuditConstant.WAIT);
+            mapping.setAnchor(link.anchor());
+            mapping.setNickname(link.nickname());
+            mapping.setIsPass(AuditConstant.WAIT);
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
+            mapping.setCreateTime(LocalDateTime.now());
             mappings.add(mapping);
         }
         return mappings;
-    }
-
-    /**
-     * 批量查询图片，并检查确实的图片
-     * <p>通过一条 IN 查询完成比对，网络 IO 复杂度为 O(1)</p>
-     * @param userId 用户ID
-     * @param topicId 主题ID
-     * @param imageNames 图片名称列表
-     * @return 缺失的图片名称列表
-     */
-    private List<String> resolveMissingImages(Long userId, Long topicId, List<String> imageNames) {
-        List<String> names = normalizeDistinctList(imageNames);
-        if (names.isEmpty()) {
-            return List.of();
-        }
-        List<ImageEntity> found = imageMapper.selectByUserIdAndTopicIdAndFilenames(userId, topicId, names);
-        Set<String> foundNames = found == null ?
-                Set.of() : found.stream().map(ImageEntity::getFilename).collect(Collectors.toSet());
-
-        // 如果是不存在 foundNames 中，则会被加入到列表中，否则会被过滤掉
-        return names.stream().filter(name -> !foundNames.contains(name)).toList();
-    }
-
-    /**
-     * 批量查询笔记双链并计算缺失笔记名。
-     * <p>通过一条 IN 查询完成比对，网络 IO 复杂度为 O(1)</p>
-     * @param userId 用户ID
-     * @param topicId 主题ID
-     * @param noteLinks 解析出的双链笔记列表
-     * @return 缺失的内链笔记名称列表
-     */
-    private List<String> resolveMissingNoteNames(Long userId, Long topicId,
-            List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
-        if (noteLinks == null || noteLinks.isEmpty()) {
-            return List.of();
-        }
-
-        List<String> names = normalizeDistinctList(
-                noteLinks.stream().map(MarkdownHtmlEngine.ParsedNoteLink::noteName).toList());
-        if (names.isEmpty()) {
-            return List.of();
-        }
-
-        List<NoteEntity> found = noteMapper.selectByUserIdAndTopicIdAndTitles(userId, topicId, names);
-        Set<String> foundTitles = found == null ? Set.of() : found.stream()
-                .filter(note -> note.getIsDeleted() == null
-                        || note.getIsDeleted().equals(NoteConstant.NOT_DELETED))
-                .map(NoteEntity::getTitle)
-                .collect(Collectors.toSet());
-
-        return names.stream().filter(name -> !foundTitles.contains(name)).toList();
-    }
-
-    /**
-     * 检查缺失的标签
-     * <p>仅会查询标签的内容是否为空 不为空即为全部存在</p>
-     * @return 缺失标签返回 true 否则返回 false
-     */
-    private boolean hasMissingTags(List<String> tags) {
-        if (tags == null) {
-            return false;
-        }
-        return tags.stream().anyMatch(tag -> !StringUtils.hasText(tag));
-    }
-
-    /**
-     * 检查缺失的笔记
-     * <p>检查该用户同主题下对应名字的笔记</p>
-     * <p>涉及到 O(1) 的 网络IO 去 MySQL 批量查询</p>
-     * @return 缺失笔记返回 true 否则返回 false
-     */
-    private boolean hasMissingNotes(Long userId, Long topicId, List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
-        return !resolveMissingNoteNames(userId, topicId, noteLinks).isEmpty();
-    }
-
-    /**
-     * 检查缺失信息
-     * @return 0=信息完整，1=存在缺失关联信息
-     */
-    private Short resolveMissingInfo(Long userId, Long topicId,
-            List<String> tags, List<String> imageNames, List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks) {
-        boolean missingTags = hasMissingTags(tags);
-        boolean missingImages = !resolveMissingImages(userId, topicId, imageNames).isEmpty();
-        boolean missingNotes = hasMissingNotes(userId, topicId, noteLinks);
-        return (missingTags || missingImages || missingNotes) ?
-                NoteConstant.MISSED_INFO : NoteConstant.NOT_MISSED_INFO;
-    }
-
-    /**
-     * 在数据库中批量查询标签
-     * 
-     * @param userId
-     * @param tags
-     * @return
-     */
-    private Map<String, TagEntity> resolveTagMap(Long userId, List<String> tags) {
-        List<String> tagNames = normalizeDistinctList(tags);
-        if (tagNames.isEmpty()) {
-            return Map.of();
-        }
-
-        // 先批量查已有标签，减少后续单条查询。
-        List<TagEntity> existing = tagMapper.selectIdsByNamesAndUserId(tagNames, userId);
-        Map<String, TagEntity> existingMap = existing == null ? new HashMap<>() : existing.stream()
-                .collect(Collectors.toMap(
-                        TagEntity::getTagName,
-                        tag -> tag,
-                        (left, right) -> left,
-                        HashMap::new)
-                );
-
-        // 仅为缺失标签补建，避免重复插入。
-        List<TagEntity> needInsert = new ArrayList<>();
-        for (String tagName : tagNames) {
-            if (!existingMap.containsKey(tagName)) {
-                TagEntity newTag = new TagEntity();
-                newTag.setTagName(tagName);
-                newTag.setUserId(userId);
-                newTag.setIsPass(AuditConstant.WAIT);
-                needInsert.add(newTag);
-            }
-        }
-
-        if (!needInsert.isEmpty()) {
-            int count = tagMapper.batchInsertTags(needInsert);
-            if (count != needInsert.size()) {
-                throw new BaseException("标签新增失败");
-            }
-
-            // 补建后重新查询，确保拿到完整 id + isPass。
-            List<TagEntity> refreshed = tagMapper.selectIdsByNamesAndUserId(tagNames, userId);
-            return refreshed == null ? Map.of() : refreshed.stream()
-                    .collect(Collectors
-                             .toMap(TagEntity::getTagName,
-                                     tag -> tag,
-                                     (left, right) -> left)
-                    );
-        }
-
-        return existingMap;
     }
 
     /**
@@ -1524,14 +1781,46 @@ public class NoteServiceImpl implements NoteService {
     }
 
     /**
-     * 刷新笔记缺失状态。
+     * 刷新笔记缺失信息状态（使用新状态）。
      * <p>绑定/解绑任一关联后统一走该入口，避免不同路径状态不一致。</p>
      * @param noteId 笔记ID
      */
     private void refreshNoteMissingInfo(Long noteId) {
-        // 统一入口：每次绑定/解绑后都由当前映射状态推导 is_missing_info。
-        noteMapper.updateMissingInfo(noteId, isRelationComplete(noteId) ?
-                NoteConstant.NOT_MISSED_INFO : NoteConstant.MISSED_INFO);
+        // 统一入口：每次绑定/解绑后都由当前映射状态推导缺失信息。
+        int missingMask = calculateMissingMaskFromRelations(noteId);
+        int missingCount = countInitMissingBits(missingMask);
+
+        noteMapper.updateMissingInfoFields(noteId, missingMask, missingCount);
+
+        // 检查并自动转换状态
+        checkAndAutoTransitionIfComplete(noteId);
+    }
+
+    /**
+     * 从当前关联关系计算缺失信息掩码
+     */
+    private int calculateMissingMaskFromRelations(Long noteId) {
+        int missingMask = 0;
+
+        // 标签缺失判断
+        long missingTagCount = noteTagMappingMapper.countByNoteIdAndTargetIdIsNull(noteId);
+        if (missingTagCount > 0) {
+            missingMask |= NoteConstant.MISSING_TAG;
+        }
+
+        // 图片缺失判断
+        long missingImageCount = noteImageMappingMapper.countByNoteIdAndImageIdIsNull(noteId);
+        if (missingImageCount > 0) {
+            missingMask |= NoteConstant.MISSING_IMAGE;
+        }
+
+        // 内联笔记缺失判断
+        long missingNoteCount = noteEachMappingMapper.countByNoteIdAndTargetIdIsNull(noteId);
+        if (missingNoteCount > 0) {
+            missingMask |= NoteConstant.MISSING_NOTE;
+        }
+
+        return missingMask;
     }
 
     /**
@@ -1607,7 +1896,7 @@ public class NoteServiceImpl implements NoteService {
             return Map.of();
         }
         // 返回批量查询的映射建立map表
-        return tagMapper.selectByIds(ids).stream()
+        return tagService.getByIds(ids).stream()
                 .collect(
                         Collectors.toMap(TagEntity::getId,
                                 tag -> tag,
@@ -1636,7 +1925,7 @@ public class NoteServiceImpl implements NoteService {
         }
 
         // 返回批量查询的映射建立map表
-        return imageMapper.selectByIds(new ArrayList<>(ids)).stream()
+        return imageService.getByIds(ids).stream()
                 .collect(Collectors.toMap(
                         ImageEntity::getId,
                         image -> image,
@@ -1733,7 +2022,7 @@ public class NoteServiceImpl implements NoteService {
             // “有效绑定”要求：有 target_note_id、目标未删除、标题匹配
             boolean validBind = mapping.getTargetNoteId() != null
                     && target != null
-                    && NoteConstant.NOT_DELETED.equals(target.getIsDeleted())
+                    && !NoteStatus.fromCode(target.getStatus()).isDeleted()
                     && Objects.equals(mapping.getParsedNoteName(), target.getTitle());
 
             NoteEachMappingRowVO row = new NoteEachMappingRowVO();
@@ -1760,7 +2049,7 @@ public class NoteServiceImpl implements NoteService {
      */
     private NoteEntity validateOwnedNote(Long noteId, Long userId) {
         NoteEntity note = noteMapper.selectById(noteId);
-        if (note == null || note.getIsDeleted() != null && note.getIsDeleted().equals(NoteConstant.DELETED)) {
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
         if (!note.getUserId().equals(userId)) {
@@ -1779,10 +2068,7 @@ public class NoteServiceImpl implements NoteService {
         if (topicId == null) {
             return;
         }
-        TopicEntity topic = topicMapper.selectById(topicId);
-        if (topic == null) {
-            throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
-        }
+        topicService.getTopicById(topicId);
     }
 
     /**
@@ -1926,6 +2212,21 @@ public class NoteServiceImpl implements NoteService {
     }
 
     /**
+     * JSON 解析成扫描结果。
+     * <p>从 modifyNoteSource 时保存的 scanJson 中反序列化 NoteReletionInfo</p>
+     */
+    private MarkdownHtmlEngine.NoteReletionInfo parseScanJson(String scanJson) {
+        if (scanJson == null || scanJson.isEmpty()) {
+            throw new BaseException("扫描数据缺失，请重新上传");
+        }
+        try {
+            return objectMapper.readValue(scanJson, MarkdownHtmlEngine.NoteReletionInfo.class);
+        } catch (JsonProcessingException ex) {
+            throw new BaseException("扫描数据解析失败");
+        }
+    }
+
+    /**
      * 转换结果转换成 VO。
      * 这里仅仅只会对结果进行组装
      * 
@@ -1972,7 +2273,7 @@ public class NoteServiceImpl implements NoteService {
         // 建立 图片 ID -> 图片 的 map 映射表
         Map<Long, ImageEntity> imageMap = imageIds.isEmpty()
                 ? Map.of()
-                : imageMapper.selectByIds(new ArrayList<>(imageIds)).stream()
+                : imageService.getByIds(imageIds).stream()
                         .collect(Collectors.toMap(ImageEntity::getId, image -> image, (left, right) -> left));
 
         // 批量封装图片
@@ -2032,5 +2333,171 @@ public class NoteServiceImpl implements NoteService {
      */
     private long safeLong(Long value) {
         return value == null ? 0L : value;
+    }
+
+    /**
+     * 转换笔记状态（带校验）
+     *
+     * @param noteId 笔记ID
+     * @param targetStatus 目标状态
+     */
+    private void transitionNoteStatus(Long noteId, NoteStatus targetStatus) {
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
+
+        if (!currentStatus.canTransitionTo(targetStatus)) {
+            throw new BaseException(String.format(
+                "无法从 %s 状态转换到 %s 状态",
+                currentStatus.getDesc(),
+                targetStatus.getDesc()
+            ));
+        }
+
+        noteMapper.updateStatus(noteId, targetStatus.getCode());
+
+        if (targetStatus == NoteStatus.DELETED) {
+            cleanupDeletedNote(note);
+        }
+    }
+
+    /**
+     * 检查并自动转换状态（当 missing_count = 0 时）
+     *
+     * @param noteId 笔记ID
+     */
+    private void checkAndAutoTransitionIfComplete(Long noteId) {
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null) {
+            return;
+        }
+
+        if (note.getMissingCount() != null && note.getMissingCount() == 0) {
+            // 扫描确认信息是否齐全
+            int missingMask = scanMissingInfo(noteId);
+            int missingCount = countInitMissingBits(missingMask);
+
+            // 更新扫描结果
+            noteMapper.updateMissingInfoFields(noteId, missingMask, missingCount);
+
+            // 如果扫描后确认信息齐全，转换状态
+            if (missingCount == 0) {
+                NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
+                if (currentStatus == NoteStatus.PENDING_INFO) {
+                    noteMapper.updateStatus(noteId, NoteStatus.READY_TO_CONVERT.getCode());
+                }
+            }
+        }
+    }
+
+    /**
+     * 扫描笔记缺失的信息
+     *
+     * @param noteId 笔记ID
+     * @return 缺失信息掩码
+     */
+    private int scanMissingInfo(Long noteId) {
+        int missingMask = 0;
+
+        // 检查缺失的标签
+        long missingTagCount = noteTagMappingMapper.countByNoteIdAndTargetIdIsNull(noteId);
+        if (missingTagCount > 0) {
+            missingMask |= NoteConstant.MISSING_TAG;
+        }
+
+        // 检查缺失的图片
+        long missingImageCount = noteImageMappingMapper.countByNoteIdAndImageIdIsNull(noteId);
+        if (missingImageCount > 0) {
+            missingMask |= NoteConstant.MISSING_IMAGE;
+        }
+
+        // 检查缺失的内联笔记
+        long missingNoteCount = noteEachMappingMapper.countByNoteIdAndTargetIdIsNull(noteId);
+        if (missingNoteCount > 0) {
+            missingMask |= NoteConstant.MISSING_NOTE;
+        }
+
+        return missingMask;
+    }
+
+    /**
+     * 计算缺失信息的数量
+     * <p>- 计算初始关联信息的总数</p>
+     * @param missingMask 缺失信息掩码
+     * @return 缺失数量
+     */
+    private int countInitMissingBits(int missingMask) {
+        int count = 0;
+        if (NoteMissingInfoMask.isTagMissing(missingMask)) count++;
+        if (NoteMissingInfoMask.isImageMissing(missingMask)) count++;
+        if (NoteMissingInfoMask.isNoteMissing(missingMask)) count++;
+        return count;
+    }
+
+    /**
+     * 清理已删除的笔记
+     */
+    private void cleanupDeletedNote(NoteEntity note) {
+        // 软删除映射表中的记录
+        noteTagMappingMapper.softDeleteByNoteId(note.getId());
+        noteImageMappingMapper.softDeleteByNoteId(note.getId());
+        noteEachMappingMapper.softDeleteBySourceNoteId(note.getId());
+    }
+
+    /**
+     * 获取缺失的标签名称列表
+     * <p>返回 tag_id 为 null 的映射行的 parsed_tag_name</p>
+     * @param noteId 笔记ID
+     * @return 缺失的标签名称列表
+     */
+    private List<String> getMissingTagNames(Long noteId) {
+        List<NoteTagMappingEntity> mappings = noteTagMappingMapper.selectByNoteId(noteId);
+        if (mappings == null || mappings.isEmpty()) {
+            return List.of();
+        }
+        return mappings.stream()
+                .filter(m -> m.getTagId() == null)
+                .map(NoteTagMappingEntity::getParsedTagName)
+                .filter(StringUtils::hasText)
+                .toList();
+    }
+
+    /**
+     * 获取缺失的图片名称列表
+     * <p>返回 image_id 为 null 的映射行的 parsed_image_name</p>
+     * @param noteId 笔记ID
+     * @return 缺失的图片名称列表
+     */
+    private List<String> getMissingImageNames(Long noteId) {
+        List<NoteImageMappingEntity> mappings = noteImageMappingMapper.selectByNoteId(noteId);
+        if (mappings == null || mappings.isEmpty()) {
+            return List.of();
+        }
+        return mappings.stream()
+                .filter(m -> m.getImageId() == null)
+                .map(NoteImageMappingEntity::getParsedImageName)
+                .filter(StringUtils::hasText)
+                .toList();
+    }
+
+    /**
+     * 获取缺失的内联笔记名称列表
+     * <p>返回 target_note_id 为 null 的映射行的 parsed_note_name</p>
+     * @param noteId 笔记ID
+     * @return 缺失的内联笔记名称列表
+     */
+    private List<String> getMissingEachNoteNames(Long noteId) {
+        List<NoteEachMappingEntity> mappings = noteEachMappingMapper.selectBySourceNoteId(noteId);
+        if (mappings == null || mappings.isEmpty()) {
+            return List.of();
+        }
+        return mappings.stream()
+                .filter(m -> m.getTargetNoteId() == null)
+                .map(NoteEachMappingEntity::getParsedNoteName)
+                .filter(StringUtils::hasText)
+                .toList();
     }
 }
