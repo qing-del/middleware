@@ -3,6 +3,7 @@ package com.jacolp.mapper;
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -23,4 +24,7 @@ public interface NoteChangeDiffMapper {
     int deleteByNoteId(@Param("noteId") Long noteId);
 
     int deleteByNoteIds(@Param("noteIds") List<Long> noteIds);
+
+    @Select("SELECT count(*) FROM biz_note_change_diff WHERE note_id = #{noteId} AND status = #{status}")
+    int countByNoteIdAndStatus(Long noteId, Integer status);
 }

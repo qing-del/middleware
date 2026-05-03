@@ -19,11 +19,7 @@ public class NoteQueryDTO implements Serializable {
 
     private String title;
 
-    private Short isPublished;
-
-    private Short isPass;
-
-    private Short isMissingInfo;
+    private Short status;  // 笔记状态过滤
 
     private Integer pageNum;
 

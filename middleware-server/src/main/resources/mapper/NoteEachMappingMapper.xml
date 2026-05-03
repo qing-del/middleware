@@ -126,4 +126,12 @@
           AND is_deleted = 0
     </update>
 
+    <select id="countByNoteIdAndTargetIdIsNull" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM biz_note_each_mapping
+        WHERE source_note_id = #{noteId}
+          AND target_note_id IS NULL
+          AND is_deleted = 0
+    </select>
+
 </mapper>

@@ -44,6 +44,6 @@ public class UserNoteDetailVO implements Serializable {
     @Schema(description = "更新时间", example = "2024-01-15T12:00:00")
     private LocalDateTime updateTime;
 
-    @Schema(description = "是否发布：0-否，1-是", example = "1")
-    private Short isPublished;
+    @Schema(description = "笔记状态(0:已创建,1:缺失信息,2:待转换,3:已转换,4:审核中,5:已通过,6:已公开,7:已拒绝,8:已删除)", example = "0")
+    private Short status;
 }

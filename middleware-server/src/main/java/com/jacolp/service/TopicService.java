@@ -36,4 +36,8 @@ public interface TopicService {
      * 获取当前用户主题统计。
      */
     TopicStatsVO getUserTopicStats();
+
+    boolean topicExists(Long topicId);
+
+    int updatePassStatusByIds(List<Long> ids, Short isPass);
 }

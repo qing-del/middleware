@@ -16,7 +16,6 @@ import com.jacolp.constant.TopicConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.MetaAuditMapper;
 import com.jacolp.mapper.TopicMapper;
 import com.jacolp.pojo.dto.topic.TopicNoteCountDTO;
 import com.jacolp.pojo.dto.topic.TopicAddDTO;
@@ -29,6 +28,7 @@ import com.jacolp.pojo.vo.topic.TopicDetailVO;
 import com.jacolp.pojo.vo.topic.TopicListVO;
 import com.jacolp.pojo.vo.topic.TopicStatsVO;
 import com.jacolp.result.PageResult;
+import com.jacolp.service.AuditService;
 import com.jacolp.service.TopicService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -44,11 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TopicServiceImpl implements TopicService {
 
-    @Autowired
-    private TopicMapper topicMapper;
-
-    @Autowired
-    private MetaAuditMapper metaAuditMapper;
+    @Autowired private TopicMapper topicMapper;
+    @Autowired private AuditService auditService;
 
     /**
      * 新增主题。
@@ -240,8 +237,7 @@ public class TopicServiceImpl implements TopicService {
             throw new BaseException("该主题已通过审核");
         }
         // 检查是否已有待审核记录
-        int pendingCount = metaAuditMapper.countPendingAuditByApplyTypeAndTargetId(AuditConstant.TOPIC_APPLY_TYPE, topicId);
-        if (pendingCount > 0) {
+        if (auditService.hasPendingMetaAudit(AuditConstant.TOPIC_APPLY_TYPE, topicId)) {
             throw new BaseException("该主题已有待审核的申请");
         }
 
@@ -249,10 +245,7 @@ public class TopicServiceImpl implements TopicService {
         record.setApplicantUserId(userId);
         record.setApplyType(AuditConstant.TOPIC_APPLY_TYPE);
         record.setTargetId(topicId);
-        int count = metaAuditMapper.insertAuditRecord(record);
-        if (count <= 0) {
-            throw new BaseException(TopicConstant.TOPIC_SUBMIT_AUDIT_FAILED);
-        }
+        auditService.createMetaAuditRecord(record);
     }
 
     /**
@@ -264,6 +257,19 @@ public class TopicServiceImpl implements TopicService {
         long topicCount = topicMapper.countByUserId(userId);
         long passedCount = topicMapper.countPassedByUserId(userId);
         return new TopicStatsVO(topicCount, passedCount);
+    }
+
+    @Override
+    public boolean topicExists(Long topicId) {
+        if (topicId == null || topicId <= 0) {
+            return false;
+        }
+        return topicMapper.countById(topicId) > 0;
+    }
+
+    @Override
+    public int updatePassStatusByIds(List<Long> ids, Short isPass) {
+        return topicMapper.updatePassByIds(ids, isPass);
     }
 
     /**

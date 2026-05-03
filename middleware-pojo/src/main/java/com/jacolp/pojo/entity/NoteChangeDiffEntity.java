@@ -22,6 +22,8 @@ public class NoteChangeDiffEntity implements Serializable {
 
     private String diffJson;
 
+    private String scanJson;  // 新文本扫描结果保存为JSON(NoteReletionInfo)
+
     private Long oldFileSize;
 
     private Long newFileSize;

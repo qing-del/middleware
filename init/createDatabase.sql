@@ -97,19 +97,19 @@ CREATE TABLE `biz_note` (
                             `topic_id` bigint DEFAULT NULL COMMENT '所属主题ID(允许为空，即未分类笔记)',
                             `title` varchar(100) NOT NULL COMMENT '笔记标题',
                             `description` varchar(255) DEFAULT NULL COMMENT '笔记描述',
-                            `is_published` tinyint NOT NULL DEFAULT 0 COMMENT '是否发布(1:公开, 0:私密)',
                             `storage_type` tinyint NOT NULL COMMENT '存储方式-0:本地存储, 1:阿里云OSS, 2:Cloudflare R2(预留)',
-                            `is_missing_info` tinyint NOT NULL DEFAULT 0 COMMENT '信息是否缺失(0:正常, 1:标签或图片未完整绑定)',
-                            `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
-                            `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
+                            `status` tinyint NOT NULL DEFAULT 0 COMMENT '笔记状态(0:已创建,1:缺失信息,2:待转换,3:已转换,4:审核中,5:已通过,6:已公开,7:已拒绝,8:已删除)',
+                            `missing_info_mask` tinyint NOT NULL DEFAULT 0 COMMENT '缺失信息掩码(1:标签,2:图片,4:内联笔记)',
+                            `missing_count` tinyint NOT NULL DEFAULT 0 COMMENT '缺失信息数量,为0时自动扫描并触发状态转换',
                             `md_file_size` bigint NOT NULL DEFAULT 0 COMMENT 'MD文件大小合计(字节, 上传时由服务端写入, 用于存储配额统计)',
                             `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                             `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                             PRIMARY KEY (`id`),
                             KEY `idx_user_id` (`user_id`),
                             -- 这个索引逻辑唯一二级索引 在Java层完成唯一性校验
-                            KEY `idx_user_topic_title_deleted` (`user_id`, `topic_id`, title(30), `is_deleted`),
-                            KEY `idx_topic_deleted` (`topic_id`, `is_deleted`)
+                            KEY `idx_user_topic_title_status` (`user_id`, `topic_id`, title(30), `status`),
+                            KEY `idx_topic_status` (`topic_id`, `status`),
+                            KEY `idx_status_user` (`status`, `user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记存储记录表';
 
 
@@ -138,6 +138,7 @@ CREATE TABLE `biz_note_change_diff` (
     `note_id`       bigint       NOT NULL COMMENT '关联笔记ID(biz_note.id, 唯一)',
     `status`        tinyint      NOT NULL DEFAULT 0 COMMENT '状态(0:等待确认, 1:已接受, 2:已拒绝)',
     `diff_json`     longtext     NOT NULL COMMENT 'Diff内容(JSON)',
+    `scan_json`     longtext     DEFAULT NULL COMMENT '新文本扫描结果JSON(tags/imageNames/noteLinks)',
     `old_file_size` bigint       NOT NULL COMMENT '覆盖前文件大小',
     `new_file_size` bigint       NOT NULL COMMENT '覆盖后文件大小',
     `create_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

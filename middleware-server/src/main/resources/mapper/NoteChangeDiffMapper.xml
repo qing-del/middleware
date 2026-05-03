@@ -8,6 +8,7 @@
         <result column="note_id" property="noteId"/>
         <result column="status" property="status"/>
         <result column="diff_json" property="diffJson"/>
+        <result column="scan_json" property="scanJson"/>
         <result column="old_file_size" property="oldFileSize"/>
         <result column="new_file_size" property="newFileSize"/>
         <result column="diff_file_size" property="diffFileSize"/>
@@ -16,17 +17,18 @@
     </resultMap>
 
     <select id="selectByNoteId" resultMap="NoteChangeDiffMap">
-        SELECT id, note_id, status, diff_json, old_file_size, new_file_size, diff_file_size, create_time, update_time
+        SELECT id, note_id, status, diff_json, scan_json, old_file_size, new_file_size, diff_file_size, create_time, update_time
         FROM biz_note_change_diff
         WHERE note_id = #{noteId}
     </select>
 
     <insert id="upsertDiff" parameterType="com.jacolp.pojo.entity.NoteChangeDiffEntity">
-        INSERT INTO biz_note_change_diff (note_id, status, diff_json, old_file_size, new_file_size, diff_file_size)
-        VALUES (#{noteId}, #{status}, #{diffJson}, #{oldFileSize}, #{newFileSize}, #{diffFileSize})
+        INSERT INTO biz_note_change_diff (note_id, status, diff_json, scan_json, old_file_size, new_file_size, diff_file_size)
+        VALUES (#{noteId}, #{status}, #{diffJson}, #{scanJson}, #{oldFileSize}, #{newFileSize}, #{diffFileSize})
         ON DUPLICATE KEY UPDATE
             status = VALUES(status),
             diff_json = VALUES(diff_json),
+            scan_json = VALUES(scan_json),
             old_file_size = VALUES(old_file_size),
             new_file_size = VALUES(new_file_size),
             diff_file_size = VALUES(diff_file_size),

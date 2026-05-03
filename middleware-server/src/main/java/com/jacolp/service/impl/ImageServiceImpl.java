@@ -5,9 +5,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.jacolp.annotation.StorageHandler;
+import com.jacolp.enums.StorageOperationType;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,12 +27,8 @@ import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.StorageUpdateContext;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.ImageAuditMapper;
 import com.jacolp.mapper.ImageDeleteDeadLetterMapper;
 import com.jacolp.mapper.ImageMapper;
-import com.jacolp.mapper.NoteMapper;
-import com.jacolp.mapper.TopicMapper;
-import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
@@ -41,9 +40,13 @@ import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import com.jacolp.pojo.vo.image.ImageStatsVO;
 import com.jacolp.pojo.vo.image.ImageVO;
+import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
+import com.jacolp.service.AuditService;
 import com.jacolp.service.ImageService;
+import com.jacolp.service.NoteService;
+import com.jacolp.service.TopicService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,12 +65,12 @@ import lombok.extern.slf4j.Slf4j;
 public class ImageServiceImpl implements ImageService {
 
     @Autowired private ImageMapper imageMapper;
-    @Autowired private ImageAuditMapper imageAuditMapper;
     @Autowired private AliyunOSSOperator aliyunOSSOperator;
-    @Autowired private NoteMapper noteMapper;
-    @Autowired private UserMapper userMapper;
-    @Autowired private TopicMapper topicMapper;
     @Autowired private ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper;
+
+    @Autowired private AuditService auditService;
+    @Autowired private NoteService noteService;
+    @Autowired private TopicService topicService;
 
     /**
      * 上传图片。
@@ -79,6 +82,7 @@ public class ImageServiceImpl implements ImageService {
      * 4. 累加用户已用存储空间。（已经在切面类中完成了这种重复的操作，并且做了并发安全的控制）
      */
     @Override
+    @StorageHandler(operationType = StorageOperationType.UPLOAD)
     public ImageVO uploadImage(MultipartFile file, Long topicId) {
         Long userId = BaseContext.getCurrentId();
         String filename = file.getOriginalFilename();
@@ -130,6 +134,7 @@ public class ImageServiceImpl implements ImageService {
      * @id 图片 ID
      */
     @Override
+    @StorageHandler(operationType = StorageOperationType.MODIFY)
     public void modifyImageFile(Long id, MultipartFile newFile) {
         Long userId = BaseContext.getCurrentId();
         validateImageId(id);
@@ -260,6 +265,7 @@ public class ImageServiceImpl implements ImageService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @StorageHandler(operationType = com.jacolp.enums.StorageOperationType.BATCH_DELETE)
     public ImageBatchDeleteVO deleteImages(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BaseException("待删除的图片 ID 列表不能为空");
@@ -369,7 +375,7 @@ public class ImageServiceImpl implements ImageService {
     public List<NoteSimpleVO> listNotesByImageId(Long imageId) {
         validateImageId(imageId);
 
-        ArrayList<NoteSimpleVO> notes = noteMapper.selectNoteSimpleByImageId(imageId);
+        List<NoteSimpleVO> notes = noteService.listNoteSimplesByImageId(imageId);
         // TODO 后续可以加入是否筛选 非删除/公开 的数据
 
         return notes;
@@ -405,7 +411,7 @@ public class ImageServiceImpl implements ImageService {
         validateImageId(dto.getAuditId());
 
         // 查询审核记录
-        ImageAuditRecordEntity auditRecord = imageAuditMapper.selectById(dto.getAuditId());
+        ImageAuditRecordEntity auditRecord = auditService.getImageAuditRecordById(dto.getAuditId());
         if (auditRecord == null || auditRecord.getStatus() != ImageConstant.AUDIT_STATUS_PENDING) {
             throw new BaseException(ImageConstant.IMAGE_AUDIT_ALREADY_PROCESSED);
         }
@@ -440,7 +446,7 @@ public class ImageServiceImpl implements ImageService {
             }
         }
 
-        imageAuditMapper.updateAuditRecord(auditRecord);
+        auditService.updateImageAuditRecord(auditRecord);
     }
 
     /**
@@ -480,15 +486,14 @@ public class ImageServiceImpl implements ImageService {
         if (AuditConstant.PASS.equals(image.getIsPass())) {
             throw new BaseException("该图片已通过审核");
         }
-        int pendingCount = imageAuditMapper.countPendingAuditByImageId(imageId);
-        if (pendingCount > 0) {
+        if (auditService.hasPendingImageAudit(imageId)) {
             throw new BaseException("该图片已有待审核的申请");
         }
 
         ImageAuditRecordEntity record = new ImageAuditRecordEntity();
         record.setApplicantUserId(userId);
         record.setImageId(imageId);
-        imageAuditMapper.insertAuditRecord(record);
+        auditService.createImageAuditRecord(record);
     }
 
     /**
@@ -502,6 +507,131 @@ public class ImageServiceImpl implements ImageService {
         return new ImageStatsVO(imageCount, passedCount);
     }
 
+    @Override
+    public ImageEntity getById(Long id) {
+        return imageMapper.selectById(id);
+    }
+
+    @Override
+    public List<ImageEntity> getByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return imageMapper.selectByIds(new ArrayList<>(ids));
+    }
+
+    @Override
+    public List<ImageEntity> getByUserIdAndTopicIdAndFilenames(Long userId, Long topicId, List<String> filenames) {
+        if (filenames == null || filenames.isEmpty()) {
+            return List.of();
+        }
+        return imageMapper.selectByUserIdAndTopicIdAndFilenames(userId, topicId, filenames);
+    }
+
+    // ===== 用户端方法 =====
+
+    @Override
+    public UserImageDetailVO uploadUserImage(MultipartFile file, Long topicId) {
+        Long userId = BaseContext.getCurrentId();
+        String filename = file.getOriginalFilename();
+
+        if (filename == null || filename.isEmpty()) {
+            throw new BaseException(ImageConstant.IMAGE_EMPTY_FILENAME);
+        }
+
+        if (topicId != null && topicId > 0) {
+            if (!topicService.topicExists(topicId)) {
+                throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
+            }
+        }
+
+        int count = imageMapper.countByUserIdTopicIdAndFilename(userId, topicId, filename);
+        if (count > 0) {
+            throw new BaseException(ImageConstant.IMAGE_NAME_DUPLICATE);
+        }
+
+        String ossUrl = uploadToAliyunOss(file, userId, filename);
+
+        ImageEntity image = new ImageEntity();
+        image.setUserId(userId);
+        image.setTopicId(topicId);
+        image.setFilename(filename);
+        image.setOssUrl(ossUrl);
+        image.setStorageType(ImageConstant.DEFAULT_STORAGE_TYPE);
+        image.setFileSize(file.getSize());
+        image.setIsPublic(ImageConstant.IS_PUBLIC_NO);
+        image.setIsPass(ImageConstant.AUDIT_STATUS_APPROVED);
+        image.setUploadTime(LocalDateTime.now());
+
+        int insertCount = imageMapper.insertImage(image);
+        if (insertCount <= 0) {
+            log.error("Image upload operation is failed, url: {}", ossUrl);
+            throw new BaseException("图片上传失败");
+        }
+
+        UserImageDetailVO vo = new UserImageDetailVO();
+        BeanUtils.copyProperties(image, vo);
+        return vo;
+    }
+
+    @Override
+    public UserImageDetailVO getUserImageDetail(Long id) {
+        Long userId = BaseContext.getCurrentId();
+
+        if (id == null || id <= 0) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        ImageEntity image = imageMapper.selectById(id);
+        if (image == null) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        if (!image.getUserId().equals(userId)) {
+            throw new BaseException("只能查看自己的图片");
+        }
+
+        UserImageDetailVO vo = new UserImageDetailVO();
+        BeanUtils.copyProperties(image, vo);
+        return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteUserImage(Long id) {
+        Long userId = BaseContext.getCurrentId();
+
+        if (id == null || id <= 0) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        ImageEntity image = imageMapper.selectById(id);
+        if (image == null) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        if (!image.getUserId().equals(userId)) {
+            throw new BaseException("只能删除自己的图片");
+        }
+
+        if (image.getStorageType() != null &&
+            image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
+            deleteFromAliyunOss(image);
+        }
+
+        int deleteCount = imageMapper.deleteByIds(List.of(id));
+        if (deleteCount <= 0) {
+            throw new BaseException("删除图片失败");
+        }
+
+        Map<Long, Long> userStorageMap = Map.of(userId, image.getFileSize());
+        StorageUpdateContext.setStorageMap(userStorageMap);
+    }
+
+    @Override
+    public int updatePassStatusByIds(List<Long> ids, Short isPass) {
+        return imageMapper.updatePassByIds(ids, isPass);
+    }
 
     // ============ 私有方法 ============
     /**
@@ -617,8 +747,7 @@ public class ImageServiceImpl implements ImageService {
     private void validateTopic(Long topicId) {
         // 校验 topicId 是否合法
         if (topicId != null && topicId > 0) {
-            int count = topicMapper.countById(topicId);
-            if (count <= 0) {
+            if (!topicService.topicExists(topicId)) {
                 throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
             }
         }

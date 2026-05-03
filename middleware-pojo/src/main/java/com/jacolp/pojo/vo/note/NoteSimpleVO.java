@@ -23,9 +23,7 @@ public class NoteSimpleVO implements Serializable {
 
     private Short isCrossUser;
 
-    private Short isPublished;  // TODO 后续可以选择是否加入
-
-    private Short isDeleted;
+    private Short status;  // 笔记状态
 
     private LocalDateTime createTime;
 }

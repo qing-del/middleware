@@ -140,4 +140,12 @@
             #{tagId}
         </foreach>
     </update>
+
+    <select id="countByNoteIdAndTargetIdIsNull" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM biz_note_tag_mapping
+        WHERE note_id = #{noteId}
+          AND tag_id IS NULL
+          AND is_deleted = 0
+    </select>
 </mapper>

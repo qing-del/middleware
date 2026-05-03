@@ -5,12 +5,14 @@ import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
+import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
 import com.jacolp.pojo.dto.image.ImageQueryDTO;
 import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import com.jacolp.pojo.vo.image.ImageStatsVO;
 import com.jacolp.pojo.vo.image.ImageVO;
+import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 
@@ -85,4 +87,29 @@ public interface ImageService {
      * 获取当前用户图片统计。
      */
     ImageStatsVO getUserImageStats();
+
+    /**
+     * 根据ID查询图片，供其他Service内部调用。
+     */
+    ImageEntity getById(Long id);
+
+    /**
+     * 根据ID列表批量查询图片，供其他Service内部调用。
+     */
+    List<ImageEntity> getByIds(List<Long> ids);
+
+    /**
+     * 根据用户ID、主题ID、文件名列表批量查询图片，供其他Service内部调用。
+     */
+    List<ImageEntity> getByUserIdAndTopicIdAndFilenames(Long userId, Long topicId, List<String> filenames);
+
+    // ===== 用户端方法 =====
+
+    UserImageDetailVO uploadUserImage(MultipartFile file, Long topicId);
+
+    UserImageDetailVO getUserImageDetail(Long id);
+
+    void deleteUserImage(Long id);
+
+    int updatePassStatusByIds(List<Long> ids, Short isPass);
 }
