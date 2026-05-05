@@ -21,6 +21,15 @@ public interface NoteContextService {
     NoteContextEntity getByNoteId(Long noteId);
 
     /**
+     * 获取笔记源文件
+     * <p>- 自带通过 {@link com.jacolp.context.PermissionContext} 决定是否开启所属权校验</p>
+     * @param noteId 笔记 ID
+     * @return 笔记内容实体
+     * @throws com.jacolp.exception.BaseException 笔记不存在 / 笔记无权限访问
+     */
+    NoteContextEntity getByNoteIdWithValid(Long noteId);
+
+    /**
      * 保存笔记
      * @param noteContext 笔记文本实体
      */

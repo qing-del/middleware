@@ -36,4 +36,13 @@ public interface NoteContextMapper {
      * 批量删除笔记内容
      */
     int deleteByNoteIds(@Param("noteIds") List<Long> noteIds);
+
+    /**
+     * 根据 note_id 查询笔记内容
+     * <p>- 带有管理员校验</p>
+     * @param noteId 笔记 ID
+     * @param userId 用户 ID（传入 null 则不进行所有权校验）
+     * @return 笔记内容（不存在 / 没有所有权会返回 null）
+     */
+    NoteContextEntity selectByNoteIdWithValidUserId(Long noteId, Long userId);
 }

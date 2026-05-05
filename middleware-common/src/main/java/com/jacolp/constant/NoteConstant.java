@@ -16,7 +16,7 @@ public class NoteConstant {
     /**
      * 笔记存储类型：0-本地存储，1-阿里云OSS，2-Cloudflare R2
      */
-    public static final Integer STORAGE_TYPE_LOCAL = 0;
+    public static final Integer DEFAULT_STORAGE_TYPE = 0;
     public static final Integer STORAGE_TYPE_ALIYUN_OSS = 1;
     public static final Integer STORAGE_TYPE_CLOUDFLARE_R2 = 2;
 
@@ -46,9 +46,6 @@ public class NoteConstant {
      */
     public static final Short NOT_IS_CROSS_USER = 0;
     public static final Short IS_CROSS_USER = 1;
-
-
-    public static final Integer DEFAULT_STORAGE_TYPE = STORAGE_TYPE_LOCAL;
 
     /**
      * 笔记状态常量
@@ -93,6 +90,7 @@ public class NoteConstant {
     public static final String NOTE_AUDIT_PENDING = "该笔记已有待审核的申请";
     public static final String NOTE_NOT_PASS = "该笔记未通过审核";
     public static final String DELETE_NOTE_NOT_EXIST = "需要删除的笔记不存在";
+    public static final String NOTE_UPLOAD_FAILED = "笔记上传失败";
 
     private NoteConstant() {
     }

@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.jacolp.mapper.NoteTagMappingMapper">
+        <?xml version="1.0" encoding="UTF-8" ?>
+                <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+        <mapper namespace="com.jacolp.mapper.NoteTagMappingMapper">
 
     <resultMap id="NoteTagMappingMap" type="com.jacolp.pojo.entity.NoteTagMappingEntity">
         <id column="id" property="id"/>
@@ -27,6 +27,18 @@
         FROM biz_note_tag_mapping
         WHERE id = #{id}
           AND is_deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectByIdWithValidUserId" resultType="com.jacolp.pojo.entity.NoteTagMappingEntity">
+        SELECT t.id, t.note_id, t.tag_id, t.parsed_tag_name, t.is_pass, t.is_deleted, t.create_time, t.update_time
+        FROM biz_note_tag_mapping t
+        JOIN biz_note n ON t.note_id = n.id
+        WHERE t.id = #{id}
+          AND t.is_deleted = 0
+        <if test="userId != null">
+            AND n.user_id = #{userId}
+        </if>
         LIMIT 1
     </select>
 

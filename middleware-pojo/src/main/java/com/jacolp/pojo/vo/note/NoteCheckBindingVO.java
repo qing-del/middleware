@@ -38,6 +38,16 @@ public class NoteCheckBindingVO implements Serializable {
     private boolean isComplete;
 
     /**
+     * 缺失信息掩码
+     */
+    private Integer missingInfoMask;
+
+    /**
+     * 缺失信息数量
+     */
+    private Integer missingCount;
+
+    /**
      * 缺失的标签列表
      */
     private List<String> missingTags;

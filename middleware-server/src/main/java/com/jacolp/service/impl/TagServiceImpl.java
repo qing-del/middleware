@@ -43,7 +43,7 @@ import com.jacolp.pojo.vo.tag.UserTagSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
 import com.jacolp.service.NoteRelationService;
-import com.jacolp.service.NoteService;
+import com.jacolp.service.NoteServiceOld;
 import com.jacolp.service.TagService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +56,7 @@ public class TagServiceImpl implements TagService {
 
     // 来自其他模块的 Mapper
     @Autowired private AuditService auditService;
-    @Autowired private NoteService noteService;
+    @Autowired private NoteServiceOld noteServiceOld;
     @Autowired private NoteRelationService noteRelationService;
 
     @Override
@@ -393,7 +393,7 @@ public class TagServiceImpl implements TagService {
     }
 
     private void assignTagToNote(TagEntity tag, Long noteId, Long userId) {
-        NoteEntity note = noteService.getNoteEntityById(noteId);
+        NoteEntity note = noteServiceOld.getNoteEntityById(noteId);
         if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
@@ -422,7 +422,7 @@ public class TagServiceImpl implements TagService {
     }
 
     private void removeTagFromNote(TagEntity tag, Long noteId, Long userId) {
-        NoteEntity note = noteService.getNoteEntityById(noteId);
+        NoteEntity note = noteServiceOld.getNoteEntityById(noteId);
         if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }

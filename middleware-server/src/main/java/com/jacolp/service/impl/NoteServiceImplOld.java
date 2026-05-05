@@ -44,7 +44,6 @@ import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
-import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
@@ -66,7 +65,7 @@ import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
 import com.jacolp.service.ImageService;
-import com.jacolp.service.NoteService;
+import com.jacolp.service.NoteServiceOld;
 import com.jacolp.service.TagService;
 import com.jacolp.service.TopicService;
 import com.jacolp.service.UserService;
@@ -88,7 +87,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-public class NoteServiceImpl implements NoteService {
+public class NoteServiceImplOld implements NoteServiceOld {
 
     // ==== 笔记模块的 Mapper ====
     @Autowired private NoteMapper noteMapper;
@@ -650,9 +649,6 @@ public class NoteServiceImpl implements NoteService {
     public void modifyInfo(NoteModifyInfoDTO dto) {
         NoteEntity note = validateOwnedNote(dto.getId(), BaseContext.getCurrentId());
 
-        if (StringUtils.hasText(dto.getTitle())) {
-            note.setTitle(dto.getTitle().trim());
-        }
         if (dto.getDescription() != null) {
             note.setDescription(dto.getDescription().trim());
         }
@@ -661,7 +657,6 @@ public class NoteServiceImpl implements NoteService {
             note.setTopicId(dto.getTopicId());
         }
 
-        // TODO 如果笔记信息修改不能改title 则这里不用检查了(*)
         // 检查是否可以修改
         if (noteMapper.countByUserIdAndTopicIdAndTitle(note.getUserId(), note.getTopicId(), note.getTitle()) > 0) {
             throw new BaseException("你在对应主题下已存在同名的笔记，无法修改！");
@@ -1187,12 +1182,12 @@ public class NoteServiceImpl implements NoteService {
         }
 
         if (!note.getUserId().equals(userId)) {
-            throw new BaseException("只能查看自己的笔记");
+            throw new BaseException(NoteConstant.NOTE_NOT_OWNER);
         }
 
         NoteConvertedEntity converted = noteConvertMapper.selectByNoteId(noteId);
         if (converted == null) {
-            throw new BaseException("笔记尚未转换，请先转换笔记");
+            throw new BaseException(NoteConstant.NOTE_NOT_CONVERTED);
         }
 
         List<Long> tagIds = noteTagMappingMapper.selectTagIdsByNoteId(noteId);
@@ -1264,9 +1259,6 @@ public class NoteServiceImpl implements NoteService {
             noteConvertMapper.deleteByNoteId(dto.getId());
         }
 
-        if (StringUtils.hasText(dto.getTitle())) {
-            note.setTitle(dto.getTitle());
-        }
         if (dto.getDescription() != null) {
             note.setDescription(dto.getDescription());
         }
@@ -2158,12 +2150,12 @@ public class NoteServiceImpl implements NoteService {
 
         // 六个集合差集：新增/移除标签、新增/移除图片、新增/移除双链笔记。
         NoteDiffVO diffVO = new NoteDiffVO();
-        diffVO.setAddedTags(new ArrayList<>(difference(newTagSet, oldTagSet)));
-        diffVO.setRemovedTags(new ArrayList<>(difference(oldTagSet, newTagSet)));
-        diffVO.setAddedImages(new ArrayList<>(difference(newImageSet, oldImageSet)));
-        diffVO.setRemovedImages(new ArrayList<>(difference(oldImageSet, newImageSet)));
-        diffVO.setAddedNoteNames(new ArrayList<>(difference(newNoteSet, oldNoteSet)));
-        diffVO.setRemovedNoteNames(new ArrayList<>(difference(oldNoteSet, newNoteSet)));
+        diffVO.setOldTags(new ArrayList<>(difference(newTagSet, oldTagSet)));
+        diffVO.setNewTags(new ArrayList<>(difference(oldTagSet, newTagSet)));
+        diffVO.setOldImages(new ArrayList<>(difference(newImageSet, oldImageSet)));
+        diffVO.setNewImages(new ArrayList<>(difference(oldImageSet, newImageSet)));
+        diffVO.setOldNoteNames(new ArrayList<>(difference(newNoteSet, oldNoteSet)));
+        diffVO.setNewNoteNames(new ArrayList<>(difference(oldNoteSet, newNoteSet)));
         return diffVO;
     }
 

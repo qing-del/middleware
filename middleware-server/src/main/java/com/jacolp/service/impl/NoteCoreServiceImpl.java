@@ -1,0 +1,345 @@
+package com.jacolp.service.impl;
+
+import java.util.List;
+
+import com.jacolp.pojo.dto.note.*;
+import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.jacolp.constant.NoteConstant;
+import com.jacolp.constant.PageConstant;
+import com.jacolp.constant.UserConstant;
+import com.jacolp.context.BaseContext;
+import com.jacolp.context.PermissionContext;
+import com.jacolp.enums.NoteStatus;
+import com.jacolp.exception.BaseException;
+import com.jacolp.mapper.NoteMapper;
+import com.jacolp.pojo.entity.NoteAuditRecordEntity;
+import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.pojo.vo.note.NoteStatsVO;
+import com.jacolp.pojo.vo.note.NoteVO;
+import com.jacolp.result.PageResult;
+import com.jacolp.service.AuditService;
+import com.jacolp.service.NoteCoreService;
+
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * 笔记核心 CRUD 实现。
+ *
+ * <p>负责 {@code biz_note} 表的基础读写及生命周期管理（发布/下架、审核申请、删除）。
+ * 复杂编排（上传、修改、确认变更）由 {@link com.jacolp.facade.impl.NoteFacadeImpl} 负责。</p>
+ */
+@Service
+@Slf4j
+public class NoteCoreServiceImpl implements NoteCoreService {
+
+    @Autowired private NoteMapper noteMapper;
+
+    // 来自其他模块的 Service
+    @Autowired private AuditService auditService;
+
+    @Override
+    public void update(NoteEntity noteEntity) {
+        int affected = noteMapper.updateNote(noteEntity);
+        if (affected <= 0) {
+            throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
+        }
+    }
+
+    @Override
+    public PageResult listNotes(NoteQueryDTO dto) {
+        if (dto == null) {
+            dto = new NoteQueryDTO();
+        }
+        Integer pageNumParam = dto.getPageNum();
+        Integer pageSizeParam = dto.getPageSize();
+        int pageNum = pageNumParam == null || pageNumParam <= 0 ? PageConstant.DEFAULT_PAGE : pageNumParam;
+        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : pageSizeParam;
+        PageHelper.startPage(pageNum, pageSize);
+
+        List<NoteVO> records = noteMapper.listByCondition(dto);
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    @Override
+    public NoteStatsVO getUserNoteOverview() {
+        Long userId = BaseContext.getCurrentId();
+        long noteTotalCount = noteMapper.countByUserId(userId);
+        long publicNoteCount = noteMapper.countPublicByUserId(userId);
+        long approvedNoteCount = noteMapper.countApprovedByUserId(userId);
+        return new NoteStatsVO(noteTotalCount, publicNoteCount, approvedNoteCount);
+    }
+
+    @Override
+    public PageResult listUserNotes(UserNoteQueryDTO dto) {
+        if (dto == null) {
+            dto = new UserNoteQueryDTO();
+        }
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        String title = (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) ? dto.getTitle().trim() : null;
+        List<NoteVO> records = noteMapper.listByUserCondition(BaseContext.getCurrentId(), dto.getTopicId(), title);
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 获取笔记
+     * <p>会通过 {@link PermissionContext} 来判断是否是管理员</p>
+     * <p>- 如果是管理员会跳过校验</p>
+     * <p>- 如果不是管理员会校验笔记归属权</p>
+     * @param id 笔记 ID
+     * @return 笔记
+     * @throws BaseException 笔记不存在 / 笔记无权限访问
+     */
+    @Override
+    public NoteEntity getById(Long id) {
+        NoteEntity note = noteMapper.selectById(id);
+        // 校验笔记是否存在
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+        // 管理端越过所有权校验
+        if (!PermissionContext.isAdmin() && !note.getUserId().equals(BaseContext.getCurrentId())) {
+            throw new BaseException(UserConstant.PERMISSION_DENIED);
+        }
+        return note;
+    }
+
+    @Override
+    public List<NoteEntity> getByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return noteMapper.selectByIds(ids);
+    }
+
+    @Override
+    public boolean countByUserIdAndTopicIdAndTitle(Long userId, Long topicId, String title) {
+        return noteMapper.countByUserIdAndTopicIdAndTitle(userId, topicId, title) > 0;
+    }
+
+    @Override
+    public List<NoteEntity> getByUserIdAndTopicIdAndTitles(Long userId, Long topicId, List<String> titles) {
+        if (titles == null) {
+            return List.of();
+        }
+
+        List<NoteEntity> notes = noteMapper.selectByUserIdAndTitles(userId, titles);
+        if (notes == null || notes.isEmpty()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+        return notes;
+    }
+
+    @Override
+    public void saveNote(NoteEntity noteEntity) {
+        if (noteMapper.insertNote(noteEntity) <= 0) {
+            throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
+        }
+    }
+
+    @Override
+    public void adminDeleteConverted(Long noteId) {
+        noteMapper.updateStatus(noteId, NoteStatus.READY_TO_CONVERT.getCode());
+    }
+
+    @Override
+    public void updateStatusByIds(List<Long> noteIds, Short status) {
+        if (noteIds != null && !noteIds.isEmpty()) {
+            int affected = noteMapper.updateStatusByIds(noteIds, status);
+            if (affected != noteIds.size()) {
+                log.error("Failed to update a part of notes' status!");
+                if (affected < 1) {
+                    throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void modifyInfo(NoteModifyInfoDTO dto) {
+        NoteEntity note = getById(dto.getId());
+
+        if (StringUtils.hasText(dto.getDescription())) {
+            note.setDescription(dto.getDescription().trim());
+        }
+        if (dto.getTopicId() != null) {
+            note.setTopicId(dto.getTopicId());
+        }
+        // title 不允许通过 modifyInfo 修改
+
+        note.setStatus(NoteStatus.PENDING_AUDIT.getCode());
+
+        if (noteMapper.updateNote(note) < 1) {
+            log.error("Failed to update note info!");
+            throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
+        }
+    }
+
+    // ==================== 审核申请 ====================
+
+    /**
+     * 用户端发起笔记审核申请。
+     * <p>仅允许申请自己的笔记，且不能已通过审核或已有待审核申请。</p>
+     */
+    @Override
+    public void submitNoteAudit(Long noteId) {
+        Long userId = BaseContext.getCurrentId();
+        if (noteId == null || noteId <= 0) {
+            throw new BaseException(NoteConstant.NOTE_ID_INVALID);
+        }
+
+        NoteEntity note = noteMapper.selectById(noteId);
+        if (note == null) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+        if (!note.getUserId().equals(userId)) {
+            throw new BaseException(NoteConstant.NOTE_NOT_OWNER);
+        }
+        NoteStatus status = NoteStatus.fromCode(note.getStatus());
+        if (status.isApproved() || status.isPublished()) {
+            throw new BaseException(NoteConstant.NOTE_ALREADY_PASSED);
+        }
+        if (auditService.hasPendingNoteAudit(noteId)) {
+            throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
+        }
+
+        NoteAuditRecordEntity record = new NoteAuditRecordEntity();
+        record.setApplicantUserId(userId);
+        record.setNoteId(noteId);
+        auditService.createNoteAuditRecord(record);
+    }
+
+    // ==================== 用户端查询 ====================
+
+    /**
+     * 用户端关键词搜索（仅查自己的笔记）。
+     */
+    @Override
+    public PageResult listUserNotesBySearch(UserNoteSearchDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), dto.getKeyword());
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 用户端全文搜索。
+     */
+    @Override
+    public PageResult searchUserNotes(UserNoteSearchDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+        if (!StringUtils.hasText(dto.getKeyword())) {
+            throw new BaseException("搜索关键词不能为空");
+        }
+
+        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
+        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
+        PageHelper.startPage(pageNum, pageSize);
+
+        String keyword = dto.getKeyword().trim();
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), keyword);
+        PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
+        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    /**
+     * 插入笔记。
+     * <p>插入笔记行、转换结果行、文本行、映射行。</p>
+     * @return 插入到数据库之后生成的笔记 ID
+     */
+    @NonNull
+    public Long insertNote(UploadToInsertNoteDTO dto) {
+        // 构建笔记的实体类
+        NoteEntity note = new NoteEntity();
+        note.setUserId(dto.getUserId());
+        note.setTopicId(dto.getTopicId());
+        note.setTitle(stripMarkdownExtension(dto.getOriginalFilename()));
+        note.setStorageType(NoteConstant.DEFAULT_STORAGE_TYPE);
+        note.setMdFileSize(dto.getFileSize());
+
+        // 计算缺失信息掩码
+        int missingMask = calculateInitMissingInfoMask(dto.getTags(), dto.getImageNames(), dto.getNoteNames());
+        int missingCount = countInitMissingBits(missingMask);
+
+        // 设置初始状态
+        note.setStatus(NoteStatus.NEW.getCode());   // 设置笔记状态位 NEW
+        note.setMissingInfoMask(missingMask);
+        note.setMissingCount(missingCount);
+
+        // 插入笔记行
+        int affected = noteMapper.insertNote(note);
+        if (affected <= 0) {
+            throw new BaseException(NoteConstant.NOTE_UPLOAD_FAILED);
+        }
+        return note.getId();
+    }
+
+    /**
+     * 获取笔记的 VO。
+     * <p>- 会根据 {@link PermissionContext} 是否要校验所有权</p>
+     * @param noteId 笔记 ID
+     * @return 笔记的 VO
+     * @throws BaseException 笔记不存在 / 笔记无权限访问
+     */
+    @Override
+    public NoteVO getNoteVOById(Long noteId) {
+        NoteVO noteVO = noteMapper.selectVoById(noteId);
+        if (noteVO == null || NoteStatus.DELETED.getCode().equals(noteVO.getStatus())) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+
+        // 检查是否是管理员 & 校验所有权
+        if (!PermissionContext.isAdmin() && !noteVO.getUserId().equals(BaseContext.getCurrentId())) {
+            throw new BaseException(NoteConstant.NOTE_NOT_OWNER);
+        }
+
+        return noteVO;
+    }
+
+    private long safeLong(Long value) {
+        return value == null ? 0L : value;
+    }
+
+    /** 按解析出的关联信息计算初始缺失掩码 — 有关联就标记为缺失 */
+    private int calculateInitMissingInfoMask(List<String> tags, List<String> imageNames,
+                                             List<String> noteLinks) {
+        int missingMask = 0;
+        if (tags != null && !tags.isEmpty()) missingMask |= NoteConstant.MISSING_TAG;
+        if (imageNames != null && !imageNames.isEmpty()) missingMask |= NoteConstant.MISSING_IMAGE;
+        if (noteLinks != null && !noteLinks.isEmpty()) missingMask |= NoteConstant.MISSING_NOTE;
+        return missingMask;
+    }
+
+    /** 去除 .md 后缀 */
+    private String stripMarkdownExtension(String filename) {
+        if (filename == null) return null;
+        String name = filename.trim();
+        if (name.toLowerCase().endsWith(".md")) {
+            return name.substring(0, name.length() - 3).trim();
+        }
+        return name;
+    }
+
+    /** 统计缺失位数量（位运算 popcount） */
+    private int countInitMissingBits(int missingMask) {
+        int count = 0;
+        if ((missingMask & NoteConstant.MISSING_TAG) != 0) count++;
+        if ((missingMask & NoteConstant.MISSING_IMAGE) != 0) count++;
+        if ((missingMask & NoteConstant.MISSING_NOTE) != 0) count++;
+        return count;
+    }
+}
