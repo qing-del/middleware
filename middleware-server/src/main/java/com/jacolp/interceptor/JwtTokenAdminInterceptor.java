@@ -2,6 +2,7 @@ package com.jacolp.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.context.BaseContext;
+import com.jacolp.context.PermissionContext;
 import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.Result;
@@ -62,6 +63,7 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
             log.info("Current admin ID: {}", adminId);
         
             BaseContext.setCurrentId(adminId);
+            PermissionContext.setAdmin(true);
             // 3、通过，放行
             return true;
         } catch (Exception ex) {
@@ -102,5 +104,6 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         log.debug("Request completed for admin interceptor");
         BaseContext.remove();
+        PermissionContext.remove();
     }
 }

@@ -151,22 +151,26 @@ public class StorageHandlerAspect {
      * <p>本方法在业务执行后获取该 Map，批量加锁并更新存储。</p>
      */
     private Object handleBatchDelete(ProceedingJoinPoint joinPoint) throws Throwable {
-        Object result = joinPoint.proceed();
-        // 尝试从上下文中获取 文件大小 Map
-        Map<Long, Long> userStorageMap = StorageUpdateContext.getStorageMap();
-        if (userStorageMap == null || userStorageMap.isEmpty()) {
-            log.error("Failed to get file size from ThreadLocal");
-            throw new BaseException("未知错误");
-        }
 
-        // 尝试获取所有用户的锁（最多等待 1000 ms）
-        List<Long> acquiredUserIds = acquireBatchLocks(userStorageMap, 1000);
-        // 锁全部获取失败
-        if (acquiredUserIds == null || acquiredUserIds.isEmpty()) {
-            throw new BaseException("系统繁忙，请稍后重试");
-        }
+        Object result;
+        List<Long> acquiredUserIds = null;
 
         try {
+            result = joinPoint.proceed();
+            // 尝试从上下文中获取 文件大小 Map
+            Map<Long, Long> userStorageMap = StorageUpdateContext.getStorageMap();
+            if (userStorageMap == null || userStorageMap.isEmpty()) {
+                log.error("Failed to get file size from ThreadLocal");
+                throw new BaseException("未知错误");
+            }
+
+            // 尝试获取所有用户的锁（最多等待 1000 ms）
+            acquiredUserIds = acquireBatchLocks(userStorageMap, 1000);
+            // 锁全部获取失败
+            if (acquiredUserIds == null || acquiredUserIds.isEmpty()) {
+                throw new BaseException("系统繁忙，请稍后重试");
+            }
+
             // 判断一下有没有全部拿到（防止出现没拿全的情况，但是又拿了锁，需要释放）
             if (acquiredUserIds.size() != userStorageMap.size()) {
                 throw new BaseException("系统繁忙，请稍后重试");
@@ -175,7 +179,9 @@ public class StorageHandlerAspect {
             // 批量更新用户存储
             batchUpdateUserStorage(userStorageMap);
         } finally {
-            releaseBatchLocks(acquiredUserIds); // 释放所有已获取的用户锁
+            if (acquiredUserIds != null && !acquiredUserIds.isEmpty()) {
+                releaseBatchLocks(acquiredUserIds); // 释放所有已获取的用户锁
+            }
             StorageUpdateContext.clear();   // 清理 ThreadLocal
         }
 

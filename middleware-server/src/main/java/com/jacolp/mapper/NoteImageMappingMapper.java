@@ -14,6 +14,14 @@ public interface NoteImageMappingMapper {
 
     NoteImageMappingEntity selectById(@Param("id") Long id);
 
+    /**
+     * 根据 id 查询笔记图片映射行，并验证用户 id
+     * @param mappingId 笔记图片映射 id
+     * @param userId 用户 id（传入null的话不开启校验）
+     * @return 笔记图片映射行 （不存在 / 没有所属权的时候返回 null）
+     */
+    NoteImageMappingEntity selectByIdWithValidUserId(Long mappingId, Long userId);
+
     int bindImageById(@Param("id") Long id,
                       @Param("imageId") Long imageId,
                       @Param("imageUserId") Long imageUserId,

@@ -14,6 +14,11 @@ public class NoteChangeConfirmDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
+     * Diff 数据行的 id
+     */
+    private Long id;    // Diff 数据行的 id
+
+    /**
      * true: 确认修改；false: 取消修改
      */
     private Boolean confirm;

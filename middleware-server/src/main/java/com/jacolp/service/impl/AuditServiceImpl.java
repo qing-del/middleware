@@ -34,7 +34,7 @@ import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
 import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteRelationService;
-import com.jacolp.service.NoteService;
+import com.jacolp.service.NoteServiceOld;
 import com.jacolp.service.TagService;
 import com.jacolp.service.TopicService;
 
@@ -58,13 +58,12 @@ public class AuditServiceImpl implements AuditService {
     @Autowired private TopicService topicService;
     @Autowired private TagService tagService;
     @Autowired private ImageService imageService;
-    @Autowired private NoteService noteService;
+    @Autowired private NoteServiceOld noteServiceOld;
     @Autowired private NoteRelationService noteRelationService;
 
 
     /**
      * 分页查询主题/标签审核列表。
-     *
      * @param dto 查询条件（申请类型、审核状态、申请人、分页参数）
      * @return 分页结果
      */
@@ -392,7 +391,7 @@ public class AuditServiceImpl implements AuditService {
         // 批量更新笔记状态。将审核状态映射为 NoteStatus
         Short noteStatus = context.status.equals(AuditConstant.PASS) ?
                 NoteStatus.APPROVED.getCode() : NoteStatus.REJECTED.getCode();
-        int count = noteService.updateStatusByIds(noteIds, noteStatus);
+        int count = noteServiceOld.updateStatusByIds(noteIds, noteStatus);
         noteRelationService.updateEachMappingPassBySourceNoteIds(noteIds, context.status);
         // 保守校验：业务表更新必须跟审核表影响行数一致。
         if (count < affected) {

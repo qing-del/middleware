@@ -34,6 +34,18 @@
         LIMIT 1
     </select>
 
+    <select id="selectByIdWithValidUserId" resultMap="NoteImageMappingMap">
+        SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name,
+               note_title, is_cross_user, is_pass, is_deleted, create_time, update_time
+        FROM biz_note_image_mapping
+        WHERE id = #{id}
+          AND is_deleted = 0
+        <if test="userId != null">
+            AND note_user_id = #{userId}
+        </if>
+        LIMIT 1
+    </select>
+
     <insert id="batchInsertMappings">
         INSERT INTO biz_note_image_mapping
             (note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, is_pass, is_deleted)

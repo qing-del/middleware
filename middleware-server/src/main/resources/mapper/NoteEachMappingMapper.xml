@@ -32,6 +32,19 @@
         LIMIT 1
     </select>
 
+    <select id="selectByIdWithValidUserId" resultMap="NoteEachMappingMap">
+        SELECT e.id, e.source_note_id, e.target_note_id, e.parsed_note_name,
+               e.anchor, e.nickname, e.is_pass, e.is_deleted, e.create_time, e.update_time
+        FROM biz_note_each_mapping e
+        JOIN biz_note n ON e.source_note_id = n.id
+        WHERE e.id = #{id}
+          AND e.is_deleted = 0
+        <if test="userId != null">
+            AND n.user_id = #{userId}
+        </if>
+        LIMIT 1
+    </select>
+
     <insert id="batchInsertMappings" parameterType="java.util.List">
         INSERT INTO biz_note_each_mapping
             (source_note_id, target_note_id, parsed_note_name,

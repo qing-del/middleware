@@ -3,6 +3,7 @@ package com.jacolp.pojo.entity;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+import com.jacolp.pojo.provider.NoteIdProvider;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoteEachMappingEntity implements Serializable {
+public class NoteEachMappingEntity implements Serializable, NoteIdProvider {
 
     private static final long serialVersionUID = 1L;
 
@@ -45,4 +46,9 @@ public class NoteEachMappingEntity implements Serializable {
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
+
+    @Override
+    public Long getNoteId() {
+        return sourceNoteId;
+    }
 }

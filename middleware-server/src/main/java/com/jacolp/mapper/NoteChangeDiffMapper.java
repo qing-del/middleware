@@ -27,4 +27,7 @@ public interface NoteChangeDiffMapper {
 
     @Select("SELECT count(*) FROM biz_note_change_diff WHERE note_id = #{noteId} AND status = #{status}")
     int countByNoteIdAndStatus(Long noteId, Integer status);
+
+    @Select("SELECT * FROM biz_note_change_diff WHERE note_id = #{noteId} AND status = #{status}")
+    NoteChangeDiffEntity selectByNoteIdAndStatus(Long noteId, Integer status);
 }

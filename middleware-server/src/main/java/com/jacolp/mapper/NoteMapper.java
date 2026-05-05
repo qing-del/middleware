@@ -22,7 +22,9 @@ public interface NoteMapper {
 
     int updateNote(NoteEntity note);
 
-    @Select("select id, user_id, topic_id, title, description, storage_type, status, missing_info_mask, missing_count, md_file_size, create_time, update_time from biz_note where id = #{id}")
+    @Select("select id, user_id, topic_id, title, description, storage_type, status, missing_info_mask, missing_count, md_file_size, create_time, update_time " +
+            "from biz_note " +
+            "where id = #{id}")
     NoteEntity selectById(@Param("id") Long id);
 
     /**
@@ -37,7 +39,7 @@ public interface NoteMapper {
 
     List<NoteVO> listByCondition(NoteQueryDTO dto);
 
-    NoteEntity selectByUserIdAndTitle(@Param("userId") Long userId, @Param("title") String title);
+    List<NoteEntity> selectByUserIdAndTitles(@Param("userId") Long userId, @Param("titles") List<String> title);
 
     /**
      * 批量查询指定用户、指定话题下的笔记（命中联合唯一索引）
@@ -51,6 +53,7 @@ public interface NoteMapper {
                                                        @Param("topicId") Long topicId,
                                                        @Param("titles") List<String> titles);
 
+    // TODO 删除 Old 的时候记得把这里这个方法删掉
     ArrayList<NoteSimpleVO> selectNoteSimpleByImageId(@Param("imageId") Long imageId);
 
     int softDeleteByIds(@Param("ids") List<Long> ids);

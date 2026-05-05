@@ -38,4 +38,13 @@
         </foreach>
     </delete>
 
+    <select id="selectByNoteIdWithValidUserId" resultType="com.jacolp.pojo.entity.NoteContextEntity">
+        select
+            c.*
+        from biz_note_context c
+        left join biz_note n on c.note_id = n.id
+        <where>
+            <if test="userId != null">n.user_id = #{userId}</if>
+        </where>
+    </select>
 </mapper>

@@ -7,6 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * 笔记新旧信息
+ * @author jacolp
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,15 +18,15 @@ public class NoteDiffVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private List<String> addedTags;
+    private List<String> oldTags;
 
-    private List<String> removedTags;
+    private List<String> newTags;
 
-    private List<String> addedImages;
+    private List<String> oldImages;
 
-    private List<String> removedImages;
+    private List<String> newImages;
 
-    private List<String> addedNoteNames;
+    private List<String> oldNoteNames;
 
-    private List<String> removedNoteNames;
+    private List<String> newNoteNames;
 }

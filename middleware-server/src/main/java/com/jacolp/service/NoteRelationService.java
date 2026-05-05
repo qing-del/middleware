@@ -1,14 +1,14 @@
 package com.jacolp.service;
 
 import java.util.List;
+import java.util.Map;
 
+import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
+import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.entity.ImageEntity;
-import com.jacolp.pojo.entity.NoteEntity;
-import com.jacolp.pojo.entity.NoteTagMappingEntity;
-import com.jacolp.pojo.entity.TagEntity;
+import com.jacolp.pojo.entity.*;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 
@@ -20,7 +20,6 @@ public interface NoteRelationService {
      * @param tags 标签名称列表
      * @return 插入的行数
      */
-    // TODO 这里将 buildTagMappings 方法拷贝过来，然后同时批量插入(*)
     int initTagBatchInsertMappings(Long noteId, List<String> tags);
 
 
@@ -30,7 +29,6 @@ public interface NoteRelationService {
      * @param images 图片名称列表
      * @return 插入的行数
      */
-    // TODO 这里只是插入未绑定的映射关系行(*)
     int initImageBatchInsertMappings(Long noteId, List<String> images);
 
 
@@ -40,62 +38,72 @@ public interface NoteRelationService {
      * @param noteTitles 笔记标题列表
      * @return 插入的行数
      */
-    // TODO 这里将 buildEachMappings 拷贝过来，然后同时插入映射关联数据行(*)
     int initNoteBatchInsertMappings(Long noteId, List<String> noteTitles);
 
-
     /**
-     * 获取笔记关系信息
-     * @param noteId
-     * @return
+     * 获取笔记关系详情
+     * @param noteId 笔记 ID
+     * @param tagMappings 标签关系列表
+     * @param tagMap 标签列表
+     * @param imageMappings 图片关系列表
+     * @param imageMap 图片列表
+     * @param eachMappings 关系列表
+     * @param targetNoteMap 笔记列表
+     * @return 笔记关系详情
      */
-    NoteRelationDetailVO getRelationInfo(Long noteId);
+    NoteRelationDetailVO getRelationInfo(
+            Long noteId,
+            List<NoteTagMappingEntity> tagMappings, Map<Long, TagEntity> tagMap,
+            List<NoteImageMappingEntity> imageMappings, Map<Long, ImageEntity> imageMap,
+            List<NoteEachMappingEntity> eachMappings, Map<Long, NoteEntity> targetNoteMap);
 
     /**
      * 绑定标签关系
      * @param dto
      */
-    // TODO 改动了行参，其他地方对其这里(*)
-    void bindTagMapping(TagMappingBindDTO dto, TagEntity targetTag);
+    NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagEntity targetTag);
 
     /**
      * 解绑标签关系
      * @param mappingId
      */
-    void unbindTagMapping(Long mappingId);
+    NoteTagMappingEntity unbindTagMapping(Long mappingId);
 
     /**
      * 绑定图片关系
      * @param dto
+     * @return 被绑定的 映射行实体
      */
-    // TODO 改动了行参，其他地方对其这里(*)
-    void bindImageMapping(ImageMappingBindDTO dto, ImageEntity targetImage);
+    NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, ImageEntity targetImage);
 
     /**
      * 解绑图片关系
      * @param mappingId
+     * @return 被取消绑定的 映射行实体
      */
-    void unbindImageMapping(Long mappingId);
+    NoteImageMappingEntity unbindImageMapping(Long mappingId);
 
     /**
      * 绑定关系
      * @param dto
+     * @param targetNote
+     * @return 被绑定的 映射行实体
      */
-    // TODO 改动了行参，其他地方对其这里(*)
-    void bindEachMapping(EachMappingBindDTO dto, NoteEntity targetNote);
+    NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteEntity targetNote);
 
     /**
      * 解绑关系
      * @param mappingId
+     * @return 被取消绑定的 映射行实体
      */
-    void unbindEachMapping(Long mappingId);
+    NoteEachMappingEntity unbindEachMapping(Long mappingId);
 
     /**
      * 检查笔记关系是否完成
-     * @param noteId
+     * @param note
      * @return
      */
-    NoteCheckBindingVO checkRelationCompletion(Long noteId);
+    NoteCheckBindingVO checkRelationCompletion(NoteEntity note);
 
     /**
      * 获取笔记标签关系列表
@@ -103,6 +111,20 @@ public interface NoteRelationService {
      * @return
      */
     List<NoteTagMappingEntity> listTagMappingsByNoteId(Long noteId);
+
+    /**
+     * 获取笔记图片关系列表
+     * @param noteId 笔记 ID
+     * @return 图片关系列表
+     */
+    List<NoteImageMappingEntity> listImageMappingsByNoteId(Long noteId);
+
+    /**
+     * 获取笔记关系列表
+     * @param noteId 笔记 ID
+     * @return 笔记关系列表
+     */
+    List<NoteEachMappingEntity> listEachMappingsByNoteId(Long noteId);
 
     /**
      * 批量插入标签关系
@@ -118,6 +140,33 @@ public interface NoteRelationService {
      * @return 删除的行数
      */
     int unbindTagMappingById(Long tagId);
+
+    /**
+     * 尝试批量绑定标签。
+     * <p>如果标签已存在且可绑定，则绑定。</p>
+     * @param mappings 待绑定的标签映射行
+     * @param tagMap 可供选择的标签
+     * @throws BaseException 批量绑定失败
+     */
+    void tryBatchBindTagMappings(List<NoteTagMappingEntity> mappings, Map<String, TagEntity> tagMap);
+
+    /**
+     * 尝试批量绑定图片关系。
+     * <p>如果图片已存在且可绑定，则绑定。</p>
+     * @param mappings 待绑定的图片映射行
+     * @param imageMap 可供选择的图片
+     * @throws BaseException 批量绑定失败
+     */
+    void tryBatchBindImageMappings(List<NoteImageMappingEntity> mappings, Map<String, ImageEntity> imageMap);
+
+    /**
+     * 尝试批量绑定关系。
+     * <p>如果笔记已存在且可绑定，则绑定。</p>
+     * @param mappings 待绑定的关系映射行
+     * @param noteMap 可供选择的笔记
+     * @throws BaseException 批量绑定失败
+     */
+    void tryBatchBindNoteMappings(List<NoteEachMappingEntity> mappings, Map<String, NoteEntity> noteMap);
 
     /**
      * 批量更新标签关系状态
@@ -166,15 +215,16 @@ public interface NoteRelationService {
     boolean isRelatedAll(List<Long> ids, Short type);
 
     /**
+     * 计算笔记缺失信息
+     * @param noteId 笔记 ID
+     * @return 缺失信息数量
+     */
+    NoteMissingInfoDTO computeNoteMissingInfo(Long noteId);
+
+    /**
      * 获取笔记关系的通过状态
      * @param noteId 笔记 ID
      * @return 如果笔记关系全部通过 返回 true 否则返回 false
      */
-    // TODO 截取自 setNotePublishStatus (*)
     boolean countByNoteIdAndPass(Long noteId);
-
-    // TODO (*)
-    //  汇总标签/图片/内联笔记三类映射并返回 - 可能需要一个新的 DTO
-    //  return buildNoteRelationDetail(noteId);
-    //  截取自 NoteServiceImpl.getRelationInfo()
 }

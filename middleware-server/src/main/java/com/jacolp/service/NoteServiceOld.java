@@ -30,7 +30,7 @@ import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.pojo.vo.note.UserNoteDetailVO;
 import com.jacolp.result.PageResult;
 
-public interface NoteService {
+public interface NoteServiceOld {
 
     /**
      * 上传笔记

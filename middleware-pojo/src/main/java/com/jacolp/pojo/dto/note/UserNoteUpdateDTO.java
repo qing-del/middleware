@@ -20,9 +20,6 @@ public class UserNoteUpdateDTO implements Serializable {
     @Schema(description = "主题ID", example = "1")
     private Long topicId;
 
-    @Schema(description = "笔记标题", example = "更新后的标题")
-    private String title;
-
     @Schema(description = "笔记描述", example = "更新后的描述")
     private String description;
 }

@@ -43,3 +43,6 @@ notes
 /.agent/
 CLAUDE.md
 /.claude/
+/.github/
+*.drawio.bkp
+*.drawio

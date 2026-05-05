@@ -1,6 +1,7 @@
 package com.jacolp.service;
 
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -28,4 +29,19 @@ public interface NoteChangeDiffService {
      * @param noteIds 笔记ID列表
      */
     void deleteByNoteIds(List<Long> noteIds);
+
+    /**
+     * 获取 笔记修改diff记录
+     * @param noteId 笔记ID
+     * @param noteDiffStatusPending 笔记状态
+     * @throws com.jacolp.exception.BaseException 找不到 diff 记录数据行会报错
+     */
+    @Select("SELECT * FROM biz_note_change_diff WHERE note_id = #{noteId} AND status = #{noteDiffStatusPending}")
+    NoteChangeDiffEntity getByNoteIdAndStatus(Long noteId, Integer noteDiffStatusPending);
+
+    /**
+     * 更新 笔记修改diff记录
+     * @throws com.jacolp.exception.BaseException 更新失败会抛出异常
+     */
+    void updateStatus(Long noteId, Integer status);
 }
