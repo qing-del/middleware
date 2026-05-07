@@ -7,6 +7,7 @@ import java.util.Objects;
 
 import com.jacolp.annotation.CheckMissingInfo;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
+import com.jacolp.pojo.vo.note.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,11 +33,6 @@ import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
-import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
-import com.jacolp.pojo.vo.note.NoteEachMappingRowVO;
-import com.jacolp.pojo.vo.note.NoteImageMappingRowVO;
-import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
-import com.jacolp.pojo.vo.note.NoteTagMappingRowVO;
 import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteRelationService;
 import com.jacolp.service.TagService;
@@ -507,6 +503,11 @@ public class NoteRelationServiceImpl implements NoteRelationService {
                 == noteImageMappingMapper.countByNoteIdAndPass(noteId, null)
                 && noteEachMappingMapper.countByNoteIdAndPass(noteId, AuditConstant.PASS)
                 == noteEachMappingMapper.countByNoteIdAndPass(noteId, null);
+    }
+
+    @Override
+    public List<NoteSimpleVO> listNoteSimplesByImageId(Long imageId) {
+        return noteImageMappingMapper.selectNoteSimpleByImageId(imageId);
     }
 
     @Override

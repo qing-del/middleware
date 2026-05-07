@@ -1,5 +1,6 @@
 package com.jacolp.controller.admin;
 
+import com.jacolp.facade.AuditFacade;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -25,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @Schema(description = "Admin - 审核管理")
 public class AuditController {
 
+    @Autowired private AuditFacade auditFacade;
     @Autowired private AuditService auditService;
 
     @PostMapping("/meta/list")
@@ -65,7 +67,7 @@ public class AuditController {
         log.info("Admin batch review meta audits, idsSize: {}, status: {}",
                 dto == null || dto.getIds() == null ? 0 : dto.getIds().size(),
                 dto == null ? null : dto.getStatus());
-        return Result.success(auditService.batchReviewMeta(dto));
+        return Result.success(auditFacade.batchReviewMeta(dto));
     }
 
     @PutMapping("/image/review/batch")
@@ -75,7 +77,7 @@ public class AuditController {
         log.info("Admin batch review image audits, idsSize: {}, status: {}",
                 dto == null || dto.getIds() == null ? 0 : dto.getIds().size(),
                 dto == null ? null : dto.getStatus());
-        return Result.success(auditService.batchReviewImage(dto));
+        return Result.success(auditFacade.batchReviewImage(dto));
     }
 
     @PutMapping("/note/review/batch")
@@ -85,6 +87,6 @@ public class AuditController {
         log.info("Admin batch review note audits, idsSize: {}, status: {}",
                 dto == null || dto.getIds() == null ? 0 : dto.getIds().size(),
                 dto == null ? null : dto.getStatus());
-        return Result.success(auditService.batchReviewNote(dto));
+        return Result.success(auditFacade.batchReviewNote(dto));
     }
 }

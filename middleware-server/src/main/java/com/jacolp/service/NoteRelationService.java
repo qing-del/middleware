@@ -11,6 +11,7 @@ import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.*;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
 
 public interface NoteRelationService {
 
@@ -227,4 +228,12 @@ public interface NoteRelationService {
      * @return 如果笔记关系全部通过 返回 true 否则返回 false
      */
     boolean countByNoteIdAndPass(Long noteId);
+
+    /**
+     * 获取图片简要列表
+     * <p>- 此处没有权限校验</p>
+     * @param imageId 图片 ID
+     * @return 图片关系列表
+     */
+    List<NoteSimpleVO> listNoteSimplesByImageId(Long imageId);
 }

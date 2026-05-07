@@ -1,7 +1,9 @@
 package com.jacolp.mapper;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -68,4 +70,11 @@ public interface NoteImageMappingMapper {
      * @return 未绑定图片映射行数量
      */
     int countByNoteIdAndImageIdIsNull(@Param("noteId") Long noteId);
+
+    /**
+     * 根据图片 id 查询笔记
+     * @param imageId
+     * @return
+     */
+    ArrayList<NoteSimpleVO> selectNoteSimpleByImageId(@Param("imageId") Long imageId);
 }

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.jacolp.service.*;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,10 +42,6 @@ import com.jacolp.pojo.vo.tag.TagStatsVO;
 import com.jacolp.pojo.vo.tag.TagVO;
 import com.jacolp.pojo.vo.tag.UserTagSimpleVO;
 import com.jacolp.result.PageResult;
-import com.jacolp.service.AuditService;
-import com.jacolp.service.NoteRelationService;
-import com.jacolp.service.NoteServiceOld;
-import com.jacolp.service.TagService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,7 +53,7 @@ public class TagServiceImpl implements TagService {
 
     // 来自其他模块的 Mapper
     @Autowired private AuditService auditService;
-    @Autowired private NoteServiceOld noteServiceOld;
+    @Autowired private NoteCoreService noteCoreService;
     @Autowired private NoteRelationService noteRelationService;
 
     @Override
@@ -393,7 +390,7 @@ public class TagServiceImpl implements TagService {
     }
 
     private void assignTagToNote(TagEntity tag, Long noteId, Long userId) {
-        NoteEntity note = noteServiceOld.getNoteEntityById(noteId);
+        NoteEntity note = noteCoreService.getById(noteId);
         if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
@@ -422,7 +419,7 @@ public class TagServiceImpl implements TagService {
     }
 
     private void removeTagFromNote(TagEntity tag, Long noteId, Long userId) {
-        NoteEntity note = noteServiceOld.getNoteEntityById(noteId);
+        NoteEntity note = noteCoreService.getById(noteId);
         if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
