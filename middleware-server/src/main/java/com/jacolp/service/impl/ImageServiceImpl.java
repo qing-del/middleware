@@ -45,7 +45,6 @@ import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
 import com.jacolp.service.ImageService;
-import com.jacolp.service.NoteServiceOld;
 import com.jacolp.service.TopicService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -69,7 +68,7 @@ public class ImageServiceImpl implements ImageService {
     @Autowired private ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper;
 
     @Autowired private AuditService auditService;
-    @Autowired private NoteServiceOld noteServiceOld;
+    @Autowired private NoteRelationServiceImpl noteRelationServiceImpl;
     @Autowired private TopicService topicService;
 
     /**
@@ -375,7 +374,7 @@ public class ImageServiceImpl implements ImageService {
     public List<NoteSimpleVO> listNotesByImageId(Long imageId) {
         validateImageId(imageId);
 
-        List<NoteSimpleVO> notes = noteServiceOld.listNoteSimplesByImageId(imageId);
+        List<NoteSimpleVO> notes = noteRelationServiceImpl.listNoteSimplesByImageId(imageId);
         // TODO 后续可以加入是否筛选 非删除/公开 的数据
 
         return notes;

@@ -178,4 +178,17 @@
           AND is_deleted = 0
     </select>
 
+    <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.note.NoteSimpleVO">
+        SELECT
+            m.note_id AS id,
+            m.note_title AS title,
+            m.is_cross_user AS isCrossUser,
+            n.status AS status,
+            m.create_time AS createTime
+        FROM biz_note_image_mapping m
+        LEFT JOIN biz_note n ON n.id = m.note_id
+        WHERE m.image_id = #{imageId}
+          AND m.is_deleted = 0
+    </select>
+
 </mapper>
