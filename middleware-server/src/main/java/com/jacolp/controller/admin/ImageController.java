@@ -55,40 +55,6 @@ public class ImageController {
     private ImageService imageService;
 
     /**
-     * 5.1 上传图片。
-     * 
-     * AOP 链：@ImageLimit → @CheckAndUpdateUserStorage
-     */
-    @PostMapping("/upload")
-    @ImageLimit
-    @Operation(summary = "上传图片",
-            description = "从当前登录用户上下文获取 userId 后，将图片上传到默认对象存储并创建图片记录；上传前会先经过文件大小、后缀和存储配额校验，成功后返回可访问地址。")
-    public Result<String> upload(
-            @RequestParam(required = false) Long topicId,
-            @Parameter(description = "图片文件") @RequestParam MultipartFile file) {
-        log.info("Admin upload image, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
-        imageService.uploadImage(file, topicId);
-        return Result.success();
-    }
-
-    /**
-     * 5.2 修改图片源文件。
-     * 
-     * AOP 链：@ImageLimit → @CheckAndUpdateUserStorage
-     */
-    @PutMapping("/modify-file")
-    @ImageLimit
-    @Operation(summary = "替换图片源文件",
-            description = "校验图片归属与存储类型后，覆盖上传新的图片文件并更新 ossUrl 和 fileSize；当前实现仅支持已接入的云存储类型。")
-    public Result<String> modifyFile(
-            @Parameter(description = "图片ID") @RequestParam Long id,
-            @Parameter(description = "新文件") @RequestParam MultipartFile file) {
-        log.info("Admin modify image file, id: {}, filename: {}", id, file.getOriginalFilename());
-        imageService.modifyImageFile(id, file);
-        return Result.success();
-    }
-
-    /**
      * 5.3 修改图片信息（改名/换主题）。
      */
     @PutMapping("/modify-info")
@@ -167,6 +133,7 @@ public class ImageController {
     /**
      * 5.10 审核图片（管理员）。
      */
+    // TODO 拆分审核服务的时候需要转移这个
     @PutMapping("/audit/review")
     @Operation(summary = "审核图片",
             description = "管理员根据审核申请执行通过或拒绝；通过时将图片审核状态置为通过，拒绝时必须给出拒绝原因并同步回写审核记录。(开发的时候不要调用这个接口，因为在认证控制器里面已经有图片审核的接口了)")

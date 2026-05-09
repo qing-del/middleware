@@ -1,5 +1,7 @@
 package com.jacolp.pojo.dto.note;
 
+import com.jacolp.pojo.provider.PageParamProvider;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,7 +14,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoteAuditListDTO implements Serializable {
+public class NoteAuditListDTO implements Serializable, PageParamProvider {
 
     private static final long serialVersionUID = 1L;
 
