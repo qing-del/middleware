@@ -247,15 +247,6 @@ public class ImageServiceImpl implements ImageService {
     }
 
     /**
-     * 已废弃：不再支持 OSS -> 本地迁移。
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void transferToLocal(List<Long> ids) {
-        throw new BaseException("本地存储方案已废弃，当前仅支持云对象存储");
-    }
-
-    /**
      * 删除图片（批量）。
      * <p>
      * 策略：先全量校验引用，如有任何一张图片被引用，则全量拒绝。
@@ -263,7 +254,6 @@ public class ImageServiceImpl implements ImageService {
      * @return
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     @StorageHandler(operationType = com.jacolp.enums.StorageOperationType.BATCH_DELETE)
     public ImageBatchDeleteVO deleteImages(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -633,17 +623,6 @@ public class ImageServiceImpl implements ImageService {
     }
 
     // ============ 私有方法 ============
-    /**
-     * 删除对象文件（当前仅支持阿里云 OSS）。
-     */
-    private boolean deleteFile(ImageEntity image) {
-        if (image.getStorageType() != null
-            && image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
-            return deleteFromAliyunOss(image);
-        }
-        throw new BaseException(ImageConstant.IMAGE_STORAGE_PROVIDER_NOT_SUPPORTED);
-    }
-
     /**
      * 上传文件到阿里云 OSS（默认存储策略）。
      */

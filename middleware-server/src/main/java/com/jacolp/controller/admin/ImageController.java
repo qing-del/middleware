@@ -115,20 +115,6 @@ public class ImageController {
     }
 
     /**
-     * 5.5 已废弃：不再支持转为本地存储。
-     */
-    @PutMapping("/transfer-to-local")
-    @Operation(summary = "迁移到本地存储（已废弃）",
-            description = "历史兼容接口，当前本地存储方案已下线，不再提供实际迁移逻辑，仅用于兼容旧调用方。")
-    public Result<String> transferToLocal(
-            @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
-        List<Long> idList = parseIds(ids);
-        log.info("Admin transfer to local, ids: {}", idList);
-        imageService.transferToLocal(idList);
-        return Result.success();
-    }
-
-    /**
      * 5.6 批量删除图片。
      */
     @DeleteMapping("/delete")

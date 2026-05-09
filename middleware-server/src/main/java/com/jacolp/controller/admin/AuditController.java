@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.extern.slf4j.Slf4j;
 
-@RestController
+@RestController("Admin-AuditController")
 @RequestMapping("/admin/audit")
 @Slf4j
 @Schema(description = "Admin - 审核管理")
