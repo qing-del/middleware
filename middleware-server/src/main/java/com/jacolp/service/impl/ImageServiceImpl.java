@@ -10,7 +10,10 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.jacolp.annotation.StorageHandler;
+import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.StorageOperationType;
+import com.jacolp.pojo.vo.image.*;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,7 +25,6 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.ImageConstant;
-import com.jacolp.constant.PageConstant;
 import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.StorageUpdateContext;
@@ -37,10 +39,6 @@ import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
 import com.jacolp.pojo.entity.ImageEntity;
-import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
-import com.jacolp.pojo.vo.image.ImageStatsVO;
-import com.jacolp.pojo.vo.image.ImageVO;
-import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
@@ -64,9 +62,12 @@ import lombok.extern.slf4j.Slf4j;
 public class ImageServiceImpl implements ImageService {
 
     @Autowired private ImageMapper imageMapper;
-    @Autowired private AliyunOSSOperator aliyunOSSOperator;
     @Autowired private ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper;
 
+    // 存储服务
+    @Autowired private AliyunOSSOperator aliyunOSSOperator;
+
+    // 来自其他模块的 Service
     @Autowired private AuditService auditService;
     @Autowired private NoteRelationServiceImpl noteRelationServiceImpl;
     @Autowired private TopicService topicService;
@@ -101,30 +102,16 @@ public class ImageServiceImpl implements ImageService {
 
 
         // 写入数据库
-        ImageEntity image = new ImageEntity();
-        image.setUserId(userId);
-        image.setTopicId(topicId);
-        image.setFilename(filename);
-        image.setOssUrl(ossUrl);
-        image.setStorageType(ImageConstant.DEFAULT_STORAGE_TYPE);
-        image.setFileSize(file.getSize());
-        image.setIsPublic(ImageConstant.IS_PUBLIC_NO);
-        
-        // 管理员添加直接通过
-        image.setIsPass(ImageConstant.AUDIT_STATUS_APPROVED);
-        image.setUploadTime(LocalDateTime.now());
-
+        ImageEntity image = buildImageEntity(file.getSize(), topicId, userId, filename, ossUrl);
         int insertCount = imageMapper.insertImage(image);
         if (insertCount <= 0) {
             throw new BaseException("图片上传失败");
         }
 
-
         // 转换为 VO 返回
         ImageVO vo = new ImageVO();
         BeanUtils.copyProperties(image, vo);
         vo.setId(null);
-
         return vo;
     }
 
@@ -144,7 +131,7 @@ public class ImageServiceImpl implements ImageService {
             throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
         }
         if (!existed.getUserId().equals(userId)) {
-            // 管理员也不能随便修改别人的图片内容
+            // 管理员也不能随便修改别人的图片内容 -- (遗留注释)
             throw new BaseException(ImageConstant.IMAGE_NOT_OWNER);
         }
 
@@ -172,6 +159,8 @@ public class ImageServiceImpl implements ImageService {
 
     /**
      * 修改图片信息（改名/换主题）。
+     * <p>- 会使用 {@link PermissionContext} 检查是否需要校验所属权（管理员跳过校验）</p>
+     * @param  dto 修改信息
      */
     @Override
     public void modifyImageInfo(ImageModifyInfoDTO dto) {
@@ -183,6 +172,11 @@ public class ImageServiceImpl implements ImageService {
         ImageEntity existed = imageMapper.selectById(dto.getId());
         if (existed == null || !existed.getUserId().equals(userId)) {
             throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        // 校验是否是管理员 | 检验所属权
+        if (!PermissionContext.isAdmin() && !existed.getUserId().equals(userId)) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_OWNER);
         }
 
         // 仅更新提供的字段
@@ -317,11 +311,7 @@ public class ImageServiceImpl implements ImageService {
         });
 
         // 插入到死信队列
-        int countDeadLetter = imageDeleteDeadLetterMapper.insertBatch(imageDeleteDeadLetterEntities);
-        if (countDeadLetter < imageDeleteDeadLetterEntities.size()) {
-            log.error("插入死信队列失败，count: {}, size: {}", countDeadLetter, imageDeleteDeadLetterEntities.size());
-            throw new BaseException(ImageConstant.FAILED_TO_INSERT_IMAGE_DELETE_DEAD_LETTER);
-        }
+        batchInsertToDeadLetterQueue(imageDeleteDeadLetterEntities);
 
         // 删除数据库记录
         int deleteCount = imageMapper.deleteByIds(result.getSuccessIds());  // 仅删除成功列表中的数据行
@@ -341,13 +331,7 @@ public class ImageServiceImpl implements ImageService {
             dto = new ImageQueryDTO();
         }
 
-        // 分页参数处理
-        Integer pageNumParam = dto.getPageNum();
-        Integer pageSizeParam = dto.getPageSize();
-        int pageNum = pageNumParam == null || pageNumParam <= 0 ? PageConstant.DEFAULT_PAGE : pageNumParam;
-        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : pageSizeParam;
-
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
         ImageEntity query = new ImageEntity();
         BeanUtils.copyProperties(dto, query);
@@ -371,7 +355,7 @@ public class ImageServiceImpl implements ImageService {
     }
 
     /**
-     * 公开/取消公开图片。
+     * 公开/取消公开图片 -- (通用)
      */
     @Override
     public void setImagePublic(Long imageId, Short isPublic) {
@@ -379,7 +363,8 @@ public class ImageServiceImpl implements ImageService {
         validateImageId(imageId);
 
         ImageEntity image = imageMapper.selectById(imageId);
-        if (image == null || !image.getUserId().equals(userId)) {
+        if (image == null
+                || (!PermissionContext.isAdmin() && !image.getUserId().equals(userId))) {
             throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
         }
 
@@ -447,9 +432,7 @@ public class ImageServiceImpl implements ImageService {
             dto = new UserImageQueryDTO();
         }
 
-        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
-        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : dto.getPageSize();
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
         String filename = (dto.getFilename() != null && !dto.getFilename().trim().isEmpty()) ? dto.getFilename().trim() : null;
         List<ImageVO> records = imageMapper.listByUserCondition(userId, dto.getTopicId(), filename);
@@ -489,11 +472,11 @@ public class ImageServiceImpl implements ImageService {
      * 获取当前用户图片统计。
      */
     @Override
-    public ImageStatsVO getUserImageStats() {
+    public ImageOverviewVO getUserImageOverview() {
         Long userId = BaseContext.getCurrentId();
         long imageCount = imageMapper.countByUserId(userId);
         long passedCount = imageMapper.countPassedByUserId(userId);
-        return new ImageStatsVO(imageCount, passedCount);
+        return new ImageOverviewVO(imageCount, passedCount);
     }
 
     @Override
@@ -517,52 +500,8 @@ public class ImageServiceImpl implements ImageService {
         return imageMapper.selectByUserIdAndTopicIdAndFilenames(userId, topicId, filenames);
     }
 
+
     // ===== 用户端方法 =====
-
-    @Override
-    public UserImageDetailVO uploadUserImage(MultipartFile file, Long topicId) {
-        Long userId = BaseContext.getCurrentId();
-        String filename = file.getOriginalFilename();
-
-        if (filename == null || filename.isEmpty()) {
-            throw new BaseException(ImageConstant.IMAGE_EMPTY_FILENAME);
-        }
-
-        if (topicId != null && topicId > 0) {
-            if (!topicService.topicExists(topicId)) {
-                throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
-            }
-        }
-
-        int count = imageMapper.countByUserIdTopicIdAndFilename(userId, topicId, filename);
-        if (count > 0) {
-            throw new BaseException(ImageConstant.IMAGE_NAME_DUPLICATE);
-        }
-
-        String ossUrl = uploadToAliyunOss(file, userId, filename);
-
-        ImageEntity image = new ImageEntity();
-        image.setUserId(userId);
-        image.setTopicId(topicId);
-        image.setFilename(filename);
-        image.setOssUrl(ossUrl);
-        image.setStorageType(ImageConstant.DEFAULT_STORAGE_TYPE);
-        image.setFileSize(file.getSize());
-        image.setIsPublic(ImageConstant.IS_PUBLIC_NO);
-        image.setIsPass(ImageConstant.AUDIT_STATUS_APPROVED);
-        image.setUploadTime(LocalDateTime.now());
-
-        int insertCount = imageMapper.insertImage(image);
-        if (insertCount <= 0) {
-            log.error("Image upload operation is failed, url: {}", ossUrl);
-            throw new BaseException("图片上传失败");
-        }
-
-        UserImageDetailVO vo = new UserImageDetailVO();
-        BeanUtils.copyProperties(image, vo);
-        return vo;
-    }
-
     @Override
     public UserImageDetailVO getUserImageDetail(Long id) {
         Long userId = BaseContext.getCurrentId();
@@ -586,8 +525,8 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteUserImage(Long id) {
+    @StorageHandler(operationType = StorageOperationType.DELETE)
+    public void deleteImage(Long id) {
         Long userId = BaseContext.getCurrentId();
 
         if (id == null || id <= 0) {
@@ -600,12 +539,12 @@ public class ImageServiceImpl implements ImageService {
         }
 
         if (!image.getUserId().equals(userId)) {
-            throw new BaseException("只能删除自己的图片");
+            throw new BaseException(ImageConstant.IMAGE_NOT_OWNER);
         }
 
         if (image.getStorageType() != null &&
             image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
-            deleteFromAliyunOss(image);
+            insertToDeadLetterQueue(image); // 插入到死信队列表中
         }
 
         int deleteCount = imageMapper.deleteByIds(List.of(id));
@@ -622,6 +561,8 @@ public class ImageServiceImpl implements ImageService {
         return imageMapper.updatePassByIds(ids, isPass);
     }
 
+
+
     // ============ 私有方法 ============
     /**
      * 上传文件到阿里云 OSS（默认存储策略）。
@@ -637,7 +578,6 @@ public class ImageServiceImpl implements ImageService {
             throw new BaseException(ImageConstant.IMAGE_TRANSFER_FAILED);
         }
     }
-
     /**
      * 上传文件到阿里云 OSS（指定 object key，可用于覆盖原对象）。
      */
@@ -651,24 +591,6 @@ public class ImageServiceImpl implements ImageService {
             log.error("上传到阿里云 OSS 失败，objectKey: {}", objectKey, e);
             throw new BaseException(ImageConstant.IMAGE_TRANSFER_FAILED);
         }
-    }
-
-    /**
-     * 从阿里云 OSS 删除对象。
-     */
-    private boolean deleteFromAliyunOss(ImageEntity image) {
-        try {
-            String objectKey = extractObjectKeyFromUrl(image.getOssUrl());  // 从阿里云 OSS URL 中提取 object key
-            if (objectKey == null) return false;
-            boolean result = aliyunOSSOperator.delete(objectKey);
-            log.info("从阿里云 OSS 删除对象：{}, 结果: {}", objectKey, result);
-            return result;
-        } catch (Exception e) {
-            log.error("删除阿里云 OSS 对象失败，imageId: {}", image.getId(), e);
-            // 删除流程中记录日志即可，避免影响主事务
-        }
-
-        return false;   // not achievable
     }
 
     /**
@@ -720,6 +642,7 @@ public class ImageServiceImpl implements ImageService {
      * 校验主题 ID 是否合法
      * 会先校验主题 ID 的内容是否合法
      * 然后就回到数据库校验主题是否存在
+     * <p>- 引用了 topicService 对数据库进行查询</p>
      * @param topicId
      */
     private void validateTopic(Long topicId) {
@@ -728,6 +651,53 @@ public class ImageServiceImpl implements ImageService {
             if (!topicService.topicExists(topicId)) {
                 throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
             }
+        }
+    }
+
+    /**
+     * 构建图片实体。
+     * <p>- 默认初始化为阿里云方式上传</p>
+     * <p>- 默认图片为发布</p>
+     * <p>- 默认图片待审核</p>
+     */
+    private @NonNull ImageEntity buildImageEntity(Long fileSize, Long topicId, Long userId,
+                                                  String filename, String ossUrl) {
+        ImageEntity image = new ImageEntity();
+        image.setUserId(userId);
+        image.setTopicId(topicId);
+        image.setFilename(filename);
+        image.setOssUrl(ossUrl);
+        image.setStorageType(ImageConstant.DEFAULT_STORAGE_TYPE);
+        image.setFileSize(fileSize);
+        image.setIsPublic(ImageConstant.IS_PUBLIC_NO);  // 初始未发布
+        image.setIsPass(ImageConstant.AUDIT_STATUS_PENDING);    // 待审核
+        image.setUploadTime(LocalDateTime.now());
+        return image;
+    }
+
+    /**
+     * 插入图片删除死信队列。
+     * @throws BaseException 插入失败的时候会报错
+     */
+    private void insertToDeadLetterQueue(ImageEntity existed) {
+        ImageDeleteDeadLetterEntity deadLetter = new ImageDeleteDeadLetterEntity();
+        deadLetter.setImageUrl(existed.getOssUrl());
+        deadLetter.setStatus(ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING);
+        deadLetter.setRetryCount(0);
+        deadLetter.setCreateTime(LocalDateTime.now());
+        deadLetter.setUpdateTime(LocalDateTime.now());
+        batchInsertToDeadLetterQueue(List.of(deadLetter));
+    }
+
+    /**
+     * 批量插入图片删除死信队列。
+     * @throws BaseException 插入失败的时候会报错
+     */
+    private void batchInsertToDeadLetterQueue(List<ImageDeleteDeadLetterEntity> deadLetters) {
+        int insertCount = imageDeleteDeadLetterMapper.insertBatch(deadLetters);
+        if (insertCount < deadLetters.size()) {
+            log.error("插入死信队列失败，count: {}, size: {}", insertCount, deadLetters.size());
+            throw new BaseException("图片删除失败");
         }
     }
 }

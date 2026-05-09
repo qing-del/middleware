@@ -2,6 +2,7 @@ package com.jacolp.service;
 
 import java.util.List;
 
+import com.jacolp.context.PermissionContext;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
@@ -10,7 +11,7 @@ import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
 import com.jacolp.pojo.dto.image.ImageQueryDTO;
 import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
-import com.jacolp.pojo.vo.image.ImageStatsVO;
+import com.jacolp.pojo.vo.image.ImageOverviewVO;
 import com.jacolp.pojo.vo.image.ImageVO;
 import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
@@ -33,6 +34,8 @@ public interface ImageService {
 
     /**
      * 修改图片信息（改名/换主题）。
+     * <p>- 会使用 {@link PermissionContext} 检查是否需要校验所属权（管理员跳过校验）</p>
+     * @param  dto 修改信息
      */
     void modifyImageInfo(ImageModifyInfoDTO dto);
 
@@ -59,7 +62,7 @@ public interface ImageService {
     List<NoteSimpleVO> listNotesByImageId(Long imageId);
 
     /**
-     * 公开/取消公开图片。
+     * 公开/取消公开图片 -- (通用)
      */
     void setImagePublic(Long imageId, Short isPublic);
 
@@ -81,7 +84,7 @@ public interface ImageService {
     /**
      * 获取当前用户图片统计。
      */
-    ImageStatsVO getUserImageStats();
+    ImageOverviewVO getUserImageOverview();
 
     /**
      * 根据ID查询图片，供其他Service内部调用。
@@ -100,11 +103,11 @@ public interface ImageService {
 
     // ===== 用户端方法 =====
 
-    UserImageDetailVO uploadUserImage(MultipartFile file, Long topicId);
-
     UserImageDetailVO getUserImageDetail(Long id);
 
-    void deleteUserImage(Long id);
+    void deleteImage(Long id);
+
+    // ===== 交给“包工头”使用的方法 =====
 
     int updatePassStatusByIds(List<Long> ids, Short isPass);
 }

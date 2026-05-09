@@ -52,7 +52,7 @@ public class ImageConstant {
     public static final String IMAGE_STORAGE_QUOTA_EXCEEDED = "存储空间不足，无法上传图片";
     public static final String IMAGE_AUDIT_NOT_FOUND = "未找到目标审核记录";
     public static final String IMAGE_AUDIT_ALREADY_PROCESSED = "该审核记录已处理";
-    public static final String IMAGE_NOT_OWNER = "不是图片归属者无法修改图片内容";
+    public static final String IMAGE_NOT_OWNER = "只能操作自己的图片";
     public static final String IMAGE_STORAGE_PROVIDER_NOT_SUPPORTED = "当前存储类型暂不支持，请后续接入对应云存储实现";
     public static final String IMAGE_REJECT_REASON_NOT_EMPTY = "拒绝原因不能为空";
     public static final String IMAGE_NOT_PASS = "图片未通过审核";

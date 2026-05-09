@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import com.jacolp.constant.PageConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.ImageAuditMapper;
 import com.jacolp.mapper.MetaAuditMapper;
@@ -44,11 +43,8 @@ public class AuditServiceImpl implements AuditService {
      */
     @Override
     public PageResult listMetaAudits(MetaAuditListDTO dto) {
-        // 校验请求参数
         MetaAuditListDTO query = dto == null ? new MetaAuditListDTO() : dto;
-        int pageNum = normalizePageNum(query.getPageNum() == null ? PageConstant.DEFAULT_PAGE : query.getPageNum());
-        int pageSize = normalizePageSize(query.getPageNum() == null ? PageConstant.DEFAULT_PAGE_SIZE : query.getPageSize());
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(query.getPageNumOrDefault(), query.getPageSizeOrDefault());
         List<MetaAuditVO> records = metaAuditMapper.listByCondition(
                 query.getApplyType(),
                 query.getStatus(),
@@ -67,9 +63,7 @@ public class AuditServiceImpl implements AuditService {
     @Override
     public PageResult listImageAudits(ImageAuditListDTO dto) {
         ImageAuditListDTO query = dto == null ? new ImageAuditListDTO() : dto;
-        int pageNum = normalizePageNum(query.getPageNum() == null ? PageConstant.DEFAULT_PAGE : query.getPageNum());
-        int pageSize = normalizePageSize(query.getPageNum() == null ? PageConstant.DEFAULT_PAGE_SIZE : query.getPageSize());
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(query.getPageNumOrDefault(), query.getPageSizeOrDefault());
         List<ImageAuditVO> records = imageAuditMapper.listByCondition(query.getStatus(), query.getApplicantUserId());
         PageInfo<ImageAuditVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
@@ -84,9 +78,7 @@ public class AuditServiceImpl implements AuditService {
     @Override
     public PageResult listNoteAudits(NoteAuditListDTO dto) {
         NoteAuditListDTO query = dto == null ? new NoteAuditListDTO() : dto;
-        int pageNum = normalizePageNum(query.getPageNum() == null ? PageConstant.DEFAULT_PAGE : query.getPageNum());
-        int pageSize = normalizePageSize(query.getPageNum() == null ? PageConstant.DEFAULT_PAGE_SIZE : query.getPageSize());
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(query.getPageNumOrDefault(), query.getPageSizeOrDefault());
         List<NoteAuditVO> records = noteAuditMapper.listByCondition(query.getStatus(), query.getApplicantUserId());
         PageInfo<NoteAuditVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
@@ -217,20 +209,6 @@ public class AuditServiceImpl implements AuditService {
      * @param pageNum 请求页码
      * @return 合法页码（非法时返回默认值）
      */
-    private int normalizePageNum(Integer pageNum) {
-        return pageNum == null || pageNum <= 0 ? PageConstant.DEFAULT_PAGE : pageNum;
-    }
-
-    /**
-     * 规范化分页大小。
-     *
-     * @param pageSize 请求页大小
-     * @return 合法分页大小（非法时返回默认值）
-     */
-    private int normalizePageSize(Integer pageSize) {
-        return pageSize == null || pageSize <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : pageSize;
-    }
-
     /**
      * 校验实际处理条数。
      * @param pendingRecords 待处理条数

@@ -11,7 +11,6 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.annotation.RequireValidRole;
 import com.jacolp.component.PasswordEncoder;
-import com.jacolp.constant.PageConstant;
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
@@ -143,12 +142,7 @@ public class UserServiceImpl implements UserService {
             userListDTO = new UserListDTO();
         }
 
-        // 如果没有传递分页参数，则默认为第一页
-        Integer pageParam = userListDTO.getPage();
-        Integer pageSizeParam = userListDTO.getPageSize();
-        int page = pageParam == null || pageParam <= 0 ? PageConstant.DEFAULT_PAGE : pageParam;
-        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : pageSizeParam;
-        PageHelper.startPage(page, pageSize);
+        PageHelper.startPage(userListDTO.getPageNumOrDefault(), userListDTO.getPageSizeOrDefault());
 
 
         List<UserEntity> records = userMapper.listByCondition(userListDTO);

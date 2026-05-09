@@ -9,7 +9,6 @@ import com.jacolp.annotation.StorageHandler;
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.constant.NoteConstant;
-import com.jacolp.constant.PageConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
@@ -681,11 +680,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
             dto = new NoteQueryDTO();
         }
 
-        Integer pageNumParam = dto.getPageNum();
-        Integer pageSizeParam = dto.getPageSize();
-        int pageNum = pageNumParam == null || pageNumParam <= 0 ? PageConstant.DEFAULT_PAGE : pageNumParam;
-        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : pageSizeParam;
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
         List<NoteVO> records = noteMapper.listByCondition(dto);
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
@@ -1029,9 +1024,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
             dto = new UserNoteQueryDTO();
         }
 
-        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? PageConstant.DEFAULT_PAGE : dto.getPageNum();
-        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? PageConstant.DEFAULT_PAGE_SIZE : dto.getPageSize();
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
         String title = (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) ? dto.getTitle().trim() : null;
         List<NoteVO> records = noteMapper.listByUserCondition(BaseContext.getCurrentId(), dto.getTopicId(), title);

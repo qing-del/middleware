@@ -1,21 +1,14 @@
 package com.jacolp.controller.user;
 
+import com.jacolp.annotation.ImageLimit;
+import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jacolp.annotation.StorageHandler;
 import com.jacolp.context.BaseContext;
-import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.dto.image.UserImageQueryDTO;
-import com.jacolp.pojo.vo.image.ImageStatsVO;
+import com.jacolp.pojo.vo.image.ImageOverviewVO;
 import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
@@ -54,15 +47,15 @@ public class ImageController {
         return Result.success(imageService.listUserImages(userId, dto));
     }
 
-        /**
-         * 获取当前用户图片统计。
-         */
-        @GetMapping("/stats")
-        @Operation(summary = "获取用户图片统计", description = "返回当前用户的图片总数和已通过审核数。")
-        public Result<ImageStatsVO> getStats() {
-                log.info("User get image stats");
-                return Result.success(imageService.getUserImageStats());
-        }
+    /**
+     * 获取当前用户图片统计。
+     */
+    @GetMapping("/overview")
+    @Operation(summary = "获取用户图片统计", description = "返回当前用户的图片总数和已通过审核数。")
+    public Result<ImageOverviewVO> getOverview() {
+        log.info("User get image overview");
+        return Result.success(imageService.getUserImageOverview());
+    }
 
     /**
      * 发起图片审核申请
@@ -80,26 +73,45 @@ public class ImageController {
         return Result.success("审核申请已提交");
     }
 
-    /**
-     * 上传图片
-     * <p>上传图片到云存储（阿里云OSS）。会自动校验文件大小是否在用户剩余配额内，并记录图片元数据。</p>
-     * <p>在切面中完成了用户存储额的校验</p>
-     * @param file 图片文件，支持 jpg、png、gif、webp 等格式
-     * @param topicId 所属主题ID（可选），用于分类管理
-     * @return 上传后的图片详情，包含访问URL和元数据
-     */
-    @StorageHandler(operationType = StorageOperationType.UPLOAD)
-    @PostMapping
+    @PostMapping("/upload")
+    @ImageLimit
     @Operation(summary = "上传图片",
-            description = "上传图片到云存储（阿里云OSS）。会自动校验文件大小是否在用户剩余配额内，并记录图片元数据。")
-    public Result<UserImageDetailVO> upload(
-            @Parameter(description = "图片文件")
-            @RequestParam("file") MultipartFile file,
-            @Parameter(description = "所属主题ID（可选，不传默认分到“未归类”）")
-            @RequestParam(value = "topicId", required = false) Long topicId) {
-        log.info("User upload image: {}, topicId: {}", file.getOriginalFilename(), topicId);
-        UserImageDetailVO result = imageService.uploadUserImage(file, topicId);
-        return Result.success(result);
+            description = "从当前登录用户上下文获取 userId 后，将图片上传到默认对象存储并创建图片记录；上传前会先经过文件大小、后缀和存储配额校验，成功后返回可访问地址。")
+    public Result<String> upload(
+            @RequestParam(required = false) Long topicId,
+            @Parameter(description = "图片文件") @RequestParam MultipartFile file) {
+        log.info("Admin upload image, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
+        imageService.uploadImage(file, topicId);
+        return Result.success();
+    }
+
+    /**
+     * 5.2 修改图片源文件。
+     *
+     * AOP 链：@ImageLimit → @CheckAndUpdateUserStorage
+     */
+    @PutMapping("/modify-file")
+    @ImageLimit
+    @Operation(summary = "替换图片源文件",
+            description = "校验图片归属与存储类型后，覆盖上传新的图片文件并更新 ossUrl 和 fileSize；当前实现仅支持已接入的云存储类型。")
+    public Result<String> modifyFile(
+            @Parameter(description = "图片ID") @RequestParam Long id,
+            @Parameter(description = "新文件") @RequestParam MultipartFile file) {
+        log.info("Admin modify image file, id: {}, filename: {}", id, file.getOriginalFilename());
+        imageService.modifyImageFile(id, file);
+        return Result.success();
+    }
+
+    /**
+     * 5.3 修改图片信息（改名/换主题）。
+     */
+    @PutMapping("/modify-info")
+    @Operation(summary = "修改图片元信息",
+            description = "修改图片名称或主题归属等元信息，不替换图片二进制内容；修改文件名时会做同用户同主题唯一性校验。")
+    public Result<String> modifyInfo(@RequestBody ImageModifyInfoDTO dto) {
+        log.info("Admin modify image info, id: {}", dto.getId());
+        imageService.modifyImageInfo(dto);
+        return Result.success("修改成功");
     }
 
     /**
@@ -127,7 +139,6 @@ public class ImageController {
      * @param id 图片ID
      * @return 删除结果提示
      */
-    @StorageHandler(operationType = StorageOperationType.DELETE)
     @DeleteMapping("/{id}")
     @Operation(summary = "删除图片",
             description = "根据图片ID删除图片。从云存储删除对应对象文件，并从数据库删除图片记录。仅允许删除自己的图片。")
@@ -135,7 +146,7 @@ public class ImageController {
             @Parameter(description = "图片ID")
             @PathVariable Long id) {
         log.info("User delete image: {}", id);
-        imageService.deleteUserImage(id);
+        imageService.deleteImage(id);
         return Result.success("删除成功");
     }
 }

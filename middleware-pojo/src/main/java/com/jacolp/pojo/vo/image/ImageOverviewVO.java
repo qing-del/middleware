@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "User image statistics")
-public class ImageStatsVO implements Serializable {
+public class ImageOverviewVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
