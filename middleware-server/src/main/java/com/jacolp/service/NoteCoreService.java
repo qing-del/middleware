@@ -103,7 +103,7 @@ public interface NoteCoreService {
     void updateStatusByIds(List<Long> noteIds, Short status);
 
     /**
-     * 修改笔记信息
+     * 修改笔记信息 -- （通用）
      *
      * @param dto 修改信息
      */

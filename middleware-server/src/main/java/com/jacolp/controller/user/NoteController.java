@@ -1,8 +1,9 @@
 package com.jacolp.controller.user;
 
 import com.jacolp.annotation.NoteFileLimit;
-import com.jacolp.pojo.vo.note.NoteDetailVO;
-import com.jacolp.pojo.vo.note.NoteDiffVO;
+import com.jacolp.constant.NoteConstant;
+import com.jacolp.pojo.dto.note.*;
+import com.jacolp.pojo.vo.note.*;
 import com.jacolp.service.NoteConvertService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -18,13 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.facade.NoteFacade;
-import com.jacolp.pojo.dto.note.NoteModifyInfoDTO;
-import com.jacolp.pojo.dto.note.UserNoteQueryDTO;
-import com.jacolp.pojo.dto.note.UserNoteSearchDTO;
-import com.jacolp.pojo.dto.note.UserNoteUpdateDTO;
 import com.jacolp.pojo.entity.NoteContextEntity;
-import com.jacolp.pojo.vo.note.NoteConvertResultVO;
-import com.jacolp.pojo.vo.note.NoteStatsVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.NoteContextService;
@@ -70,16 +65,62 @@ public class NoteController {
         return Result.success("审核申请已提交");
     }
 
-    @PostMapping
+    @PostMapping("/upload")
     @NoteFileLimit
-    @Operation(summary = "创建笔记")
-    public Result<Long> create(
-            @Parameter(description = ".md 格式的笔记文件")
-            @RequestParam("file") MultipartFile file,
-            @Parameter(description = "所属主题ID（可选）")
-            @RequestParam(value = "topicId", required = false) Long topicId) {
-        log.info("User create note: {}, topicId: {}", file.getOriginalFilename(), topicId);
-        return Result.success(noteFacade.uploadNote(file, topicId).getNoteId());
+    @Operation(summary = "上传笔记",
+            description = "从当前登录用户上下文获取 userId 后上传 Markdown 文件，先校验主题是否存在与同主题同名唯一性，再一次性扫描标签、图片和双链引用并建立映射；同时落库笔记原文、初始化缺失状态，最终返回 noteId 与缺失图片列表。")
+    public Result<NoteUploadVO> upload(
+            @RequestParam(required = false) Long topicId,
+            @Parameter(description = "笔记文件") @RequestParam MultipartFile file) {
+        log.info("Admin upload note, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
+        return Result.success(noteFacade.uploadNote(file, topicId));
+    }
+
+    @PutMapping("/upload/{noteId}")
+    @NoteFileLimit
+    @Operation(summary = "修改笔记源文件",
+            description = "校验笔记归属后读取旧 Markdown 内容，与新文件一起重新扫描标签、图片和双链引用并计算 Diff；新内容仅写入临时版本和变更记录，等待后续确认或回滚。")
+    public Result<NoteDiffVO> modifySource(
+            @Parameter(description = "笔记ID") @PathVariable Long noteId,
+            @Parameter(description = "新笔记文件") @RequestParam MultipartFile file) {
+        log.info("Admin modify note source, noteId: {}, filename: {}", noteId, file.getOriginalFilename());
+        return Result.success(noteFacade.modifyNoteSource(noteId, file));
+    }
+
+    @PostMapping("/upload/{noteId}/confirm")
+    @Operation(summary = "确认或取消笔记变更",
+            description = "对 modify-upload 产生的待确认 Diff 进行最终处理：确认时用新内容覆盖旧内容并重建关联映射，取消时清理临时内容和变更记录；整个过程保持笔记原有发布状态不变。")
+    public Result confirmChange(
+            @Parameter(description = "笔记ID") @PathVariable Long noteId,
+            @RequestBody NoteChangeConfirmDTO dto) {
+        log.info("Admin confirm note change, noteId: {}", noteId);
+
+        if (dto == null || dto.getConfirm() == null) {
+            return Result.error("确认参数不能为空");
+        }
+
+        noteFacade.confirmChange(noteId, dto);
+        return Result.success();
+    }
+
+    @GetMapping("/upload/{noteId}/diff")
+    @Operation(summary = "查询变更 Diff 详情",
+            description = "读取指定笔记的旧内容、新内容和 diff 记录，返回给前端用于变更确认页面展示；若没有待确认内容则按业务规则返回不存在。")
+    public Result<NoteModifyDiffDetailVO> getModifyDiff(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
+        log.info("Admin get note modify diff, noteId: {}", noteId);
+        return Result.success(noteFacade.getModifyDiff(noteId));
+    }
+
+    @PutMapping("/publish/{noteId}/{status}")
+    @Operation(summary = "设置笔记发布状态",
+            description = "根据 status 设置笔记发布或下架；发布时必须已存在转换缓存，并且标签、图片、双链三类关联都已通过审核，以及笔记本身通过审核，否则拒绝发布。用户端调用的时候会校验笔记是否具有所属权！")
+    public Result<String> setPublishStatus(
+            @Parameter(description = "笔记ID") @PathVariable Long noteId,
+            @Parameter(description = "发布状态（1:发布, 0:下架）") @PathVariable Short status) {
+        log.info("Admin set note publish status, noteId: {}, status: {}", noteId, status);
+        status = status == 1 ? NoteConstant.STATUS_PUBLISHED : NoteConstant.STATUS_APPROVED;
+        noteFacade.updateNoteStatus(noteId, status);
+        return Result.success();
     }
 
     @GetMapping
@@ -98,7 +139,7 @@ public class NoteController {
         return Result.success(noteFacade.getInfo(noteId));
     }
 
-    @GetMapping(value = "/source/{id}", produces = MediaType.TEXT_PLAIN_VALUE)
+    @GetMapping(value = "/source/{id}")
     @Operation(summary = "获取笔记Markdown源内容")
     public Result<String> getSource(
             @Parameter(description = "笔记ID")
@@ -109,7 +150,8 @@ public class NoteController {
     }
 
     @GetMapping("/converted/{noteId}")
-    @Operation(summary = "获取笔记转换后的HTML内容")
+    @Operation(summary = "获取笔记转换后的HTML内容",
+            description = "获取笔记转换后的 HTML 内容，但是一般用于获取自己的笔记形式，不能用来查询公开的笔记内容。")
     public Result<NoteConvertResultVO> getConvertedHtml(
             @Parameter(description = "笔记ID")
             @PathVariable Long noteId) {
@@ -135,17 +177,6 @@ public class NoteController {
         log.info("User update note info: {}", id);
         noteCoreService.modifyInfo(dto);
         return Result.success();
-    }
-
-    @PutMapping("/{id}/source")
-    @NoteFileLimit
-    @Operation(summary = "修改笔记源文件")
-    public Result<NoteDiffVO> updateSource(
-            @PathVariable Long id,
-            @Parameter(description = "新的 .md 文件")
-            @RequestParam("file") MultipartFile file) {
-        log.info("User update note source: {}", id);
-        return Result.success(noteFacade.modifyNoteSource(id, file));
     }
 
     @DeleteMapping("/{id}")

@@ -1,6 +1,7 @@
 package com.jacolp.facade;
 
 import com.jacolp.context.NoteImageResolveContext;
+import com.jacolp.context.PermissionContext;
 import com.jacolp.context.StorageUpdateContext;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
@@ -99,8 +100,11 @@ public interface NoteFacade {
 
     /**
      * 更新笔记状态
-     * @param noteId
-     * @param status
+     * <p>- 管理员调用不做所属校验</p>
+     * <p>- 支持以下复杂逻辑的转换做了特殊处理：</p>
+     * <ol>
+     *     <li>- 已通过 -> 发布</li>
+     * </ol>
      */
     void updateNoteStatus(Long noteId, Short status);
 
@@ -112,9 +116,10 @@ public interface NoteFacade {
     NoteRelationDetailVO getRelationInfo(Long noteId);
 
     /**
-     * 获取笔记详情
-     * @param noteId
-     * @return
+     * 获取笔记完整详情 --
+     * <p>- 通过 {@link PermissionContext} 来控制是否校验所有权</p>
+     * <p>聚合笔记基本信息、主题名、标签名列表、图片简要列表、
+     * 双链映射及转换结果，供前端详情页一次性加载。</p>
      */
     NoteDetailVO getInfo(Long noteId);
 

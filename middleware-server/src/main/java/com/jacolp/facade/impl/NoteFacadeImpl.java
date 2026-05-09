@@ -126,9 +126,9 @@ public class NoteFacadeImpl implements NoteFacade {
         // 插入笔记行
         Long noteId = noteCoreService.insertNote(dto);
 
-        // 插入笔记文本 — 通过 NoteImageResolveContext 为图片解析插件提供 noteId
-        NoteImageResolveContext.setCurrentNoteId(noteId);
         try {
+            // 插入笔记文本 — 通过 NoteImageResolveContext 为图片解析插件提供 noteId
+            NoteImageResolveContext.setCurrentNoteId(noteId);
             NoteContextEntity contextEntity = buildNoteContextEntity(noteId, rawMarkdown);
             noteContextService.insert(contextEntity);
         } finally {
@@ -171,6 +171,13 @@ public class NoteFacadeImpl implements NoteFacade {
     public NoteDiffVO modifyNoteSource(Long noteId, MultipartFile file) {
         // 校验所有权，非所有者抛出 PERMISSION_DENIED
         NoteEntity existed = noteCoreService.getById(noteId);
+
+        // 检查是否可以发生状态转换
+        NoteStatus currentStatus = NoteStatus.fromCode(existed.getStatus());
+        if (!currentStatus.canTransitionTo(NoteStatus.PENDING_INFO)) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
         normalizeFilename(file.getOriginalFilename());
 
         // 检查未确认 diff — 同一时刻只能有一个待确认的变更

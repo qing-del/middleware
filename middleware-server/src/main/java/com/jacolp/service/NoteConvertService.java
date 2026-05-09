@@ -30,7 +30,7 @@ public interface NoteConvertService {
     /**
      * 获取笔记转换结果
      * <p>通过 {@link com.jacolp.context.PermissionContext} 来判断是否进行所属权校验</p>
-     * <p>会越过是否发布的校验</p>
+     * <p>会越过是否发布的校验 - 不适合用作打开公共笔记的逻辑方法</p>
      * @param noteId 笔记 ID
      * @return 笔记转换结果
      * @throws BaseException 笔记转换 结果不存在 / 无权限访问 的时候会抛出此异常

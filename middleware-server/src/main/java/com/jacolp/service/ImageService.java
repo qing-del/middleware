@@ -42,11 +42,6 @@ public interface ImageService {
     void transferToCloud(List<Long> ids);
 
     /**
-     * 已废弃：不再支持迁移到本地存储。
-     */
-    void transferToLocal(List<Long> ids);
-
-    /**
      * 删除图片（批量）。
      *
      * @return

@@ -91,6 +91,8 @@ public class NoteConstant {
     public static final String NOTE_NOT_PASS = "该笔记未通过审核";
     public static final String DELETE_NOTE_NOT_EXIST = "需要删除的笔记不存在";
     public static final String NOTE_UPLOAD_FAILED = "笔记上传失败";
+    public static final String NOTE_STATUS_NOT_ALLOWED = "笔记状态不允许执行此操作";
+
 
     private NoteConstant() {
     }
