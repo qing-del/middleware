@@ -54,7 +54,8 @@
     <select id="selectDeleteChecksByIds" resultType="com.jacolp.pojo.dto.topic.TopicNoteCountDTO">
         SELECT
             t.topic_name AS topicName,
-            COUNT(n.id) AS noteCount
+            COUNT(n.id) AS noteCount,
+            t.user_id AS userId
         FROM biz_topic t
         LEFT JOIN biz_note n ON n.topic_id = t.id AND n.is_deleted = 0
         WHERE t.id IN

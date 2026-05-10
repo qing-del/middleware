@@ -22,7 +22,6 @@ import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
-import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.TagMapper;
 import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
@@ -30,7 +29,6 @@ import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
 import com.jacolp.pojo.dto.tag.TagModifyDTO;
 import com.jacolp.pojo.dto.tag.TagQueryDTO;
-import com.jacolp.pojo.dto.tag.UserTagAddDTO;
 import com.jacolp.pojo.dto.tag.UserTagAssignDTO;
 import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
 import com.jacolp.pojo.dto.tag.UserTagRemoveDTO;
@@ -193,12 +191,12 @@ public class TagServiceImpl implements TagService {
             dto = new TagQueryDTO();
         }
 
-        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-
         Long userId = dto.getUserId();
         if (userId != null && userId <= 0) {
             throw new BaseException(UserConstant.NOT_FIND_USER);
         }
+
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<TagVO> records = tagMapper.listByCondition(userId, normalizeKeyword(dto.getKeyword()));
         PageInfo<TagVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());

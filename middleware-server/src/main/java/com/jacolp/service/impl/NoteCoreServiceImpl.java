@@ -220,10 +220,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     @Override
     public PageResult listUserNotesBySearch(UserNoteSearchDTO dto) {
         Long userId = BaseContext.getCurrentId();
-        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
-        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
-        PageHelper.startPage(pageNum, pageSize);
 
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), dto.getKeyword());
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
@@ -239,11 +237,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException("搜索关键词不能为空");
         }
 
-        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
-        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
-        PageHelper.startPage(pageNum, pageSize);
-
         String keyword = dto.getKeyword().trim();
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), keyword);
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());

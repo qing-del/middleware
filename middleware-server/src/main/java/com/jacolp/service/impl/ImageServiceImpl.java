@@ -318,11 +318,10 @@ public class ImageServiceImpl implements ImageService {
             dto = new ImageQueryDTO();
         }
 
-        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-
         ImageEntity query = new ImageEntity();
         BeanUtils.copyProperties(dto, query);
 
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<ImageVO> records = imageMapper.listByCondition(query);
         PageInfo<ImageVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
@@ -419,9 +418,10 @@ public class ImageServiceImpl implements ImageService {
             dto = new UserImageQueryDTO();
         }
 
-        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
+        String filename = (dto.getFilename() != null && !dto.getFilename().trim().isEmpty()) ?
+                dto.getFilename().trim() : null;
 
-        String filename = (dto.getFilename() != null && !dto.getFilename().trim().isEmpty()) ? dto.getFilename().trim() : null;
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<ImageVO> records = imageMapper.listByUserCondition(userId, dto.getTopicId(), filename);
         PageInfo<ImageVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
