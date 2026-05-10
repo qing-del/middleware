@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
+import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface NoteTagMappingMapper {
@@ -60,4 +61,12 @@ public interface NoteTagMappingMapper {
      * @return 未绑定标签映射行数量
      */
     int countByNoteIdAndTargetIdIsNull(@Param("noteId") Long noteId);
+
+    /**
+     * 统计指定标签的笔记数量
+     * @param tagId 标签 id
+     * @return 笔记标签映射行数量
+     */
+    @Select("SELECT COUNT(1) FROM biz_note_tag_mapping WHERE tag_id = #{tagId} AND is_deleted = 0")
+    long countByTagId(Long tagId);
 }

@@ -19,4 +19,5 @@ public class TagConstant {
     public static final String TAG_DELETE_NOT_ALLOWED_PREFIX = "该标签-";
     public static final String TAG_DELETE_NOT_ALLOWED_SUFFIX = "正在被笔记使用，无法删除！";
     public static final String TAG_NOT_PASS = "标签未通过审核";
+    public static final String TAG_REFERENCED = "标签正在被引用";
 }

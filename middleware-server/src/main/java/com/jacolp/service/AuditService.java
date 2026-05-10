@@ -70,6 +70,11 @@ public interface AuditService {
 
     boolean hasPendingMetaAudit(Short applyType, Long targetId);
 
+    /**
+     * 创建主题/标签审核记录。
+     * @param record 审核记录
+     * @throws RuntimeException 创建失败
+     */
     void createMetaAuditRecord(MetaAuditRecordEntity record);
 
     ImageAuditRecordEntity getImageAuditRecordById(Long id);

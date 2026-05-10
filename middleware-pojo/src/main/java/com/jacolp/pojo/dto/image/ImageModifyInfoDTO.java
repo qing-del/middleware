@@ -18,7 +18,5 @@ public class ImageModifyInfoDTO implements Serializable {
 
     private Long id;  // 图片ID，必填
 
-    private String filename;  // 新文件名，可选
-
     private Long topicId;  // 新主题ID，可选
 }

@@ -69,7 +69,7 @@ public class ImageController {
             description = "传入图片 ID，发起对该图片的审核申请。仅允许申请审核自己的图片，且该图片不能已通过审核或已有待审核申请。")
     public Result<String> submitAudit(@RequestParam Long id) {
         log.info("User submit image audit, imageId: {}", id);
-        imageService.submitImageAudit(id);
+        imageService.submitImageAudit(id);  // TODO 审核模块拆分的时候，迁移这个接口
         return Result.success("审核申请已提交");
     }
 
@@ -80,7 +80,7 @@ public class ImageController {
     public Result<String> upload(
             @RequestParam(required = false) Long topicId,
             @Parameter(description = "图片文件") @RequestParam MultipartFile file) {
-        log.info("Admin upload image, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
+        log.info("User upload image, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
         imageService.uploadImage(file, topicId);
         return Result.success();
     }
@@ -97,7 +97,7 @@ public class ImageController {
     public Result<String> modifyFile(
             @Parameter(description = "图片ID") @RequestParam Long id,
             @Parameter(description = "新文件") @RequestParam MultipartFile file) {
-        log.info("Admin modify image file, id: {}, filename: {}", id, file.getOriginalFilename());
+        log.info("User modify image file, id: {}, filename: {}", id, file.getOriginalFilename());
         imageService.modifyImageFile(id, file);
         return Result.success();
     }
@@ -109,7 +109,7 @@ public class ImageController {
     @Operation(summary = "修改图片元信息",
             description = "修改图片名称或主题归属等元信息，不替换图片二进制内容；修改文件名时会做同用户同主题唯一性校验。")
     public Result<String> modifyInfo(@RequestBody ImageModifyInfoDTO dto) {
-        log.info("Admin modify image info, id: {}", dto.getId());
+        log.info("User modify image info, id: {}", dto.getId());
         imageService.modifyImageInfo(dto);
         return Result.success("修改成功");
     }

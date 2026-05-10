@@ -72,7 +72,7 @@ public class NoteController {
     public Result<NoteUploadVO> upload(
             @RequestParam(required = false) Long topicId,
             @Parameter(description = "笔记文件") @RequestParam MultipartFile file) {
-        log.info("Admin upload note, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
+        log.info("User upload note, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
         return Result.success(noteFacade.uploadNote(file, topicId));
     }
 
@@ -83,7 +83,7 @@ public class NoteController {
     public Result<NoteDiffVO> modifySource(
             @Parameter(description = "笔记ID") @PathVariable Long noteId,
             @Parameter(description = "新笔记文件") @RequestParam MultipartFile file) {
-        log.info("Admin modify note source, noteId: {}, filename: {}", noteId, file.getOriginalFilename());
+        log.info("User modify note source, noteId: {}, filename: {}", noteId, file.getOriginalFilename());
         return Result.success(noteFacade.modifyNoteSource(noteId, file));
     }
 
@@ -93,7 +93,7 @@ public class NoteController {
     public Result confirmChange(
             @Parameter(description = "笔记ID") @PathVariable Long noteId,
             @RequestBody NoteChangeConfirmDTO dto) {
-        log.info("Admin confirm note change, noteId: {}", noteId);
+        log.info("User confirm note change, noteId: {}", noteId);
 
         if (dto == null || dto.getConfirm() == null) {
             return Result.error("确认参数不能为空");
@@ -107,7 +107,7 @@ public class NoteController {
     @Operation(summary = "查询变更 Diff 详情",
             description = "读取指定笔记的旧内容、新内容和 diff 记录，返回给前端用于变更确认页面展示；若没有待确认内容则按业务规则返回不存在。")
     public Result<NoteModifyDiffDetailVO> getModifyDiff(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
-        log.info("Admin get note modify diff, noteId: {}", noteId);
+        log.info("User get note modify diff, noteId: {}", noteId);
         return Result.success(noteFacade.getModifyDiff(noteId));
     }
 
@@ -117,7 +117,7 @@ public class NoteController {
     public Result<String> setPublishStatus(
             @Parameter(description = "笔记ID") @PathVariable Long noteId,
             @Parameter(description = "发布状态（1:发布, 0:下架）") @PathVariable Short status) {
-        log.info("Admin set note publish status, noteId: {}, status: {}", noteId, status);
+        log.info("User set note publish status, noteId: {}, status: {}", noteId, status);
         status = status == 1 ? NoteConstant.STATUS_PUBLISHED : NoteConstant.STATUS_APPROVED;
         noteFacade.updateNoteStatus(noteId, status);
         return Result.success();

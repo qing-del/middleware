@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.jacolp.context.PermissionContext;
 import com.jacolp.service.*;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,7 @@ public class TagServiceImpl implements TagService {
         String tagName = normalizeTagName(dto.getTagName());
         validateTagName(tagName);
 
+        // 检查是否存在同主题下的同名标签
         TagEntity existed = tagMapper.selectByUserIdAndTagName(userId, tagName);
         if (existed != null) {
             throw new BaseException(TagConstant.TAG_ALREADY_EXISTS);
@@ -70,7 +72,7 @@ public class TagServiceImpl implements TagService {
         TagEntity tag = new TagEntity();
         tag.setUserId(userId);
         tag.setTagName(tagName);
-        tag.setIsPass(AuditConstant.PASS);
+        tag.setIsPass(AuditConstant.WAIT);  // 默认处于待审核状态
         int count = tagMapper.insertTag(tag);
         if (count <= 0) {
             throw new BaseException(TagConstant.TAG_ADD_FAILED);
@@ -81,9 +83,6 @@ public class TagServiceImpl implements TagService {
     @Transactional(rollbackFor = Exception.class)
     public TagBatchAddVO batchAddTags(TagBatchAddDTO dto) {
         Long userId = BaseContext.getCurrentId();
-        if (dto == null || dto.getTagNames() == null || dto.getTagNames().isEmpty()) {
-            throw new BaseException(TagConstant.TAG_NAME_REQUIRED);
-        }
 
         // 去重并保序，同时过滤空白
         LinkedHashSet<String> normalized = new LinkedHashSet<>();
@@ -111,7 +110,7 @@ public class TagServiceImpl implements TagService {
                 TagEntity tag = new TagEntity();
                 tag.setUserId(userId);
                 tag.setTagName(tagName);
-                tag.setIsPass(AuditConstant.PASS);
+                tag.setIsPass(AuditConstant.WAIT);  // 默认处于待审核状态
                 toInsert.add(tag);
             }
         }
@@ -133,6 +132,12 @@ public class TagServiceImpl implements TagService {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
 
+        // 检查标签是否被引用，被引用的状态下无法修改
+        if (noteRelationService.countRelationByTagId(dto.getId()) > 0) {
+            throw new BaseException(TagConstant.TAG_REFERENCED);
+        }
+
+        // 检查是否存在重名的标签
         String tagName = normalizeTagName(dto.getTagName());
         validateTagName(tagName);
         if (!tagName.equals(existed.getTagName())) {
@@ -152,19 +157,22 @@ public class TagServiceImpl implements TagService {
         }
     }
 
+    /**
+     * 删除标签
+     * <p>- 查询待删除的标签列表时，会根据 {@link PermissionContext#isAdmin()} 来判断是否需要开启用户过滤</p>
+     * @param ids
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteTags(List<Long> ids) {
-        if (ids == null || ids.isEmpty()) {
-            throw new BaseException("待删除的标签 ID 列表不能为空");
-        }
-
-        Long userId = BaseContext.getCurrentId();
+        // 获取删除列表
+        Long userId = PermissionContext.isAdmin() ? null : BaseContext.getCurrentId();
         List<TagNoteCountDTO> checks = tagMapper.selectDeleteChecksByIds(userId, ids);
         if (checks.size() != ids.size()) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
 
+        // 检查是否存在引用
         for (TagNoteCountDTO check : checks) {
             if (check.getNoteCount() != null && check.getNoteCount() > 0) {
                 throw new BaseException(TagConstant.TAG_DELETE_NOT_ALLOWED_PREFIX
@@ -185,11 +193,7 @@ public class TagServiceImpl implements TagService {
             dto = new TagQueryDTO();
         }
 
-        Integer pageNumParam = dto.getPageNum();
-        Integer pageSizeParam = dto.getPageSize();
-        int pageNum = pageNumParam == null || pageNumParam <= 0 ? 1 : pageNumParam;
-        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? 10 : pageSizeParam;
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
         Long userId = dto.getUserId();
         if (userId != null && userId <= 0) {
@@ -210,9 +214,7 @@ public class TagServiceImpl implements TagService {
         }
         Long userId = BaseContext.getCurrentId();
 
-        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
-        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
-        PageHelper.startPage(pageNum, pageSize);
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
         List<TagVO> records = tagMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()));
         PageInfo<TagVO> pageInfo = new PageInfo<>(records);
@@ -295,71 +297,8 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    public void addUserTag(UserTagAddDTO dto) {
-        Long userId = BaseContext.getCurrentId();
-        String tagName = normalizeTagName(dto.getTagName());
-
-        if (!StringUtils.hasText(tagName)) {
-            throw new BaseException(TagConstant.TAG_NAME_REQUIRED);
-        }
-        if (tagName.length() > TagConstant.MAX_TAG_NAME_LENGTH) {
-            throw new BaseException(TagConstant.TAG_NAME_TOO_LONG);
-        }
-
-        TagEntity existed = tagMapper.selectByUserIdAndTagName(userId, tagName);
-        if (existed != null) {
-            throw new BaseException(TagConstant.TAG_ALREADY_EXISTS);
-        }
-
-        TagEntity tag = new TagEntity();
-        tag.setUserId(userId);
-        tag.setTagName(tagName);
-        tag.setIsPass(TagConstant.IS_NOT_PASS);
-
-        int count = tagMapper.insertTag(tag);
-        if (count <= 0) {
-            throw new BaseException("创建标签失败");
-        }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void deleteUserTag(Long id) {
-        Long userId = BaseContext.getCurrentId();
-
-        if (id == null || id <= 0) {
-            throw new BaseException(TagConstant.TAG_ID_INVALID);
-        }
-
-        TagEntity tag = tagMapper.selectByIdAndUserId(id, userId);
-        if (tag == null) {
-            throw new BaseException(TagConstant.TAG_NOT_FOUND);
-        }
-
-        List<NoteTagMappingEntity> mappings = noteRelationService.listTagMappingsByNoteId(id);
-        if (mappings != null && !mappings.isEmpty()) {
-            throw new BaseException("该标签正在被使用，无法删除");
-        }
-
-        List<Long> ids = new ArrayList<>();
-        ids.add(id);
-        int count = tagMapper.deleteByIds(userId, ids);
-        if (count <= 0) {
-            throw new BaseException("删除标签失败");
-        }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public void assignUserTag(UserTagAssignDTO dto) {
         Long userId = BaseContext.getCurrentId();
-
-        if (dto.getTagId() == null || dto.getTagId() <= 0) {
-            throw new BaseException(TagConstant.TAG_ID_INVALID);
-        }
-        if (dto.getTargetId() == null || dto.getTargetId() <= 0) {
-            throw new BaseException("目标资源ID无效");
-        }
 
         TagEntity tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
         if (tag == null) {
@@ -370,16 +309,8 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void removeUserTag(UserTagRemoveDTO dto) {
         Long userId = BaseContext.getCurrentId();
-
-        if (dto.getTagId() == null || dto.getTagId() <= 0) {
-            throw new BaseException(TagConstant.TAG_ID_INVALID);
-        }
-        if (dto.getTargetId() == null || dto.getTargetId() <= 0) {
-            throw new BaseException("目标资源ID无效");
-        }
 
         TagEntity tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
         if (tag == null) {
@@ -389,15 +320,21 @@ public class TagServiceImpl implements TagService {
         removeTagFromNote(tag, dto.getTargetId(), userId);
     }
 
+    /**
+     * 分配标签给目标笔记
+     * <p>- 先使用 {@link NoteCoreService#getById(Long)} 来获取笔记（自带身份校验）</p>
+     * <p>- 使用{@link NoteRelationService#listTagMappingsByNoteId(Long)} 获取列表来校验是否存在重复绑定</p>
+     * <p>- 若不存在重复，使用{@link NoteRelationService#batchInsertTagMappings(List)} 创建映射关系</p>
+     * @throws BaseException 不存在笔记 | 已有关联映射 | 创建映射关系失败
+     */
     private void assignTagToNote(TagEntity tag, Long noteId, Long userId) {
         NoteEntity note = noteCoreService.getById(noteId);
-        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
-            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
-        }
+        // 显示校验所属权（实际上已经校验过了）
         if (!note.getUserId().equals(userId)) {
             throw new BaseException("只能绑定到自己的笔记");
         }
 
+        // 检查是否存在重复绑定
         List<NoteTagMappingEntity> existingMappings = noteRelationService.listTagMappingsByNoteId(noteId);
         for (NoteTagMappingEntity mapping : existingMappings) {
             if (mapping.getTagId() != null
@@ -407,6 +344,7 @@ public class TagServiceImpl implements TagService {
             }
         }
 
+        // 创建映射
         NoteTagMappingEntity mapping = new NoteTagMappingEntity();
         mapping.setNoteId(noteId);
         BeanUtils.copyProperties(tag, mapping);
@@ -418,15 +356,20 @@ public class TagServiceImpl implements TagService {
         }
     }
 
+    /**
+     * 移除标签从目标笔记
+     * <p>- 先使用 {@link NoteCoreService#getById(Long)} 来获取笔记（自带身份校验）</p>
+     * <p>- 使用{@link NoteRelationService#listTagMappingsByNoteId(Long)} 获取列表来校验是否存在映射关系</p>
+     * <p>- 若存在映射关系，使用{@link NoteRelationService#unbindTagMappingById(Long)} 删除映射关系</p>
+     * @throws BaseException 不存在笔记 | 未找到映射关系 | 删除映射关系失败
+     */
     private void removeTagFromNote(TagEntity tag, Long noteId, Long userId) {
         NoteEntity note = noteCoreService.getById(noteId);
-        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
-            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
-        }
         if (!note.getUserId().equals(userId)) {
             throw new BaseException("只能操作自己的笔记");
         }
 
+        // 获取映射关系
         List<NoteTagMappingEntity> mappings = noteRelationService.listTagMappingsByNoteId(noteId);
         NoteTagMappingEntity targetMapping = null;
         for (NoteTagMappingEntity mapping : mappings) {
@@ -438,10 +381,12 @@ public class TagServiceImpl implements TagService {
             }
         }
 
+        // 检查是否找到对应的映射关系
         if (targetMapping == null) {
             throw new BaseException("该标签未绑定到此笔记");
         }
 
+        // 删除映射关系
         int count = noteRelationService.unbindTagMappingById(targetMapping.getId());
         if (count <= 0) {
             throw new BaseException("解除绑定失败");
