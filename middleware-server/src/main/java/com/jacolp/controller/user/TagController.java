@@ -2,20 +2,21 @@ package com.jacolp.controller.user;
 
 import java.util.List;
 
+import com.jacolp.constant.TagConstant;
+import com.jacolp.exception.BaseException;
+import com.jacolp.pojo.dto.tag.*;
+import com.jacolp.pojo.vo.tag.TagBatchAddVO;
+import com.jacolp.utils.IdParserUtil;
+import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.jacolp.pojo.dto.tag.UserTagAddDTO;
-import com.jacolp.pojo.dto.tag.UserTagAssignDTO;
-import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
-import com.jacolp.pojo.dto.tag.UserTagRemoveDTO;
 import com.jacolp.pojo.vo.tag.TagStatsVO;
 import com.jacolp.pojo.vo.tag.UserTagSimpleVO;
 import com.jacolp.result.PageResult;
@@ -36,8 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "User-标签管理", description = "用户端标签管理接口")
 public class TagController {
 
-    @Autowired
-    private TagService tagService;
+    @Autowired private TagService tagService;
 
     /**
      * 条件查询标签列表
@@ -47,7 +47,8 @@ public class TagController {
      * @return 分页后的标签列表
      */
     @PostMapping("/list")
-    @Operation(summary = "条件查询标签列表", description = "查询当前用户自己的标签 + 别人已通过审核的标签。支持按关键字模糊搜索，分页返回。")
+    @Operation(summary = "条件查询标签列表",
+            description = "查询当前用户自己的标签 + 别人已通过审核的标签。支持按关键字模糊搜索，分页返回。")
     public Result<PageResult> list(@RequestBody UserTagQueryDTO dto) {
         log.info("User list tags, keyword: {}", dto.getKeyword());
         return Result.success(tagService.listUserTags(dto));
@@ -57,7 +58,8 @@ public class TagController {
      * 获取当前用户标签统计。
      */
     @GetMapping("/stats")
-    @Operation(summary = "获取用户标签统计", description = "返回当前用户的标签总数和已通过审核数。")
+    @Operation(summary = "获取用户标签统计",
+            description = "返回当前用户的标签总数和已通过审核数。")
     public Result<TagStatsVO> getStats() {
         log.info("User get tag stats");
         return Result.success(tagService.getUserTagStats());
@@ -71,10 +73,11 @@ public class TagController {
      * @return 审核申请提交结果
      */
     @PostMapping("/submitAudit")
-    @Operation(summary = "发起标签审核申请", description = "传入标签 ID，发起对该标签的审核申请。仅允许申请审核自己的标签，且该标签不能已通过审核或已有待审核申请。")
+    @Operation(summary = "发起标签审核申请",
+            description = "传入标签 ID，发起对该标签的审核申请。仅允许申请审核自己的标签，且该标签不能已通过审核或已有待审核申请。")
     public Result<String> submitAudit(@RequestParam Long id) {
         log.info("User submit tag audit, tagId: {}", id);
-        tagService.submitTagAudit(id);
+        tagService.submitTagAudit(id);  // TODO 解耦审核逻辑部分的时候需要优化
         return Result.success("审核申请已提交");
     }
 
@@ -92,32 +95,45 @@ public class TagController {
     }
 
     /**
-     * 创建新标签
-     * <p>创建新标签，标签所有者自动设为当前登录用户。标签名称在同一用户下不能重复。</p>
+     * 新增标签
+     * <p>从当前登录用户上下文获取 userId 后创建单个标签；服务层会先清洗名称、校验长度，再检查同名标签是否已存在，避免重复创建。</p>
      *
-     * @param dto 创建标签请求，包含标签名称
-     * @return 创建结果提示
+     * @param dto 新增标签请求，包含标签名称
+     * @return 新增结果提示
      */
-    @PostMapping
-    @Operation(summary = "创建标签", description = "创建新标签，标签所有者自动设为当前登录用户。标签名称在同一用户下不能重复。")
-    public Result<String> create(@RequestBody UserTagAddDTO dto) {
-        log.info("User create tag: {}", dto.getTagName());
-        tagService.addUserTag(dto);
-        return Result.success("创建成功");
+    @PostMapping("/add")
+    @Operation(summary = "新增标签",
+            description = "从当前登录用户上下文获取 userId 后创建单个标签；服务层会先清洗名称、校验长度，再检查同名标签是否已存在，避免重复创建。")
+    public Result<String> add(@RequestBody TagAddDTO dto) {
+        log.info("User add tag, tagName: {}", dto.getTagName());
+        tagService.addTag(dto);
+        return Result.success();
     }
 
-    /**
-     * 删除标签
-     * <p>根据标签ID删除标签。执行软删除，保留关联历史。仅允许删除自己的标签。</p>
-     * @param id 标签ID
-     * @return 删除结果提示
-     */
-    @DeleteMapping("/{id}")
-    @Operation(summary = "删除标签", description = "根据标签ID删除标签。执行软删除，保留关联历史。仅允许删除自己的标签。")
-    public Result<String> delete(@PathVariable Long id) {
-        log.info("User delete tag: {}", id);
-        tagService.deleteUserTag(id);
-        return Result.success("删除成功");
+    @PostMapping("/batch-add")
+    @Operation(summary = "批量新增标签",
+            description = "批量创建标签时先去重并过滤空值，再对比当前用户已有标签列表；仅插入不存在的标签，返回成功数量和已存在标签列表。")
+    public Result<TagBatchAddVO> batchAdd(@RequestBody TagBatchAddDTO dto) {
+        if (dto == null || dto.getTagNames() == null || dto.getTagNames().isEmpty()) {
+            throw new BaseException(TagConstant.TAG_NAME_REQUIRED);
+        }
+        log.info("User batch add tag, tagNames: {}", dto.getTagNames());
+        return Result.success(tagService.batchAddTags(dto));
+    }
+
+    @DeleteMapping("/delete")
+    @Operation(summary = "批量删除标签",
+            description = "批量删除前会先检查所有目标标签是否存在，并查询其被笔记引用的数量；只要有任一标签仍被使用，整批删除即拒绝执行。")
+    public Result<String> delete(@Parameter(description = "标签ID，使用英文逗号分隔，例如 1,2,3")
+                                 @RequestParam String ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BaseException("待删除的标签 ID 列表不能为空");
+        }
+
+        List<Long> idList = IdParserUtil.parseIds(ids, "标签");
+        log.info("User delete tags, ids: {}", idList);
+        tagService.deleteTags(idList);
+        return Result.success();
     }
 
     /**
@@ -131,6 +147,13 @@ public class TagController {
     @Operation(summary = "绑定标签到资源",
             description = "将标签绑定到笔记或主题。绑定前会校验标签归属和目标资源的存在性。")
     public Result<String> assign(@RequestBody UserTagAssignDTO dto) {
+        if (dto.getTagId() == null || dto.getTagId() <= 0) {
+            throw new BaseException(TagConstant.TAG_ID_INVALID);
+        }
+        if (dto.getTargetId() == null || dto.getTargetId() <= 0) {
+            throw new BaseException("目标资源ID无效");
+        }
+
         log.info("User assign tag {} to note {}", dto.getTagId(), dto.getTargetId());
         tagService.assignUserTag(dto);
         return Result.success("绑定成功");
@@ -146,6 +169,13 @@ public class TagController {
     @PostMapping("/remove")
     @Operation(summary = "解除标签绑定", description = "解除标签与笔记之间的绑定关系。仅允许操作自己的标签和资源。")
     public Result<String> remove(@RequestBody UserTagRemoveDTO dto) {
+        if (dto.getTagId() == null || dto.getTagId() <= 0) {
+            throw new BaseException(TagConstant.TAG_ID_INVALID);
+        }
+        if (dto.getTargetId() == null || dto.getTargetId() <= 0) {
+            throw new BaseException("目标资源ID无效");
+        }
+
         log.info("User remove tag {} from note {}", dto.getTagId(), dto.getTargetId());
         tagService.removeUserTag(dto);
         return Result.success("解除绑定成功");

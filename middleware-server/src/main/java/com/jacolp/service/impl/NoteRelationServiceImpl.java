@@ -511,6 +511,11 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
+    public long countRelationByTagId(Long tagId) {
+        return noteTagMappingMapper.countByTagId(tagId);
+    }
+
+    @Override
     public void deleteByNoteIds(List<Long> noteIds) {
         if (noteIds == null || noteIds.isEmpty()) {
             return;

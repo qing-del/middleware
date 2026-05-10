@@ -179,19 +179,6 @@ public class ImageServiceImpl implements ImageService {
             throw new BaseException(ImageConstant.IMAGE_NOT_OWNER);
         }
 
-        // 仅更新提供的字段
-        if (dto.getFilename() != null && !dto.getFilename().isEmpty()) {
-            String newFilename = dto.getFilename().trim();
-            // 检查新文件名是否重复
-            if (!newFilename.equals(existed.getFilename())) {
-                int count = imageMapper.countByUserIdTopicIdAndFilename(userId, dto.getTopicId(), newFilename);
-                if (count > 0) {
-                    throw new BaseException(ImageConstant.IMAGE_NAME_DUPLICATE);
-                }
-            }
-            existed.setFilename(newFilename);
-        }
-
         // 如果传过来的主题不为空 则换主题
         if (dto.getTopicId() != null) {
             existed.setTopicId(dto.getTopicId());

@@ -34,7 +34,8 @@
             COUNT(m.note_id) AS noteCount
         FROM biz_tag t
         LEFT JOIN biz_note_tag_mapping m ON m.tag_id = t.id AND m.is_deleted = 0
-        WHERE t.user_id = #{userId}
+        WHERE
+          <if test="userId != null">t.user_id = #{userId}</if>
           AND t.id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}

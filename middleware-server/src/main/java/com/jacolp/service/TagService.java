@@ -2,6 +2,7 @@ package com.jacolp.service;
 
 import java.util.List;
 
+import com.jacolp.context.PermissionContext;
 import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
 import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
@@ -25,6 +26,11 @@ public interface TagService {
 
     void modifyTag(TagModifyDTO dto);
 
+    /**
+     * 删除标签
+     * <p>- 查询待删除的标签列表时，会根据 {@link PermissionContext#isAdmin()} 来判断是否需要开启用户过滤</p>
+     * @param ids
+     */
     void deleteTags(List<Long> ids);
 
     PageResult listTags(TagQueryDTO dto);
@@ -62,10 +68,6 @@ public interface TagService {
     // ===== 用户端方法 =====
 
     List<UserTagSimpleVO> listUserTagSimples();
-
-    void addUserTag(UserTagAddDTO dto);
-
-    void deleteUserTag(Long id);
 
     void assignUserTag(UserTagAssignDTO dto);
 

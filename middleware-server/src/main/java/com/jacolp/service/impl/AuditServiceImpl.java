@@ -168,9 +168,17 @@ public class AuditServiceImpl implements AuditService {
         return metaAuditMapper.countPendingAuditByApplyTypeAndTargetId(applyType, targetId) > 0;
     }
 
+    /**
+     * 创建主题/标签审核记录。
+     * @param record 审核记录
+     * @throws RuntimeException 创建失败
+     */
     @Override
     public void createMetaAuditRecord(MetaAuditRecordEntity record) {
-        metaAuditMapper.insertAuditRecord(record);
+        int affected = metaAuditMapper.insertAuditRecord(record);
+        if (affected < 1) {
+            throw new RuntimeException("创建审核记录失败");
+        }
     }
 
     @Override

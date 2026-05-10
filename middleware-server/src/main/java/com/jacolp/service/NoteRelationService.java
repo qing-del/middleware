@@ -12,6 +12,7 @@ import com.jacolp.pojo.entity.*;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
+import org.apache.ibatis.annotations.Param;
 
 public interface NoteRelationService {
 
@@ -236,4 +237,11 @@ public interface NoteRelationService {
      * @return 图片关系列表
      */
     List<NoteSimpleVO> listNoteSimplesByImageId(Long imageId);
+
+    /**
+     * 获取图片关系数量
+     * @param tagId 标签 ID
+     * @return 图片关系数量
+     */
+    long countRelationByTagId(@Param("tagId") Long tagId);
 }

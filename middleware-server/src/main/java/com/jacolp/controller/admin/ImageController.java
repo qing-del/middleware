@@ -7,6 +7,7 @@ import java.util.Set;
 import com.jacolp.annotation.StorageHandler;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
+import com.jacolp.utils.IdParserUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,7 +75,7 @@ public class ImageController {
             description = "批量触发图片存储介质迁移流程，默认处理阿里云 OSS 入口并预留 R2 等多云扩展；按图片 ID 逐条处理，失败项会记录日志。")
     public Result<String> transferToCloud(
             @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
-        List<Long> idList = parseIds(ids);
+        List<Long> idList = IdParserUtil.parseIds(ids, "图片");
         log.info("Admin transfer to cloud, ids: {}", idList);
         imageService.transferToCloud(idList);
         return Result.success();
@@ -88,7 +89,7 @@ public class ImageController {
             description = "批量删除图片前会先检查是否被笔记引用，若存在引用则整批拒绝；删除成功后会同步回收用户存储并记录死信队列。")
     public Result<ImageBatchDeleteVO> delete(
             @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
-        List<Long> idList = parseIds(ids);
+        List<Long> idList = IdParserUtil.parseIds(ids, "图片");
         log.info("Admin delete images, ids: {}", idList);
         return Result.success(imageService.deleteImages(idList));
     }
@@ -141,48 +142,5 @@ public class ImageController {
         log.info("Admin audit review image, auditId: {}, approved: {}", dto.getAuditId(), dto.getApproved());
         imageService.auditReviewImage(dto);
         return Result.success();
-    }
-
-
-
-    // ============ 私有方法 ============
-
-    /**
-     * 解析 ID 字符串（逗号分隔）为 Long 列表。
-     * 
-     * 策略：
-     * - 使用 LinkedHashSet 去重并保持顺序。
-     * - 校验 ID 格式和有效性。
-     */
-    private List<Long> parseIds(String ids) {
-        if (ids == null || ids.trim().isEmpty()) {
-            throw new BaseException("ID列表不能为空");
-        }
-
-        Set<Long> idSet = new LinkedHashSet<>();
-        String[] parts = ids.split(",");
-
-        for (String part : parts) {
-            String trimmed = part.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-
-            try {
-                Long id = Long.parseLong(trimmed);
-                if (id <= 0) {
-                    throw new BaseException("图片ID必须为正整数");
-                }
-                idSet.add(id);
-            } catch (NumberFormatException e) {
-                throw new BaseException("图片ID 格式不合法：" + trimmed);
-            }
-        }
-
-        if (idSet.isEmpty()) {
-            throw new BaseException("需要至少一个有效的ID");
-        }
-
-        return new java.util.ArrayList<>(idSet);
     }
 }

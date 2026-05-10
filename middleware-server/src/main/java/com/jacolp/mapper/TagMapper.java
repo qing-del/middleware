@@ -33,6 +33,12 @@ public interface TagMapper {
 
     int updateTag(TagEntity tag);
 
+    /**
+     * 批量查询待删除标签
+     * @param userId 对应用户的 id | 传入 null 时不做用户筛选
+     * @param ids 标签 id 列表
+     * @return 检查结果
+     */
     List<TagNoteCountDTO> selectDeleteChecksByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 
     int deleteByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
