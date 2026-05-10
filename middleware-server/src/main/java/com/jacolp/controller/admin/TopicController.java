@@ -40,40 +40,26 @@ import java.util.List;
  */
 public class TopicController {
 
-    @Autowired
-    private TopicService topicService;
-
-    @PostMapping("/add")
-    @Operation(summary = "新增主题", description = "从当前登录用户上下文获取 userId 后创建主题；服务层会先清洗主题名、校验长度，再检查同一用户下主题名称唯一性。")
-    public Result<String> add(@RequestBody TopicAddDTO dto) {
-        log.info("Admin add topic, topicName: {}", dto.getTopicName());
-        topicService.addTopic(dto);
-        return Result.success();
-    }
-
-    @PutMapping("/modify")
-    @Operation(summary = "修改主题", description = "修改主题名称和排序前会先校验目标主题是否存在；若修改名称，还会再次检查同一用户下是否已存在同名主题。")
-    public Result<String> modify(@RequestBody TopicModifyDTO dto) {
-        log.info("Admin modify topic, id: {}", dto.getId());
-        topicService.modifyTopic(dto);
-        return Result.success();
-    }
+    @Autowired private TopicService topicService;
 
     @GetMapping("/{id}")
-    @Operation(summary = "查询主题详情", description = "根据主题 ID 读取单条主题信息，用于编辑页回显或详情展示；若主题不存在则按业务规则返回不存在。")
+    @Operation(summary = "查询主题详情",
+            description = "根据主题 ID 读取单条主题信息，用于编辑页回显或详情展示；若主题不存在则按业务规则返回不存在。")
     public Result<TopicDetailVO> getById(@PathVariable Long id) {
         log.info("Admin get topic by id: {}", id);
         return Result.success(topicService.getTopicById(id));
     }
 
     @PostMapping("/list")
-    @Operation(summary = "分页查询主题", description = "按当前用户或指定用户、关键字和分页参数查询主题列表，返回结果按服务层默认排序规则展示。")
+    @Operation(summary = "分页查询主题",
+            description = "按当前用户或指定用户、关键字和分页参数查询主题列表，返回结果按服务层默认排序规则展示。")
     public Result<PageResult> list(@RequestBody TopicListDTO dto) {
         return Result.success(topicService.listTopics(dto));
     }
 
     @DeleteMapping("/delete")
-    @Operation(summary = "批量删除主题", description = "批量删除前会先验证所有主题是否存在，并检查每个主题下是否存在未删除笔记；只要存在引用，整批删除即拒绝。")
+    @Operation(summary = "批量删除主题",
+            description = "批量删除前会先验证所有主题是否存在，并检查每个主题下是否存在未删除笔记；只要存在引用，整批删除即拒绝。")
     public Result<String> delete(@Parameter(description = "主题ID，使用英文逗号分隔，例如 1,2,3")
                                  @RequestParam String ids) {
         // 支持前端以字符串形式传入批量 ID："1,2,3"

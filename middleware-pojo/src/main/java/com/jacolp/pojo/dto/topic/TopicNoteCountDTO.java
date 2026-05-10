@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class TopicNoteCountDTO {
     private String topicName;
     private Long noteCount;
+    private Long userId;
 }

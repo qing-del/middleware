@@ -143,8 +143,6 @@ public class UserServiceImpl implements UserService {
         }
 
         PageHelper.startPage(userListDTO.getPageNumOrDefault(), userListDTO.getPageSizeOrDefault());
-
-
         List<UserEntity> records = userMapper.listByCondition(userListDTO);
         PageInfo<UserEntity> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());

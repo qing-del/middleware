@@ -1,5 +1,6 @@
 package com.jacolp.pojo.dto.note;
 
+import com.jacolp.pojo.provider.PageParamProvider;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -10,7 +11,7 @@ import java.io.Serializable;
  */
 @Data
 @Schema(description = "笔记搜索/查询请求")
-public class UserNoteSearchDTO implements Serializable {
+public class UserNoteSearchDTO implements Serializable, PageParamProvider {
 
     private static final long serialVersionUID = 1L;
 

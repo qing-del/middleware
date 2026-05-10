@@ -2,6 +2,7 @@ package com.jacolp.pojo.dto.topic;
 
 import java.io.Serializable;
 
+import com.jacolp.pojo.provider.PageParamProvider;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserTopicQueryDTO implements Serializable {
+public class UserTopicQueryDTO implements Serializable, PageParamProvider {
 
     private static final long serialVersionUID = 1L;
 

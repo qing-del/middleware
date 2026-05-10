@@ -2,6 +2,7 @@ package com.jacolp.service;
 
 import java.util.List;
 
+import com.jacolp.context.PermissionContext;
 import com.jacolp.pojo.dto.topic.TopicAddDTO;
 import com.jacolp.pojo.dto.topic.TopicListDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
@@ -16,10 +17,22 @@ public interface TopicService {
 
     void modifyTopic(TopicModifyDTO dto);
 
+    /**
+     * 通过 ID 查询主题详情。
+     * <p>- 通过使用 {@link PermissionContext#isAdmin()} 来判断是否需要校验所有权</p>
+     */
     TopicDetailVO getTopicById(Long id);
 
     PageResult listTopics(TopicListDTO dto);
 
+    /**
+     * 批量删除主题。
+     * <ol>
+     *     <il>- 先全量校验主题是否存在、是否可删</il>
+     *     <il>- 校验全部通过后再执行删除，减少回滚成本</il>
+     * </ol>
+     * <p>- 通过 {@link PermissionContext#isAdmin()} 来判断是否需要进行所有权校验</p>
+     */
     void deleteTopics(List<Long> ids);
 
     /**

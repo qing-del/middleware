@@ -13,7 +13,5 @@ public class TopicModifyDTO implements Serializable {
 
     private Long id;
 
-    private String topicName;
-
     private Integer sortOrder;
 }

@@ -1,12 +1,11 @@
 package com.jacolp.controller.user;
 
+import com.jacolp.pojo.dto.topic.TopicAddDTO;
+import com.jacolp.pojo.dto.topic.TopicModifyDTO;
+import com.jacolp.utils.IdParserUtil;
+import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
 import com.jacolp.pojo.vo.topic.TopicStatsVO;
@@ -19,6 +18,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+
 @RestController("User-TopicController")
 @RequestMapping("/user/topic")
 @Slf4j
@@ -26,8 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "User-主题管理", description = "用户端主题条件查询与审核申请接口")
 public class TopicController {
 
-    @Autowired
-    private TopicService topicService;
+    @Autowired private TopicService topicService;
 
     @PostMapping("/list")
     @Operation(summary = "条件查询主题",
@@ -51,6 +51,35 @@ public class TopicController {
     public Result<String> submitAudit(@RequestParam Long id) {
         log.info("User submit topic audit, topicId: {}", id);
         topicService.submitTopicAudit(id);
+        return Result.success();
+    }
+
+    @PostMapping("/add")
+    @Operation(summary = "新增主题",
+            description = "从当前登录用户上下文获取 userId 后创建主题；服务层会先清洗主题名、校验长度，再检查同一用户下主题名称唯一性。")
+    public Result<String> add(@RequestBody TopicAddDTO dto) {
+        log.info("User add topic, topicName: {}", dto.getTopicName());
+        topicService.addTopic(dto);
+        return Result.success();
+    }
+
+    @PutMapping("/modify")
+    @Operation(summary = "修改主题", description = "修改主题的排序等级。")
+    public Result<String> modify(@RequestBody TopicModifyDTO dto) {
+        log.info("User modify topic, id: {}", dto.getId());
+        topicService.modifyTopic(dto);
+        return Result.success();
+    }
+
+    @DeleteMapping("/delete")
+    @Operation(summary = "批量删除主题",
+            description = "批量删除前会先验证所有主题是否存在，并检查每个主题下是否存在未删除笔记；只要存在引用，整批删除即拒绝。")
+    public Result<String> delete(@Parameter(description = "主题ID，使用英文逗号分隔，例如 1,2,3")
+                                 @RequestParam String ids) {
+        // 支持前端以字符串形式传入批量 ID："1,2,3"
+        List<Long> idList = IdParserUtil.parseIds(ids, "主题");
+        log.info("User delete topics, ids: {}", idList);
+        topicService.deleteTopics(idList);
         return Result.success();
     }
 }

@@ -2,7 +2,9 @@ package com.jacolp.service.impl;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import com.jacolp.context.PermissionContext;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -65,7 +67,7 @@ public class TopicServiceImpl implements TopicService {
         TopicEntity topic = new TopicEntity();
         BeanUtils.copyProperties(dto, topic);
         topic.setUserId(userId);
-        topic.setIsPass(AuditConstant.PASS);
+        topic.setIsPass(AuditConstant.WAIT);    // 默认处于待审核
 
         // 未传排序时使用默认值，保证列表排序稳定
         Integer sortOrder = dto.getSortOrder();
@@ -82,7 +84,7 @@ public class TopicServiceImpl implements TopicService {
     }
 
     /**
-     * 修改主题（名称、排序）。
+     * 修改主题（排序）。
      */
     @Override
     public void modifyTopic(TopicModifyDTO dto) {
@@ -94,26 +96,17 @@ public class TopicServiceImpl implements TopicService {
         if (existed == null) {
             throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
         }
-
-        if (StringUtils.hasText(dto.getTopicName())) {
-            // 获取主题名称并校验
-            String topicName = normalizeTopicName(dto.getTopicName());
-            validateTopicName(topicName);
-
-            // 仅在名称发生变化时做重复校验，避免无意义查询
-            if (!topicName.equals(existed.getTopicName())) {
-                TopicEntity duplicateCheckTarget = topicMapper.selectByUserIdAndTopicName(userId, topicName);
-                if (duplicateCheckTarget != null && !duplicateCheckTarget.getId().equals(dto.getId())) {
-                    throw new BaseException(TopicConstant.TOPIC_ALREADY_EXISTS);
-                }
-            }
-            existed.setTopicName(topicName);
+        // 检查是否有所属权
+        if (!existed.getUserId().equals(userId)) {
+            throw new BaseException(TopicConstant.TOPIC_NOT_OWNER);
         }
 
+        // 设置排序等级
         if (dto.getSortOrder() != null) {
             existed.setSortOrder(dto.getSortOrder());
         }
 
+        // 更新修改到 DB
         int count = topicMapper.updateTopic(existed);
         if (count <= 0) {
             throw new BaseException(TopicConstant.TOPIC_UPDATE_FAILED);
@@ -122,6 +115,7 @@ public class TopicServiceImpl implements TopicService {
 
     /**
      * 通过 ID 查询主题详情。
+     * <p>- 通过使用 {@link PermissionContext#isAdmin()} 来判断是否需要校验所有权</p>
      */
     @Override
     public TopicDetailVO getTopicById(Long id) {
@@ -130,6 +124,13 @@ public class TopicServiceImpl implements TopicService {
         TopicEntity topic = topicMapper.selectById(id);
         if (topic == null) {
             throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
+        }
+
+        // 如果不是管理员需要做权限检查
+        if (!PermissionContext.isAdmin()
+        && !topic.getUserId().equals(BaseContext.getCurrentId())
+        && !AuditConstant.PASS.equals(topic.getIsPass())) {
+            throw new BaseException(TopicConstant.TOPIC_NOT_OWNER);
         }
 
         TopicDetailVO vo = new TopicDetailVO();
@@ -146,20 +147,14 @@ public class TopicServiceImpl implements TopicService {
             dto = new TopicListDTO();
         }
 
-        // 获取分页参数
-        Integer pageNumParam = dto.getPageNum();
-        Integer pageSizeParam = dto.getPageSize();
-        int pageNum = pageNumParam == null || pageNumParam <= 0 ? 1 : pageNumParam;
-        int pageSize = pageSizeParam == null || pageSizeParam <= 0 ? 10 : pageSizeParam;
-
-        // PageHelper 必须在查询语句前调用
-        PageHelper.startPage(pageNum, pageSize);
 
         Long userId = dto.getUserId();
         if (userId != null && userId <= 0) {
             throw new BaseException(UserConstant.NOT_FIND_USER);
         }
 
+        // PageHelper 必须在查询语句前调用
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<TopicListVO> records = topicMapper.listByCondition(userId, normalizeKeyword(dto.getKeyword()));
         PageInfo<TopicListVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
@@ -167,10 +162,12 @@ public class TopicServiceImpl implements TopicService {
 
     /**
      * 批量删除主题。
-     *
-     * 删除策略：
-     * - 先全量校验主题是否存在、是否可删
-     * - 校验全部通过后再执行删除，减少回滚成本
+     * <ol>
+     *     <il>- 先全量校验主题是否存在、是否可删</il>
+     *     <il>- 校验全部通过后再执行删除，减少回滚成本</il>
+     * </ol>
+     * <p>- 通过 {@link PermissionContext#isAdmin()} 来判断是否需要进行所有权校验</p>
+     * @param ids 主题 id 列表
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -179,9 +176,22 @@ public class TopicServiceImpl implements TopicService {
             throw new BaseException("待删除的主题 ID 列表不能为空");
         }
 
+        // 对 ID 列表进行去重
+        ids = ids.stream().distinct().collect(Collectors.toList());
+
+        // 从数据库中查询
         List<TopicNoteCountDTO> deleteChecks = topicMapper.selectDeleteChecksByIds(ids);
         if (deleteChecks.size() != ids.size()) {
             throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
+        }
+
+        // 如果不是管理员调用，还需要保证删除的主题都是属于当前用户
+        if (!PermissionContext.isAdmin()) {
+            for (TopicNoteCountDTO topic : deleteChecks) {
+                if (!topic.getUserId().equals(BaseContext.getCurrentId())) {
+                    throw new BaseException(TopicConstant.TOPIC_NOT_OWNER);
+                }
+            }
         }
 
         // 业务约束：主题下有未删除笔记则不允许删除
@@ -194,7 +204,7 @@ public class TopicServiceImpl implements TopicService {
         }
 
         int count = topicMapper.deleteByIds(new ArrayList<>(ids));
-        if (count <= 0) {
+        if (count < ids.size()) {
             throw new BaseException(TopicConstant.TOPIC_DELETE_FAILED);
         }
     }
@@ -209,10 +219,7 @@ public class TopicServiceImpl implements TopicService {
         }
         Long userId = BaseContext.getCurrentId();
 
-        int pageNum = dto.getPageNum() == null || dto.getPageNum() <= 0 ? 1 : dto.getPageNum();
-        int pageSize = dto.getPageSize() == null || dto.getPageSize() <= 0 ? 10 : dto.getPageSize();
-        PageHelper.startPage(pageNum, pageSize);
-
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<TopicListVO> records = topicMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()));
         PageInfo<TopicListVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
@@ -317,8 +324,8 @@ public class TopicServiceImpl implements TopicService {
 
     /**
      * 校验主题 ID。
-     * - ID 不能为空
-     * - ID 必须大于 0
+     * <p>- ID 不能为空</p>
+     * <p>- ID 必须大于 0</p>
      */
     private void validateTopicId(Long id) {
         if (id == null || id <= 0) {
