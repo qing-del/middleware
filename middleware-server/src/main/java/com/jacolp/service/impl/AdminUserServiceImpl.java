@@ -33,13 +33,14 @@ import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.result.PageResult;
-import com.jacolp.service.UserService;
+import com.jacolp.service.AdminUserService;
+import com.jacolp.utils.EmailUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public class UserServiceImpl implements UserService {
+public class AdminUserServiceImpl implements AdminUserService {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
 
@@ -76,63 +77,6 @@ public class UserServiceImpl implements UserService {
         }
 
         return user;
-    }
-
-    @Override
-    public UserEntity loginUser(UserLoginDTO userLoginDTO) {
-        // 校验用户名和密码非空
-        validUsernameAndPassword(userLoginDTO);
-
-        // 1. 根据用户名查用户
-        UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
-        if (user == null) {
-            log.error("User isn't existed!");
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
-        }
-
-        // 2. 账号被禁用则直接拒绝登录
-        if (user.getStatus() == UserConstant.BANNED_STATUS) {
-            log.error("User is banned!");
-            throw new UserIsBanException(UserConstant.USER_IS_BANNED);
-        }
-
-
-        // 3. 校验密码是否一致
-        boolean valid = passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword());
-        if (!valid) {
-            log.error("Password isn't correct!");
-            throw new PasswordIncorrectException(UserConstant.USER_PASSWORD_ERROR);
-        }
-
-        return user;
-    }
-
-    @Override
-    public String register(UserRegisterDTO userRegisterDTO) {
-        // 校验用户名、密码非空及两次密码一致性
-        validUsernameAndPassword(userRegisterDTO);
-        if (!userRegisterDTO.getPassword().equals(userRegisterDTO.getConfirmPassword())) {
-            throw new BaseException(UserConstant.PASSWORD_CONFIRM_ERROR);
-        }
-
-        // 检查是否存在相同用户名的用户
-        UserEntity existed = userMapper.selectByUsername(userRegisterDTO.getUsername());
-        if (existed != null) {
-            throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
-        }
-
-        UserEntity user = new UserEntity();
-        user.setUsername(userRegisterDTO.getUsername());
-        user.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
-        user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
-        user.setRoleId(RoleConstant.USER);
-        user.setStatus(UserConstant.UNACTIVE_STATUS);   // 默认用户状态为未激活
-
-        int count = userMapper.insertUser(user);
-        if (count <= 0) {
-            throw new BaseException("注册失败");
-        }
-        return "注册成功";
     }
 
     @Override
@@ -182,6 +126,13 @@ public class UserServiceImpl implements UserService {
             user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
         }
 
+        // 处理邮箱修改：如果提供了新邮箱，则校验格式
+        if (StringUtils.hasText(dto.getEmail())) {
+            if (!EmailUtil.isValidEmail(dto.getEmail())) {
+                throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
+            }
+        }
+
         userMapper.updateById(user);
     }
 
@@ -214,6 +165,14 @@ public class UserServiceImpl implements UserService {
         // 4. Username and password validation
         validUsernameAndPassword(dto);
 
+        // 5. Email validation
+        if (!StringUtils.hasText(dto.getEmail())) {
+            throw new BaseException(UserConstant.EMAIL_NOT_PROVIDED);
+        }
+        if (!EmailUtil.isValidEmail(dto.getEmail())) {
+            throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
+        }
+
         UserEntity existed = userMapper.selectByUsername(dto.getUsername());
         if (existed != null) {
             throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
@@ -234,7 +193,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    //@Transactional    因为只有一次操作，并且在此之前已经完成了权限校验，不需要事务
     public void deleteUsers(List<Long> ids) {
         log.info("Admin deleting users, ids: {}", ids);
 
@@ -304,145 +262,6 @@ public class UserServiceImpl implements UserService {
         user.setPassword(null);
         user.setUpdateTime(null);
         return user;
-    }
-
-    /**
-     * 获取当前登录用户详情（不含密码）
-     * @return 当前登录用户详情
-     */
-    @Override
-    public UserDetailVO getCurrentUser() {
-        Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
-        }
-
-        // 转换为 VO，排除密码等敏感字段
-        UserDetailVO vo = new UserDetailVO();
-        BeanUtils.copyProperties(user, vo);
-        vo.setId(null);
-        return vo;
-    }
-
-    /**
-     * 获取当前登录用户概览信息（不含用户ID）。
-     */
-    @Override
-    public UserOverviewVO getUserOverview() {
-        Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
-        }
-
-        UserOverviewVO vo = new UserOverviewVO();
-        BeanUtils.copyProperties(user, vo);
-        return vo;
-    }
-
-    @Override
-    public void updateCurrentUserProfile(UserProfileUpdateDTO dto) {
-        Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
-        }
-
-        // 构建更新实体，仅设置非空字段
-        UserEntity updateEntity = new UserEntity();
-        updateEntity.setId(userId);
-
-        if (StringUtils.hasText(dto.getNickname())) {
-            updateEntity.setNickname(dto.getNickname());
-        }
-        if (StringUtils.hasText(dto.getEmail())) {
-            updateEntity.setEmail(dto.getEmail());
-        }
-
-        int affected = userMapper.updateById(updateEntity);
-        if (affected <= 0) {
-            log.error("User profile update failed, userId: {}", userId);
-            throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
-        }
-        log.info("User profile updated, userId: {}", userId);
-    }
-
-    @Override
-    public void deleteCurrentUser() {
-        Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
-        }
-
-        // 软删除：仅更新状态为已删除，保留历史数据
-        UserEntity updateEntity = new UserEntity();
-        updateEntity.setId(userId);
-        updateEntity.setStatus(UserConstant.DELETED_STATUS);
-        int affected = userMapper.updateById(updateEntity);
-        if (affected <= 0) {
-            log.error("User soft-delete failed, userId: {}", userId);
-            throw new BaseException("用户删除失败");
-        }
-
-        log.info("User soft-deleted (account deactivated), userId: {}", userId);
-    }
-
-    /**
-     * 用户激活
-     * @param userId 激活码
-     * @return 激活结果
-     */
-    @Override
-    public String activeAccount(Long userId) {
-        log.info("User active: {}", userId);
-        UserEntity user = userMapper.selectById(userId);
-        if (user == null) {
-            log.error("User not found, userId: {}", userId);
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
-        }
-
-        // 检查是否出现重复激活
-        if (user.getStatus() != UserConstant.UNACTIVE_STATUS) {
-            log.error("User status is active, not reconditioning, userId: {}", user.getId());
-            throw new BaseException(UserConstant.USER_ALREADY_ACTIVE);
-        }
-
-        // 更新数据库
-        user.setStatus(UserConstant.ACTIVE_STATUS);
-        int affected = userMapper.updateById(user);
-        if (affected <= 0) {
-            log.error("User active failed, userId: {}", user.getId());
-            throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
-        }
-        return "激活成功";
-    }
-
-    /**
-     * 检查账户是否激活
-     * <p>此接口用于检查是否放行发放用户激活码的</p>
-     * @param userId 用户ID
-     * @return 放行获取激活码返回 true，否则返回 false
-     */
-    @Override
-    public boolean checkActivationStatus(Long userId) {
-        UserEntity user = userMapper.selectById(userId);
-
-        // 检查用户是否存在
-        if (user == null) {
-            log.error("User not found, userId: {}", userId);
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
-        }
-
-        // 检查是否存在邮箱
-        if (user.getEmail() == null || user.getEmail().isEmpty()) {
-            log.error("User email is empty, userId: {}", userId);
-            throw new BaseException(UserConstant.USER_EMAIL_IS_EMPTY);
-        }
-        // TODO 后续可以加入一个邮箱正则表达式检查
-
-        return user.getStatus() == UserConstant.UNACTIVE_STATUS;
     }
 
     @Override

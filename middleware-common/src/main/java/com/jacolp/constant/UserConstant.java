@@ -32,4 +32,7 @@ public class UserConstant {
     public static final String USER_ALREADY_ACTIVE = "用户已激活";
     public static final String UPDATE_USER_INFO_FAILED = "更新用户信息失败";
     public static final String USER_EMAIL_IS_EMPTY = "用户邮箱不能为空";
+    public static final String EMAIL_NOT_PROVIDED = "邮箱未提供";
+    public static final String INVALID_EMAIL_FORMAT = "邮箱格式不正确";
+    public static final String UNSUPPORTED_EMAIL_DOMAIN = "不支持的邮箱域名";
 }

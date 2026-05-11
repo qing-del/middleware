@@ -67,7 +67,7 @@ import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteServiceOld;
 import com.jacolp.service.TagService;
 import com.jacolp.service.TopicService;
-import com.jacolp.service.UserService;
+import com.jacolp.service.AdminUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
@@ -102,7 +102,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
     @Autowired private TagService tagService;
     @Autowired private ImageService imageService;
     @Autowired private AuditService auditService;
-    @Autowired private UserService userService;
+    @Autowired private AdminUserService adminUserService;
 
     // ==== 来自 common 模块的 Bean 对象 ====
     @Autowired private MarkdownHtmlEngine markdownHtmlEngine;
@@ -1045,7 +1045,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
 
         validateTopic(topicId);
 
-        UserQuoteStorageDTO storageInfo = userService.getUserQuoteStorage(userId);
+        UserQuoteStorageDTO storageInfo = adminUserService.getUserQuoteStorage(userId);
         if (storageInfo != null && storageInfo.getMaxStorageBytes() != null) {
             Long maxStorageBytes = storageInfo.getMaxStorageBytes();
             Long usedStorageBytes = storageInfo.getUsedStorageBytes();
@@ -1090,7 +1090,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
         noteContextMapper.insertContext(context);
 
         if (storageInfo != null && storageInfo.getUsedStorageBytes() != null) {
-            userService.updateUserStorageUsed(userId, storageInfo.getUsedStorageBytes() + file.getSize());
+            adminUserService.updateUserStorageUsed(userId, storageInfo.getUsedStorageBytes() + file.getSize());
         }
 
         return note.getId();
@@ -1223,7 +1223,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
                 throw new BaseException(NoteConstant.NOTE_INVALID_FORMAT);
             }
 
-            UserQuoteStorageDTO storageInfo = userService.getUserQuoteStorage(userId);
+            UserQuoteStorageDTO storageInfo = adminUserService.getUserQuoteStorage(userId);
             if (storageInfo != null && storageInfo.getMaxStorageBytes() != null) {
                 Long maxStorageBytes = storageInfo.getMaxStorageBytes();
                 Long usedStorageBytes = storageInfo.getUsedStorageBytes();
@@ -1307,9 +1307,9 @@ public class NoteServiceImplOld implements NoteServiceOld {
             throw new BaseException("删除笔记失败");
         }
 
-        UserQuoteStorageDTO storageInfo = userService.getUserQuoteStorage(userId);
+        UserQuoteStorageDTO storageInfo = adminUserService.getUserQuoteStorage(userId);
         if (storageInfo != null && storageInfo.getUsedStorageBytes() != null) {
-            userService.updateUserStorageUsed(userId, Math.max(0L, storageInfo.getUsedStorageBytes() - note.getMdFileSize()));
+            adminUserService.updateUserStorageUsed(userId, Math.max(0L, storageInfo.getUsedStorageBytes() - note.getMdFileSize()));
         }
     }
 

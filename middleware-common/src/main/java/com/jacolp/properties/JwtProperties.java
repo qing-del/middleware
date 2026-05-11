@@ -23,4 +23,10 @@ public class JwtProperties {
     private long userTtl;
     private String userTokenName;
 
+    /**
+     * 激活token令牌相关配置
+     */
+    private String activeSecretKey;
+    private long activeTtl;
+    private String activeTokenName;
 }
