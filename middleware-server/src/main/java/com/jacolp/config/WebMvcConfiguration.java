@@ -1,5 +1,6 @@
 package com.jacolp.config;
 
+import com.jacolp.interceptor.JwtTokenActiveInterceptor;
 import com.jacolp.interceptor.JwtTokenAdminInterceptor;
 import com.jacolp.interceptor.JwtTokenUserInterceptor;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -18,6 +19,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebMvcConfiguration implements WebMvcConfigurer  {
     @Autowired private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
     @Autowired private JwtTokenUserInterceptor jwtTokenUserInterceptor;
+    @Autowired private JwtTokenActiveInterceptor jwtTokenActiveInterceptor;
 
     /**
      * 注册自定义拦截器
@@ -31,7 +33,6 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns("/admin/user/login")
-                .excludePathPatterns("/admin/user/register")
                 .excludePathPatterns(
                         "/doc.html",
                         "/webjars/**",
@@ -45,7 +46,11 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .addPathPatterns("/user/**")
                 .excludePathPatterns("/user/user/login")
                 .excludePathPatterns("/user/user/register")
-                .excludePathPatterns("user/user/active/");  // 排除激活账号的接口
+                .excludePathPatterns("/user/user/active/**");   // 将激活接口放行
+
+        // 用户激活接口
+        registry.addInterceptor(jwtTokenActiveInterceptor)
+                .addPathPatterns("/user/user/active/**");
     }
 
     /**

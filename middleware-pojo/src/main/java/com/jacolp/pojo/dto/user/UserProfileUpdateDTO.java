@@ -23,6 +23,13 @@ public class UserProfileUpdateDTO implements Serializable {
     /** 邮箱地址（可选） */
     private String email;
 
-    /** 用户个性化最大存储空间(字节)，仅管理员/创建者可修改 */
-    private Long maxStorageBytes;
+    /* ==== 以下是修改密码三件套 ==== */
+    /** 密码（可选） */
+    private String password;
+
+    /** 新密码（可选） */
+    private String newPassword;
+
+    /** 确认密码（可选） */
+    private String confirmPassword;
 }

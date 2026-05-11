@@ -14,14 +14,9 @@ import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.result.PageResult;
 
-public interface UserService {
+public interface AdminUserService {
     // 管理端登录，返回通过校验后的用户信息
     UserEntity loginAdmin(UserLoginDTO userLoginDTO);
-
-    // 用户端登录，返回通过校验后的用户信息
-    UserEntity loginUser(UserLoginDTO userLoginDTO);
-
-    String register(UserRegisterDTO userRegisterDTO);
 
     PageResult list(UserListDTO userListDTO);
 
@@ -40,34 +35,9 @@ public interface UserService {
     // 获取用户信息
     UserEntity getUserById(Long id);
 
-    // 用户端：获取当前登录用户详情（不含密码）
-    UserDetailVO getCurrentUser();
-
-    // 用户端：获取当前登录用户概览信息（不含ID）
-    UserOverviewVO getUserOverview();
-
-    /** 用户端：更新当前登录用户的个人资料 */
-    void updateCurrentUserProfile(UserProfileUpdateDTO dto);
-
-    /** 用户端：软删除当前登录用户账户 */
-    void deleteCurrentUser();
-
-    /**
-     * 激活账户
-     * @param token 激活码
-     * @return 激活结果
-     */
-    String activeAccount(Long token);
-
-    /**
-     * 检查账户是否激活
-     * <p>此接口用于检查是否放行发放用户激活码的</p>
-     * @param userId 用户ID
-     * @return 放行获取激活码返回 true，否则返回 false
-     */
-    boolean checkActivationStatus(Long userId);
-
     UserQuoteStorageDTO getUserQuoteStorage(Long userId);
 
+
+    /** 被切面类借用的方法 */
     void updateUserStorageUsed(Long userId, Long usedStorageBytes);
 }

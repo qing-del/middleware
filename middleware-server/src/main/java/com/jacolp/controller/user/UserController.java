@@ -3,6 +3,7 @@ package com.jacolp.controller.user;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.jacolp.service.UserUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +24,7 @@ import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.Result;
-import com.jacolp.service.UserService;
+import com.jacolp.service.AdminUserService;
 import com.jacolp.utils.JwtUtil;
 
 import io.jsonwebtoken.Claims;
@@ -39,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "User-用户认证", description = "用户注册与登录接口")
 public class UserController {
     @Autowired private JwtProperties jwtProperties;
-    @Autowired private UserService userService;
+    @Autowired private UserUserService userUserService;
 
     @PostMapping("/login")
     @Operation(summary = "用户登录",
@@ -48,7 +49,7 @@ public class UserController {
         log.info("User login: {}", userLoginDTO.getUsername());
 
         // 先校验账号和密码，返回登录成功的用户信息
-        UserEntity user = userService.loginUser(userLoginDTO);
+        UserEntity user = userUserService.loginUser(userLoginDTO);
 
         // 将用户ID写入 JWT，后续请求会通过拦截器解析出来
         Map<String, Object> claims = new HashMap<>();
@@ -63,7 +64,7 @@ public class UserController {
             description = "创建普通用户账号前会先校验入参合法性，并在服务层完成账号初始化、默认角色设置和密码落库，返回注册结果。")
     public Result<String> register(@RequestBody UserRegisterDTO userRegisterDTO) {
         log.info("User register: {}", userRegisterDTO.getUsername());
-        return Result.success(userService.register(userRegisterDTO));
+        return Result.success(userUserService.register(userRegisterDTO));
     }
 
     @GetMapping("/me")
@@ -71,7 +72,7 @@ public class UserController {
             description = "从 JWT 中解析当前用户ID，查询并返回用户详情（不含密码等敏感字段）。")
     public Result<UserDetailVO> getCurrentUser() {
         log.info("User get current user info");
-        return Result.success(userService.getCurrentUser());
+        return Result.success(userUserService.getCurrentUser());
     }
 
     @GetMapping("/overview")
@@ -79,15 +80,15 @@ public class UserController {
             description = "返回当前用户的基本信息，不包含资源统计数据。")
     public Result<UserOverviewVO> getOverview() {
         log.info("User get overview");
-        return Result.success(userService.getUserOverview());
+        return Result.success(userUserService.getUserOverview());
     }
 
     @PutMapping("/me")
     @Operation(summary = "更新当前用户信息",
-            description = "仅允许修改当前登录用户自身的昵称、邮箱等资料字段；")
+            description = "仅允许修改当前登录用户自身的昵称、邮箱等资料字段；修改密码可以复用这个接口")
     public Result<String> updateCurrentUser(@RequestBody UserProfileUpdateDTO dto) {
         log.info("User update profile");
-        userService.updateCurrentUserProfile(dto);
+        userUserService.updateCurrentUserProfile(dto);
         return Result.success("更新成功");
     }
 
@@ -96,7 +97,7 @@ public class UserController {
             description = "将当前登录用户账户状态更新为软删除状态，保留历史数据，避免物理删除造成关联记录丢失。")
     public Result<String> deleteCurrentUser() {
         log.info("User soft-delete account");
-        userService.deleteCurrentUser();
+        userUserService.deleteCurrentUser();
         return Result.success("账户已删除");
     }
 
@@ -108,7 +109,7 @@ public class UserController {
         log.info("User get activated token, userId: {}", userId);
 
         // 检查是否放行
-        if (!userService.checkActivationStatus(userId)) {
+        if (!userUserService.checkActivationStatus(userId)) {
             return Result.error(UserConstant.USER_ALREADY_ACTIVE);
         }
 
@@ -129,26 +130,11 @@ public class UserController {
      * @param token 激活码
      * @return 激活结果
      */
-    @PostMapping("/active/{token}")
+    @GetMapping("/active/{token}")  // 直接点击只能是发送 GET 请求
     @Operation(summary = "用户激活",
             description = "用户注册成功后，会通过邮件发送激活链接，点击链接后调用该接口完成用户激活。")
     public Result<String> active(@PathVariable String token) {
         log.info("User active: {}", token);
-        Claims claims;
-        try {
-            claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
-        } catch (Exception e) {
-            log.error("Failed to parse JWT: {}", e.getMessage());
-            return Result.error(UserConstant.JWT_NOT_VALID);
-        }
-        if (claims == null
-                || claims.get(UserConstant.ACTIVE_SIGN_KEY) == null
-                || !claims.get(UserConstant.ACTIVE_SIGN_KEY).equals(true)) {
-            return Result.error(UserConstant.JWT_NOT_VALID);
-        }
-
-        Long userId = (Long) claims.get(UserConstant.USER_ID_CLAIM);
-
-        return Result.success(userService.activeAccount(userId));
+        return Result.success(userUserService.activeAccount(BaseContext.getCurrentId()));
     }
 }
