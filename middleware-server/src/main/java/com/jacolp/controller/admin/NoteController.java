@@ -86,6 +86,8 @@ public class NoteController {
     }
 
     @PutMapping("/force/{status}/{noteId}")
+    @Operation(summary = "强制设置笔记状态（暂不支持）",
+            description = "预留接口，当前暂不支持强制设置笔记状态，调用时将抛出异常。")
     public Result forceSetNoteStatus(
             @Parameter(description = "存在的笔记状态之一即可") @PathVariable Long status,
             @Parameter(description = "笔记ID") @PathVariable Long noteId
@@ -114,7 +116,8 @@ public class NoteController {
     @PutMapping("/info")
     @Operation(summary = "修改笔记元信息",
             description = "修改笔记描述和主题等基础元数据，不变更标题和 Markdown 正文；修改前会校验目标主题有效性和同主题同名唯一性。")
-    public Result<String> modifyInfo(@RequestBody NoteModifyInfoDTO dto) {
+    public Result<String> modifyInfo(
+            @Parameter(description = "笔记元信息修改请求（笔记ID、新描述、新主题ID）") @RequestBody NoteModifyInfoDTO dto) {
         log.info("Admin modify note info, noteId: {}", dto.getId());
         noteCoreService.modifyInfo(dto);
         return Result.success();
@@ -123,7 +126,8 @@ public class NoteController {
     @PostMapping("/list")
     @Operation(summary = "分页查询笔记",
             description = "按用户、主题、标题、发布状态、审核状态和缺失状态等条件分页查询笔记列表，并按创建时间倒序返回。")
-    public Result<PageResult> list(@RequestBody NoteQueryDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "笔记查询条件（用户ID、主题ID、标题关键词、发布状态、审核状态）") @RequestBody NoteQueryDTO dto) {
         log.info("Admin list notes, dto:{}", dto);
         return Result.success(noteCoreService.listNotes(dto));
     }

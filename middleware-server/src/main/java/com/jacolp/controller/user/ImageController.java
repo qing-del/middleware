@@ -16,6 +16,7 @@ import com.jacolp.service.ImageService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-ImageController")
 @RequestMapping("/user/image")
 @Slf4j
+@Schema(description = "User - 图片管理")
 @Tag(name = "User-图片管理", description = "用户端图片管理接口")
 public class ImageController {
 
@@ -41,7 +43,8 @@ public class ImageController {
     @PostMapping("/list")
     @Operation(summary = "条件查询图片列表",
             description = "查询当前用户自己的图片 + 别人已公开的图片。支持按主题 ID、文件名筛选，分页返回。")
-    public Result<PageResult> list(@RequestBody UserImageQueryDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "用户图片查询条件（主题ID、文件名、分页参数）") @RequestBody UserImageQueryDTO dto) {
         Long userId = BaseContext.getCurrentId();
         log.info("User list images, userId: {}, topicId: {}", userId, dto.getTopicId());
         return Result.success(imageService.listUserImages(userId, dto));
@@ -67,7 +70,7 @@ public class ImageController {
     @PostMapping("/submitAudit")
     @Operation(summary = "发起图片审核申请",
             description = "传入图片 ID，发起对该图片的审核申请。仅允许申请审核自己的图片，且该图片不能已通过审核或已有待审核申请。")
-    public Result<String> submitAudit(@RequestParam Long id) {
+    public Result<String> submitAudit(@Parameter(description = "图片ID") @RequestParam Long id) {
         log.info("User submit image audit, imageId: {}", id);
         imageService.submitImageAudit(id);  // TODO 审核模块拆分的时候，迁移这个接口
         return Result.success("审核申请已提交");
@@ -78,7 +81,7 @@ public class ImageController {
     @Operation(summary = "上传图片",
             description = "从当前登录用户上下文获取 userId 后，将图片上传到默认对象存储并创建图片记录；上传前会先经过文件大小、后缀和存储配额校验，成功后返回可访问地址。")
     public Result<String> upload(
-            @RequestParam(required = false) Long topicId,
+            @Parameter(description = "所属主题ID（可选）") @RequestParam(required = false) Long topicId,
             @Parameter(description = "图片文件") @RequestParam MultipartFile file) {
         log.info("User upload image, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
         imageService.uploadImage(file, topicId);
@@ -108,7 +111,8 @@ public class ImageController {
     @PutMapping("/modify-info")
     @Operation(summary = "修改图片元信息",
             description = "修改图片名称或主题归属等元信息，不替换图片二进制内容；修改文件名时会做同用户同主题唯一性校验。")
-    public Result<String> modifyInfo(@RequestBody ImageModifyInfoDTO dto) {
+    public Result<String> modifyInfo(
+            @Parameter(description = "图片元信息修改请求（图片ID、新名称、新主题ID）") @RequestBody ImageModifyInfoDTO dto) {
         log.info("User modify image info, id: {}", dto.getId());
         imageService.modifyImageInfo(dto);
         return Result.success("修改成功");

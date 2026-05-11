@@ -11,14 +11,16 @@ import com.jacolp.result.Result;
 import com.jacolp.service.NoteRelationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("User-NoteRelationController")
 @RequestMapping("/user/note/relation")
+@Schema(description = "User - 笔记关联管理")
 @io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记关联管理", description = "用户端笔记关联管理接口")
 @Slf4j
 public class NoteRelationController {
@@ -53,7 +55,8 @@ public class NoteRelationController {
     @PutMapping("/tag/bind")
     @Operation(summary = "绑定标签映射",
             description = "为指定标签映射行绑定目标标签，绑定前会校验名称一致性与标签审核状态，成功后刷新笔记缺失信息。")
-    public Result<String> bindTag(@RequestBody TagMappingBindDTO dto) {
+    public Result<String> bindTag(
+            @Parameter(description = "标签绑定请求（映射行ID、目标标签ID）") @RequestBody TagMappingBindDTO dto) {
         log.info("Admin bind tag mapping, mappingId: {}, tagId: {}", dto.getMappingId(), dto.getTagId());
         noteFacade.bindTagMapping(dto);
         return Result.success();
@@ -71,7 +74,8 @@ public class NoteRelationController {
     @PutMapping("/image/bind")
     @Operation(summary = "绑定图片映射",
             description = "为指定图片映射行绑定目标图片，绑定前会校验文件名一致性和图片审核状态，同时计算是否跨用户引用。")
-    public Result<String> bindImage(@RequestBody ImageMappingBindDTO dto) {
+    public Result<String> bindImage(
+            @Parameter(description = "图片绑定请求（映射行ID、目标图片ID）") @RequestBody ImageMappingBindDTO dto) {
         log.info("Admin bind image mapping, mappingId: {}, imageId: {}", dto.getMappingId(), dto.getImageId());
         noteFacade.bindImageMapping(dto);
         return Result.success();
@@ -89,7 +93,8 @@ public class NoteRelationController {
     @PutMapping("/each/bind")
     @Operation(summary = "绑定双链笔记映射",
             description = "为指定双链映射行绑定目标笔记，绑定前会校验标题匹配、目标笔记审核状态和删除状态，成功后刷新缺失信息。")
-    public Result<String> bindEach(@RequestBody EachMappingBindDTO dto) {
+    public Result<String> bindEach(
+            @Parameter(description = "双链绑定请求（映射行ID、目标笔记ID）") @RequestBody EachMappingBindDTO dto) {
         log.info("Admin bind note-each mapping, mappingId: {}, noteId: {}", dto.getMappingId(), dto.getNoteId());
         noteFacade.bindEachMapping(dto);
         return Result.success();

@@ -24,6 +24,7 @@ import com.jacolp.result.Result;
 import com.jacolp.service.TagService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-TagController")
 @RequestMapping("/user/tag")
 @Slf4j
+@Schema(description = "User - 标签管理")
 @Tag(name = "User-标签管理", description = "用户端标签管理接口")
 public class TagController {
 
@@ -49,7 +51,8 @@ public class TagController {
     @PostMapping("/list")
     @Operation(summary = "条件查询标签列表",
             description = "查询当前用户自己的标签 + 别人已通过审核的标签。支持按关键字模糊搜索，分页返回。")
-    public Result<PageResult> list(@RequestBody UserTagQueryDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "标签查询条件（关键词、分页参数）") @RequestBody UserTagQueryDTO dto) {
         log.info("User list tags, keyword: {}", dto.getKeyword());
         return Result.success(tagService.listUserTags(dto));
     }
@@ -75,7 +78,7 @@ public class TagController {
     @PostMapping("/submitAudit")
     @Operation(summary = "发起标签审核申请",
             description = "传入标签 ID，发起对该标签的审核申请。仅允许申请审核自己的标签，且该标签不能已通过审核或已有待审核申请。")
-    public Result<String> submitAudit(@RequestParam Long id) {
+    public Result<String> submitAudit(@Parameter(description = "标签ID") @RequestParam Long id) {
         log.info("User submit tag audit, tagId: {}", id);
         tagService.submitTagAudit(id);  // TODO 解耦审核逻辑部分的时候需要优化
         return Result.success("审核申请已提交");
@@ -104,7 +107,8 @@ public class TagController {
     @PostMapping("/add")
     @Operation(summary = "新增标签",
             description = "从当前登录用户上下文获取 userId 后创建单个标签；服务层会先清洗名称、校验长度，再检查同名标签是否已存在，避免重复创建。")
-    public Result<String> add(@RequestBody TagAddDTO dto) {
+    public Result<String> add(
+            @Parameter(description = "新增标签请求（标签名称）") @RequestBody TagAddDTO dto) {
         log.info("User add tag, tagName: {}", dto.getTagName());
         tagService.addTag(dto);
         return Result.success();
@@ -113,7 +117,8 @@ public class TagController {
     @PostMapping("/batch-add")
     @Operation(summary = "批量新增标签",
             description = "批量创建标签时先去重并过滤空值，再对比当前用户已有标签列表；仅插入不存在的标签，返回成功数量和已存在标签列表。")
-    public Result<TagBatchAddVO> batchAdd(@RequestBody TagBatchAddDTO dto) {
+    public Result<TagBatchAddVO> batchAdd(
+            @Parameter(description = "批量新增标签请求（标签名称列表）") @RequestBody TagBatchAddDTO dto) {
         if (dto == null || dto.getTagNames() == null || dto.getTagNames().isEmpty()) {
             throw new BaseException(TagConstant.TAG_NAME_REQUIRED);
         }
@@ -146,7 +151,8 @@ public class TagController {
     @PostMapping("/assign")
     @Operation(summary = "绑定标签到资源",
             description = "将标签绑定到笔记或主题。绑定前会校验标签归属和目标资源的存在性。")
-    public Result<String> assign(@RequestBody UserTagAssignDTO dto) {
+    public Result<String> assign(
+            @Parameter(description = "标签绑定请求（标签ID、目标资源ID、目标资源类型）") @RequestBody UserTagAssignDTO dto) {
         if (dto.getTagId() == null || dto.getTagId() <= 0) {
             throw new BaseException(TagConstant.TAG_ID_INVALID);
         }
@@ -168,7 +174,8 @@ public class TagController {
      */
     @PostMapping("/remove")
     @Operation(summary = "解除标签绑定", description = "解除标签与笔记之间的绑定关系。仅允许操作自己的标签和资源。")
-    public Result<String> remove(@RequestBody UserTagRemoveDTO dto) {
+    public Result<String> remove(
+            @Parameter(description = "标签解绑请求（标签ID、目标资源ID、目标资源类型）") @RequestBody UserTagRemoveDTO dto) {
         if (dto.getTagId() == null || dto.getTagId() <= 0) {
             throw new BaseException(TagConstant.TAG_ID_INVALID);
         }
