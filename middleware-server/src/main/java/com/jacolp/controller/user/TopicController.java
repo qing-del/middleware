@@ -32,7 +32,8 @@ public class TopicController {
     @PostMapping("/list")
     @Operation(summary = "条件查询主题",
             description = "查询当前用户自己的主题 + 别人已通过审核的主题。支持按关键字模糊搜索，分页返回。")
-    public Result<PageResult> list(@RequestBody UserTopicQueryDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "主题查询条件（关键词、分页参数）") @RequestBody UserTopicQueryDTO dto) {
         log.info("User list topics, keyword: {}", dto.getKeyword());
         return Result.success(topicService.listUserTopics(dto));
     }
@@ -48,7 +49,7 @@ public class TopicController {
     @PostMapping("/submitAudit")
     @Operation(summary = "发起主题审核申请",
             description = "传入主题 ID，发起对该主题的审核申请。仅允许申请审核自己的主题，且该主题不能已通过审核或已有待审核申请。")
-    public Result<String> submitAudit(@RequestParam Long id) {
+    public Result<String> submitAudit(@Parameter(description = "主题ID") @RequestParam Long id) {
         log.info("User submit topic audit, topicId: {}", id);
         topicService.submitTopicAudit(id);
         return Result.success();
@@ -57,7 +58,8 @@ public class TopicController {
     @PostMapping("/add")
     @Operation(summary = "新增主题",
             description = "从当前登录用户上下文获取 userId 后创建主题；服务层会先清洗主题名、校验长度，再检查同一用户下主题名称唯一性。")
-    public Result<String> add(@RequestBody TopicAddDTO dto) {
+    public Result<String> add(
+            @Parameter(description = "新增主题请求（主题名称）") @RequestBody TopicAddDTO dto) {
         log.info("User add topic, topicName: {}", dto.getTopicName());
         topicService.addTopic(dto);
         return Result.success();
@@ -65,7 +67,8 @@ public class TopicController {
 
     @PutMapping("/modify")
     @Operation(summary = "修改主题", description = "修改主题的排序等级。")
-    public Result<String> modify(@RequestBody TopicModifyDTO dto) {
+    public Result<String> modify(
+            @Parameter(description = "修改主题请求（主题ID、排序等级）") @RequestBody TopicModifyDTO dto) {
         log.info("User modify topic, id: {}", dto.getId());
         topicService.modifyTopic(dto);
         return Result.success();

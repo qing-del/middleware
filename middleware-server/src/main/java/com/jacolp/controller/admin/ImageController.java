@@ -45,7 +45,7 @@ import lombok.extern.slf4j.Slf4j;
  * - 核心业务规则统一下沉到 Service 层。
  * - AOP 切面在进入控制器方法前执行校验（文件大小、格式、存储配额等）。
  */
-@RestController
+@RestController("Admin-ImageController")
 @RequestMapping("/admin/image")
 @Slf4j
 @Schema(description = "Admin - 图片管理")
@@ -61,7 +61,8 @@ public class ImageController {
     @PutMapping("/modify-info")
     @Operation(summary = "修改图片元信息",
             description = "修改图片名称或主题归属等元信息，不替换图片二进制内容；修改文件名时会做同用户同主题唯一性校验。")
-    public Result<String> modifyInfo(@RequestBody ImageModifyInfoDTO dto) {
+    public Result<String> modifyInfo(
+            @Parameter(description = "图片元信息修改请求（图片ID、新名称、新主题ID）") @RequestBody ImageModifyInfoDTO dto) {
         log.info("Admin modify image info, id: {}", dto.getId());
         imageService.modifyImageInfo(dto);
         return Result.success();
@@ -100,7 +101,8 @@ public class ImageController {
     @PostMapping("/list")
     @Operation(summary = "分页查询图片",
             description = "按用户、主题、文件名、公开状态和审核状态等条件分页查询图片列表，便于管理端筛选与审核。")
-    public Result<PageResult> list(@RequestBody ImageQueryDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "图片查询条件（用户ID、主题ID、文件名、公开状态、审核状态）") @RequestBody ImageQueryDTO dto) {
         log.info("Admin list images, userId: {}, topicId: {}", dto.getUserId(), dto.getTopicId());
         return Result.success(imageService.listImages(dto));
     }
@@ -125,7 +127,7 @@ public class ImageController {
             description = "切换图片公开/私有状态，修改后会影响跨用户复用和前端可见范围。")
     public Result<String> setPublic(
             @Parameter(description = "是否公开（0:私有, 1:公开）") @PathVariable Short isPublic,
-            @RequestBody ImagePublicDTO dto) {
+            @Parameter(description = "图片公开状态请求（图片ID）") @RequestBody ImagePublicDTO dto) {
         log.info("Admin set image public, imageId: {}, isPublic: {}", dto.getId(), isPublic);
         imageService.setImagePublic(dto.getId(), isPublic);
         return Result.success();
@@ -138,7 +140,8 @@ public class ImageController {
     @PutMapping("/audit/review")
     @Operation(summary = "审核图片",
             description = "管理员根据审核申请执行通过或拒绝；通过时将图片审核状态置为通过，拒绝时必须给出拒绝原因并同步回写审核记录。(开发的时候不要调用这个接口，因为在认证控制器里面已经有图片审核的接口了)")
-    public Result<String> auditReview(@RequestBody ImageAuditReviewDTO dto) {
+    public Result<String> auditReview(
+            @Parameter(description = "图片审核请求（审核ID、是否通过、拒绝原因）") @RequestBody ImageAuditReviewDTO dto) {
         log.info("Admin audit review image, auditId: {}, approved: {}", dto.getAuditId(), dto.getApproved());
         imageService.auditReviewImage(dto);
         return Result.success();

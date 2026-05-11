@@ -27,6 +27,7 @@ import com.jacolp.service.NoteCoreService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -35,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-NoteController")
 @RequestMapping("/user/note")
 @Slf4j
+@Schema(description = "User - 笔记管理")
 @io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记管理", description = "用户端笔记管理接口")
 public class NoteController {
 
@@ -45,7 +47,8 @@ public class NoteController {
 
     @PostMapping("/list")
     @Operation(summary = "条件查询笔记列表")
-    public Result<PageResult> list(@RequestBody UserNoteQueryDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "笔记查询条件（主题ID、状态、分页参数）") @RequestBody UserNoteQueryDTO dto) {
         log.info("User list notes, topicId: {}",dto.getTopicId());
         return Result.success(noteCoreService.listUserNotes(dto));
     }
@@ -59,7 +62,7 @@ public class NoteController {
 
     @PostMapping("/submitAudit")
     @Operation(summary = "发起笔记审核申请")
-    public Result<String> submitAudit(@RequestParam Long id) {
+    public Result<String> submitAudit(@Parameter(description = "笔记ID") @RequestParam Long id) {
         log.info("User submit note audit, noteId: {}", id);
         noteCoreService.submitNoteAudit(id);    // TODO 解耦审核逻辑部分的时候需要优化
         return Result.success("审核申请已提交");
@@ -70,8 +73,8 @@ public class NoteController {
     @Operation(summary = "上传笔记",
             description = "从当前登录用户上下文获取 userId 后上传 Markdown 文件，先校验主题是否存在与同主题同名唯一性，再一次性扫描标签、图片和双链引用并建立映射；同时落库笔记原文、初始化缺失状态，最终返回 noteId 与缺失图片列表。")
     public Result<NoteUploadVO> upload(
-            @RequestParam(required = false) Long topicId,
-            @Parameter(description = "笔记文件") @RequestParam MultipartFile file) {
+            @Parameter(description = "所属主题ID（可选）") @RequestParam(required = false) Long topicId,
+            @Parameter(description = "笔记Markdown文件") @RequestParam MultipartFile file) {
         log.info("User upload note, topicId: {}, filename: {}", topicId, file.getOriginalFilename());
         return Result.success(noteFacade.uploadNote(file, topicId));
     }
@@ -92,7 +95,7 @@ public class NoteController {
             description = "对 modify-upload 产生的待确认 Diff 进行最终处理：确认时用新内容覆盖旧内容并重建关联映射，取消时清理临时内容和变更记录；整个过程保持笔记原有发布状态不变。")
     public Result confirmChange(
             @Parameter(description = "笔记ID") @PathVariable Long noteId,
-            @RequestBody NoteChangeConfirmDTO dto) {
+            @Parameter(description = "变更确认请求（包含确认或取消标记）") @RequestBody NoteChangeConfirmDTO dto) {
         log.info("User confirm note change, noteId: {}", noteId);
 
         if (dto == null || dto.getConfirm() == null) {
@@ -125,7 +128,8 @@ public class NoteController {
 
     @GetMapping
     @Operation(summary = "查询当前用户笔记列表")
-    public Result<PageResult> listMyNotes(UserNoteSearchDTO dto) {
+    public Result<PageResult> listMyNotes(
+            @Parameter(description = "当前用户笔记搜索条件（主题ID、关键词、分页参数）") UserNoteSearchDTO dto) {
         log.info("User list notes, topicId: {}, keyword: {}", dto.getTopicId(), dto.getKeyword());
         return Result.success(noteCoreService.listUserNotesBySearch(dto));
     }
@@ -163,7 +167,7 @@ public class NoteController {
     @PostMapping("/convert")
     @Operation(summary = "转换笔记",
         description = "将笔记的 Markdown 源文件转换成 HTML 文件，并保存到数据库中。")
-    public Result convert(Long noteId) {
+    public Result convert(@Parameter(description = "笔记ID") @RequestParam Long noteId) {
         log.info("User convert note: {}", noteId);
         noteFacade.convertNote(noteId);
         return Result.success();
@@ -172,8 +176,8 @@ public class NoteController {
     @PutMapping("/{id}/info")
     @Operation(summary = "修改笔记元信息")
     public Result updateInfo(
-            @PathVariable Long id,
-            @RequestBody NoteModifyInfoDTO dto) {
+            @Parameter(description = "笔记ID") @PathVariable Long id,
+            @Parameter(description = "笔记元信息修改请求（描述、主题ID等）") @RequestBody NoteModifyInfoDTO dto) {
         log.info("User update note info: {}", id);
         noteCoreService.modifyInfo(dto);
         return Result.success();
@@ -191,7 +195,8 @@ public class NoteController {
 
     @GetMapping("/search")
     @Operation(summary = "全文搜索笔记")
-    public Result<PageResult> search(UserNoteSearchDTO dto) {
+    public Result<PageResult> search(
+            @Parameter(description = "全文搜索条件（关键词、主题ID、分页参数）") UserNoteSearchDTO dto) {
         log.info("User search notes, keyword: {}", dto.getKeyword());
         return Result.success(noteCoreService.searchUserNotes(dto));
     }

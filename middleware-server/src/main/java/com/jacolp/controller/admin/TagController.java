@@ -39,7 +39,8 @@ public class TagController {
     @PutMapping("/modify")
     @Operation(summary = "修改标签",
             description = "修改标签名称前会先按 userId 校验标签归属与存在性，并再次检查新名称是否与当前用户已有标签冲突。")
-    public Result<String> modify(@RequestBody TagModifyDTO dto) {
+    public Result<String> modify(
+            @Parameter(description = "标签修改请求（标签ID、新名称）") @RequestBody TagModifyDTO dto) {
         log.info("Admin modify tag, id: {}", dto.getId());
         tagService.modifyTag(dto);
         return Result.success();
@@ -63,7 +64,8 @@ public class TagController {
     @PostMapping("/list")
     @Operation(summary = "分页查询标签",
             description = "按关键词前缀进行模糊匹配并分页返回标签列表，支持按当前用户或指定用户维度查询。")
-    public Result<PageResult> list(@RequestBody TagQueryDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "标签查询条件（关键词、用户ID、分页参数）") @RequestBody TagQueryDTO dto) {
         return Result.success(tagService.listTags(dto));
     }
 }

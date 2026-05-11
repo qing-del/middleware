@@ -45,7 +45,8 @@ public class TopicController {
     @GetMapping("/{id}")
     @Operation(summary = "查询主题详情",
             description = "根据主题 ID 读取单条主题信息，用于编辑页回显或详情展示；若主题不存在则按业务规则返回不存在。")
-    public Result<TopicDetailVO> getById(@PathVariable Long id) {
+    public Result<TopicDetailVO> getById(
+            @Parameter(description = "主题ID") @PathVariable Long id) {
         log.info("Admin get topic by id: {}", id);
         return Result.success(topicService.getTopicById(id));
     }
@@ -53,7 +54,8 @@ public class TopicController {
     @PostMapping("/list")
     @Operation(summary = "分页查询主题",
             description = "按当前用户或指定用户、关键字和分页参数查询主题列表，返回结果按服务层默认排序规则展示。")
-    public Result<PageResult> list(@RequestBody TopicListDTO dto) {
+    public Result<PageResult> list(
+            @Parameter(description = "主题查询条件（用户ID、关键词、分页参数）") @RequestBody TopicListDTO dto) {
         return Result.success(topicService.listTopics(dto));
     }
 
