@@ -27,6 +27,7 @@ import java.util.Map;
 
 @RestController("Admin-UserController")
 @RequestMapping("/admin/user")
+@CrossOrigin("*")
 @Slf4j
 @Schema(description = "Admin - 用户管理")
 @Tag(name = "Admin-用户管理", description = "管理员登录、用户增删改查与封禁/解封接口")
