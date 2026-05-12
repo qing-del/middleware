@@ -5,14 +5,7 @@ import java.util.Map;
 
 import com.jacolp.service.UserUserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
@@ -38,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/user/user")
 @Slf4j
 @Schema(description = "User - 用户管理")
+@CrossOrigin("*")
 @Tag(name = "User-用户认证", description = "用户注册与登录接口")
 public class UserController {
     @Autowired private JwtProperties jwtProperties;

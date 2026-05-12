@@ -46,3 +46,7 @@ CLAUDE.md
 /.github/
 *.drawio.bkp
 *.drawio
+/frontend/logs/
+/frontend/node_modules/
+/frontend/.claude/
+/frontend/reference_data/
