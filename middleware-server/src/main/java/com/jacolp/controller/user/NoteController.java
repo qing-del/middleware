@@ -6,16 +6,7 @@ import com.jacolp.pojo.dto.note.*;
 import com.jacolp.pojo.vo.note.*;
 import com.jacolp.service.NoteConvertService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.facade.NoteFacade;
@@ -36,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-NoteController")
 @RequestMapping("/user/note")
 @Slf4j
+@CrossOrigin("*")
 @Schema(description = "User - 笔记管理")
 @io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记管理", description = "用户端笔记管理接口")
 public class NoteController {

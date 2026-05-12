@@ -1,27 +1,12 @@
 package com.jacolp.controller.admin;
 
 import java.util.List;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
-import com.jacolp.annotation.StorageHandler;
-import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
 import com.jacolp.utils.IdParserUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.*;
 
-import com.jacolp.annotation.ImageLimit;
-import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
 import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
 import com.jacolp.pojo.dto.image.ImagePublicDTO;
@@ -48,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("Admin-ImageController")
 @RequestMapping("/admin/image")
 @Slf4j
+@CrossOrigin("*")
 @Schema(description = "Admin - 图片管理")
 @Tag(name = "Admin-图片管理", description = "图片上传、审核、查询与删除接口")
 public class ImageController {

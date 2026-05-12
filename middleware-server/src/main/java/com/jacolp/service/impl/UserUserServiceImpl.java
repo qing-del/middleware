@@ -8,10 +8,12 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PasswordIncorrectException;
 import com.jacolp.exception.UserIsBanException;
+import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
+import com.jacolp.pojo.entity.RoleEntity;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
 import com.jacolp.pojo.vo.user.UserDetailVO;
@@ -29,6 +31,7 @@ import org.springframework.util.StringUtils;
 public class UserUserServiceImpl implements UserUserService {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
+    @Autowired private RoleMapper roleMapper;
 
     @Override
     public UserEntity loginUser(UserLoginDTO userLoginDTO) {
@@ -94,6 +97,10 @@ public class UserUserServiceImpl implements UserUserService {
         user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
         user.setRoleId(RoleConstant.USER);
         user.setStatus(UserConstant.UNACTIVE_STATUS);   // 默认用户状态为未激活
+
+        // 设置默认角色参数
+        RoleEntity role = roleMapper.getById(RoleConstant.USER);
+        user.setMaxStorageBytes(role.getMaxStorageBytes());
 
         int count = userMapper.insertUser(user);
         if (count <= 0) {

@@ -23,6 +23,7 @@ import java.util.List;
 @Schema(description = "User - 笔记关联管理")
 @io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记关联管理", description = "用户端笔记关联管理接口")
 @Slf4j
+@CrossOrigin("*")
 public class NoteRelationController {
 
     @Autowired private NoteFacade noteFacade;

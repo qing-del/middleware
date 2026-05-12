@@ -53,7 +53,7 @@ public class RoleValidationAspect {
         }
 
         // 5) 角色存在性校验
-        Integer roleCount = roleMapper.selectById(roleId);
+        Integer roleCount = roleMapper.countById(roleId);
         if (roleCount == null || roleCount <= 0) {
             log.error("Role not exists, roleId={}", roleId);
             throw new BaseException("角色不存在");

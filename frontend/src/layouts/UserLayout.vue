@@ -32,7 +32,9 @@ function getRoleBadgeClass(roleId: number) {
 
 function getRoleText(roleId: number) {
   if (roleId === 1 || roleId === 2) return 'Administrator'
-  return 'Pro User'
+  if (roleId === 3) return 'User'
+  if (roleId === 4) return 'VIP User'
+  return 'Unknown'
 }
 
 function handleLogout() {

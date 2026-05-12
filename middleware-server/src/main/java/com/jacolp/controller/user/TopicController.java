@@ -23,6 +23,7 @@ import java.util.List;
 @RestController("User-TopicController")
 @RequestMapping("/user/topic")
 @Slf4j
+@CrossOrigin("*")
 @Schema(description = "User - 主题管理")
 @Tag(name = "User-主题管理", description = "用户端主题条件查询与审核申请接口")
 public class TopicController {
