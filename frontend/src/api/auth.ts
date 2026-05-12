@@ -5,6 +5,9 @@ export const authApi = {
   login(data: { username: string; password: string }) {
     return request.post('/user/user/login', data)
   },
+  register(data: { username: string; password: string; confirmPassword: string; email: string }) {
+    return request.post('/user/user/register', data)
+  },
   adminLogin(data: { username: string; password: string }) {
     return request.post('/admin/user/login', data)
   },

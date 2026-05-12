@@ -34,6 +34,10 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value
   }
 
+  async function register(data: { username: string; password: string; confirmPassword: string; email: string }) {
+    return await authApi.register(data)
+  }
+
   async function fetchUserInfo() {
     if (!token.value) return null
     try {
@@ -87,6 +91,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     login,
     adminLogin,
+    register,
     fetchUserInfo,
     fetchAdminUserInfo,
     refreshCurrentUserInfo,
