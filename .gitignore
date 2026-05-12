@@ -50,3 +50,4 @@ CLAUDE.md
 /frontend/node_modules/
 /frontend/.claude/
 /frontend/reference_data/
+/frontend/.vite/
