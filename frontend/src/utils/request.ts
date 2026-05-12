@@ -23,11 +23,16 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => {
     const res = response.data
-    if (res.code === 1) {
-      return res.data
+    // 兼容两种返回格式：1) { code: 1, data: ... } 2) 直接返回数据对象
+    if (res && typeof res === 'object' && 'code' in res) {
+      if (res.code === 1) {
+        return res.data
+      }
+      Message.error(res.msg || '请求失败')
+      return Promise.reject(new Error(res.msg || '请求失败'))
     }
-    Message.error(res.msg || '请求失败')
-    return Promise.reject(new Error(res.msg || '请求失败'))
+    // 直接返回数据（没有 code 字段包装的情况）
+    return res
   },
   (error) => {
     if (error.response?.status === 401) {

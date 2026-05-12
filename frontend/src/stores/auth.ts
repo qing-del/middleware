@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function adminLogin(credentials: { username: string; password: string }) {
     const res = await authApi.adminLogin(credentials)
     setToken(res as unknown as string)
-    await fetchUserInfo()
+    await fetchAdminUserInfo()
     return user.value
   }
 
@@ -40,9 +40,29 @@ export const useAuthStore = defineStore('auth', () => {
       const userInfo = await authApi.getCurrentUser()
       setUser(userInfo)
       return userInfo
-    } catch {
-      logout()
-      return null
+    } catch (error) {
+      // 只在 401 时自动 logout，其他错误抛出让调用方处理
+      if (error?.response?.status === 401) {
+        logout()
+        return null
+      }
+      throw error
+    }
+  }
+
+  async function fetchAdminUserInfo() {
+    if (!token.value) return null
+    try {
+      const userInfo = await authApi.getCurrentAdminUser()
+      setUser(userInfo)
+      return userInfo
+    } catch (error) {
+      // 只在 401 时自动 logout，其他错误抛出让调用方处理
+      if (error?.response?.status === 401) {
+        logout()
+        return null
+      }
+      throw error
     }
   }
 
@@ -53,6 +73,13 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login')
   }
 
+  async function refreshCurrentUserInfo() {
+    if (isAdmin.value) {
+      return fetchAdminUserInfo()
+    }
+    return fetchUserInfo()
+  }
+
   return {
     token,
     user,
@@ -61,6 +88,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     adminLogin,
     fetchUserInfo,
+    fetchAdminUserInfo,
+    refreshCurrentUserInfo,
     logout
   }
 })

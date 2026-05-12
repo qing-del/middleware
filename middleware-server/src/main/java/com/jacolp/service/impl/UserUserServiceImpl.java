@@ -118,6 +118,9 @@ public class UserUserServiceImpl implements UserUserService {
         UserDetailVO vo = new UserDetailVO();
         BeanUtils.copyProperties(user, vo);
         vo.setId(null);
+        if (vo.getNickname() == null || vo.getNickname().isEmpty()) {
+            vo.setNickname(vo.getUsername());
+        }
         return vo;
     }
 

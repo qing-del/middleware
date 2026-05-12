@@ -1,7 +1,7 @@
 export interface User {
-  id: number
+  id?: number
   username: string
-  nickname: string
+  nickname: string | null
   email?: string
   roleId: number
 }

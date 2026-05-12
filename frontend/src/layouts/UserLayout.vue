@@ -1,20 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { authApi } from '@/api/auth'
-import type { User } from '@/types'
-import { useRouter } from 'vue-router'
-import { 
-  ChevronLeft, Zap, LayoutDashboard, FileText, Layers, Hash, 
-  Image as ImageIcon, LogOut, Search, Bell, CheckCircle2, Sparkles, HardDrive,
-  ArrowRight
+import {
+  ChevronLeft, Zap, LayoutDashboard, FileText, Layers, Hash,
+  Image as ImageIcon, LogOut, Search, Bell, CheckCircle2
 } from 'lucide-vue-next'
 
-const router = useRouter()
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
-const user = ref<User | null>(null)
 const isLoading = ref(true)
 
 const menuItems = [
@@ -184,7 +178,7 @@ onMounted(async () => {
                 <div class="relative">
                   <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-[2px] group-hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all">
                     <div class="w-full h-full rounded-full bg-[#020617] flex items-center justify-center overflow-hidden">
-                      <span class="text-xs font-black text-white">{{ authStore.user.nickname.charAt(0).toUpperCase() }}</span>
+                      <span class="text-xs font-black text-white">{{ (authStore.user?.nickname || authStore.user?.username || 'U').charAt(0).toUpperCase() }}</span>
                     </div>
                   </div>
                   <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#020617] rounded-full"></div>

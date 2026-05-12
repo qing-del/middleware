@@ -2,12 +2,14 @@ package com.jacolp.controller.admin;
 
 import com.jacolp.annotation.RequireSuperiorRole;
 import com.jacolp.constant.UserConstant;
+import com.jacolp.context.BaseContext;
 import com.jacolp.pojo.dto.user.UserAddDTO;
 import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserModifyDTO;
 import com.jacolp.pojo.dto.user.UserStatusDTO;
 import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
@@ -108,6 +110,14 @@ public class UserController {
             @Parameter(description = "用户ID") @RequestParam Long id) {
         log.info("Admin get user, id: {}", id);
         return Result.success(adminUserService.getUserById(id));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "获取当前用户信息",
+            description = "从 JWT 中解析当前用户ID，查询并返回用户详情（不含密码等敏感字段）。")
+    public Result<UserEntity> getCurrentUser() {
+        log.info("Admin get current user info, userId: {}", BaseContext.getCurrentId());
+        return Result.success(adminUserService.getUserById(BaseContext.getCurrentId()));
     }
 }
 

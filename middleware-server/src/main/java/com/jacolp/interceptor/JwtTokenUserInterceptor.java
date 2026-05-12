@@ -46,7 +46,10 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         }
 
         // 1、从请求头中获取令牌
-        String token = request.getHeader(jwtProperties.getUserTokenName());
+        String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7); // 截取掉 "Bearer " 前缀拿到真实的 JWT
+        }
 
         // 2、校验令牌
         try {

@@ -2,13 +2,14 @@
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
-import { authApi } from '@/api/auth'
+import { useAuthStore } from '@/stores/auth'
 import {
   Zap, ChevronRight, Link, FileDiff, User, Mail, Lock,
   ShieldCheck, Loader2, ArrowRight, CheckCircle2
 } from 'lucide-vue-next'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 视图状态：login, register, admin
 const currentView = ref<'login' | 'register' | 'admin'>('login')
@@ -288,14 +289,12 @@ async function handleSubmit() {
   if (loaderIconRef.value) loaderIconRef.value.classList.remove('hidden')
 
   try {
-    let token: string
     if (currentView.value === 'admin') {
-      token = await authApi.adminLogin({ username: formData.username, password: formData.password }) as unknown as string
+      await authStore.adminLogin({ username: formData.username, password: formData.password })
     } else {
-      token = await authApi.login({ username: formData.username, password: formData.password }) as unknown as string
+      await authStore.login({ username: formData.username, password: formData.password })
     }
 
-    localStorage.setItem('token', token)
     showToast('安全认证通过...', 'success')
 
     setTimeout(() => {

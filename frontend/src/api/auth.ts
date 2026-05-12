@@ -10,5 +10,9 @@ export const authApi = {
   },
   getCurrentUser(): Promise<User> {
     return request.get('/user/user/me')
+  },
+  // 管理端获取当前用户信息
+  getCurrentAdminUser(): Promise<User> {
+    return request.get('/admin/user/me')
   }
 }

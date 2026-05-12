@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { authApi } from '@/api/auth'
-import type { User } from '@/types'
-import { 
-  ChevronLeft, Shield, LayoutDashboard, ShieldAlert, Users, FileText, 
-  Layers, Hash, Image as ImageIcon, Power, Search, Bell, ShieldAlert as ShieldAlertIcon,
-  ServerCrash, ArrowRight, ShieldCheck
+import {
+  ChevronLeft, Shield, LayoutDashboard, ShieldAlert, Users, FileText,
+  Layers, Hash, Image as ImageIcon, Power, Search, Bell, ShieldAlert as ShieldAlertIcon
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
-const user = ref<User | null>(null)
 const isLoading = ref(true)
 
 const menuItems = [
@@ -35,7 +31,7 @@ function handleLogout() {
 
 onMounted(async () => {
   try {
-    await authStore.fetchUserInfo()
+    await authStore.fetchAdminUserInfo()
   } catch (error) {
     console.error('获取管理员信息失败', error)
   } finally {
@@ -172,7 +168,7 @@ onMounted(async () => {
                 <div class="relative">
                   <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-rose-500 to-orange-500 p-[2px] group-hover:shadow-[0_0_15px_rgba(244,63,94,0.5)] transition-all">
                     <div class="w-full h-full rounded-full bg-[#020617] flex items-center justify-center overflow-hidden">
-                      <span class="text-xs font-black text-white">{{ authStore.user.nickname.charAt(0).toUpperCase() }}</span>
+                      <span class="text-xs font-black text-white">{{ (authStore.user?.nickname || authStore.user?.username || 'U').charAt(0).toUpperCase() }}</span>
                     </div>
                   </div>
                   <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#020617] rounded-full"></div>

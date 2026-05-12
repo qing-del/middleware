@@ -260,7 +260,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         UserEntity user = userMapper.selectById(id);
         user.setPassword(null);
-        user.setUpdateTime(null);
+        if (user.getNickname() == null) {
+            user.setNickname(user.getUsername());
+        }
         return user;
     }
 
