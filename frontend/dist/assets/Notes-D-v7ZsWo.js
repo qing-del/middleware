@@ -1,0 +1,1 @@
+import{_ as s,p as o,c,b as t}from"./index-BUxirI8A.js";const a={},n={class:"space-y-6"};function r(l,e){return o(),c("div",n,[...e[0]||(e[0]=[t("h2",{class:"text-2xl font-bold text-white"},"全局笔记",-1),t("p",{class:"text-slate-400"},"笔记管理功能开发中...",-1)])])}const d=s(a,[["render",r]]);export{d as default};

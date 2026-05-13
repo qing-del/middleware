@@ -4,12 +4,18 @@ import { authApi } from '@/api/auth'
 import type { User } from '@/types'
 import router from '@/router'
 
+function isUnauthorizedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const response = (error as { response?: { status?: number } }).response
+  return response?.status === 401
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
   const user = ref<User | null>(null)
 
   const isAuthenticated = computed(() => !!token.value)
-  const isAdmin = computed(() => user.value ? user.value.roleId <= 2 : false)
+  const isAdmin = computed(() => (user.value ? user.value.roleId <= 2 : false))
 
   function setToken(newToken: string) {
     token.value = newToken
@@ -35,7 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function register(data: { username: string; password: string; confirmPassword: string; email: string }) {
-    return await authApi.register(data)
+    return authApi.register(data)
   }
 
   async function fetchUserInfo() {
@@ -45,8 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
       setUser(userInfo)
       return userInfo
     } catch (error) {
-      // 只在 401 时自动 logout，其他错误抛出让调用方处理
-      if (error?.response?.status === 401) {
+      if (isUnauthorizedError(error)) {
         logout()
         return null
       }
@@ -61,8 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
       setUser(userInfo)
       return userInfo
     } catch (error) {
-      // 只在 401 时自动 logout，其他错误抛出让调用方处理
-      if (error?.response?.status === 401) {
+      if (isUnauthorizedError(error)) {
         logout()
         return null
       }
