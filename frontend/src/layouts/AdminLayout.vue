@@ -1,25 +1,32 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   ChevronLeft, Shield, LayoutDashboard, ShieldAlert, Users, FileText,
   Layers, Hash, Image as ImageIcon, Power, Search, Bell, ShieldAlert as ShieldAlertIcon
 } from 'lucide-vue-next'
 
+const route = useRoute()
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
 const isLoading = ref(true)
 
-const menuItems = [
-  { id: 'dashboard', label: '控制台大盘', icon: LayoutDashboard, active: true },
-  { id: 'audit', label: '审核大厅', icon: ShieldAlert },
-  { id: 'users', label: '用户管理', icon: Users },
-  { id: 'notes', label: '全局笔记', icon: FileText },
-  { id: 'topics', label: '主题调度', icon: Layers },
-  { id: 'tags', label: '标签矩阵', icon: Hash },
-  { id: 'images', label: '云端图床', icon: ImageIcon }
-]
+const menuItems = computed(() => [
+  { id: 'dashboard', label: '控制台大盘', icon: LayoutDashboard, to: '/admin/dashboard' },
+  { id: 'audit', label: '审核大厅', icon: ShieldAlert, to: '/admin/audit' },
+  { id: 'users', label: '用户管理', icon: Users, to: '/admin/users' },
+  { id: 'notes', label: '全局笔记', icon: FileText, to: '/admin/notes' },
+  { id: 'topics', label: '主题调度', icon: Layers, to: '/admin/topics' },
+  { id: 'tags', label: '标签矩阵', icon: Hash, to: '/admin/tags' },
+  { id: 'images', label: '云端图床', icon: ImageIcon, to: '/admin/images' }
+])
+
+function isMenuActive(id: string): boolean {
+  if (id === 'dashboard' && (route.path === '/admin' || route.path === '/admin/')) return true
+  return route.path === `/admin/${id}`
+}
 
 function toggleSidebar() {
   isCollapsed.value = !isCollapsed.value
@@ -74,11 +81,11 @@ onMounted(async () => {
           <div class="h-12 w-full skeleton rounded-xl mb-1.5"></div>
         </template>
         <template v-else>
-          <a v-for="item in menuItems" :key="item.id" href="#" :class="['glass-nav-item flex items-center px-4 py-3 rounded-xl mb-1.5 overflow-hidden whitespace-nowrap group relative', item.active ? 'glass-nav-active' : 'text-slate-400']">
-            <component :is="item.icon" :class="['w-5 h-5 flex-shrink-0 relative z-10', item.active ? '' : 'group-hover:scale-110 transition-transform']" />
+          <router-link v-for="item in menuItems" :key="item.id" :to="item.to" :class="['glass-nav-item flex items-center px-4 py-3 rounded-xl mb-1.5 overflow-hidden whitespace-nowrap group relative', isMenuActive(item.id) ? 'glass-nav-active' : 'text-slate-400']">
+            <component :is="item.icon" :class="['w-5 h-5 flex-shrink-0 relative z-10', isMenuActive(item.id) ? '' : 'group-hover:scale-110 transition-transform']" />
             <span :class="['menu-label text-sm font-medium tracking-wide relative z-10 ml-3 transition-all duration-300 whitespace-nowrap', isCollapsed ? 'opacity-0 w-0 overflow-hidden' : '']">{{ item.label }}</span>
             <span v-if="item.id === 'audit' && !isCollapsed" class="menu-label absolute right-3 w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-pulse"></span>
-          </a>
+          </router-link>
         </template>
       </nav>
 

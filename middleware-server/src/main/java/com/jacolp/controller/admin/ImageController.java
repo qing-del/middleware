@@ -64,8 +64,9 @@ public class ImageController {
             @Parameter(description = "图片ID列表，使用英文逗号分隔") @RequestParam String ids) {
         List<Long> idList = IdParserUtil.parseIds(ids, "图片");
         log.info("Admin transfer to cloud, ids: {}", idList);
-        imageService.transferToCloud(idList);
-        return Result.success();
+        // imageService.transferToCloud(idList);
+        // return Result.success();
+        return Result.error("暂不支持迁移");
     }
 
     /**

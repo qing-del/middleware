@@ -27,6 +27,10 @@ const uploadTopicId = ref<number | undefined>(undefined)
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
 
+// 全屏预览
+const previewUrl = ref('')
+const showPreview = ref(false)
+
 // 主题列表（供上传弹窗下拉）
 const topicOptions = ref<TopicItem[]>([])
 
@@ -413,15 +417,14 @@ onMounted(() => {
             >
               <Link class="w-4 h-4 text-white" />
             </button>
-            <a
+            <button
               v-if="img.ossUrl"
-              :href="img.ossUrl"
-              target="_blank"
               class="p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full hover:scale-110 transition-all"
               title="查看原图"
+              @click="previewUrl = img.ossUrl; showPreview = true"
             >
               <Maximize2 class="w-4 h-4 text-white" />
-            </a>
+            </button>
             <button
               v-if="img.isPass === 2"
               class="p-2 bg-teal-500/20 hover:bg-teal-500/40 border border-teal-500/30 backdrop-blur-md rounded-full hover:scale-110 transition-all"
@@ -597,6 +600,29 @@ onMounted(() => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 全屏预览模态框 -->
+    <Teleport to="body">
+      <div
+        v-if="showPreview"
+        class="fixed inset-0 z-[60] flex items-center justify-center"
+        @click.self="showPreview = false"
+      >
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" @click="showPreview = false"></div>
+        <div class="relative z-10 max-w-[90vw] max-h-[90vh]">
+          <button
+            class="absolute -top-12 right-0 text-slate-400 hover:text-white transition-colors p-2"
+            @click="showPreview = false"
+          >
+            <X class="w-6 h-6" />
+          </button>
+          <img
+            :src="previewUrl"
+            class="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl"
+          />
         </div>
       </div>
     </Teleport>
