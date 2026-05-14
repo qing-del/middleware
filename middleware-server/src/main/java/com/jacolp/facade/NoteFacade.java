@@ -153,4 +153,10 @@ public interface NoteFacade {
      * @return 缺失的笔记关联信息
      */
     NoteCheckBindingVO checkRelationCompletion(Long noteId);
+
+    /**
+     * 删除转换结果
+     * @param noteId
+     */
+    void deleteConverted(Long noteId);
 }

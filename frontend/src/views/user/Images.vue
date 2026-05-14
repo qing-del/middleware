@@ -375,10 +375,26 @@ onMounted(() => {
 .search-toggle:hover::before { opacity: 1; }
 .search-toggle.is-active::before { opacity: 1; background: linear-gradient(90deg, rgba(129,140,248,0.3), rgba(232,121,249,0.3), rgba(244,114,182,0.3), rgba(232,121,249,0.3), rgba(129,140,248,0.3)); animation: shine 2s linear infinite; }
 .search-toggle > * { position: relative; z-index: 1; }
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.28s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.modal-enter-active, .modal-leave-active { transition: opacity 0.28s ease, transform 0.38s cubic-bezier(0.22,1,0.36,1); }
-.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.92) translateY(18px); }
+.modal-enter-active, .modal-leave-active { transition: opacity 0.32s ease, transform 0.42s cubic-bezier(0.25,1,0.5,1); }
+.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.96) translateY(14px); }
 .modal-enter-to, .modal-leave-from { opacity: 1; transform: scale(1) translateY(0); }
 .modal-card { transform-origin: center center; box-shadow: 0 24px 80px rgba(15,23,42,0.45), inset 0 1px 1px rgba(255,255,255,0.05); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-enter-active,
+  .fade-leave-active,
+  .modal-enter-active,
+  .modal-leave-active {
+    transition-duration: 0.16s;
+  }
+
+  .modal-enter-from,
+  .modal-leave-to,
+  .modal-enter-to,
+  .modal-leave-from {
+    transform: none;
+  }
+}
 </style>

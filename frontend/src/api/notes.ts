@@ -407,5 +407,10 @@ export const noteApi = {
   /** 校验关联完整性 */
   checkRelations(noteId: number): Promise<NoteCheckBindingVO> {
     return request.post(`/user/note/relation/check/${noteId}`)
-  }
+  },
+
+  /** 删除笔记转换缓存，状态回退为"待转换" */
+  deleteConverted(noteId: number): Promise<string> {
+    return request.delete('/user/note/convert', { params: { noteId } })
+  },
 }

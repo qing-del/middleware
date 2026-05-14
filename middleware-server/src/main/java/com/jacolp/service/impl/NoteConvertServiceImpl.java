@@ -70,10 +70,15 @@ public class NoteConvertServiceImpl implements NoteConvertService {
 
     /**
      * 删除单条转换结果。
+     * @throws BaseException 删除失败的时候会抛出此异常
      */
     @Override
     public void delete(Long noteId) {
-        noteConvertMapper.deleteByNoteId(noteId);
+        int affected = noteConvertMapper.deleteByNoteId(noteId);
+        if (affected < 1) {
+            log.error("Note convert delete failed, noteId: {}", noteId);
+            throw new BaseException(NoteConstant.NOTE_DELETE_FAILED);
+        }
     }
 
     /**

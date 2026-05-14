@@ -343,6 +343,9 @@ public class NoteFacadeImpl implements NoteFacade {
         }
 
         noteConvertService.convertAndSave(note, context);
+
+        note.setStatus(NoteStatus.CONVERTED.getCode());
+        noteCoreService.update(note);
     }
 
     /**
@@ -573,27 +576,48 @@ public class NoteFacadeImpl implements NoteFacade {
         // 获取笔记检查需要使用的关联信息
         NoteCheckBindingVO vo = noteRelationService.checkRelationCompletion(note);
 
-        // 检查是否需要更新笔记状态
-        NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
-        NoteStatus targetStatus = NoteStatus.fromCode(NoteConstant.STATUS_READY_TO_CONVERT);
-        // 检查是否可以进行转换
-        if (vo.isComplete() && currentStatus.canTransitionTo(targetStatus)) {
-            vo.setStatus(targetStatus.getCode());   // 转换成“可转换”状态
-            vo.setStatusDesc(targetStatus.getDesc());
-        } else {
-            vo.setStatus(currentStatus.getCode());  // 保持原状态
-            vo.setStatusDesc(currentStatus.getDesc());
-        }
+        // 检查是否需要更新关联信息
+        if (vo.isComplete()) { // 检查是否需要更新笔记状态
+            NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
+            NoteStatus targetStatus = NoteStatus.fromCode(NoteConstant.STATUS_READY_TO_CONVERT);
+            // 检查是否可以进行转换
+            if (vo.isComplete() && currentStatus.canTransitionTo(targetStatus)) {
+                vo.setStatus(targetStatus.getCode());   // 转换成“可转换”状态
+                vo.setStatusDesc(targetStatus.getDesc());
+            } else {
+                vo.setStatus(currentStatus.getCode());  // 保持原状态
+                vo.setStatusDesc(currentStatus.getDesc());
+            }
 
-        // 组装更新使用的数据
-        note.setStatus(vo.getStatus());
-        note.setMissingInfoMask(vo.getMissingInfoMask());
-        note.setMissingCount(vo.getMissingCount());
-        noteCoreService.update(note);
+            // 组装更新使用的数据
+            note.setStatus(vo.getStatus());
+            note.setMissingInfoMask(vo.getMissingInfoMask());
+            note.setMissingCount(vo.getMissingCount());
+            noteCoreService.update(note);
+        }
 
         return vo;
     }
 
+    /**
+     * 删除笔记已转换的结果
+     * @param noteId 笔记 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteConverted(Long noteId) {
+        NoteEntity note = noteCoreService.getById(noteId);
+        NoteStatus status = NoteStatus.fromCode(note.getStatus());
+        if (!status.canTransitionTo(NoteStatus.READY_TO_CONVERT)) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+        // 删除转换结果
+        noteConvertService.delete(noteId);
+
+        // 更新笔记状态
+        note.setStatus(NoteStatus.READY_TO_CONVERT.getCode());
+        noteCoreService.update(note);
+    }
 
 
     // ==================== 私有辅助方法 ====================

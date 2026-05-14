@@ -7,13 +7,12 @@ import { topicApi } from '@/api/topics'
 import type { TopicItem } from '@/api/topics'
 import {
   FileText, Search, FileUp, Globe, Trash2, Loader2, ChevronLeft, ChevronRight,
-  Hash, Image, Link, Layers, Eye, Wrench, RefreshCw,
+  Hash, Image, Link, Layers, Eye, Wrench, RefreshCw, RotateCcw,
   CornerUpLeft, AlertCircle, Clock, CheckCircle2, XCircle, FileEdit,
   AlertTriangle, UploadCloud, ArrowRight, X, FolderTree, ChevronDown,
   Send, FilePlus, FileCode, HelpCircle, Ban
 } from 'lucide-vue-next'
 
-// ── State ─────────────────────────────────────────
 const router = useRouter()
 const loading = ref(true)
 const noteList = ref<NoteItem[]>([])
@@ -21,45 +20,63 @@ const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(15)
 
-// Filters
 const searchKeyword = ref('')
 const filterTopicId = ref('')
-const filterStatus = ref('')  // NoteStatus code or '' for all
+const filterStatus = ref('')
 
-// Selection
 const selectedIds = ref<Set<number>>(new Set())
 
-// Upload modal
 const showUploadModal = ref(false)
 const uploadFile = ref<File | null>(null)
 const uploadTopicId = ref<number | undefined>(undefined)
 const uploadDragging = ref(false)
 const topicList = ref<TopicItem[]>([])
 
-// Global search toggle
 const searchMode = ref<'personal' | 'global'>('personal')
 
-// Source preview
 const showSourceModal = ref(false)
 const sourceContent = ref('')
 const sourceTitle = ref('')
 
-// ── Computed ──────────────────────────────────────
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-// ── Helpers ───────────────────────────────────────
+// ── Global tooltip ────────────────────────────────
+const tooltipVisible = ref(false)
+const tooltipText = ref('')
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+const tooltipColor = ref('blue')
+
+function showTooltip(e: MouseEvent, text: string, color = 'blue') {
+  tooltipText.value = text
+  tooltipColor.value = color
+  tooltipVisible.value = true
+  positionTooltip(e)
+}
+
+function positionTooltip(e: MouseEvent) {
+  tooltipX.value = e.clientX
+  tooltipY.value = e.clientY
+}
+
+function hideTooltip() {
+  tooltipVisible.value = false
+}
+
 function showAlert(msg: string) { window.alert(msg) }
 function showConfirm(msg: string): boolean { return window.confirm(msg) }
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
-  const u = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + u[i]
+  const units = ['B', 'KB', 'MB', 'GB']
+  const index = Math.floor(Math.log(bytes) / Math.log(1024))
+  return (bytes / Math.pow(1024, index)).toFixed(index > 0 ? 1 : 0) + ' ' + units[index]
 }
 
-function formatNumber(n: number): string { return n.toLocaleString() }
+function formatNumber(n: number): string {
+  return n.toLocaleString()
+}
 
 function visiblePages(): number[] {
   const pages: number[] = []
@@ -79,12 +96,61 @@ function getStatusIcon(iconName: string) {
   return map[iconName] ?? HelpCircle
 }
 
-// ── Data fetching ─────────────────────────────────
+function isStatusEmphasized(status: number): boolean {
+  return [
+    NoteStatusCode.PENDING_INFO,
+    NoteStatusCode.PENDING_AUDIT,
+    NoteStatusCode.REJECTED
+  ].includes(status as any)
+}
+
+function getStatusEmphasisClass(status: number): string {
+  if (status === NoteStatusCode.REJECTED) return 'status-breathe status-glow-rose'
+  if (status === NoteStatusCode.PENDING_INFO || status === NoteStatusCode.PENDING_AUDIT) {
+    return 'status-breathe status-glow-amber'
+  }
+  return 'status-chip-steady'
+}
+
+function getStatusTooltip(note: NoteItem): string {
+  switch (note.status) {
+    case NoteStatusCode.NEW:
+      return '笔记已创建，可继续检查关联资源并推进后续流程。'
+    case NoteStatusCode.PENDING_INFO:
+      return `当前仍有 ${note.missingCount ?? 0} 项关联缺失，建议先补全图片、标签或双链资源。`
+    case NoteStatusCode.READY_TO_CONVERT:
+      return '关联检查已通过，可以执行 Markdown 转换。'
+    case NoteStatusCode.CONVERTED:
+      return '阅读版 HTML 已生成，可以预览并提交审核。'
+    case NoteStatusCode.PENDING_AUDIT:
+      return '已提交审核，当前阶段不可修改或删除该笔记。'
+    case NoteStatusCode.APPROVED:
+      return '审核已通过，等待你决定是否公开发布。'
+    case NoteStatusCode.PUBLISHED:
+      return '笔记已公开，外部访问链路已经生效。'
+    case NoteStatusCode.REJECTED:
+      return '审核未通过，请根据反馈修正后重新提交。'
+    default:
+      return '当前状态暂无额外说明。'
+  }
+}
+
+function getRelationTooltip(note: NoteItem, kind: 'tags' | 'images' | 'links'): string {
+  if (kind === 'tags') return `标签关联 ${note.tagCount ?? 0} 项。`
+  if (kind === 'links') return `双链关联 ${note.eachNoteCount ?? 0} 项。`
+  if (note.missingCount > 0) {
+    return `图片关联 ${note.imageCount ?? 0} 项，其中仍有 ${note.missingCount} 项存在缺失或异常。`
+  }
+  return `图片关联 ${note.imageCount ?? 0} 项，当前检查通过。`
+}
+
 async function fetchTopics() {
   try {
     const res = await topicApi.getList({ pageSize: 100 })
     topicList.value = (res as unknown as { records: TopicItem[] }).records ?? []
-  } catch { /* non-critical */ }
+  } catch {
+    // non-critical
+  }
 }
 
 async function fetchNotes() {
@@ -105,7 +171,6 @@ async function fetchNotes() {
     let records = (res as unknown as PageResult<NoteItem>).records ?? []
     total.value = (res as unknown as PageResult<NoteItem>).total ?? 0
 
-    // Client-side status filter if backend doesn't support it
     if (filterStatus.value !== '') {
       const code = Number(filterStatus.value)
       records = records.filter(n => n.status === code)
@@ -118,24 +183,39 @@ async function fetchNotes() {
   }
 }
 
-// ── Actions ───────────────────────────────────────
-function handleSearch() { currentPage.value = 1; fetchNotes() }
+function handleSearch() {
+  currentPage.value = 1
+  fetchNotes()
+}
+
 function handlePageChange(page: number) {
   if (page < 1 || page > totalPages.value || page === currentPage.value) return
-  currentPage.value = page; fetchNotes()
+  currentPage.value = page
+  fetchNotes()
 }
-function handleTabChange(statusCode: string) { filterStatus.value = statusCode; currentPage.value = 1; fetchNotes() }
+
+function handleTabChange(statusCode: string) {
+  filterStatus.value = statusCode
+  currentPage.value = 1
+  fetchNotes()
+}
 
 function toggleSelectAll(checked: boolean) {
   if (checked) noteList.value.forEach(n => selectedIds.value.add(n.id))
   else selectedIds.value.clear()
 }
+
 function toggleSelect(id: number) {
   selectedIds.value.has(id) ? selectedIds.value.delete(id) : selectedIds.value.add(id)
 }
 
-// Upload
-function toggleUploadModal() { showUploadModal.value = !showUploadModal.value; if (!showUploadModal.value) { uploadFile.value = null; uploadTopicId.value = undefined } }
+function toggleUploadModal() {
+  showUploadModal.value = !showUploadModal.value
+  if (!showUploadModal.value) {
+    uploadFile.value = null
+    uploadTopicId.value = undefined
+  }
+}
 
 function handleFileDrop(e: DragEvent) {
   uploadDragging.value = false
@@ -158,16 +238,15 @@ async function handleUpload() {
     const missing = (res as unknown as { missingImages?: string[]; missingTags?: string[]; missingNoteNames?: string[] })
     const totalMissing = (missing.missingImages?.length ?? 0) + (missing.missingTags?.length ?? 0) + (missing.missingNoteNames?.length ?? 0)
     if (totalMissing > 0) {
-      showAlert(`笔记已上传成功！但有 ${totalMissing} 项关联资源需要补全。`)
+      showAlert(`笔记上传成功，但仍有 ${totalMissing} 项关联资源需要补全。`)
     }
   } catch {
-    showAlert('上传失败，请重试')
+    showAlert('上传失败，请重试。')
   }
 }
 
-// Single actions
 async function handleDelete(id: number) {
-  if (!showConfirm('确定删除该笔记吗？此操作不可恢复。')) return
+  if (!showConfirm('确定删除这篇笔记吗？此操作不可恢复。')) return
   await noteApi.deleteNote(id)
   await fetchNotes()
 }
@@ -188,7 +267,7 @@ async function handleSubmitAudit(id: number) {
 }
 
 async function handleCancelAudit(_id: number) {
-  showAlert('取消审核将回到"已转换"状态，你可以继续修改笔记内容')
+  showAlert('取消审核后会返回已转换状态，你可以继续修改笔记内容。')
 }
 
 async function handleConvert(id: number) {
@@ -196,22 +275,42 @@ async function handleConvert(id: number) {
     await noteApi.convertNote(id)
     await fetchNotes()
   } catch {
-    showAlert('转换失败，请确认笔记没有关联异常')
+    showAlert('转换失败，请确认笔记没有关联异常。')
+  }
+}
+
+async function handleDeleteConverted(id: number) {
+  if (!showConfirm('确定删除转换缓存吗？笔记将回退为"待转换"状态，需重新执行转换。')) return
+  try {
+    await noteApi.deleteConverted(id)
+    await fetchNotes()
+  } catch {
+    showAlert('删除转换缓存失败，请重试。')
   }
 }
 
 async function handleCheckRelations(id: number) {
   try {
     const res = await noteApi.checkRelations(id)
-    const result = res as unknown as { complete: boolean; missingCount: number }
-    if (result.complete) {
-      showAlert('关联完整性校验通过！')
+    const result = res as unknown as {
+      isComplete: boolean
+      missingCount: number
+      missingTags: string[]
+      missingImages: string[]
+      missingNoteNames: string[]
+    }
+    if (result.isComplete) {
+      showAlert('关联完整性校验通过。')
     } else {
-      showAlert(`还有 ${result.missingCount} 项关联需要补全`)
+      const lines: string[] = [`仍有 ${result.missingCount} 项关联需要补全：`]
+      if (result.missingTags?.length) lines.push(`\n标签缺失：${result.missingTags.join('、')}`)
+      if (result.missingImages?.length) lines.push(`\n图片缺失：${result.missingImages.join('、')}`)
+      if (result.missingNoteNames?.length) lines.push(`\n双链缺失：${result.missingNoteNames.join('、')}`)
+      showAlert(lines.join(''))
     }
     await fetchNotes()
   } catch {
-    showAlert('校验失败，请重试')
+    showAlert('校验失败，请重试。')
   }
 }
 
@@ -223,7 +322,7 @@ async function handleViewSource(id: number) {
     sourceContent.value = src as unknown as string
     showSourceModal.value = true
   } catch {
-    showAlert('无法获取源文件')
+    showAlert('无法获取源文件。')
   }
 }
 
@@ -231,12 +330,15 @@ function handleViewHtml(id: number) {
   router.push(`/user/notes/${id}`)
 }
 
-// Batch actions
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
   if (!showConfirm(`确定删除已选择的 ${selectedIds.value.size} 篇笔记吗？`)) return
   for (const id of selectedIds.value) {
-    try { await noteApi.deleteNote(id) } catch { /* continue */ }
+    try {
+      await noteApi.deleteNote(id)
+    } catch {
+      // continue
+    }
   }
   selectedIds.value.clear()
   await fetchNotes()
@@ -246,18 +348,22 @@ async function handleBatchPublish() {
   if (selectedIds.value.size === 0) return
   let count = 0
   for (const id of selectedIds.value) {
-    try { await noteApi.publish(id, 1); count++ } catch { /* skip */ }
+    try {
+      await noteApi.publish(id, 1)
+      count++
+    } catch {
+      // skip
+    }
   }
   selectedIds.value.clear()
   await fetchNotes()
-  if (count > 0) showAlert(`成功发布了 ${count} 篇笔记`)
+  if (count > 0) showAlert(`成功发布了 ${count} 篇笔记。`)
 }
 
 function toggleGlobalSearch() {
   searchMode.value = searchMode.value === 'personal' ? 'global' : 'personal'
 }
 
-// ── Init ──────────────────────────────────────────
 onMounted(() => {
   fetchTopics()
   fetchNotes()
@@ -265,8 +371,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="relative max-w-[1400px] mx-auto space-y-6 pb-20">
-    <!-- ═══ Header ═══ -->
+  <div class="relative max-w-[1400px] mx-auto space-y-6 pb-36 md:pb-40">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
       <div class="flex items-center space-x-3">
         <div class="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
@@ -274,14 +379,13 @@ onMounted(() => {
         </div>
         <div>
           <h2 class="text-xl font-bold text-white">核心数字资产</h2>
-          <p class="text-xs text-slate-400 mt-0.5">管理您的 Markdown 笔记、解决关联异常与发布文章</p>
+          <p class="text-xs text-slate-400 mt-0.5">管理你的 Markdown 笔记，处理关联异常并推进审核与发布。</p>
         </div>
       </div>
 
       <div class="flex items-center space-x-4">
-        <!-- 全局检索开关 -->
         <div class="flex items-center space-x-2.5 cursor-pointer group" @click="toggleGlobalSearch">
-          <span class="text-xs font-bold text-slate-400 group-hover:text-blue-300 transition-colors">{{ searchMode === 'personal' ? '个人生态' : '全局搜索' }}</span>
+          <span class="text-xs font-bold text-slate-400 group-hover:text-blue-300 transition-colors">{{ searchMode === 'personal' ? '个人检索' : '全局搜索' }}</span>
           <div class="relative p-[1px] rounded-full overflow-hidden">
             <div class="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0_340deg,rgba(59,130,246,0.8)_360deg)] animate-[spin_2s_linear_infinite] opacity-0 group-hover:opacity-100 transition-opacity" />
             <div class="relative w-10 h-5 rounded-full flex items-center px-0.5 transition-colors duration-300 z-10" :class="searchMode === 'global' ? 'bg-blue-500 border border-blue-500/50' : 'bg-black/50 border border-white/10'">
@@ -293,15 +397,13 @@ onMounted(() => {
 
         <div class="w-px h-5 bg-white/10 mx-1" />
 
-        <!-- 搜索框 -->
         <div class="relative group flex items-center bg-black/20 border border-white/10 rounded-xl overflow-hidden transition-all duration-300 ease-out w-9 hover:w-28 focus-within:!w-64 focus-within:bg-black/40 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/10 h-9">
           <label class="w-9 h-full flex-shrink-0 flex items-center justify-center text-slate-500 group-hover:text-slate-300 group-focus-within:text-blue-400 transition-colors cursor-pointer z-10">
             <Search class="w-4 h-4" />
           </label>
-          <input v-model="searchKeyword" type="text" placeholder="检索笔记标题或内容..." class="absolute left-9 w-[220px] h-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none opacity-0 group-hover:opacity-100 focus-within:!opacity-100 transition-opacity duration-300 pr-4" @keyup.enter="handleSearch" />
+          <input v-model="searchKeyword" type="text" placeholder="搜索笔记标题或内容..." class="absolute left-9 w-[220px] h-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none opacity-0 group-hover:opacity-100 focus-within:!opacity-100 transition-opacity duration-300 pr-4" @keyup.enter="handleSearch" />
         </div>
 
-        <!-- 上传按钮 -->
         <button class="group relative px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center space-x-2" @click="toggleUploadModal">
           <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
           <FileUp class="w-4 h-4" />
@@ -310,7 +412,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ═══ Filter Bar: Tabs + Topic Selector ═══ -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
       <div class="flex gap-2 bg-black/20 p-1 rounded-xl border border-white/5 flex-wrap">
         <button
@@ -322,9 +423,7 @@ onMounted(() => {
           ]"
           :key="tab.id"
           class="px-4 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
-          :class="filterStatus === tab.id
-            ? 'bg-white/10 text-white shadow-sm'
-            : 'text-slate-400 hover:text-white'"
+          :class="filterStatus === tab.id ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:text-white'"
           @click="handleTabChange(tab.id)"
         >
           <component :is="tab.icon" class="w-3.5 h-3.5" />
@@ -332,7 +431,6 @@ onMounted(() => {
         </button>
       </div>
 
-      <!-- Topic filter dropdown -->
       <div class="relative group min-w-[180px]">
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
           <FolderTree class="w-3.5 h-3.5" />
@@ -347,66 +445,64 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ═══ Batch Action Bar ═══ -->
-    <div class="glass-panel rounded-xl px-4 py-3 flex items-center justify-between transition-all duration-300 sticky top-0 z-30"
-      :class="isBatchMode ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none -translate-y-[10px]'">
-      <div class="flex items-center space-x-3">
-        <span class="flex h-2 w-2 relative">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-        </span>
-        <span class="text-sm font-bold text-blue-300">已选取 <span class="text-white mx-1">{{ selectedIds.size }}</span> 篇笔记</span>
+    <Transition name="batch-float">
+      <div v-if="isBatchMode" class="fixed inset-x-0 bottom-6 z-40 px-4 sm:px-6 pointer-events-none">
+        <div class="floating-batch-bar glass-panel mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl border border-blue-500/20 px-4 py-3 shadow-[0_18px_45px_rgba(2,6,23,0.48),0_0_30px_rgba(59,130,246,0.12)] pointer-events-auto sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center space-x-3">
+            <span class="flex h-2.5 w-2.5 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.7)]" />
+            </span>
+            <span class="text-sm font-bold text-blue-300">已选中 <span class="text-white mx-1">{{ selectedIds.size }}</span> 篇笔记</span>
+          </div>
+          <div class="flex items-center justify-end space-x-2">
+            <button class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-bold border border-emerald-500/20 hover:-translate-y-0.5" @click="handleBatchPublish">
+              <Globe class="w-3.5 h-3.5" />
+              <span>批量发布</span>
+            </button>
+            <button class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all text-xs font-bold border border-rose-500/20 hover:-translate-y-0.5" @click="handleBatchDelete">
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>批量删除</span>
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="flex items-center space-x-2">
-        <button class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-bold border border-emerald-500/20" @click="handleBatchPublish">
-          <Globe class="w-3.5 h-3.5" />
-          <span>批量发布</span>
-        </button>
-        <button class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all text-xs font-bold border border-rose-500/20" @click="handleBatchDelete">
-          <Trash2 class="w-3.5 h-3.5" />
-          <span>批量删除</span>
-        </button>
-      </div>
-    </div>
+    </Transition>
 
-    <!-- ═══ Data Table ═══ -->
-    <div class="glass-panel rounded-2xl overflow-hidden border border-white/10 relative z-10 shadow-2xl">
-      <div class="overflow-x-auto">
+    <div class="glass-panel rounded-2xl border border-white/10 relative z-10 shadow-2xl">
+      <div class="overflow-x-auto rounded-2xl">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr>
               <th class="px-5 py-4 border-b border-white/5 w-10">
-                <input type="checkbox" class="glass-checkbox" :checked="selectedIds.size === noteList.length && noteList.length > 0"
-                  @change="toggleSelectAll(($event.target as HTMLInputElement).checked)" />
+                <input type="checkbox" class="glass-checkbox" :checked="selectedIds.size === noteList.length && noteList.length > 0" @change="toggleSelectAll(($event.target as HTMLInputElement).checked)" />
               </th>
               <th class="px-5 py-4 border-b border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wider w-[32%]">核心资产 (Title & Meta)</th>
               <th class="px-5 py-4 border-b border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wider">关联矩阵 (Relations)</th>
               <th class="px-5 py-4 border-b border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wider">笔记状态 (Status)</th>
-              <th class="px-5 py-4 border-b border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">管控台 (Actions)</th>
+              <th class="px-5 py-4 border-b border-white/5 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">控制台 (Actions)</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
-            <!-- Loading -->
             <tr v-if="loading">
               <td colspan="5" class="px-6 py-16 text-center">
                 <Loader2 class="w-6 h-6 text-blue-400 animate-spin mx-auto mb-3" />
                 <span class="text-xs text-slate-500">加载中...</span>
               </td>
             </tr>
-            <!-- Empty -->
             <tr v-else-if="noteList.length === 0">
-              <td colspan="5" class="px-6 py-16 text-center text-sm text-slate-500">暂无笔记数据，点击右上角"上传笔记"开始创作</td>
+              <td colspan="5" class="px-6 py-16 text-center text-sm text-slate-500">暂无笔记数据，点击右上角“上传笔记”开始创建。</td>
             </tr>
-            <!-- Rows -->
-            <tr v-for="note in noteList" :key="note.id"
+            <tr
+              v-for="note in noteList"
+              :key="note.id"
               class="hover:bg-white/[0.02] transition-colors group cursor-pointer"
               :class="{ 'bg-rose-500/[0.01]': note.status === NoteStatusCode.REJECTED || note.status === NoteStatusCode.PENDING_INFO }"
-              @dblclick="handleViewSource(note.id)">
-              <!-- Checkbox -->
+              @dblclick="handleViewSource(note.id)"
+            >
               <td class="px-5 py-4" @click.stop>
                 <input type="checkbox" class="glass-checkbox" :checked="selectedIds.has(note.id)" @change="toggleSelect(note.id)" />
               </td>
-              <!-- 核心资产 -->
               <td class="px-5 py-4">
                 <div class="flex flex-col">
                   <div class="flex items-center space-x-2">
@@ -414,47 +510,59 @@ onMounted(() => {
                     <span v-if="note.mdFileSize" class="text-[9px] font-mono text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/5 flex-shrink-0">{{ formatBytes(note.mdFileSize) }}</span>
                   </div>
                   <div class="flex items-center space-x-2 mt-2 flex-wrap gap-y-1">
-                    <!-- Topic badge -->
                     <span v-if="note.topicName" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20">
                       <Layers class="w-3 h-3 mr-1" /> {{ note.topicName }}
                     </span>
-                    <!-- Tags -->
                     <template v-if="note.tags && note.tags.length">
-                      <span v-for="(tag, ti) in (note.tags as unknown as string[])" :key="ti"
-                        class="mini-tag px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 border border-white/10"># {{ tag }}</span>
+                      <span v-for="(tag, ti) in (note.tags as unknown as string[])" :key="ti" class="mini-tag px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 border border-white/10"># {{ tag }}</span>
                     </template>
                     <span v-else-if="note.tagCount > 0" class="text-[10px] text-slate-600">含 {{ note.tagCount }} 个标签</span>
                     <span v-else class="text-[10px] text-slate-600"># 独立笔记 (无标签)</span>
                   </div>
                 </div>
               </td>
-              <!-- 关联矩阵 -->
               <td class="px-5 py-4">
                 <div class="flex items-center space-x-3 flex-wrap gap-y-1">
-                  <div class="flex items-center space-x-1 text-xs text-slate-400" :title="`${note.tagCount ?? 0} 个标签`">
-                    <Hash class="w-3.5 h-3.5 text-purple-400" /><span>{{ note.tagCount ?? 0 }}</span>
-                  </div>
-                  <div v-if="note.missingCount > 0"
-                    class="flex items-center space-x-1 text-xs text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded cursor-help border border-amber-500/20 alert-pulse"
-                    title="存在未上传或关联异常的图片资源">
-                    <Image class="w-3.5 h-3.5" /><span class="font-bold">{{ note.imageCount ?? 0 }}</span>
-                  </div>
-                  <div v-else class="flex items-center space-x-1 text-xs text-slate-400" :title="`${note.imageCount ?? 0} 张图片`">
-                    <Image class="w-3.5 h-3.5 text-blue-400" /><span>{{ note.imageCount ?? 0 }}</span>
-                  </div>
-                  <div class="flex items-center space-x-1 text-xs text-slate-400" :title="`${note.eachNoteCount ?? 0} 条双链`">
-                    <Link class="w-3.5 h-3.5 text-emerald-400" /><span>{{ note.eachNoteCount ?? 0 }}</span>
-                  </div>
+                  <span tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
+                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'tags'), 'purple')"
+                    @mousemove="positionTooltip"
+                    @mouseleave="hideTooltip">
+                    <Hash class="w-3.5 h-3.5 text-purple-400" />
+                    <span>{{ note.tagCount ?? 0 }}</span>
+                  </span>
+                  <span v-if="note.missingCount > 0" tabindex="0" class="relation-chip status-breathe status-glow-amber inline-flex items-center space-x-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-500"
+                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'images'), 'amber')"
+                    @mousemove="positionTooltip"
+                    @mouseleave="hideTooltip">
+                    <Image class="w-3.5 h-3.5" />
+                    <span class="font-bold">{{ note.imageCount ?? 0 }}</span>
+                  </span>
+                  <span v-else tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
+                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'images'), 'blue')"
+                    @mousemove="positionTooltip"
+                    @mouseleave="hideTooltip">
+                    <Image class="w-3.5 h-3.5 text-blue-400" />
+                    <span>{{ note.imageCount ?? 0 }}</span>
+                  </span>
+                  <span tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
+                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'links'), 'emerald')"
+                    @mousemove="positionTooltip"
+                    @mouseleave="hideTooltip">
+                    <Link class="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{{ note.eachNoteCount ?? 0 }}</span>
+                  </span>
                 </div>
               </td>
-              <!-- 笔记状态 (NoteStatus-based) -->
               <td class="px-5 py-4">
                 <div class="flex flex-col items-start space-y-1.5">
-                  <span class="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border" :class="getNoteStatusInfo(note.status).cls">
+                  <span tabindex="0" class="note-status-chip inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border"
+                    :class="[getNoteStatusInfo(note.status).cls, isStatusEmphasized(note.status) ? getStatusEmphasisClass(note.status) : 'status-chip-steady']"
+                    @mouseenter="e => showTooltip(e, getStatusTooltip(note), note.status === NoteStatusCode.REJECTED ? 'rose' : (note.status === NoteStatusCode.PENDING_INFO || note.status === NoteStatusCode.PENDING_AUDIT ? 'amber' : 'blue'))"
+                    @mousemove="positionTooltip"
+                    @mouseleave="hideTooltip">
                     <component :is="getStatusIcon(getNoteStatusInfo(note.status).icon)" class="w-3 h-3 mr-1" />
                     {{ getNoteStatusInfo(note.status).label }}
                   </span>
-                  <!-- Supplementary info depending on state -->
                   <span v-if="note.status === NoteStatusCode.PENDING_INFO && note.missingCount > 0" class="text-[10px] text-amber-500 flex items-center">
                     <AlertTriangle class="w-3 h-3 mr-1" /> 缺 {{ note.missingCount }} 项关联
                   </span>
@@ -472,11 +580,8 @@ onMounted(() => {
                   </span>
                 </div>
               </td>
-              <!-- 管控台 - Status-aware actions -->
               <td class="px-5 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2 opacity-50 group-hover:opacity-100 transition-opacity" @click.stop>
-
-                  <!-- NEW (0): check relations, convert, upload, delete -->
                   <template v-if="note.status === NoteStatusCode.NEW">
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-400 hover:text-violet-400 flex items-center justify-center transition-all" title="校验关联" @click="handleCheckRelations(note.id)">
                       <Wrench class="w-4 h-4" />
@@ -489,7 +594,6 @@ onMounted(() => {
                     </button>
                   </template>
 
-                  <!-- PENDING_INFO (1): repair/check, convert, upload, delete -->
                   <template v-else-if="note.status === NoteStatusCode.PENDING_INFO">
                     <button class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-colors text-[10px] font-bold uppercase" title="校验关联并修复" @click="handleCheckRelations(note.id)">
                       <Wrench class="w-3.5 h-3.5" />
@@ -503,7 +607,6 @@ onMounted(() => {
                     </button>
                   </template>
 
-                  <!-- READY_TO_CONVERT (2): convert, upload, delete -->
                   <template v-else-if="note.status === NoteStatusCode.READY_TO_CONVERT">
                     <button class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 transition-colors text-[10px] font-bold uppercase" title="转换笔记为 HTML" @click="handleConvert(note.id)">
                       <RefreshCw class="w-3.5 h-3.5" />
@@ -517,25 +620,24 @@ onMounted(() => {
                     </button>
                   </template>
 
-                  <!-- CONVERTED (3): view HTML, submit audit, upload, delete -->
                   <template v-else-if="note.status === NoteStatusCode.CONVERTED">
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看阅读页 HTML" @click="handleViewHtml(note.id)">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看 HTML" @click="handleViewHtml(note.id)">
                       <Eye class="w-4 h-4" />
+                    </button>
+                    <button class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20 transition-colors text-[10px] font-bold uppercase" title="删除转换缓存" @click="handleDeleteConverted(note.id)">
+                      <RotateCcw class="w-3.5 h-3.5" />
+                      <span>删除缓存</span>
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="提交审核" @click="handleSubmitAudit(note.id)">
                       <Send class="w-4 h-4" />
-                    </button>
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="toggleUploadModal">
-                      <FileUp class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all" title="删除" @click="handleDelete(note.id)">
                       <Trash2 class="w-4 h-4" />
                     </button>
                   </template>
 
-                  <!-- PENDING_AUDIT (4): view HTML, cancel audit (cannot delete or modify) -->
                   <template v-else-if="note.status === NoteStatusCode.PENDING_AUDIT">
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看阅读页 HTML" @click="handleViewHtml(note.id)">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看 HTML" @click="handleViewHtml(note.id)">
                       <Eye class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all" title="取消审核" @click="handleCancelAudit(note.id)">
@@ -546,9 +648,8 @@ onMounted(() => {
                     </button>
                   </template>
 
-                  <!-- APPROVED (5): view HTML, publish, upload, delete -->
                   <template v-else-if="note.status === NoteStatusCode.APPROVED">
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看阅读页 HTML" @click="handleViewHtml(note.id)">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看 HTML" @click="handleViewHtml(note.id)">
                       <Eye class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]" title="公开发布" @click="handlePublish(note.id)">
@@ -562,22 +663,20 @@ onMounted(() => {
                     </button>
                   </template>
 
-                  <!-- PUBLISHED (6): view HTML, unpublish (cannot delete or modify) -->
                   <template v-else-if="note.status === NoteStatusCode.PUBLISHED">
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看阅读页 HTML" @click="handleViewHtml(note.id)">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看 HTML" @click="handleViewHtml(note.id)">
                       <Eye class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 flex items-center justify-center transition-all" title="取消公开" @click="handleUnpublish(note.id)">
                       <FileEdit class="w-4 h-4" />
                     </button>
-                    <button class="w-8 h-8 rounded-lg bg-white/5 text-slate-600 flex items-center justify-center transition-all" disabled title="已公开不可删除/修改">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 text-slate-600 flex items-center justify-center transition-all" disabled title="已公开状态不可删除或修改">
                       <Ban class="w-4 h-4" />
                     </button>
                   </template>
 
-                  <!-- REJECTED (7): view source, re-convert, upload, delete -->
                   <template v-else-if="note.status === NoteStatusCode.REJECTED">
-                    <button class="w-8 h-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 flex items-center justify-center transition-all border border-rose-500/20" title="审核被驳回" @click="showAlert('管理员驳回了该笔记的审核申请。请修改后重新提交。')">
+                    <button class="w-8 h-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 flex items-center justify-center transition-all border border-rose-500/20" title="审核驳回" @click="showAlert('管理员驳回了这篇笔记的审核申请，请修正后重新提交。')">
                       <AlertCircle class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="toggleUploadModal">
@@ -588,7 +687,6 @@ onMounted(() => {
                     </button>
                   </template>
 
-                  <!-- Fallback: generic actions -->
                   <template v-else>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all" title="查看详情" @click="handleViewSource(note.id)">
                       <Eye class="w-4 h-4" />
@@ -604,7 +702,6 @@ onMounted(() => {
         </table>
       </div>
 
-      <!-- Pagination -->
       <div v-if="!loading && noteList.length > 0" class="px-6 py-4 border-t border-white/5 flex items-center justify-between bg-white/[0.01]">
         <span class="text-xs text-slate-500">共 {{ formatNumber(total) }} 篇笔记</span>
         <div class="flex items-center space-x-1">
@@ -612,9 +709,7 @@ onMounted(() => {
             <ChevronLeft class="w-4 h-4" />
           </button>
           <template v-for="page in visiblePages()" :key="page">
-            <button v-if="totalPages > 1" class="w-7 h-7 rounded flex items-center justify-center text-xs font-bold transition-colors"
-              :class="page === currentPage ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-white'"
-              @click="handlePageChange(page)">{{ page }}</button>
+            <button v-if="totalPages > 1" class="w-7 h-7 rounded flex items-center justify-center text-xs font-bold transition-colors" :class="page === currentPage ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:bg-white/5 hover:text-white'" @click="handlePageChange(page)">{{ page }}</button>
           </template>
           <button class="w-7 h-7 rounded flex items-center justify-center text-slate-500 hover:bg-white/5 hover:text-white" :disabled="currentPage >= totalPages" @click="handlePageChange(currentPage + 1)">
             <ChevronRight class="w-4 h-4" />
@@ -623,11 +718,13 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ═══ Upload Modal ═══ -->
     <Teleport to="body">
-      <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center" @click.self="toggleUploadModal">
-        <div class="absolute inset-0 bg-black/70 backdrop-blur-md" />
-        <div class="glass-panel w-full max-w-xl rounded-3xl p-8 relative z-10 transform transition-transform duration-300">
+      <Transition name="modal-backdrop">
+        <div v-if="showUploadModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md" @click="toggleUploadModal" />
+      </Transition>
+      <Transition name="modal-panel">
+        <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
+        <div class="glass-panel modal-card w-full max-w-xl rounded-3xl p-8 relative z-10 pointer-events-auto">
           <div class="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/20 blur-[50px] rounded-full pointer-events-none" />
           <div class="flex justify-between items-center mb-6">
             <div class="flex items-center space-x-3">
@@ -664,8 +761,8 @@ onMounted(() => {
                 <div class="w-12 h-12 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3 group-hover:-translate-y-1 transition-transform shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                   <UploadCloud class="w-6 h-6" />
                 </div>
-                <p class="text-sm font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">点击或拖拽 .md 文件到此处</p>
-                <p class="text-xs text-slate-400">支持原生 Markdown 语法，引擎将自动扫描双链与关联资源</p>
+                <p class="text-sm font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">点击或拖拽 `.md` 文件到此处</p>
+                <p class="text-xs text-slate-400">支持原生 Markdown 语法，系统会自动扫描双链与关联资源。</p>
               </template>
             </div>
             <input ref="fileInput" type="file" accept=".md,.markdown" class="hidden" @change="handleFileSelect" />
@@ -701,13 +798,16 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      </Transition>
     </Teleport>
 
-    <!-- ═══ Source Viewer Modal ═══ -->
     <Teleport to="body">
-      <div v-if="showSourceModal" class="fixed inset-0 z-[60] flex items-center justify-center" @click.self="showSourceModal = false">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" @click="showSourceModal = false" />
-        <div class="glass-panel relative z-10 max-w-3xl w-full max-h-[85vh] rounded-2xl overflow-hidden flex flex-col mx-4">
+      <Transition name="modal-backdrop">
+        <div v-if="showSourceModal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md" @click="showSourceModal = false" />
+      </Transition>
+      <Transition name="modal-panel">
+        <div v-if="showSourceModal" class="fixed inset-0 z-[60] flex items-center justify-center px-4 pointer-events-none">
+        <div class="glass-panel modal-card relative z-10 max-w-3xl w-full max-h-[85vh] rounded-2xl overflow-hidden flex flex-col pointer-events-auto">
           <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
             <div class="flex items-center space-x-3">
               <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
@@ -724,6 +824,17 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ── Global tooltip ── -->
+    <Teleport to="body">
+      <div
+        v-if="tooltipVisible"
+        class="global-tooltip"
+        :class="`tooltip-${tooltipColor}`"
+        :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }"
+      >{{ tooltipText }}</div>
     </Teleport>
   </div>
 </template>
@@ -736,20 +847,229 @@ onMounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
+
 .glass-checkbox {
-  appearance: none; width: 16px; height: 16px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 4px; background: rgba(0, 0, 0, 0.2); cursor: pointer; position: relative; transition: all 0.2s;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
 }
-.glass-checkbox:checked { background: #3b82f6; border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
+
+.glass-checkbox:checked {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
 .glass-checkbox:checked::after {
-  content: ''; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
+
 .mini-tag {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
-@keyframes gentle-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.05); }
+
+.floating-batch-bar {
+  position: relative;
+  overflow: hidden;
 }
-.alert-pulse { animation: gentle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+.floating-batch-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(59, 130, 246, 0.12), transparent 28%, transparent 72%, rgba(16, 185, 129, 0.08));
+  pointer-events: none;
+}
+
+.relation-chip,
+.note-status-chip {
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    color 0.22s ease,
+    background-color 0.22s ease;
+}
+
+.relation-chip:focus-visible,
+.note-status-chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.5),
+    0 0 0 5px rgba(59, 130, 246, 0.14);
+}
+
+@keyframes batch-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes status-breathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-0.5px) scale(1.02);
+    opacity: 0.92;
+  }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.84;
+    transform: scale(1.04);
+  }
+}
+
+.batch-float-enter-active {
+  transition: opacity 0.42s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.batch-float-enter-active .floating-batch-bar {
+  animation: batch-slide-up 0.42s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+.batch-float-enter-from,
+.batch-float-leave-to {
+  opacity: 0;
+}
+
+.batch-float-leave-active {
+  transition: opacity 0.26s ease;
+}
+
+.batch-float-leave-active .floating-batch-bar {
+  opacity: 0;
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.26s ease, opacity 0.26s ease;
+}
+
+.modal-backdrop-enter-active,
+.modal-backdrop-leave-active {
+  transition: opacity 0.28s ease;
+}
+
+.modal-backdrop-enter-from,
+.modal-backdrop-leave-to {
+  opacity: 0;
+}
+
+.modal-panel-enter-active,
+.modal-panel-leave-active {
+  transition:
+    opacity 0.32s ease,
+    transform 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.modal-panel-enter-from,
+.modal-panel-leave-to {
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+}
+
+.modal-panel-enter-to,
+.modal-panel-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.modal-card {
+  transform-origin: center center;
+  box-shadow:
+    0 24px 80px rgba(15, 23, 42, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.status-breathe {
+  animation: status-breathe 2.5s ease-in-out infinite;
+}
+
+.status-chip-steady {
+  box-shadow: none;
+}
+
+.status-glow-amber {
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.16);
+}
+
+.status-glow-rose {
+  box-shadow: 0 0 18px rgba(244, 63, 94, 0.16);
+}
+
+.alert-pulse {
+  animation: gentle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-breathe,
+  .alert-pulse,
+  .animate-ping {
+    animation: none;
+  }
+
+  .batch-float-enter-active .floating-batch-bar,
+  .batch-float-leave-active .floating-batch-bar,
+  .modal-backdrop-enter-active,
+  .modal-backdrop-leave-active,
+  .modal-panel-enter-active,
+  .modal-panel-leave-active,
+  .relation-chip,
+  .note-status-chip {
+    animation: none;
+    transition-duration: 0.16s;
+  }
+}
+</style>
+
+<style>
+.global-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+  border-radius: 0.75rem;
+  background: rgba(2, 6, 23, 0.97);
+  padding: 0.6rem 0.85rem;
+  font-size: 11px;
+  line-height: 1.55;
+  max-width: 220px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.5);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.tooltip-blue  { border: 1px solid rgba(59, 130, 246, 0.3);  color: #bfdbfe; }
+.tooltip-purple{ border: 1px solid rgba(168, 85, 247, 0.3);  color: #e9d5ff; }
+.tooltip-amber { border: 1px solid rgba(245, 158, 11, 0.3);  color: #fde68a; }
+.tooltip-emerald{border: 1px solid rgba(16, 185, 129, 0.3);  color: #a7f3d0; }
+.tooltip-rose  { border: 1px solid rgba(244, 63, 94, 0.3);   color: #fecdd3; }
 </style>

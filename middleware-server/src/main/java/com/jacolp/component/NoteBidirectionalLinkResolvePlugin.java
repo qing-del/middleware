@@ -131,8 +131,15 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
                 }
 
                 String lowerFilename = filenamePart.toLowerCase(Locale.ROOT);
+
+                // 拦截锚点，放置跳转空笔记问题
+                if (filenamePart.isEmpty() && StringUtils.hasText(anchorPart)) {
+                    String display = StringUtils.hasText(secondary) ? secondary : anchorPart;
+                    // 渲染原生锚点：不加 internal-note-link，不加 data 属性，直接 href="#topic"
+                    replacement = "<a href=\"#" + escapeAttr(anchorPart) + "\" class=\"hash-link\">" + escapeHtml(display) + "</a>";
+                }
                 // 如果不是常见图片/音视频后缀，就默认当做笔记双链处理
-                if (!lowerFilename.matches(".*\\.(png|jpg|jpeg|gif|webp|mp4|mp3|pdf)$")) {
+                else if (!lowerFilename.matches(".*\\.(png|jpg|jpeg|gif|webp|mp4|mp3|pdf)$")) {
                     replacement = buildNoteReplacement(filenamePart, anchorPart, secondary, noteMappingMap);
                 } else {
                     // 其他 [[...]] 原样保留

@@ -442,9 +442,9 @@ onUnmounted(() => {
       </div>
 
       <!-- ═══ Dual-Column Layout ═══ -->
-      <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start pb-10">
+      <div class="detail-grid grid grid-cols-1 gap-8 items-start pb-10" :class="matrixCollapsed ? 'detail-grid--collapsed' : 'detail-grid--expanded'">
         <!-- Left: Article reading area -->
-        <div :class="matrixCollapsed ? 'xl:col-span-4' : 'xl:col-span-3'" class="glass-panel rounded-[2rem] p-8 md:p-14 relative overflow-hidden shadow-2xl transition-all duration-300">
+        <div class="detail-main glass-panel rounded-[2rem] p-8 md:p-14 relative overflow-hidden shadow-2xl transition-all duration-300">
           <!-- Background glow -->
           <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 blur-[100px] rounded-full pointer-events-none" />
 
@@ -502,7 +502,9 @@ onUnmounted(() => {
         </div>
 
         <!-- Right: Relation matrix sidebar -->
-        <aside v-show="!matrixCollapsed" class="xl:col-span-1 sticky top-8 transition-all duration-300 origin-right opacity-100 scale-100">
+        <aside class="detail-matrix xl:sticky xl:top-8" :class="matrixCollapsed ? 'detail-matrix--collapsed' : 'detail-matrix--expanded'" :aria-hidden="matrixCollapsed">
+          <Transition name="matrix-panel">
+            <div v-show="!matrixCollapsed" class="detail-matrix-inner">
           <div v-if="hasAnyRelations()" class="glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col" :class="note.converted ? 'h-[calc(100vh-10rem)]' : ''">
             <!-- Title bar -->
             <div class="flex items-center justify-between p-4 border-b border-white/5 bg-black/40">
@@ -603,6 +605,8 @@ onUnmounted(() => {
             <p class="text-xs font-bold uppercase tracking-widest">孤立节点 (Isolated)</p>
             <p class="text-[10px] mt-1 opacity-50 text-center max-w-[150px]">这篇笔记目前没有任何关联资产</p>
           </div>
+            </div>
+          </Transition>
         </aside>
       </div>
 
@@ -628,7 +632,7 @@ onUnmounted(() => {
               </button>
             </div>
             <!-- tocHtml rendered (only when there's actual TOC content) -->
-            <ul v-if="note.converted.tocHtml" id="toc-list" class="toc-list space-y-3 relative before:content-[''] before:absolute before:left-[3px] before:top-2 before:bottom-2 before:w-[1px] before:bg-white/10" v-html="note.converted.tocHtml" @click="onTocLinkClick" />
+            <div v-if="note.converted.tocHtml" id="toc-list" class="toc-list" v-html="note.converted.tocHtml" @click="onTocLinkClick" />
             <!-- Empty TOC hint -->
             <p v-else class="text-[10px] text-slate-500 text-center py-2">暂无目录结构</p>
           </div>
@@ -660,6 +664,69 @@ onUnmounted(() => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+.detail-grid,
+.detail-main,
+.detail-matrix {
+  min-width: 0;
+}
+
+.detail-matrix {
+  overflow: hidden;
+  transform-origin: top right;
+  /* 调整时间与 Grid 动画同步，并换用无回弹的平滑曲线 */
+  transition:
+    opacity 0.4s ease-out,
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.detail-matrix-inner {
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 2rem;
+    /* 更换为 0.5s 配合 0.4, 0, 0.2, 1 曲线，彻底消除 Grid 的橡皮筋错觉 */
+    transition:
+      grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+      column-gap 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .detail-grid--expanded {
+    grid-template-columns: minmax(0, 3fr) minmax(18rem, 1.12fr);
+  }
+
+  .detail-grid--collapsed {
+    grid-template-columns: minmax(0, 1fr) 0fr;
+    column-gap: 0;
+  }
+
+  .detail-matrix--expanded {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .detail-matrix--collapsed {
+    opacity: 0;
+    transform: translateX(0);
+    pointer-events: none;
+  }
+}
+
+.matrix-panel-enter-active,
+.matrix-panel-leave-active {
+  transition:
+    opacity 0.4s ease-out,
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.matrix-panel-enter-from,
+.matrix-panel-leave-to {
+  opacity: 0;
+  transform: translateX(0); 
+}
+
 /* ── Scrollbar ── */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -667,40 +734,95 @@ onUnmounted(() => {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.5); }
 
 /* ── TOC list styles ── */
-.toc-list :deep(li) { position: relative; padding-left: 1rem; }
-.toc-list :deep(li) > div:first-child {
-  position: absolute; left: -2px; top: 0.375rem;
-  width: 0.625rem; height: 0.625rem;
-  border-radius: 50%; background: #3b82f6;
-  border: 2px solid #020617;
+.toc-list :deep(.toc-sidebar) { display: contents; } /* strip sidebar wrapper, keep children */
+.toc-list :deep(.toc-header)  { display: none; }     /* hide "目录" title + collapse button */
+.toc-list :deep(.toc-fab)     { display: none; }     /* hide floating action button */
+.toc-list :deep(.toc-nav) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
-.toc-list :deep(a) {
-  font-size: 0.875rem; font-weight: 500;
-  color: #94a3b8; text-decoration: none;
-  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  transition: color 0.2s;
+.toc-list :deep(.toc-link) {
+  display: block;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  line-height: 1.5;
 }
-.toc-list :deep(a:hover) { color: #f8fafc; }
-.toc-list :deep(li.active > a) { color: #60a5fa; }
-.toc-list :deep(ul) { margin-top: 0.5rem; padding-left: 0.75rem; border-left: 1px solid rgba(255,255,255,0.05); }
-.toc-list :deep(ul li) { position: relative; padding-left: 0.75rem; }
-.toc-list :deep(ul li) > div:first-child {
-  position: absolute; left: 0; top: 0.5rem;
-  width: 0.375rem; height: 0.375rem;
-  border-radius: 50%; background: rgba(255,255,255,0.2);
-  border: none;
+.toc-list :deep(.toc-link:hover) {
+  color: #f8fafc;
+  background: rgba(59, 130, 246, 0.08);
 }
-.toc-list :deep(ul a) { font-size: 0.75rem; color: #64748b; }
-.toc-list :deep(ul a:hover) { color: #cbd5e1; }
+.toc-list :deep(.toc-level-1) {
+  font-size: 0.9375rem; font-weight: 700;
+  color: #e2e8f0;
+  padding-left: 0.5rem;
+  margin-top: 0.25rem;
+}
+.toc-list :deep(.toc-level-2) {
+  font-size: 0.875rem; font-weight: 600;
+  color: #cbd5e1;
+  padding-left: 0.5rem;
+  margin-top: 0.125rem;
+}
+.toc-list :deep(.toc-level-3) {
+  font-size: 0.8125rem; font-weight: 400;
+  color: #94a3b8;
+  padding-left: 1.25rem;
+  border-left: 2px solid rgba(59, 130, 246, 0.2);
+  margin-left: 0.5rem;
+  border-radius: 0 6px 6px 0;
+}
+.toc-list :deep(.toc-level-4) {
+  font-size: 0.75rem; font-weight: 400;
+  color: #64748b;
+  padding-left: 2rem;
+  border-left: 2px solid rgba(59, 130, 246, 0.1);
+  margin-left: 0.5rem;
+  border-radius: 0 6px 6px 0;
+}
 
 /* ═══ Article Content Typography ═══ */
 .article-content { color: #cbd5e1; font-size: 1rem; line-height: 1.8; }
+.article-content :deep(h1) {
+  font-size: 2rem; font-weight: 900; margin-top: 0; margin-bottom: 1.25rem;
+  color: #f8fafc; letter-spacing: -0.02em; line-height: 1.2;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.25);
+  padding-bottom: 0.75rem;
+}
 .article-content :deep(h2) {
   font-size: 1.5rem; font-weight: 800; margin-top: 2.5rem; margin-bottom: 1rem;
   color: #f8fafc; display: flex; align-items: center;
 }
 .article-content :deep(h2::before) { content: '#'; color: #3b82f6; margin-right: 0.5rem; opacity: 0.6; font-size: 1.2rem; }
 .article-content :deep(h3) { font-size: 1.25rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: #e2e8f0; }
+
+/* ── In-article TOC block (h1 + following ul) ── */
+.article-content :deep(h1 + ul),
+.article-content :deep(h1 + ul ul) {
+  font-size: 1.0625rem;
+  line-height: 1.9;
+}
+.article-content :deep(h1 + ul > li) {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 0.6rem;
+}
+.article-content :deep(h1 + ul > li > ul > li) {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: #94a3b8;
+  margin-bottom: 0.3rem;
+}
+.article-content :deep(h1 + ul a) {
+  color: #60a5fa;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.article-content :deep(h1 + ul a:hover) { color: #93c5fd; }
 .article-content :deep(p) { margin-bottom: 1.25rem; }
 .article-content :deep(strong) {
   color: #f8fafc; font-weight: 600;
@@ -730,15 +852,58 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
+/* ── Lists ── */
+.article-content :deep(ul),
+.article-content :deep(ol) {
+  margin-bottom: 1.5rem;
+  padding-left: 1.5rem;
+}
+.article-content :deep(ul) { list-style-type: disc; }
+.article-content :deep(ol) { list-style-type: decimal; }
+.article-content :deep(ul ul) {
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
+  padding-left: 1.25rem;
+  list-style-type: circle;
+}
+.article-content :deep(ul ul ul) { list-style-type: square; }
+.article-content :deep(ol ol),
+.article-content :deep(ul ol),
+.article-content :deep(ol ul) {
+  margin-top: 0.4rem;
+  margin-bottom: 0.4rem;
+  padding-left: 1.25rem;
+}
+.article-content :deep(li) {
+  margin-bottom: 0.4rem;
+  line-height: 1.7;
+  color: #cbd5e1;
+}
+.article-content :deep(li a) {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
 /* ── Internal note link ── */
-.article-content :deep(.internal-note-link) {
+.article-content :deep(.internal-note-link),
+.article-content :deep(.hash-link) {
   color: #60a5fa; text-decoration: underline;
   text-underline-offset: 4px; text-decoration-color: rgba(59, 130, 246, 0.3);
   cursor: pointer; transition: color 0.2s;
 }
-.article-content :deep(.internal-note-link:hover) { color: #93c5fd; }
+.article-content :deep(.internal-note-link:hover),
+.article-content :deep(.hash-link) { color: #93c5fd; }
 
 /* ── Animate ping── */
 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
 .animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-grid,
+  .detail-matrix,
+  .matrix-panel-enter-active,
+  .matrix-panel-leave-active {
+    transition-duration: 0.16s;
+  }
+}
 </style>

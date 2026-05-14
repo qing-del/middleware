@@ -18,8 +18,8 @@ public interface NoteConvertService {
     String convertAndSave(NoteEntity note, NoteContextEntity context);
 
     /**
-     * 删除 笔记已转换的内容
-     * @param noteId
+     * 删除单条转换结果。
+     * @throws BaseException 删除失败的时候会抛出此异常
      */
     void delete(Long noteId);
 

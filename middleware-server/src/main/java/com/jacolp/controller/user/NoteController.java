@@ -165,6 +165,15 @@ public class NoteController {
         return Result.success();
     }
 
+    @DeleteMapping("/convert")
+    @Operation(summary = "删除笔记转换缓存",
+           description = "删除笔记转换缓存，并清理临时文件和转换记录；同时将笔记状态转换为“待转换”。")
+    public Result deleteConverted(@Parameter(description = "笔记ID") @RequestParam Long noteId) {
+        log.info("User delete converted note cache, noteId: {}", noteId);
+        noteFacade.deleteConverted(noteId);
+        return Result.success();
+    }
+
     @PutMapping("/{id}/info")
     @Operation(summary = "修改笔记元信息")
     public Result updateInfo(

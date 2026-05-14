@@ -31,7 +31,7 @@ public class NoteRelationController {
 
     @PostMapping("/check/{noteId}")
     @Operation(summary = "校验关联完整性",
-            description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，会自动转换笔记状态。")
+            description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，会自动转换笔记状态；如果收到的结果中`isCompeted`这个值不为true即为缺失信息转换失败。")
     public Result<NoteCheckBindingVO> checkRelationCompletion(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin check note relation completion, noteId: {}", noteId);
         return Result.success(noteFacade.checkRelationCompletion(noteId));
