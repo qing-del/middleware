@@ -42,9 +42,11 @@
         select
             c.*
         from biz_note_context c
-        left join biz_note n on c.note_id = n.id
+        inner join biz_note n on c.note_id = n.id
         <where>
-            <if test="userId != null">n.user_id = #{userId}</if>
+            c.note_id = #{noteId}
+            AND n.status != 8
+            <if test="userId != null">AND n.user_id = #{userId}</if>
         </where>
     </select>
 </mapper>

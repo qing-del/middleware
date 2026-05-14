@@ -177,5 +177,79 @@ export const adminApi = {
   },
   setUserStatus(status: number, data: UserStatusParams): Promise<string> {
     return request.post(`/admin/user/status/${status}`, data)
+  },
+
+  // === Notes ===
+  getNoteList(params: AdminNoteQueryParams): Promise<PageResult<AdminNoteItem>> {
+    return request.post('/admin/note/list', params)
+  },
+  /** 查询笔记详情（含关联和转换内容） */
+  getNoteInfo(noteId: number): Promise<AdminNoteItem> {
+    return request.get(`/admin/note/info/${noteId}`)
+  },
+  /** 获取笔记 Markdown 源内容 */
+  getNoteSource(noteId: number): Promise<string> {
+    return request.get(`/admin/note/source/${noteId}`)
+  },
+  /** 查看笔记已转换的 HTML（管理端打开任意笔记） */
+  openNoteHtml(noteId: number): Promise<{ meta: { title: string; tags: string[]; createTime: string }; tocHtml: string; bodyHtml: string }> {
+    return request.get(`/admin/note/open/${noteId}`)
+  },
+  /** 转换笔记为 HTML */
+  convertNote(noteId: number): Promise<Record<string, never>> {
+    return request.post(`/admin/note/convert/${noteId}`)
+  },
+  /** 删除笔记转换缓存 */
+  deleteNoteConvert(noteId: number): Promise<string> {
+    return request.delete(`/admin/note/convert/${noteId}`)
+  },
+  /** 修改笔记元信息 */
+  modifyNoteInfo(data: { id: number; topicId?: number; description?: string }): Promise<string> {
+    return request.put('/admin/note/info', data)
+  },
+  /** 批量删除笔记 */
+  deleteNotes(ids: number[]): Promise<string> {
+    return request.delete('/admin/note/delete', { params: { ids: ids.join(',') } })
   }
+}
+
+// ── Admin Note types ────────────────────────────
+export interface AdminNoteItem {
+  id: number
+  userId: number
+  topicId: number
+  topicName: string
+  title: string
+  description: string
+  storageType: number
+  /** NoteStatus code */
+  status: number
+  missingInfoMask: number
+  missingCount: number
+  mdFileSize: number
+  createTime: string
+  updateTime: string
+  tags?: string[]
+  images?: AdminNoteImageVO[]
+  eachNotes?: AdminNoteEachVO[]
+  converted?: { meta: { title: string; tags: string[]; createTime: string }; tocHtml: string; bodyHtml: string }
+}
+
+export interface AdminNoteImageVO {
+  imageId: number; noteId: number; parsedImageName: string; filename: string
+  ossUrl: string; isPublic: number; isPass: number; isCrossUser: number; isMissing: number; createTime: string
+}
+
+export interface AdminNoteEachVO {
+  targetNoteId: number; targetNoteTitle: string; parsedNoteName: string
+  anchor: string; nickname: string; isMissing: number
+}
+
+export interface AdminNoteQueryParams {
+  userId?: number
+  topicId?: number
+  title?: string
+  status?: number
+  pageNum?: number
+  pageSize?: number
 }

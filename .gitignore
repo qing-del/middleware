@@ -54,3 +54,6 @@ CLAUDE.md
 /frontend/reference_data/
 /frontend/reference_data/**
 /frontend/.vite/
+/logs/
+/logs/**
+/.codex/

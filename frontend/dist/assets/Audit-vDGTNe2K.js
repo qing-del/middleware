@@ -1,1 +1,0 @@
-import{_ as s,p as c,c as o,b as e}from"./index-BUxirI8A.js";const a={},n={class:"space-y-6"};function r(l,t){return c(),o("div",n,[...t[0]||(t[0]=[e("h2",{class:"text-2xl font-bold text-white"},"审核大厅",-1),e("p",{class:"text-slate-400"},"审核管理功能开发中...",-1)])])}const d=s(a,[["render",r]]);export{d as default};

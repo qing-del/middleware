@@ -57,10 +57,10 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return false;
             }
-            log.info("JWT verification: {}", token);
+            log.debug("JWT verification: {}", token);
             Claims claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
             Long userId = Long.valueOf(claims.get(UserConstant.USER_ID_CLAIM).toString());
-            log.info("Current user ID: {}", userId);
+            log.debug("Current user ID: {}", userId);
             // 3、将用户 ID 存入线程上下文
             BaseContext.setCurrentId(userId);
             PermissionContext.setAdmin(false);

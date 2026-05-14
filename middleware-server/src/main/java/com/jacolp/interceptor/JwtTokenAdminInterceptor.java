@@ -60,10 +60,10 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
                 setResult(response, Result.error("未提供认证令牌"));
                 return false;
             }
-            log.info("JWT verification: {}", token);
+            log.debug("JWT verification: {}", token);
             Claims claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
             Long adminId = Long.valueOf(claims.get(ADMIN_ID_CLAIM).toString());
-            log.info("Current admin ID: {}", adminId);
+            log.debug("Current admin ID: {}", adminId);
         
             BaseContext.setCurrentId(adminId);
             PermissionContext.setAdmin(true);

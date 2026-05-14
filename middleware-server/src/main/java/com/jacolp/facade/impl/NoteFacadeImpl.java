@@ -338,7 +338,7 @@ public class NoteFacadeImpl implements NoteFacade {
             throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
         }
 
-        noteConvertService.convertAndSave(noteId, context.getMarkdownContent());
+        noteConvertService.convertAndSave(note, context);
     }
 
     /**

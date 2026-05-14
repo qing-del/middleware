@@ -60,7 +60,7 @@
         <select id="selectVoById" resultMap="NoteVOMap">
                 SELECT
                     n.*,
-                    t.title
+                    t.topic_name AS topicName
                 FROM biz_note n
                 LEFT JOIN biz_topic t ON t.id = n.topic_id
                 WHERE n.id = #{id}
@@ -149,7 +149,7 @@
         <select id="listByUserCondition" resultMap="NoteVOMap">
                 SELECT
                     n.*,
-                    t.title
+                    t.topic_name as topicName
                 FROM biz_note n
                 LEFT JOIN biz_topic t ON t.id = n.topic_id
                 <where>
