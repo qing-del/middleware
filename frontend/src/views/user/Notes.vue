@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { noteApi, getNoteStatusInfo, NoteStatusCode } from '@/api/notes'
 import type { NoteItem, PageResult, NoteQueryParams } from '@/api/notes'
 import { topicApi } from '@/api/topics'
@@ -13,6 +14,7 @@ import {
 } from 'lucide-vue-next'
 
 // ── State ─────────────────────────────────────────
+const router = useRouter()
 const loading = ref(true)
 const noteList = ref<NoteItem[]>([])
 const total = ref(0)
@@ -225,13 +227,8 @@ async function handleViewSource(id: number) {
   }
 }
 
-async function handleViewHtml(id: number) {
-  try {
-    await noteApi.getConverted(id)
-    showAlert('HTML 预览功能开发中，将通过阅读页展示')
-  } catch {
-    showAlert('该笔记尚未转换，请先点击"转换笔记"')
-  }
+function handleViewHtml(id: number) {
+  router.push(`/user/notes/${id}`)
 }
 
 // Batch actions

@@ -327,9 +327,13 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 校验信息完整性 — 缺失信息的笔记不允许转换
         NoteStatus noteStatus = NoteStatus.fromCode(note.getStatus());
-        if (noteStatus.canTransitionTo(NoteStatus.CONVERTED)    // 使用枚举类中的检查来进行检测
-                || (note.getMissingCount() != null && note.getMissingCount() > 0)) {
+        if ((note.getMissingCount() != null && note.getMissingCount() > 0)) {
             throw new BaseException(NoteConstant.NOTE_MISSING_INFO);
+        }
+
+        // 检查笔记状态是否可以发生转换
+        if (!noteStatus.canTransitionTo(NoteStatus.CONVERTED)) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
         // 读取笔记内容

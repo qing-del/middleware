@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { adminApi } from '@/api/admin'
 import type { AdminNoteItem, AdminNoteQueryParams, PageResult } from '@/api/admin'
 import { getNoteStatusInfo, NoteStatusCode } from '@/api/notes'
@@ -10,6 +11,7 @@ import {
 } from 'lucide-vue-next'
 
 // ── State ─────────────────────────────────────────
+const router = useRouter()
 const loading = ref(true)
 const noteList = ref<AdminNoteItem[]>([])
 const total = ref(0)
@@ -142,13 +144,8 @@ async function handleViewSource(id: number) {
   }
 }
 
-async function handleViewHtml(id: number) {
-  try {
-    await adminApi.openNoteHtml(id)
-    showAlert('HTML 预览功能开发中')
-  } catch {
-    showAlert('该笔记尚未转换')
-  }
+function handleViewHtml(id: number) {
+  router.push(`/user/notes/${id}`)
 }
 
 // ── Init ──────────────────────────────────────────

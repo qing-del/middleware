@@ -25,7 +25,7 @@ const menuItems = computed(() => [
 
 function isMenuActive(id: string): boolean {
   if (id === 'dashboard' && (route.path === '/admin' || route.path === '/admin/')) return true
-  return route.path === `/admin/${id}`
+  return route.path.startsWith(`/admin/${id}`)
 }
 
 function toggleSidebar() {

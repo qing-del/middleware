@@ -22,7 +22,7 @@ const menuItems = computed(() => [
 ])
 
 function isMenuActive(id: string): boolean {
-  return route.path === `/user/${id}` || (id === 'dashboard' && route.path === '/user')
+  return route.path.startsWith(`/user/${id}`) || (id === 'dashboard' && route.path === '/user')
 }
 
 function toggleSidebar() {
