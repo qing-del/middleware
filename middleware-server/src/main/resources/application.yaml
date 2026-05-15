@@ -13,6 +13,11 @@ spring:
       connection-test-query: SELECT 1
       minimum-idle: 5 # 最小空闲连接数（预热）
       maximum-pool-size: 20 # 最大连接数
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 2MB
+      max-request-size: 5MB
   data:
     redis:
       host: ${jacolp.redis.host}

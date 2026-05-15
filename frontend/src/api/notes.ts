@@ -96,6 +96,8 @@ export interface NoteItem {
   storageType: number
   /** NoteStatus code: 0=NEW...6=PUBLISHED...8=DELETED */
   status: number
+  /** 是否存在待确认变更: 0=否, 1=是 */
+  isChanging?: number
   /** 审核状态位: 0=待审核, 1=已通过, 2=已拒绝 (legacy, prefer NoteStatus) */
   isPass: number
   /** 缺漏信息掩码 */
@@ -138,6 +140,8 @@ export interface NoteDetailVO {
   description: string
   storageType: number
   status: number
+  /** 是否存在待确认变更: 0=否, 1=是 */
+  isChanging?: number
   missingInfoMask: number
   missingCount: number
   mdFileSize: number

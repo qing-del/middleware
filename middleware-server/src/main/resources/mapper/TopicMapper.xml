@@ -38,7 +38,7 @@
         LEFT JOIN (
             SELECT topic_id, COUNT(1) AS note_count
             FROM biz_note
-            WHERE is_deleted = 0
+            WHERE status != 8
             GROUP BY topic_id
         ) n ON t.id = n.topic_id
         <where>
@@ -57,7 +57,7 @@
             COUNT(n.id) AS noteCount,
             t.user_id AS userId
         FROM biz_topic t
-        LEFT JOIN biz_note n ON n.topic_id = t.id AND n.is_deleted = 0
+        LEFT JOIN biz_note n ON n.topic_id = t.id AND n.status != 8
         WHERE t.id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
@@ -98,7 +98,7 @@
         LEFT JOIN (
             SELECT topic_id, COUNT(1) AS note_count
             FROM biz_note
-            WHERE is_deleted = 0
+            WHERE status != 8
             GROUP BY topic_id
         ) n ON t.id = n.topic_id
         <where>

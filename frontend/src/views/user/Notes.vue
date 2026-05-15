@@ -2,12 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { noteApi, getNoteStatusInfo, NoteStatusCode } from '@/api/notes'
-import type { NoteItem, PageResult, NoteQueryParams } from '@/api/notes'
+import type { NoteItem, PageResult, NoteQueryParams, NoteDiffVO } from '@/api/notes'
 import { topicApi } from '@/api/topics'
 import type { TopicItem } from '@/api/topics'
 import {
   FileText, Search, FileUp, Globe, Trash2, Loader2, ChevronLeft, ChevronRight,
-  Hash, Image, Link, Layers, Eye, Wrench, RefreshCw, RotateCcw,
+  Hash, Image, Link, Layers, Eye, Wrench, RefreshCw, RotateCcw, FileDiff,
   CornerUpLeft, AlertCircle, Clock, CheckCircle2, XCircle, FileEdit,
   AlertTriangle, UploadCloud, ArrowRight, X, FolderTree, ChevronDown,
   Send, FilePlus, FileCode, HelpCircle, Ban
@@ -30,6 +30,10 @@ const showUploadModal = ref(false)
 const uploadFile = ref<File | null>(null)
 const uploadTopicId = ref<number | undefined>(undefined)
 const uploadDragging = ref(false)
+const uploadMode = ref<'create' | 'modify'>('create')
+const uploadTargetNoteId = ref<number | null>(null)
+const uploadTargetTitle = ref('')
+const uploadSubmitting = ref(false)
 const topicList = ref<TopicItem[]>([])
 
 const searchMode = ref<'personal' | 'global'>('personal')
@@ -40,6 +44,10 @@ const sourceTitle = ref('')
 
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+const isModifyUpload = computed(() => uploadMode.value === 'modify')
+const uploadModalTitle = computed(() => isModifyUpload.value ? '修改笔记源文件' : '上传 Markdown 笔记')
+const uploadModalSubtitle = computed(() => isModifyUpload.value ? 'Replace Source & Generate Diff' : 'Upload Documentation')
+const uploadButtonText = computed(() => isModifyUpload.value ? '上传新版本并生成 Diff' : '确认读取并解析')
 
 // ── Global tooltip ────────────────────────────────
 const tooltipVisible = ref(false)
@@ -209,12 +217,31 @@ function toggleSelect(id: number) {
   selectedIds.value.has(id) ? selectedIds.value.delete(id) : selectedIds.value.add(id)
 }
 
-function toggleUploadModal() {
-  showUploadModal.value = !showUploadModal.value
-  if (!showUploadModal.value) {
-    uploadFile.value = null
-    uploadTopicId.value = undefined
-  }
+function resetUploadState() {
+  uploadFile.value = null
+  uploadTopicId.value = undefined
+  uploadDragging.value = false
+  uploadMode.value = 'create'
+  uploadTargetNoteId.value = null
+  uploadTargetTitle.value = ''
+}
+
+function openCreateUploadModal() {
+  resetUploadState()
+  showUploadModal.value = true
+}
+
+function openModifyUploadModal(note: NoteItem) {
+  resetUploadState()
+  uploadMode.value = 'modify'
+  uploadTargetNoteId.value = note.id
+  uploadTargetTitle.value = note.title
+  showUploadModal.value = true
+}
+
+function closeUploadModal() {
+  showUploadModal.value = false
+  resetUploadState()
 }
 
 function handleFileDrop(e: DragEvent) {
@@ -229,11 +256,59 @@ function handleFileSelect(e: Event) {
   if (file) uploadFile.value = file
 }
 
+function getDiffChanges(oldItems: string[] = [], newItems: string[] = []) {
+  const oldSet = new Set(oldItems)
+  const newSet = new Set(newItems)
+  return {
+    added: newItems.filter(item => !oldSet.has(item)),
+    removed: oldItems.filter(item => !newSet.has(item)),
+  }
+}
+
+function formatDiffSection(label: string, oldItems: string[] = [], newItems: string[] = []) {
+  const { added, removed } = getDiffChanges(oldItems, newItems)
+  if (!added.length && !removed.length) return `${label}：无变化`
+  const changes: string[] = []
+  if (added.length) changes.push(`新增 ${added.join('、')}`)
+  if (removed.length) changes.push(`移除 ${removed.join('、')}`)
+  return `${label}：${changes.join('；')}`
+}
+
+function buildModifyDiffSummary(diff: NoteDiffVO): string {
+  return [
+    '新版本已上传，检测到以下关联变化：',
+    formatDiffSection('标签', diff.oldTags, diff.newTags),
+    formatDiffSection('图片', diff.oldImages, diff.newImages),
+    formatDiffSection('双链', diff.oldNoteNames, diff.newNoteNames),
+  ].join('\n')
+}
+
 async function handleUpload() {
-  if (!uploadFile.value) return
+  if (!uploadFile.value || uploadSubmitting.value) return
+  const modifying = isModifyUpload.value
+  uploadSubmitting.value = true
   try {
+    if (modifying) {
+      const noteId = uploadTargetNoteId.value
+      if (noteId == null) {
+        showAlert('缺少目标笔记ID，无法执行修改。')
+        return
+      }
+      const diff = await noteApi.modifyFile(noteId, uploadFile.value)
+      closeUploadModal()
+      showAlert(buildModifyDiffSummary(diff))
+      if (showConfirm('已生成待确认变更，是否立即确认并应用到正式版本？')) {
+        await noteApi.confirmChange(noteId, true)
+        showAlert('变更已确认并生效。')
+      } else {
+        showAlert('变更已保留为待确认状态，可稍后确认或回滚。')
+      }
+      await fetchNotes()
+      return
+    }
+
     const res = await noteApi.uploadNote(uploadFile.value, uploadTopicId.value)
-    toggleUploadModal()
+    closeUploadModal()
     await fetchNotes()
     const missing = (res as unknown as { missingImages?: string[]; missingTags?: string[]; missingNoteNames?: string[] })
     const totalMissing = (missing.missingImages?.length ?? 0) + (missing.missingTags?.length ?? 0) + (missing.missingNoteNames?.length ?? 0)
@@ -241,7 +316,9 @@ async function handleUpload() {
       showAlert(`笔记上传成功，但仍有 ${totalMissing} 项关联资源需要补全。`)
     }
   } catch {
-    showAlert('上传失败，请重试。')
+    showAlert(modifying ? '源文件修改失败，请重试。' : '上传失败，请重试。')
+  } finally {
+    uploadSubmitting.value = false
   }
 }
 
@@ -330,6 +407,10 @@ function handleViewHtml(id: number) {
   router.push(`/user/notes/${id}`)
 }
 
+function handleViewDiff(id: number) {
+  router.push(`/user/notes/${id}/diff`)
+}
+
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
   if (!showConfirm(`确定删除已选择的 ${selectedIds.value.size} 篇笔记吗？`)) return
@@ -404,7 +485,7 @@ onMounted(() => {
           <input v-model="searchKeyword" type="text" placeholder="搜索笔记标题或内容..." class="absolute left-9 w-[220px] h-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none opacity-0 group-hover:opacity-100 focus-within:!opacity-100 transition-opacity duration-300 pr-4" @keyup.enter="handleSearch" />
         </div>
 
-        <button class="group relative px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center space-x-2" @click="toggleUploadModal">
+        <button class="group relative px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center space-x-2" @click="openCreateUploadModal">
           <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
           <FileUp class="w-4 h-4" />
           <span>上传笔记</span>
@@ -582,11 +663,14 @@ onMounted(() => {
               </td>
               <td class="px-5 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2 opacity-50 group-hover:opacity-100 transition-opacity" @click.stop>
+                  <button v-if="note.isChanging === 1" class="w-8 h-8 rounded-lg bg-amber-500/10 hover:bg-amber-500/30 text-amber-400 hover:text-amber-300 flex items-center justify-center transition-all border border-amber-500/20" title="查看Diff信息" @click="handleViewDiff(note.id)">
+                    <FileDiff class="w-4 h-4" />
+                  </button>
                   <template v-if="note.status === NoteStatusCode.NEW">
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-400 hover:text-violet-400 flex items-center justify-center transition-all" title="校验关联" @click="handleCheckRelations(note.id)">
                       <Wrench class="w-4 h-4" />
                     </button>
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="toggleUploadModal">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="openModifyUploadModal(note)">
                       <FileUp class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all" title="删除" @click="handleDelete(note.id)">
@@ -599,7 +683,7 @@ onMounted(() => {
                       <Wrench class="w-3.5 h-3.5" />
                       <span>补全资源</span>
                     </button>
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="toggleUploadModal">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="openModifyUploadModal(note)">
                       <FileUp class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all" title="删除" @click="handleDelete(note.id)">
@@ -612,7 +696,7 @@ onMounted(() => {
                       <RefreshCw class="w-3.5 h-3.5" />
                       <span>转换笔记</span>
                     </button>
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="toggleUploadModal">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="openModifyUploadModal(note)">
                       <FileUp class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all" title="删除" @click="handleDelete(note.id)">
@@ -655,7 +739,7 @@ onMounted(() => {
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400 flex items-center justify-center transition-all shadow-[0_0_10px_rgba(16,185,129,0.2)]" title="公开发布" @click="handlePublish(note.id)">
                       <Globe class="w-4 h-4" />
                     </button>
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="toggleUploadModal">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="openModifyUploadModal(note)">
                       <FileUp class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all" title="删除" @click="handleDelete(note.id)">
@@ -679,7 +763,7 @@ onMounted(() => {
                     <button class="w-8 h-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 flex items-center justify-center transition-all border border-rose-500/20" title="审核驳回" @click="showAlert('管理员驳回了这篇笔记的审核申请，请修正后重新提交。')">
                       <AlertCircle class="w-4 h-4" />
                     </button>
-                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="toggleUploadModal">
+                    <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 flex items-center justify-center transition-all" title="重新上传" @click="openModifyUploadModal(note)">
                       <FileUp class="w-4 h-4" />
                     </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-all" title="删除" @click="handleDelete(note.id)">
@@ -720,7 +804,7 @@ onMounted(() => {
 
     <Teleport to="body">
       <Transition name="modal-backdrop">
-        <div v-if="showUploadModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md" @click="toggleUploadModal" />
+        <div v-if="showUploadModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md" @click="closeUploadModal" />
       </Transition>
       <Transition name="modal-panel">
         <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
@@ -732,14 +816,17 @@ onMounted(() => {
                 <FileUp class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="text-xl font-bold text-white">上传 Markdown 笔记</h3>
-                <p class="text-[10px] text-slate-400 mt-0.5 uppercase tracking-widest">Upload Documentation</p>
+                <h3 class="text-xl font-bold text-white">{{ uploadModalTitle }}</h3>
+                <p class="text-[10px] text-slate-400 mt-0.5 uppercase tracking-widest">{{ uploadModalSubtitle }}</p>
               </div>
             </div>
-            <button class="text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5" @click="toggleUploadModal">
+            <button class="text-slate-500 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5" @click="closeUploadModal">
               <X class="w-5 h-5" />
             </button>
           </div>
+          <p v-if="isModifyUpload" class="mb-4 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-200">
+            目标笔记：{{ uploadTargetTitle || `#${uploadTargetNoteId}` }}
+          </p>
 
           <div class="space-y-6">
             <div
@@ -761,13 +848,17 @@ onMounted(() => {
                 <div class="w-12 h-12 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3 group-hover:-translate-y-1 transition-transform shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                   <UploadCloud class="w-6 h-6" />
                 </div>
-                <p class="text-sm font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">点击或拖拽 `.md` 文件到此处</p>
-                <p class="text-xs text-slate-400">支持原生 Markdown 语法，系统会自动扫描双链与关联资源。</p>
+                <p class="text-sm font-bold text-white mb-1 group-hover:text-blue-300 transition-colors">
+                  {{ isModifyUpload ? '点击或拖拽新版 `.md` 文件到此处' : '点击或拖拽 `.md` 文件到此处' }}
+                </p>
+                <p class="text-xs text-slate-400">
+                  {{ isModifyUpload ? '系统会读取旧版内容并生成 Diff，等待你确认或回滚。' : '支持原生 Markdown 语法，系统会自动扫描双链与关联资源。' }}
+                </p>
               </template>
             </div>
             <input ref="fileInput" type="file" accept=".md,.markdown" class="hidden" @change="handleFileSelect" />
 
-            <div class="grid grid-cols-2 gap-4">
+            <div v-if="!isModifyUpload" class="grid grid-cols-2 gap-4">
               <div class="col-span-2 sm:col-span-1">
                 <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                   初始归属主题 <span class="text-slate-500 normal-case tracking-normal">(可选)</span>
@@ -788,11 +879,12 @@ onMounted(() => {
             </div>
 
             <div class="pt-4 flex justify-end space-x-3 border-t border-white/10 mt-6">
-              <button class="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors" @click="toggleUploadModal">取消</button>
-              <button class="group relative px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center space-x-2" :disabled="!uploadFile" @click="handleUpload">
+              <button class="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors" @click="closeUploadModal">取消</button>
+              <button class="group relative px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center space-x-2" :disabled="!uploadFile || uploadSubmitting" @click="handleUpload">
                 <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
-                <span>确认读取并解析</span>
-                <ArrowRight class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <Loader2 v-if="uploadSubmitting" class="w-4 h-4 animate-spin" />
+                <span>{{ uploadSubmitting ? (isModifyUpload ? '处理中...' : '上传中...') : uploadButtonText }}</span>
+                <ArrowRight v-if="!uploadSubmitting" class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </div>

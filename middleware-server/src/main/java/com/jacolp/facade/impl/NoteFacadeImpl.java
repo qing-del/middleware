@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.jacolp.constant.TopicConstant;
 import com.jacolp.pojo.entity.*;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
@@ -86,7 +87,6 @@ public class NoteFacadeImpl implements NoteFacade {
 
     @Autowired private JsonOperator jsonOperator;
 
-    // ==================== 上传笔记 ====================
 
     /**
      * 上传笔记 —— 完整 5 步编排。
@@ -108,7 +108,7 @@ public class NoteFacadeImpl implements NoteFacade {
     public NoteUploadVO uploadNote(MultipartFile file, Long topicId) {
         Long userId = BaseContext.getCurrentId();
         if (topicId != null && !topicService.topicExists(topicId)) {
-            throw new BaseException("主题不存在");
+            throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
         }
         String originalFilename = normalizeFilename(file.getOriginalFilename());
         String rawMarkdown = readMultipartAsString(file);
@@ -153,9 +153,6 @@ public class NoteFacadeImpl implements NoteFacade {
         return vo;
     }
 
-
-    // ==================== 修改笔记源文件 ====================
-
     /**
      * 修改笔记源文件 —— 完整 5 步编排。
      *
@@ -180,14 +177,14 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 检查是否可以发生状态转换
         NoteStatus currentStatus = NoteStatus.fromCode(existed.getStatus());
-        if (!currentStatus.canTransitionTo(NoteStatus.PENDING_INFO)) {
+        if (!currentStatus.canTransitionTo(NoteStatus.NEW)) {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
         normalizeFilename(file.getOriginalFilename());
 
         // 检查未确认 diff — 同一时刻只能有一个待确认的变更
-        if (noteChangeDiffService.countByNoteIdAndStatus(noteId, NoteConstant.NOTE_DIFF_STATUS_PENDING)) {
+        if (NoteConstant.IS_CHANGING.equals(existed.getIsChanging())) {
             throw new BaseException(NoteConstant.NOTE_DIFF_EXIST);
         }
 
@@ -216,11 +213,12 @@ public class NoteFacadeImpl implements NoteFacade {
                 newScan, existed.getMdFileSize());
         noteChangeDiffService.insert(diffEntity);
 
+        // 更新笔记状态
+        existed.setIsChanging(NoteConstant.IS_CHANGING);
+        noteCoreService.update(existed);
+
         return diffVO;
     }
-
-
-    // ==================== 确认或取消变更 ====================
 
     /**
      * 确认或取消笔记变更。
@@ -237,12 +235,12 @@ public class NoteFacadeImpl implements NoteFacade {
     public void confirmChange(Long noteId, NoteChangeConfirmDTO dto) {
         // 检查笔记和内容是否存在
         NoteEntity existed = noteCoreService.getById(noteId);
-        NoteContextEntity contextEntity = noteContextService.getByNoteId(noteId);
-        if (contextEntity == null || contextEntity.getMarkdownContentNew() == null) {
-            throw new BaseException("待确认的新版本不存在");
+        if (existed == null || NoteConstant.NOT_CHANGING.equals(existed.getIsChanging())) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);   // 不存在这种状态的笔记
         }
 
         // 检查是否存在待确认 diff，不存在存在即返回报错
+        NoteContextEntity contextEntity = noteContextService.getByNoteId(noteId);
         NoteChangeDiffEntity diffEntity = noteChangeDiffService
                 .getByNoteIdAndStatus(noteId, NoteConstant.NOTE_DIFF_STATUS_PENDING);
         if (diffEntity == null) {
@@ -269,24 +267,22 @@ public class NoteFacadeImpl implements NoteFacade {
 
             // 状态回到 NEW
             existed.setStatus(NoteStatus.NEW.getCode());
-            noteCoreService.update(existed);
 
             // 设置结果值参数
             diffEntity.setStatus(NoteConstant.NOTE_DIFF_STATUS_CONFIRMED);
         } else {
             // === 取消变更 ===
             contextEntity.setMarkdownContentNew(null);
-            noteContextService.update(contextEntity);
 
             // 设置结果值参数
             diffEntity.setStatus(NoteConstant.NOTE_DIFF_STATUS_CANCELED);
         }
 
+        existed.setIsChanging(NoteConstant.NOT_CHANGING);   // 取消其变更状态
+        noteCoreService.update(existed);    // 更新笔记
+
         noteChangeDiffService.updateStatus(diffEntity.getNoteId(), diffEntity.getStatus()); // 更新 diff 状态
     }
-
-
-    // ==================== 查询变更详情 ====================
 
     /**
      * 获取笔记修改的 Diff 详情。

@@ -22,12 +22,11 @@
     </select>
 
     <insert id="upsertDiff" parameterType="com.jacolp.pojo.entity.NoteChangeDiffEntity">
-        INSERT INTO biz_note_change_diff (note_id, status, diff_json, scan_json, old_file_size, new_file_size)
-        VALUES (#{noteId}, #{status}, #{diffJson}, #{scanJson}, #{oldFileSize}, #{newFileSize})
+        INSERT INTO biz_note_change_diff (note_id, status, diff_json, old_file_size, new_file_size)
+        VALUES (#{noteId}, #{status}, #{diffJson}, #{oldFileSize}, #{newFileSize})
         ON DUPLICATE KEY UPDATE
             status = VALUES(status),
             diff_json = VALUES(diff_json),
-            scan_json = VALUES(scan_json),
             old_file_size = VALUES(old_file_size),
             new_file_size = VALUES(new_file_size),
             update_time = NOW()
