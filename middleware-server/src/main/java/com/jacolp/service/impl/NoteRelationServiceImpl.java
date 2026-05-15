@@ -8,6 +8,7 @@ import java.util.Objects;
 import com.jacolp.annotation.CheckMissingInfo;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.pojo.vo.note.*;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ import com.jacolp.service.NoteRelationService;
 import com.jacolp.service.TagService;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * 笔记关联关系管理服务实现。
@@ -96,7 +98,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @CheckMissingInfo(enableTransaction = true)
     public NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagEntity targetTag) {
         // 1) 基础参数校验
-        if (dto == null || dto.getMappingId() == null || dto.getTagId() == null) {
+        if (dto == null) {
             throw new BaseException("映射ID和标签ID不能为空");
         }
         Long userId = BaseContext.getCurrentId();
@@ -104,10 +106,12 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         // 2) 校验映射行归属与目标标签存在性
         NoteTagMappingEntity mapping = requireOwnedTagMapping(dto.getMappingId(), userId);
 
-        if (!Objects.equals(mapping.getParsedTagName(), targetTag.getTagName())) {
+        if (!mapping.getParsedTagName().equals(targetTag.getTagName())) {
             throw new BaseException("标签名称与映射行解析名称不一致，无法绑定");
         }
-        if (!AuditConstant.PASS.equals(targetTag.getIsPass())) {
+        // 不是自己的标签，且目标标签未通过审核
+        if (!BaseContext.getCurrentId().equals(targetTag.getUserId()) &&
+                !AuditConstant.PASS.equals(targetTag.getIsPass())) {
             throw new BaseException("目标标签未通过审核，无法绑定");
         }
 
@@ -127,7 +131,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @Override
     @CheckMissingInfo(enableTransaction = true)
     public NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, ImageEntity targetImage) {
-        if (dto == null || dto.getMappingId() == null || dto.getImageId() == null) {
+        if (dto == null) {
             throw new BaseException("映射ID和图片ID不能为空");
         }
         Long userId = BaseContext.getCurrentId();
@@ -135,9 +139,10 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         NoteImageMappingEntity mapping = requireOwnedImageMapping(dto.getMappingId(), userId);
 
 
-        if (!Objects.equals(mapping.getParsedImageName(), targetImage.getFilename())) {
+        if (!mapping.getParsedImageName().equals(targetImage.getFilename())) {
             throw new BaseException("图片名称与映射行解析名称不一致，无法绑定");
         }
+        // 不是自己的图片，且图片未通过审核
         if (!userId.equals(targetImage.getUserId())) {
             if (!AuditConstant.PASS.equals(targetImage.getIsPass())) {
                 throw new BaseException("目标图片未通过审核，无法绑定");
@@ -164,20 +169,20 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @Override
     @CheckMissingInfo(enableTransaction = true)
     public NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteEntity targetNote) {
-        if (dto == null || dto.getMappingId() == null || dto.getNoteId() == null) {
+        if (dto == null) {
             throw new BaseException("映射ID和笔记ID不能为空");
         }
         Long userId = BaseContext.getCurrentId();
 
         NoteEachMappingEntity mapping = requireOwnedEachMapping(dto.getMappingId(), userId);
 
-        if (!Objects.equals(mapping.getParsedNoteName(), targetNote.getTitle())) {
+        if (!mapping.getParsedNoteName().equals(targetNote.getTitle())) {
             throw new BaseException("笔记标题与映射行解析名称不一致，无法绑定");
         }
 
         // 如果笔记不属于建立绑定的人 需要笔记审核状态
         NoteStatus targetStatus = NoteStatus.fromCode(targetNote.getStatus());
-        if (!Objects.equals(targetNote.getUserId(), BaseContext.getCurrentId())
+        if (!BaseContext.getCurrentId().equals(targetNote.getUserId())
                 && (!targetStatus.isApproved() && !targetStatus.isPublished())) {
             throw new BaseException("目标笔记未通过审核，无法绑定");
         }
@@ -295,14 +300,14 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         for (NoteTagMappingEntity mapping : mappings) {
             TagEntity target = tagMap.get(mapping.getParsedTagName());
             if (target == null ||
-                    (userId.equals(target.getUserId()) && !AuditConstant.PASS.equals(target.getIsPass()))) {
+                    (!userId.equals(target.getUserId()) && !AuditConstant.PASS.equals(target.getIsPass()))) {
                 continue;
             }
 
             NoteTagMappingEntity bind = new NoteTagMappingEntity();
             bind.setId(mapping.getId());
             bind.setTagId(target.getId());
-            bind.setIsPass(AuditConstant.PASS);
+            bind.setIsPass(target.getIsPass());
             toBind.add(bind);
         }
 
@@ -522,6 +527,21 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @Override
     public long countRelationByTagId(Long tagId) {
         return noteTagMappingMapper.countByTagId(tagId);
+    }
+
+    @Override
+    public boolean isMissingTags(Long noteId) {
+        return noteTagMappingMapper.existNullTargetTag(noteId) > 1;
+    }
+
+    @Override
+    public boolean isMissingImages(Long noteId) {
+        return false;
+    }
+
+    @Override
+    public boolean isMissingNotes(Long noteId) {
+        return false;
     }
 
     @Override

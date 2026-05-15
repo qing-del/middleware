@@ -144,8 +144,9 @@ function openUploadModal() {
   modalVisible.value = true
 }
 
-function closeModal() {
-  if (uploading.value) return
+function closeModal(force?: boolean | Event) {
+  const shouldForce = force === true
+  if (uploading.value && !shouldForce) return
   modalVisible.value = false
 }
 
@@ -154,7 +155,7 @@ async function handleUpload() {
   uploading.value = true
   try {
     await imageApi.upload(uploadFile.value, uploadTopicId.value)
-    closeModal()
+    closeModal(true)
     await fetchImages()
   } finally {
     uploading.value = false

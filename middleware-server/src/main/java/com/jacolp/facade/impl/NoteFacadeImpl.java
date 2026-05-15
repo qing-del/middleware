@@ -2,17 +2,12 @@ package com.jacolp.facade.impl;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLIntegrityConstraintViolationException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.jacolp.constant.TopicConstant;
-import com.jacolp.pojo.entity.*;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,23 +20,25 @@ import com.jacolp.annotation.StorageHandler;
 import com.jacolp.component.JsonOperator;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TagConstant;
+import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.NoteImageResolveContext;
-import com.jacolp.context.PermissionContext;
 import com.jacolp.context.StorageUpdateContext;
 import com.jacolp.converter.MarkdownHtmlEngine;
+import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.exception.BaseException;
 import com.jacolp.facade.NoteFacade;
-import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
-import com.jacolp.pojo.dto.note.EachMappingBindDTO;
+import com.jacolp.facade.NoteRelationFacade;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.pojo.dto.note.UploadToInsertNoteDTO;
-import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.entity.NoteChangeDiffEntity;
+import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.pojo.entity.NoteTagMappingEntity;
+import com.jacolp.pojo.entity.TagEntity;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
-import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
 import com.jacolp.pojo.vo.note.NoteDiffVO;
 import com.jacolp.pojo.vo.note.NoteEachMappingRowVO;
@@ -50,7 +47,6 @@ import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.pojo.vo.note.NoteVO;
-import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteChangeDiffService;
 import com.jacolp.service.NoteContextService;
 import com.jacolp.service.NoteConvertService;
@@ -80,10 +76,10 @@ public class NoteFacadeImpl implements NoteFacade {
     @Autowired private NoteChangeDiffService noteChangeDiffService;
     @Autowired private NoteConvertService noteConvertService;
     @Autowired private NoteRelationService noteRelationService;
+    @Autowired private NoteRelationFacade noteRelationFacade;
 
     @Autowired private TopicService topicService;
     @Autowired private TagService tagService;
-    @Autowired private ImageService imageService;
 
     @Autowired private JsonOperator jsonOperator;
 
@@ -329,7 +325,8 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 校验信息完整性 — 缺失信息的笔记不允许转换
         NoteStatus noteStatus = NoteStatus.fromCode(note.getStatus());
-        if ((note.getMissingCount() != null && note.getMissingCount() > 0)) {
+        if ((note.getMissingCount() != null && note.getMissingCount() > 0)
+        && NoteMissingInfoMask.isComplete(note.getMissingInfoMask())) {
             throw new BaseException(NoteConstant.NOTE_MISSING_INFO);
         }
 
@@ -452,34 +449,6 @@ public class NoteFacadeImpl implements NoteFacade {
     }
 
     /**
-     * 获取笔记三类关联映射详情（标签 / 图片 / 内联笔记）。
-     * <p>通过 {@link NoteCoreService#getById} 校验所有权后委托给 {@link NoteRelationService}。</p>
-     */
-    @Override
-    public NoteRelationDetailVO getRelationInfo(Long noteId) {
-        if (!PermissionContext.isAdmin()) {
-            noteCoreService.getById(noteId);    // 不是管理员才需要校验
-        }
-
-        // 先进行三联映射查询
-        List<NoteTagMappingEntity> tagMappings = noteRelationService.listTagMappingsByNoteId(noteId);
-        List<NoteImageMappingEntity> imageMappings = noteRelationService.listImageMappingsByNoteId(noteId);
-        List<NoteEachMappingEntity> eachMappings = noteRelationService.listEachMappingsByNoteId(noteId);
-
-        // 构建缓存
-        Map<Long, TagEntity> tagMap = buildTagMap(tagMappings);
-        Map<Long, ImageEntity> imageMap = buildImageMap(imageMappings);
-        Map<Long, NoteEntity> targetNoteMap = buildTargetNoteMap(eachMappings);
-
-        // 构建返回结果
-        return noteRelationService.getRelationInfo(
-                noteId,
-                tagMappings, tagMap,
-                imageMappings, imageMap,
-                eachMappings, targetNoteMap);
-    }
-
-    /**
      * 获取笔记完整详情 --
      * <p>- 通过 {@link PermissionContext} 来控制是否校验所有权</p>
      * <p>聚合笔记基本信息、主题名、标签名列表、图片简要列表、
@@ -503,10 +472,10 @@ public class NoteFacadeImpl implements NoteFacade {
                 ? List.of() : tagService.getByIds(tagIds).stream().map(TagEntity::getTagName).toList());
 
         // 图片简要列表
-        detailVO.setImages(listImageSimpleVOsByNoteId(noteId)); // TODO 注意这里发生了 this 自调用
+        detailVO.setImages(noteRelationFacade.listImageSimpleVOsByNoteId(noteId));
 
         // 双链映射
-        NoteRelationDetailVO relation = getRelationInfo(noteId);    // TODO 这里发生了 this 调用
+        NoteRelationDetailVO relation = noteRelationFacade.getRelationInfo(noteId);
         buildEachNotesAndSetToDetailVO(relation.getEachNotes(), detailVO);
 
         // 获取笔记的转换结果（如果不存在）
@@ -517,88 +486,6 @@ public class NoteFacadeImpl implements NoteFacade {
         }
 
         return detailVO;
-    }
-
-    /**
-     * 获取图片简要列表
-     * <p>- 此处没有权限校验</p>
-     */
-    @Override
-    public List<ImageSimpleVO> listImageSimpleVOsByNoteId(Long noteId) {
-        List<NoteImageMappingEntity> mappings = noteRelationService.listImageMappingsByNoteId(noteId);
-        List<Long> imageIds = mappings
-                .stream()
-                .map(NoteImageMappingEntity::getImageId)
-                .toList();
-
-        Map<Long, ImageEntity> imageMap = imageIds.isEmpty()
-                ? Map.of()
-                : imageService.getByIds(imageIds).stream()
-                  .collect(Collectors.toMap(ImageEntity::getId, image -> image, (left, right) -> left));
-
-        List<ImageSimpleVO> result = new ArrayList<>();
-        buildNoteImageSimpleVOList(noteId, mappings, imageMap, result);
-        return result;
-    }
-
-    /**
-     * 绑定标签映射关系
-     */
-    @Override
-    public void bindTagMapping(TagMappingBindDTO dto) {
-        TagEntity targetTag = tagService.getByIdAndUserId(dto.getTagId(), BaseContext.getCurrentId());
-        noteRelationService.bindTagMapping(dto, targetTag);
-    }
-
-    /**
-     * 绑定图片映射关系
-     */
-    @Override
-    public void bindImageMapping(ImageMappingBindDTO dto) {
-        ImageEntity targetImage = imageService.getById(dto.getImageId());
-        noteRelationService.bindImageMapping(dto, targetImage);
-    }
-
-    /**
-     * 绑定内联笔记映射关系
-     */
-    @Override
-    public void bindEachMapping(EachMappingBindDTO dto) {
-        NoteEntity targetNote = noteCoreService.getById(dto.getNoteId());
-        noteRelationService.bindEachMapping(dto, targetNote);
-    }
-
-    @Override
-    public NoteCheckBindingVO checkRelationCompletion(Long noteId) {
-        NoteEntity note = noteCoreService.getById(noteId);
-
-        // 先尝试自动补绑定已存在且可绑定的标签/图片/内联笔记
-        syncBindableMappings(noteId, note.getUserId(), note.getTopicId());
-
-        // 获取笔记检查需要使用的关联信息
-        NoteCheckBindingVO vo = noteRelationService.checkRelationCompletion(note);
-
-        // 检查是否需要更新关联信息
-        if (vo.isComplete()) { // 检查是否需要更新笔记状态
-            NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
-            NoteStatus targetStatus = NoteStatus.fromCode(NoteConstant.STATUS_READY_TO_CONVERT);
-            // 检查是否可以进行转换
-            if (vo.isComplete() && currentStatus.canTransitionTo(targetStatus)) {
-                vo.setStatus(targetStatus.getCode());   // 转换成“可转换”状态
-                vo.setStatusDesc(targetStatus.getDesc());
-            } else {
-                vo.setStatus(currentStatus.getCode());  // 保持原状态
-                vo.setStatusDesc(currentStatus.getDesc());
-            }
-
-            // 组装更新使用的数据
-            note.setStatus(vo.getStatus());
-            note.setMissingInfoMask(vo.getMissingInfoMask());
-            note.setMissingCount(vo.getMissingCount());
-            noteCoreService.update(note);
-        }
-
-        return vo;
     }
 
     /**
@@ -791,218 +678,4 @@ public class NoteFacadeImpl implements NoteFacade {
         }
     }
 
-    /**
-     * 构建简单图片信息列表
-     */
-    private static void buildNoteImageSimpleVOList(Long noteId, List<NoteImageMappingEntity> mappings, Map<Long, ImageEntity> imageMap, List<ImageSimpleVO> result) {
-        for (NoteImageMappingEntity mapping : mappings) {
-            ImageSimpleVO vo = new ImageSimpleVO();
-            vo.setNoteId(noteId);
-            vo.setParsedImageName(mapping.getParsedImageName());
-            vo.setIsCrossUser(mapping.getIsCrossUser());
-            vo.setImageId(mapping.getImageId());
-
-            if (mapping.getImageId() == null) {
-                vo.setIsMissing(NoteConstant.MISSED_INFO);
-            } else {
-                ImageEntity image = imageMap.get(mapping.getImageId());
-                if (image != null) {
-                    vo.setFilename(image.getFilename());
-                    vo.setOssUrl(image.getOssUrl());
-                    vo.setIsPublic(image.getIsPublic());
-                    vo.setIsPass(image.getIsPass());
-                    vo.setCreateTime(image.getUploadTime());
-                    vo.setIsMissing(NoteConstant.NOT_MISSED_INFO);
-                } else {
-                    vo.setIsMissing(NoteConstant.MISSED_INFO);
-                }
-            }
-            result.add(vo);
-        }
-    }
-
-    /**
-     * 同步可绑定的映射关系
-     */
-    private void syncBindableMappings(Long noteId, Long userId, Long topicId) {
-        // 同步标签映射
-        List<NoteTagMappingEntity> tagMappings = Optional.ofNullable
-                        (noteRelationService.listTagMappingsByNoteId(noteId)).orElse(List.of());
-        Map<String, TagEntity> tagMap = getTagEntitiesMap(tagMappings, userId);
-        noteRelationService.tryBatchBindTagMappings(tagMappings, tagMap);
-
-        if (topicId == null) return;
-
-        // 同步图片映射
-        List<NoteImageMappingEntity> imageMappings = Optional.ofNullable
-                        (noteRelationService.listImageMappingsByNoteId(noteId)).orElse(List.of());
-        Map<String, ImageEntity> imageMap = getImageEntitiesMap(imageMappings, userId, topicId);
-        noteRelationService.tryBatchBindImageMappings(imageMappings, imageMap);
-
-        // 同步内联笔记映射
-        List<NoteEachMappingEntity> noteMappings = Optional.ofNullable
-                        (noteRelationService.listEachMappingsByNoteId(noteId)).orElse(List.of());
-        Map<String, NoteEntity> noteMap = getNoteEntitiesMap(noteMappings, userId, topicId);
-        noteRelationService.tryBatchBindNoteMappings(noteMappings, noteMap);
-    }
-
-    /**
-     * 获取标签实体
-     * <p>- 如果传入空集，则返回空集</p>
-     * <p>- 否则会进行批量查询，并返回结果</p>
-     * <p>- 这里使用了 {@link TagService#getByNamesAndUserId(List, Long)} 方法</p>
-     * @param mappings 标签映射行
-     * @param userId   用户 id
-     * @return 标签实体的 <tagName, TagEntity> 的 Map
-     */
-    private Map<String, TagEntity> getTagEntitiesMap(List<NoteTagMappingEntity> mappings, Long userId) {
-        if (mappings.isEmpty()) {
-            return Map.of();
-        }
-
-        List<String> parsedNames = mappings
-                .stream()
-                .map(NoteTagMappingEntity::getParsedTagName)
-                .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
-        if (parsedNames.isEmpty()) {
-            return Map.of();
-        }
-
-        List<TagEntity> tags = Optional.ofNullable(tagService.getByNamesAndUserId(parsedNames, userId))
-                .orElse(List.of());
-        if (tags.isEmpty()) {
-            return Map.of();
-        }
-
-        return tags.stream()
-                .collect(Collectors
-                        .toMap(
-                                TagEntity::getTagName,
-                                tag -> tag,
-                                (left, right) -> left)
-                );
-    }
-
-    /**
-     * 获取图片实体
-     * <p>- 如果传入空集，则返回空集</p>
-     * <p>- 否则会进行批量查询，并返回结果</p>
-     * <p>- 这里使用了 {@link ImageService#getByUserIdAndTopicIdAndFilenames(Long, Long, List)} 方法</p>
-     * @param mappings 图片映射行
-     * @param userId   用户 id
-     * @param topicId  话题 id
-     * @return 图片实体的 <imageName, ImageEntity> 的 Map
-     */
-    private Map<String, ImageEntity> getImageEntitiesMap(List<NoteImageMappingEntity> mappings, Long userId, Long topicId) {
-        if (mappings.isEmpty()) {
-            return Map.of();
-        }
-
-        List<String> parsedNames = mappings.stream()
-                .map(NoteImageMappingEntity::getParsedImageName)
-                .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
-        if (parsedNames.isEmpty()) {
-            return Map.of();
-        }
-
-        List<ImageEntity> images = Optional.ofNullable(
-                        imageService.getByUserIdAndTopicIdAndFilenames(userId, topicId, parsedNames))
-                .orElse(List.of());
-        if (images.isEmpty()) {
-            return Map.of();
-        }
-
-        return images.stream()
-                .collect(Collectors
-                        .toMap(
-                                ImageEntity::getFilename,
-                                image -> image,
-                                (left, right) -> left)
-                );
-    }
-
-    /**
-     * 获取笔记实体
-     * <p>- 如果传入空集，则返回空集</p>
-     * <p>- 否则会进行批量查询，并返回结果</p>
-     * <p>- 这里使用了 {@link NoteCoreService#getByUserIdAndTopicIdAndTitles(Long, Long, List)} 方法</p>
-     * @param mappings 笔记映射行
-     * @param userId   用户 id
-     * @param topicId  话题 id
-     * @return 笔记实体的 <noteName, NoteEntity> 的 Map
-     */
-    private Map<String, NoteEntity> getNoteEntitiesMap(List<NoteEachMappingEntity> mappings, Long userId, Long topicId) {
-        if (mappings.isEmpty()) {
-            return Map.of();
-        }
-
-        List<String> parsedNames = mappings.stream()
-                .map(NoteEachMappingEntity::getParsedNoteName)
-                .filter(StringUtils::hasText)
-                .distinct()
-                .toList();
-        if (parsedNames.isEmpty()) {
-            return Map.of();
-        }
-
-        List<NoteEntity> notes = Optional.ofNullable(
-                        noteCoreService.getByUserIdAndTopicIdAndTitles(userId, topicId, parsedNames))
-                .orElse(List.of());
-        if (notes.isEmpty()) {
-            return Map.of();
-        }
-
-        return notes.stream()
-                .collect(Collectors
-                        .toMap(
-                                NoteEntity::getTitle,
-                                note -> note,
-                                (left, right) -> left)
-                );
-    }
-
-    private Map<Long, TagEntity> buildTagMap(List<NoteTagMappingEntity> mappings) {
-        List<Long> ids = mappings.stream()
-                .map(NoteTagMappingEntity::getTagId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
-        return tagService.getByIds(ids).stream()
-                .collect(Collectors.toMap(TagEntity::getId, tag -> tag, (left, right) -> left));
-    }
-
-    private Map<Long, ImageEntity> buildImageMap(List<NoteImageMappingEntity> mappings) {
-        List<Long> ids = mappings.stream()
-                .map(NoteImageMappingEntity::getImageId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
-        return imageService.getByIds(ids).stream()
-                .collect(Collectors.toMap(ImageEntity::getId, image -> image, (left, right) -> left));
-    }
-
-    private Map<Long, NoteEntity> buildTargetNoteMap(List<NoteEachMappingEntity> mappings) {
-        List<Long> ids = mappings.stream()
-                .map(NoteEachMappingEntity::getTargetNoteId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
-        return noteCoreService.getByIds(ids).stream()
-                .collect(Collectors.toMap(NoteEntity::getId, note -> note, (left, right) -> left));
-    }
 }

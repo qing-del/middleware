@@ -239,9 +239,30 @@ public interface NoteRelationService {
     List<NoteSimpleVO> listNoteSimplesByImageId(Long imageId);
 
     /**
-     * 获取图片关系数量
+     * 获取与该标签相关的笔记数量
      * @param tagId 标签 ID
      * @return 图片关系数量
      */
     long countRelationByTagId(@Param("tagId") Long tagId);
+
+    /**
+     * 判断笔记是否缺失标签
+     * @param noteId 笔记 ID
+     * @return 笔记是否缺失标签
+     */
+    boolean isMissingTags(Long noteId);
+
+    /**
+     * 判断笔记是否缺失图片
+     * @param noteId 笔记 ID
+     * @return 笔记是否缺失图片
+     */
+    boolean isMissingImages(Long noteId);
+
+    /**
+     * 判断笔记是否缺失笔记
+     * @param noteId 笔记 ID
+     * @return 笔记是否缺失笔记
+     */
+    boolean isMissingNotes(Long noteId);
 }

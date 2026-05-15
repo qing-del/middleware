@@ -16,6 +16,11 @@ import lombok.Getter;
 @Getter
 public enum NoteMissingInfoMask {
     /**
+     * 完成状态
+     */
+    COMPLETE(0b000, "信息完整"),
+
+    /**
      * 缺失标签
      */
     TAG(0b001, "缺失标签"),

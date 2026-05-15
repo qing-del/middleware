@@ -7,7 +7,7 @@ import { topicApi } from '@/api/topics'
 import type { TopicItem } from '@/api/topics'
 import {
   FileText, Search, FileUp, Globe, Trash2, Loader2, ChevronLeft, ChevronRight,
-  Hash, Image, Link, Layers, Eye, Wrench, RefreshCw, RotateCcw, FileDiff,
+  Hash, Image, Link, Network, Layers, Eye, Wrench, RefreshCw, RotateCcw, FileDiff,
   CornerUpLeft, AlertCircle, Clock, CheckCircle2, XCircle, FileEdit,
   AlertTriangle, UploadCloud, ArrowRight, X, FolderTree, ChevronDown,
   Send, FilePlus, FileCode, HelpCircle, Ban
@@ -411,6 +411,10 @@ function handleViewDiff(id: number) {
   router.push(`/user/notes/${id}/diff`)
 }
 
+function handleOpenRelations(id: number) {
+  router.push(`/user/notes/${id}/relations`)
+}
+
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
   if (!showConfirm(`确定删除已选择的 ${selectedIds.value.size} 篇笔记吗？`)) return
@@ -663,10 +667,15 @@ onMounted(() => {
               </td>
               <td class="px-5 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2 opacity-50 group-hover:opacity-100 transition-opacity" @click.stop>
-                  <button v-if="note.isChanging === 1" class="w-8 h-8 rounded-lg bg-amber-500/10 hover:bg-amber-500/30 text-amber-400 hover:text-amber-300 flex items-center justify-center transition-all border border-amber-500/20" title="查看Diff信息" @click="handleViewDiff(note.id)">
+                  <button v-if="note.isChanging === 1" class="diff-action" title="查看 Diff 信息" @click="handleViewDiff(note.id)">
                     <FileDiff class="w-4 h-4" />
+                    <span>Diff</span>
                   </button>
                   <template v-if="note.status === NoteStatusCode.NEW">
+                    <button class="relation-entry" title="手动绑定关联" @click="handleOpenRelations(note.id)">
+                      <Network class="w-3.5 h-3.5" />
+                      <span>映射</span>
+                    </button>
                     <button class="w-8 h-8 rounded-lg bg-white/5 hover:bg-violet-500/20 text-slate-400 hover:text-violet-400 flex items-center justify-center transition-all" title="校验关联" @click="handleCheckRelations(note.id)">
                       <Wrench class="w-4 h-4" />
                     </button>
@@ -679,6 +688,10 @@ onMounted(() => {
                   </template>
 
                   <template v-else-if="note.status === NoteStatusCode.PENDING_INFO">
+                    <button class="relation-entry" title="手动绑定关联" @click="handleOpenRelations(note.id)">
+                      <Network class="w-3.5 h-3.5" />
+                      <span>映射</span>
+                    </button>
                     <button class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-colors text-[10px] font-bold uppercase" title="校验关联并修复" @click="handleCheckRelations(note.id)">
                       <Wrench class="w-3.5 h-3.5" />
                       <span>补全资源</span>
@@ -692,6 +705,10 @@ onMounted(() => {
                   </template>
 
                   <template v-else-if="note.status === NoteStatusCode.READY_TO_CONVERT">
+                    <button class="relation-entry" title="手动绑定关联" @click="handleOpenRelations(note.id)">
+                      <Network class="w-3.5 h-3.5" />
+                      <span>映射</span>
+                    </button>
                     <button class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 transition-colors text-[10px] font-bold uppercase" title="转换笔记为 HTML" @click="handleConvert(note.id)">
                       <RefreshCw class="w-3.5 h-3.5" />
                       <span>转换笔记</span>
@@ -996,6 +1013,71 @@ onMounted(() => {
     box-shadow 0.22s ease,
     color 0.22s ease,
     background-color 0.22s ease;
+}
+
+.diff-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.diff-action::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(120deg, rgba(251, 191, 36, 0.4), rgba(59, 130, 246, 0.3), rgba(251, 191, 36, 0.4));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.diff-action > * {
+  position: relative;
+  z-index: 1;
+}
+
+.diff-action:hover {
+  transform: translateY(-1px);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.35);
+}
+
+.diff-action:hover::before {
+  opacity: 1;
+}
+
+.relation-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.relation-entry:hover {
+  background: rgba(59, 130, 246, 0.22);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
 }
 
 .relation-chip:focus-visible,

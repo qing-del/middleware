@@ -42,6 +42,11 @@ const router = createRouter({
           component: () => import('@/views/user/NoteDetail.vue')
         },
         {
+          path: 'notes/:noteId/relations',
+          name: 'UserNoteRelations',
+          component: () => import('@/views/user/NoteRelation.vue')
+        },
+        {
           path: 'notes/:noteId/diff',
           name: 'UserNoteDiff',
           component: () => import('@/views/user/NoteDiff.vue')

@@ -20,7 +20,7 @@ public interface NoteEachMappingMapper {
      * @param userId 用户 id（传入null的话不开启校验）
      * @return 笔记内联笔记映射行 （不存在 / 没有所属权的时候返回 null）
      */
-    NoteEachMappingEntity selectByIdWithValidUserId(Long mappingId, Long userId);
+    NoteEachMappingEntity selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
 
     int bindNoteById(@Param("id") Long id,
                      @Param("targetNoteId") Long targetNoteId,
