@@ -2,6 +2,7 @@ package com.jacolp.facade.impl;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -106,7 +107,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @StorageHandler(operationType = StorageOperationType.UPLOAD)
     public NoteUploadVO uploadNote(MultipartFile file, Long topicId) {
         Long userId = BaseContext.getCurrentId();
-        if (!topicService.topicExists(topicId)) {
+        if (topicId != null && !topicService.topicExists(topicId)) {
             throw new BaseException("主题不存在");
         }
         String originalFilename = normalizeFilename(file.getOriginalFilename());
@@ -125,6 +126,11 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 插入笔记行
         Long noteId = noteCoreService.insertNote(dto);
+        NoteEntity note = new NoteEntity();
+        note.setId(noteId);
+        note.setUserId(userId);
+        note.setTopicId(topicId);
+        note.setTitle(originalFilename);
 
         try {
             // 插入笔记文本 — 通过 NoteImageResolveContext 为图片解析插件提供 noteId
@@ -137,7 +143,7 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 建立三类映射 — 标签/图片/内联笔记，初始 target_id = null 等待用户绑定
         noteRelationService.initTagBatchInsertMappings(noteId, dto.getTags());
-        noteRelationService.initImageBatchInsertMappings(noteId, dto.getImageNames());
+        noteRelationService.initImageBatchInsertMappings(note, dto.getImageNames());
         noteRelationService.initNoteBatchInsertMappings(noteId, scanResult.noteNames());
 
         // 构建返回结果
@@ -258,7 +264,7 @@ public class NoteFacadeImpl implements NoteFacade {
             // 删除旧映射 → 重新建立新映射
             noteRelationService.deleteByNoteIds(List.of(noteId));
             noteRelationService.initTagBatchInsertMappings(noteId, diff.getNewTags());
-            noteRelationService.initImageBatchInsertMappings(noteId, diff.getNewImages());
+            noteRelationService.initImageBatchInsertMappings(existed, diff.getNewImages());
             noteRelationService.initNoteBatchInsertMappings(noteId, diff.getNewNoteNames());
 
             // 状态回到 NEW
@@ -403,7 +409,7 @@ public class NoteFacadeImpl implements NoteFacade {
         }
 
         // 清理关联数据
-        noteConvertService.delete(noteId);
+        try {noteConvertService.delete(noteId);} catch (BaseException ignored) {}   // 这里的异常只是可能不存在缓存
         noteContextService.deleteByNoteIds(List.of(noteId));
         noteRelationService.deleteByNoteIds(List.of(noteId));
 
@@ -829,7 +835,7 @@ public class NoteFacadeImpl implements NoteFacade {
         Map<String, TagEntity> tagMap = getTagEntitiesMap(tagMappings, userId);
         noteRelationService.tryBatchBindTagMappings(tagMappings, tagMap);
 
-        if (topicId != null) return;
+        if (topicId == null) return;
 
         // 同步图片映射
         List<NoteImageMappingEntity> imageMappings = Optional.ofNullable

@@ -11,6 +11,9 @@ export const authApi = {
   adminLogin(data: { username: string; password: string }) {
     return request.post('/admin/user/login', data)
   },
+  logout() {
+    return request.post('/logout')
+  },
   getCurrentUser(): Promise<User> {
     return request.get('/user/user/me')
   },

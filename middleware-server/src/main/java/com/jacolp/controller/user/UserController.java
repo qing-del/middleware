@@ -14,15 +14,11 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
-import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
-import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.Result;
-import com.jacolp.service.AdminUserService;
 import com.jacolp.utils.JwtUtil;
 
-import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 @Validated
 @Tag(name = "User-用户认证", description = "用户注册与登录接口")
 public class UserController {
-    @Autowired private JwtProperties jwtProperties;
     @Autowired private UserUserService userUserService;
 
     @PostMapping("/login")
@@ -46,16 +41,16 @@ public class UserController {
     public Result<String> login(
             @Parameter(description = "用户登录请求，包含用户名和密码") @RequestBody @Valid UserLoginDTO userLoginDTO) {
         log.info("User login: {}", userLoginDTO.getUsername());
+        return Result.success(userUserService.loginUser(userLoginDTO));
+    }
 
-        // 先校验账号和密码，返回登录成功的用户信息
-        UserEntity user = userUserService.loginUser(userLoginDTO);
-
-        // 将用户ID写入 JWT，后续请求会通过拦截器解析出来
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.USER_ID_CLAIM, user.getId());
-        String jwt = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
-
-        return Result.success(jwt);
+    @PostMapping("/logout")
+    @Operation(summary = "退出登录",
+            description = "用户退出；删除 Redis 中的 JWT 令牌。")
+    public Result logout() {
+        log.info("User logout, userId: {}", BaseContext.getCurrentId());
+        userUserService.logout();
+        return Result.success();
     }
 
     @PostMapping("/register")
@@ -109,20 +104,8 @@ public class UserController {
         Long userId = BaseContext.getCurrentId();
         log.info("User get activated token, userId: {}", userId);
 
-        // 检查是否放行
-        if (!userUserService.checkActivationStatus(userId)) {
-            return Result.error(UserConstant.USER_ALREADY_ACTIVE);
-        }
-
-        // 放行之后生成激活使用的令牌
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.ACTIVE_SIGN_KEY, true);
-        claims.put(UserConstant.USER_ID_CLAIM, userId);
-
         // TODO 后续改造成发送邮件
-        return Result.success(
-                JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims)
-        );
+        return Result.success(userUserService.getActiveAccountToken(userId));
     }
 
 

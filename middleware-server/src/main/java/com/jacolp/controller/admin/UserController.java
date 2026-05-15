@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -34,7 +35,6 @@ import java.util.Map;
 @Schema(description = "Admin - 用户管理")
 @Tag(name = "Admin-用户管理", description = "管理员登录、用户增删改查与封禁/解封接口")
 public class UserController {
-    @Autowired private JwtProperties jwtProperties;
     @Autowired private AdminUserService adminUserService;
 
     @PostMapping("/login")
@@ -42,20 +42,20 @@ public class UserController {
     public Result<String> login(
             @Parameter(description = "管理员登录请求，包含用户名和密码") @RequestBody UserLoginDTO userLoginDTO) {
         log.info("User login: {}", userLoginDTO.getUsername());
+        return Result.success(adminUserService.loginAdmin(userLoginDTO));
+    }
 
-        UserEntity user = adminUserService.loginAdmin(userLoginDTO);
-
-        if (user == null) {
-            log.error("User login failed!");
-            return Result.error(UserConstant.USER_LOGIN_FAILED);
-        }
-
-        // 生成 JWT 令牌（封装 id 到令牌里面）
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.ADMIN_ID_CLAIM, user.getId());
-        String jwt = JwtUtil.createJWT(jwtProperties.getAdminSecretKey(), jwtProperties.getAdminTtl(), claims);
-
-        return Result.success(jwt);
+    /**
+     * 退出登录
+     * @return
+     */
+    @PostMapping("/logout")
+    @Operation(summary = "退出登录",
+            description = "管理员退出登录，删除 Redis 中的 JWT 令牌。")
+    public Result logout() {
+        log.info("User logout, userId: {}", BaseContext.getCurrentId());
+        adminUserService.logout();
+        return Result.success();
     }
 
     @PostMapping("/list")

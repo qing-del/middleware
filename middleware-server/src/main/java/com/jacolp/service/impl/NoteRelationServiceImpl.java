@@ -197,7 +197,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     /**
-     * 校验关联完整性，自动补绑定 + 计算缺失信息。
+     * 校验关联完整性，计算缺失信息。
      * <p>状态流转：NEW → PENDING_INFO → (信息齐全时) READY_TO_CONVERT。</p>
      */
     @Override
@@ -211,9 +211,20 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         int missingMask = missingInfo.getMissingMask();
         int missingCount = missingInfo.getMissingCount();
 
-        List<String> missingTags = getMissingTagNames(note.getId());
-        List<String> missingImages = getMissingImageNames(note.getId());
-        List<String> missingNoteNames = getMissingEachNoteNames(note.getId());
+        // 如果标签缺失
+        if (NoteMissingInfoMask.isTagMissing(missingMask)) {
+            result.setMissingTags(getMissingTagNames(note.getId()));
+        }
+
+        // 如果图片缺失
+        if (NoteMissingInfoMask.isImageMissing(missingMask)) {
+            result.setMissingImages(getMissingImageNames(note.getId()));
+        }
+
+        // 如果笔记缺失
+        if (NoteMissingInfoMask.isNoteMissing(missingMask)) {
+            result.setMissingNoteNames(getMissingEachNoteNames(note.getId()));
+        }
 
         boolean isComplete = missingCount == 0;
 
@@ -221,9 +232,6 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         result.setComplete(isComplete);
         result.setMissingInfoMask(missingMask);
         result.setMissingCount(missingCount);
-        result.setMissingTags(missingTags);
-        result.setMissingImages(missingImages);
-        result.setMissingNoteNames(missingNoteNames);
 
         return result;
     }
@@ -356,11 +364,8 @@ public class NoteRelationServiceImpl implements NoteRelationService {
                 continue;
             }
             NoteStatus targetNoteStatus = NoteStatus.fromCode(target.getStatus());
-            if (!targetNoteStatus.isApproved() && !targetNoteStatus.isPublished()) {
-                continue;
-            }
-            if (Objects.equals(mapping.getTargetNoteId(), target.getId())
-                    && AuditConstant.PASS.equals(mapping.getIsPass())) {
+            if (!NoteStatus.PUBLISHED.equals(targetNoteStatus)
+            && (target.getUserId() != null && !target.getUserId().equals(BaseContext.getCurrentId()))) {
                 continue;
             }
 
@@ -368,6 +373,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             bind.setId(mapping.getId());
             bind.setTargetNoteId(target.getId());
             bind.setIsPass(AuditConstant.PASS);
+            bind.setTargetNoteId(target.getId());
             toBind.add(bind);
         }
 
@@ -422,7 +428,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
-    public int initImageBatchInsertMappings(Long noteId, List<String> images) {
+    public int initImageBatchInsertMappings(NoteEntity note, List<String> images) {
         if (images == null || images.isEmpty()) {
             return 0;
         }
@@ -436,9 +442,12 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         List<NoteImageMappingEntity> mappings = new ArrayList<>();
         for (String imageName : distinctImages) {
             NoteImageMappingEntity mapping = new NoteImageMappingEntity();
-            mapping.setNoteId(noteId);
+            mapping.setNoteId(note.getId());
+            mapping.setNoteTitle(note.getTitle());
+            mapping.setNoteUserId(note.getUserId());
             mapping.setParsedImageName(imageName);
             mapping.setImageId(null);
+            mapping.setIsCrossUser(NoteConstant.NOT_IS_CROSS_USER); // 默认先设置为没有跨用户
             mapping.setIsPass(AuditConstant.WAIT);
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
             mapping.setCreateTime(java.time.LocalDateTime.now());

@@ -252,7 +252,7 @@ public class StorageHandlerAspect {
         // 尝试从用户表中获取存储信息
         UserQuoteStorageDTO quote = userMapper.selectQuoteStorageById(userId);
         if (quote == null) {
-            throw new BaseException(UserConstant.NOT_FIND_USER);
+            throw new BaseException(UserConstant.NOT_FOUND_USER);
         }
 
         // 检查一下 maxStorageBytes 是否正常有确定值，没有就需要去查角色表来获取

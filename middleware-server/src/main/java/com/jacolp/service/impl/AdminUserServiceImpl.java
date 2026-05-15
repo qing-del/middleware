@@ -1,9 +1,16 @@
 package com.jacolp.service.impl;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import com.jacolp.properties.JwtProperties;
+import com.jacolp.utils.JwtUtil;
+import com.jacolp.utils.KeyToolUtil;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -25,13 +32,8 @@ import com.jacolp.pojo.dto.user.UserAddDTO;
 import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserModifyDTO;
-import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
-import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
-import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
-import com.jacolp.pojo.vo.user.UserDetailVO;
-import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AdminUserService;
 import com.jacolp.utils.EmailUtil;
@@ -41,19 +43,19 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class AdminUserServiceImpl implements AdminUserService {
-    @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
 
-    @Override
-    public UserEntity loginAdmin(UserLoginDTO userLoginDTO) {
-        // 校验用户名和密码非空
-        validUsernameAndPassword(userLoginDTO);
+    @Autowired private StringRedisTemplate redis;
+    @Autowired private JwtProperties jwtProperties;
+    @Autowired private PasswordEncoder passwordEncoder;
 
+    @Override
+    public String loginAdmin(UserLoginDTO userLoginDTO) {
         // 通过用户名查询用户
         UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
         if (user == null) {
-            log.error("User isn't existed!");
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            log.error("User not found!");
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         // 检查账号状态
@@ -70,13 +72,25 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         // 检查密码
-        boolean valid = passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword());
-        if (!valid) {
+        if (!passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword())) {
             log.error("Password isn't correct!");
             throw new PasswordIncorrectException(UserConstant.USER_PASSWORD_ERROR);
         }
 
-        return user;
+        // 生成 JWT 令牌（封装 id 到令牌里面）
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(UserConstant.ADMIN_ID_CLAIM, user.getId());
+        String jwt = JwtUtil.createJWT(jwtProperties.getAdminSecretKey(), jwtProperties.getAdminTtl(), claims);
+
+        // 将 jwt 存入 Redis 中
+        redis.opsForValue().set(KeyToolUtil.getAdminLoginKey(user.getId()), jwt);
+
+        return jwt;
+    }
+
+    @Override
+    public void logout() {
+        redis.delete(KeyToolUtil.getAdminLoginKey(BaseContext.getCurrentId()));
     }
 
     @Override
@@ -103,14 +117,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (modifier == null) {
             throw new AuthenticationException("操作者用户不存在");
         }
-        if (modifier.getRoleId() > RoleConstant.ADMIN) {
-            log.error("Permission denied: Modifier roleId={} is not admin/creator", modifier.getRoleId());
-            throw new BaseException("权限不足：仅创建者和管理员可以修改账户");
-        }
         if (dto.getRoleId() != null && modifier.getRoleId() >= dto.getRoleId()) {
             log.error("Permission denied: Modifier roleId={} cannot assign roleId={}",
                     modifier.getRoleId(), dto.getRoleId());
-            throw new BaseException("权限不足：只能创建权限低于自身的账户");
+            throw new BaseException("权限不足：只能改动权限低于自身的账户");
         }
 
         // 构建更新实体，仅设置非空字段（updateById 的 XML 使用 <if> 动态判断）
@@ -149,12 +159,6 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AuthenticationException("操作者用户不存在");
         }
 
-        // 2. Modifier must be admin or creator (roleId <= 2)
-        if (modifier.getRoleId() > RoleConstant.ADMIN) {
-            log.error("Permission denied: Modifier roleId={} is not admin/creator", modifier.getRoleId());
-            throw new PermissionDeniedException("权限不足：仅创建者和管理员可以新增账户");
-        }
-
         // 3. Cannot assign a role equal to or higher than the modifier's own role
         if (dto.getRoleId() == null || dto.getRoleId() <= modifier.getRoleId()) {
             log.error("Permission denied: Modifier roleId={} cannot assign roleId={}",
@@ -162,17 +166,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new PermissionDeniedException("权限不足：只能创建权限低于自身的账户");
         }
 
-        // 4. Username and password validation
-        validUsernameAndPassword(dto);
-
-        // 5. Email validation
-        if (!StringUtils.hasText(dto.getEmail())) {
-            throw new BaseException(UserConstant.EMAIL_NOT_PROVIDED);
-        }
-        if (!EmailUtil.isValidEmail(dto.getEmail())) {
-            throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
-        }
-
+        // 2. Check if the username already exists
         UserEntity existed = userMapper.selectByUsername(dto.getUsername());
         if (existed != null) {
             throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
@@ -188,7 +182,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         Integer status = dto.getStatus();
         user.setStatus(status != null ? status : UserConstant.ACTIVE_STATUS);
 
-        userMapper.insertUser(user);
+        int rows = userMapper.insertUser(user);
+        if (rows != 1) {
+            throw new BaseException("新增用户失败");
+        }
         log.info("User created successfully, username: {}", dto.getUsername());
     }
 
@@ -277,26 +274,5 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setId(userId);
         user.setUsedStorageBytes(usedStorageBytes);
         userMapper.updateById(user);
-    }
-
-    /**
-     * 校验用户名和密码
-     * @param provider 用户名与密码提供者
-     */
-    private void validUsernameAndPassword(UsernameAndPasswordProvider provider) {
-        if (provider == null) {
-            log.error("Invalid username and password provider");
-            throw new BaseException(UserConstant.USERNAME_AND_PASSWORD_PROVIDER_ERROR);
-        }
-
-        if (!StringUtils.hasText(provider.getUsername())) {
-            log.error("Invalid username");
-            throw new BaseException(UserConstant.USERNAME_IS_REQUIRED);
-        }
-
-        if (!StringUtils.hasText(provider.getPassword())) {
-            log.error("Invalid password");
-            throw new BaseException(UserConstant.PASSWORD_IS_REQUIRED);
-        }
     }
 }

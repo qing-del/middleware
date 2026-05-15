@@ -52,7 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
       return userInfo
     } catch (error) {
       if (isUnauthorizedError(error)) {
-        logout()
+        logout({ withServer: false })
         return null
       }
       throw error
@@ -67,18 +67,26 @@ export const useAuthStore = defineStore('auth', () => {
       return userInfo
     } catch (error) {
       if (isUnauthorizedError(error)) {
-        logout()
+        logout({ withServer: false })
         return null
       }
       throw error
     }
   }
 
-  function logout() {
+  function clearSession() {
     token.value = null
     user.value = null
     localStorage.removeItem('token')
     router.push('/login')
+  }
+
+  function logout(options?: { withServer?: boolean }) {
+    const withServer = options?.withServer ?? true
+    if (withServer) {
+      void authApi.logout().catch(() => {})
+    }
+    clearSession()
   }
 
   async function refreshCurrentUserInfo() {

@@ -48,11 +48,25 @@
 
     <insert id="batchInsertMappings">
         INSERT INTO biz_note_image_mapping
-            (note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, is_pass, is_deleted)
+            (note_id,
+             image_id,
+             note_user_id,
+             image_user_id,
+             parsed_image_name,
+             note_title,
+             is_cross_user,
+             is_pass,
+             is_deleted)
         VALUES
         <foreach collection="mappings" item="mapping" separator=",">
-            (#{mapping.noteId}, #{mapping.imageId}, #{mapping.noteUserId}, #{mapping.imageUserId},
-             #{mapping.parsedImageName}, #{mapping.noteTitle}, #{mapping.isCrossUser}, #{mapping.isPass}, 0)
+            (#{mapping.noteId},
+            #{mapping.imageId},
+            #{mapping.noteUserId},
+            #{mapping.imageUserId},
+            #{mapping.parsedImageName},
+            #{mapping.noteTitle},
+            #{mapping.isCrossUser},
+            #{mapping.isPass}, 0)
         </foreach>
         ON DUPLICATE KEY UPDATE
             is_deleted = 0,

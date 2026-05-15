@@ -13,6 +13,16 @@ spring:
       connection-test-query: SELECT 1
       minimum-idle: 5 # 最小空闲连接数（预热）
       maximum-pool-size: 20 # 最大连接数
+  data:
+    redis:
+      host: ${jacolp.redis.host}
+      port: ${jacolp.redis.port}
+      lettuce: # 默认使用 Lettuce
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: 100ms
 
 jacolp:
   admin:

@@ -27,11 +27,11 @@ public interface NoteRelationService {
 
     /**
      * 批量插入 图片初始关系行关系
-     * @param noteId 笔记 ID
+     * @param note 笔记
      * @param images 图片名称列表
      * @return 插入的行数
      */
-    int initImageBatchInsertMappings(Long noteId, List<String> images);
+    int initImageBatchInsertMappings(NoteEntity note, List<String> images);
 
 
     /**

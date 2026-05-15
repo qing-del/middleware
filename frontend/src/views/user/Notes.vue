@@ -293,13 +293,13 @@ async function handleCheckRelations(id: number) {
   try {
     const res = await noteApi.checkRelations(id)
     const result = res as unknown as {
-      isComplete: boolean
+      complete: boolean
       missingCount: number
       missingTags: string[]
       missingImages: string[]
       missingNoteNames: string[]
     }
-    if (result.isComplete) {
+    if (result.complete) {
       showAlert('关联完整性校验通过。')
     } else {
       const lines: string[] = [`仍有 ${result.missingCount} 项关联需要补全：`]

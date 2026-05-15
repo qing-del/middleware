@@ -8,41 +8,48 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PasswordIncorrectException;
 import com.jacolp.exception.UserIsBanException;
-import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
-import com.jacolp.pojo.entity.RoleEntity;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
+import com.jacolp.properties.JwtProperties;
 import com.jacolp.service.UserUserService;
 import com.jacolp.utils.EmailUtil;
+import com.jacolp.utils.JwtUtil;
+import com.jacolp.utils.KeyToolUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @Slf4j
 @Validated
 public class UserUserServiceImpl implements UserUserService {
-    @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
-    @Autowired private RoleMapper roleMapper;
+
+    @Autowired private StringRedisTemplate redis;
+    @Autowired private JwtProperties jwtProperties;
+    @Autowired private PasswordEncoder passwordEncoder;
 
     @Override
-    public UserEntity loginUser(@NotNull @Valid UserLoginDTO userLoginDTO) {
+    public String loginUser(@NotNull @Valid UserLoginDTO userLoginDTO) {
         // 1. 根据用户名查用户
         UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
         if (user == null) {
             log.error("User isn't existed!");
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         // 2.1 账号被禁用则直接拒绝登录
@@ -60,7 +67,20 @@ public class UserUserServiceImpl implements UserUserService {
             throw new PasswordIncorrectException(UserConstant.USER_PASSWORD_ERROR);
         }
 
-        return user;
+        // 将用户ID写入 JWT，后续请求会通过拦截器解析出来
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(UserConstant.USER_ID_CLAIM, user.getId());
+        String jwt = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
+
+        // 将 jwt 存入 Redis
+        redis.opsForValue().set(KeyToolUtil.getUserLoginKey(user.getId()), jwt);
+
+        return jwt;
+    }
+
+    @Override
+    public void logout() {
+        redis.delete(KeyToolUtil.getUserLoginKey(BaseContext.getCurrentId()));
     }
 
     @Override
@@ -82,10 +102,7 @@ public class UserUserServiceImpl implements UserUserService {
         user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
         user.setRoleId(RoleConstant.USER);
         user.setStatus(UserConstant.UNACTIVE_STATUS);   // 默认用户状态为未激活
-
-        // 设置默认角色参数
-        RoleEntity role = roleMapper.getById(RoleConstant.USER);
-        user.setMaxStorageBytes(role.getMaxStorageBytes());
+        user.setMaxStorageBytes(RoleConstant.USER_MAX_STORAGE_BYTES);   // 默认用户存储空间为 100MB
 
         int count = userMapper.insertUser(user);
         if (count <= 0) {
@@ -103,7 +120,7 @@ public class UserUserServiceImpl implements UserUserService {
         Long userId = BaseContext.getCurrentId();
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         // 转换为 VO，排除密码等敏感字段
@@ -124,7 +141,7 @@ public class UserUserServiceImpl implements UserUserService {
         Long userId = BaseContext.getCurrentId();
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         UserOverviewVO vo = new UserOverviewVO();
@@ -137,7 +154,7 @@ public class UserUserServiceImpl implements UserUserService {
         Long userId = BaseContext.getCurrentId();
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         // 软删除：仅更新状态为已删除，保留历史数据
@@ -159,7 +176,7 @@ public class UserUserServiceImpl implements UserUserService {
         Long userId = BaseContext.getCurrentId();
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         // 检验是否需要更改名称
@@ -168,9 +185,6 @@ public class UserUserServiceImpl implements UserUserService {
         }
         // 检验是否需要更改邮箱
         if (StringUtils.hasText(dto.getEmail())) {
-            if (!EmailUtil.isValidEmail(dto.getEmail())) {
-                throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
-            }
             user.setEmail(dto.getEmail());
         }
 
@@ -180,7 +194,7 @@ public class UserUserServiceImpl implements UserUserService {
                 throw new BaseException(UserConstant.USER_PASSWORD_ERROR);
             }
             if (StringUtils.hasText(dto.getConfirmPassword())
-                    || !passwordEncoder.matches(dto.getConfirmPassword(), user.getPassword())) {
+                    || !dto.getNewPassword().equals(dto.getConfirmPassword())) {
                 throw new BaseException(UserConstant.PASSWORD_CONFIRM_ERROR);
             }
             user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
@@ -206,7 +220,7 @@ public class UserUserServiceImpl implements UserUserService {
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
             log.error("User not found, userId: {}", userId);
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         // 检查是否出现重复激活
@@ -226,19 +240,22 @@ public class UserUserServiceImpl implements UserUserService {
     }
 
     /**
-     * 检查账户是否激活
-     * <p>此接口用于检查是否放行发放用户激活码的</p>
+     * 用于获取用户激活码
      * @param userId 用户ID
-     * @return 放行获取激活码返回 true，否则返回 false
      */
     @Override
-    public boolean checkActivationStatus(Long userId) {
+    public String getActiveAccountToken(Long userId) {
         UserEntity user = userMapper.selectById(userId);
 
         // 检查用户是否存在
         if (user == null) {
             log.error("User not found, userId: {}", userId);
-            throw new NotFindUserException(UserConstant.NOT_FIND_USER);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
+        }
+
+        // 检查账号是否处于未激活状态
+        if (user.getStatus() != UserConstant.UNACTIVE_STATUS) {
+            throw new BaseException(UserConstant.USER_ALREADY_ACTIVE);
         }
 
         // 检查是否存在邮箱
@@ -246,13 +263,18 @@ public class UserUserServiceImpl implements UserUserService {
             log.error("User email is empty, userId: {}", userId);
             throw new BaseException(UserConstant.USER_EMAIL_IS_EMPTY);
         }
+
         // 校验邮箱格式
         if (!EmailUtil.isValidEmail(user.getEmail())) {
             log.error("Invalid email format, userId: {}, email: {}", userId, user.getEmail());
             throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
         }
 
-        return user.getStatus() == UserConstant.UNACTIVE_STATUS;
-    }
+        // 生成 JWT
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(UserConstant.ACTIVE_SIGN_KEY, true);
+        claims.put(UserConstant.USER_ID_CLAIM, userId);
 
+        return JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
+    }
 }
