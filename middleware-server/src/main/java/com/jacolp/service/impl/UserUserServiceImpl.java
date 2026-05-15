@@ -15,29 +15,29 @@ import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.RoleEntity;
 import com.jacolp.pojo.entity.UserEntity;
-import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.service.UserUserService;
 import com.jacolp.utils.EmailUtil;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.annotation.Validated;
 
 @Service
 @Slf4j
+@Validated
 public class UserUserServiceImpl implements UserUserService {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
     @Autowired private RoleMapper roleMapper;
 
     @Override
-    public UserEntity loginUser(UserLoginDTO userLoginDTO) {
-        // 校验用户名和密码非空
-        validUsernameAndPassword(userLoginDTO);
-
+    public UserEntity loginUser(@NotNull @Valid UserLoginDTO userLoginDTO) {
         // 1. 根据用户名查用户
         UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
         if (user == null) {
@@ -64,25 +64,10 @@ public class UserUserServiceImpl implements UserUserService {
     }
 
     @Override
-    public String register(UserRegisterDTO userRegisterDTO) {
-        // 校验用户名、密码非空及两次密码一致性
-        validUsernameAndPassword(userRegisterDTO);
+    public String register(@NotNull @Valid UserRegisterDTO userRegisterDTO) {
+        // 校验两次密码一致性
         if (!userRegisterDTO.getPassword().equals(userRegisterDTO.getConfirmPassword())) {
             throw new BaseException(UserConstant.PASSWORD_CONFIRM_ERROR);
-        }
-
-        // 检查是否提供邮箱
-        if (!StringUtils.hasText(userRegisterDTO.getEmail())) {
-            throw new BaseException(UserConstant.EMAIL_NOT_PROVIDED);
-        } else {
-            // 校验邮箱格式是否正确
-            if (!EmailUtil.isValidEmail(userRegisterDTO.getEmail())) {
-                throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
-            }
-            // 可选：如果需要限制只允许特定域名，可以使用下面的代码
-            // if (!EmailUtil.isSupportedEmail(userRegisterDTO.getEmail())) {
-            //     throw new BaseException(UserConstant.UNSUPPORTED_EMAIL_DOMAIN);
-            // }
         }
 
         // 检查是否存在相同用户名的用户
@@ -170,7 +155,7 @@ public class UserUserServiceImpl implements UserUserService {
 
 
     @Override
-    public void updateCurrentUserProfile(UserProfileUpdateDTO dto) {
+    public void updateCurrentUserProfile(@NotNull @Valid UserProfileUpdateDTO dto) {
         Long userId = BaseContext.getCurrentId();
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
@@ -183,7 +168,6 @@ public class UserUserServiceImpl implements UserUserService {
         }
         // 检验是否需要更改邮箱
         if (StringUtils.hasText(dto.getEmail())) {
-            // 校验邮箱格式
             if (!EmailUtil.isValidEmail(dto.getEmail())) {
                 throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
             }
@@ -271,25 +255,4 @@ public class UserUserServiceImpl implements UserUserService {
         return user.getStatus() == UserConstant.UNACTIVE_STATUS;
     }
 
-
-    /**
-     * 校验用户名和密码
-     * @param provider 用户名与密码提供者
-     */
-    private void validUsernameAndPassword(UsernameAndPasswordProvider provider) {
-        if (provider == null) {
-            log.error("Invalid username and password provider");
-            throw new BaseException(UserConstant.USERNAME_AND_PASSWORD_PROVIDER_ERROR);
-        }
-
-        if (!StringUtils.hasText(provider.getUsername())) {
-            log.error("Invalid username");
-            throw new BaseException(UserConstant.USERNAME_IS_REQUIRED);
-        }
-
-        if (!StringUtils.hasText(provider.getPassword())) {
-            log.error("Invalid password");
-            throw new BaseException(UserConstant.PASSWORD_IS_REQUIRED);
-        }
-    }
 }

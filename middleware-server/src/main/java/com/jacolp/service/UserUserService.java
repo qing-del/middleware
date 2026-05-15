@@ -6,12 +6,14 @@ import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 public interface UserUserService {
     // 用户端登录，返回通过校验后的用户信息
-    UserEntity loginUser(UserLoginDTO userLoginDTO);
+    UserEntity loginUser(@NotNull @Valid UserLoginDTO userLoginDTO);
 
-    String register(UserRegisterDTO userRegisterDTO);
+    String register(@NotNull @Valid UserRegisterDTO userRegisterDTO);
 
     // 用户端：获取当前登录用户详情（不含密码）
     UserDetailVO getCurrentUser();
@@ -23,7 +25,7 @@ public interface UserUserService {
     void deleteCurrentUser();
 
     /** 用户端：更新当前登录用户的个人资料 */
-    void updateCurrentUserProfile(UserProfileUpdateDTO dto);
+    void updateCurrentUserProfile(@NotNull @Valid UserProfileUpdateDTO dto);
 
     /**
      * 激活账户

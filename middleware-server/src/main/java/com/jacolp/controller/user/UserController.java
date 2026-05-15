@@ -4,7 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.jacolp.service.UserUserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import com.jacolp.constant.UserConstant;
@@ -32,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Schema(description = "User - 用户管理")
 @CrossOrigin("*")
+@Validated
 @Tag(name = "User-用户认证", description = "用户注册与登录接口")
 public class UserController {
     @Autowired private JwtProperties jwtProperties;
@@ -41,7 +44,7 @@ public class UserController {
     @Operation(summary = "用户登录",
             description = "先校验用户名和密码是否匹配，登录成功后将用户 ID 写入 JWT claims 并签发令牌返回；后续接口会通过该 token 解析当前用户。")
     public Result<String> login(
-            @Parameter(description = "用户登录请求，包含用户名和密码") @RequestBody UserLoginDTO userLoginDTO) {
+            @Parameter(description = "用户登录请求，包含用户名和密码") @RequestBody @Valid UserLoginDTO userLoginDTO) {
         log.info("User login: {}", userLoginDTO.getUsername());
 
         // 先校验账号和密码，返回登录成功的用户信息
@@ -59,7 +62,7 @@ public class UserController {
     @Operation(summary = "用户注册",
             description = "创建普通用户账号前会先校验入参合法性，并在服务层完成账号初始化、默认角色设置和密码落库，返回注册结果。")
     public Result<String> register(
-            @Parameter(description = "用户注册请求，包含用户名、密码和基本信息") @RequestBody UserRegisterDTO userRegisterDTO) {
+            @Parameter(description = "用户注册请求，包含用户名、密码和基本信息") @RequestBody @Valid UserRegisterDTO userRegisterDTO) {
         log.info("User register: {}", userRegisterDTO.getUsername());
         return Result.success(userUserService.register(userRegisterDTO));
     }
@@ -84,7 +87,7 @@ public class UserController {
     @Operation(summary = "更新当前用户信息",
             description = "仅允许修改当前登录用户自身的昵称、邮箱等资料字段；修改密码可以复用这个接口")
     public Result<String> updateCurrentUser(
-            @Parameter(description = "用户资料更新请求（昵称、邮箱等可修改字段）") @RequestBody UserProfileUpdateDTO dto) {
+            @Parameter(description = "用户资料更新请求（昵称、邮箱等可修改字段）") @RequestBody @Valid UserProfileUpdateDTO dto) {
         log.info("User update profile");
         userUserService.updateCurrentUserProfile(dto);
         return Result.success("更新成功");

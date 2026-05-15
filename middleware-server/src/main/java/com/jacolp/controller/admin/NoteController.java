@@ -17,8 +17,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +29,7 @@ import java.util.List;
 @RequestMapping("/admin/note")
 @Slf4j
 @CrossOrigin("*")
+@Validated
 @Schema(description = "Admin - 笔记管理")
 @Tag(name = "Admin-笔记管理", description = "笔记生命周期管理接口")
 public class NoteController {
@@ -79,13 +82,10 @@ public class NoteController {
     @DeleteMapping("/delete")
     @Operation(summary = "批量删除笔记",
             description = "批量删除笔记主记录并同步清理转换结果、Diff、内容和三类关联映射，随后回收当前用户已占用的存储空间。")
-    public Result<String> delete(@Parameter(description = "笔记ID，使用英文逗号分隔") @RequestParam String ids) {
+    public Result<String> delete(@Parameter(description = "笔记ID，使用英文逗号分隔")
+                                 @RequestParam @NotBlank(message = "待删除的笔记 ID 列表不能为空") String ids) {
         List<Long> idList = IdParserUtil.parseIds(ids, "笔记");
         log.info("Admin delete notes, ids: {}", idList);
-
-        if (ids == null || ids.isEmpty()) {
-            return Result.error("待删除的笔记 ID 列表不能为空");
-        }
 
         noteFacade.adminDeleteNotes(idList);
         return Result.success();
