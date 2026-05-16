@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.jacolp.context.BindEachRowContext;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -190,11 +191,18 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     @Override
     public void bindEachMapping(EachMappingBindDTO dto) {
         NoteEntity targetNote = noteCoreService.getById(dto.getNoteId());
-        NoteEachMappingEntity mapping = noteRelationService.bindEachMapping(dto, targetNote);
+        NoteEachMappingEntity mapping = null;
+        int affectedRow = 0;
+        try {
+            mapping = noteRelationService.bindEachMapping(dto, targetNote);
+            affectedRow = BindEachRowContext.getAffectedRows();
+        } finally {
+            BindEachRowContext.clear();
+        }
 
         // 检查是否需要更新笔记状态
         NoteEntity note = noteCoreService.getById(mapping.getNoteId());
-        if (note.getMissingCount() <= 1) {
+        if (note.getMissingCount() <= affectedRow) {
             tryConvertNoteToReady(note);
         } else {
             note.setMissingCount(Math.max(note.getMissingCount() - 1, 0));

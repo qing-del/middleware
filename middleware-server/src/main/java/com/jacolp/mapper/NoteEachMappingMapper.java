@@ -22,9 +22,10 @@ public interface NoteEachMappingMapper {
      */
     NoteEachMappingEntity selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
 
-    int bindNoteById(@Param("id") Long id,
-                     @Param("targetNoteId") Long targetNoteId,
-                     @Param("isPass") Short isPass);
+    int bindNoteBySourceIdAndParseName(@Param("sourceNoteId") Long sourceNoteId,
+                                       @Param("parsedNoteName") String parseName,
+                                       @Param("targetNoteId") Long targetNoteId,
+                                       @Param("isPass") Short isPass);
 
     int batchBindNoteByIds(@Param("mappings") List<NoteEachMappingEntity> mappings);
 
@@ -35,6 +36,8 @@ public interface NoteEachMappingMapper {
     int softDeleteBySourceNoteId(@Param("sourceNoteId") Long sourceNoteId);
 
     int softDeleteBySourceNoteIds(@Param("sourceNoteIds") List<Long> sourceNoteIds);
+
+    int hardDeleteBySourceNoteIds(@Param("sourceNoteIds") List<Long> sourceNoteIds);
 
     int deleteSoftDeletedRows();
 

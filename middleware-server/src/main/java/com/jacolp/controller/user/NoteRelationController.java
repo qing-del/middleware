@@ -49,7 +49,7 @@ public class NoteRelationController {
     @Operation(summary = "查询笔记关联映射",
             description = "查询笔记与标签、图片、双链笔记三类关联的全部映射行、绑定状态和缺失标记，用于编辑器联动展示。")
     public Result<NoteRelationDetailVO> relationInfo(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
-        log.info("Admin get note relation info, noteId: {}", noteId);
+        log.info("User get note relation info, noteId: {}", noteId);
         return Result.success(noteRelationFacade.getRelationInfo(noteId));
     }
 

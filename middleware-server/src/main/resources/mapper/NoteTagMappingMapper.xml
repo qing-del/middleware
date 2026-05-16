@@ -117,6 +117,14 @@
         </foreach>
     </update>
 
+    <delete id="hardDeleteByNoteIds">
+        DELETE FROM biz_note_tag_mapping
+        WHERE note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </delete>
+
     <update id="softDeleteByNoteIdAndTagIds">
         UPDATE biz_note_tag_mapping
         SET is_deleted = 1

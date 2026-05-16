@@ -37,10 +37,10 @@ public interface NoteRelationService {
     /**
      * 批量插入初始关系行关系
      * @param noteId 笔记 ID
-     * @param noteTitles 笔记标题列表
+     * @param noteReflection 笔记标题列表
      * @return 插入的行数
      */
-    int initNoteBatchInsertMappings(Long noteId, List<String> noteTitles);
+    int initNoteBatchInsertMappings(Long noteId, List<String> noteReflection);
 
     /**
      * 获取笔记关系详情
@@ -197,6 +197,12 @@ public interface NoteRelationService {
      * @param noteIds 笔记 ID 列表
      */
     void deleteByNoteIds(List<Long> noteIds);
+
+    /**
+     * 批量硬删除 以 noteId 为源头的笔记关系
+     * @param noteIds 笔记 ID 列表
+     */
+    void hardDeleteByNoteIds(List<Long> noteIds);
 
     /**
      * 判断引用关系是否存在

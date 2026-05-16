@@ -39,6 +39,8 @@ public interface NoteTagMappingMapper {
 
     int softDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
 
+    int hardDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
+
     int softDeleteByNoteIdAndTagIds(@Param("noteId") Long noteId, @Param("tagIds") List<Long> tagIds);
 
     int deleteSoftDeletedRows();

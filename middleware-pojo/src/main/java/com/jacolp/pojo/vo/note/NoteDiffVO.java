@@ -26,7 +26,7 @@ public class NoteDiffVO implements Serializable {
 
     private List<String> newImages;
 
-    private List<String> oldNoteNames;
+    private List<String> oldNoteReflection;
 
-    private List<String> newNoteNames;
+    private List<String> newNoteReflection;
 }

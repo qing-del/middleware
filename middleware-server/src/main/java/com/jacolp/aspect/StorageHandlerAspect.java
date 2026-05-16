@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 存储空间校验切面 - 配额校验 + 一致性保证 + 存储空间更新
@@ -154,8 +155,8 @@ public class StorageHandlerAspect {
     private Object handleBatchDelete(ProceedingJoinPoint joinPoint) throws Throwable {
 
         Object result;
-        List<Long> acquiredUserIds = null;
         String owner = getLockOwner();
+        List<String> acquiredKeys = null;
 
         try {
             result = joinPoint.proceed();
@@ -166,24 +167,18 @@ public class StorageHandlerAspect {
                 throw new BaseException("未知错误");
             }
 
-            // 尝试获取所有用户的锁（最多等待 1000 ms）
-            acquiredUserIds = acquireBatchLocks(userStorageMap, owner, 1000);
-            // 锁全部获取失败
-            if (acquiredUserIds == null || acquiredUserIds.isEmpty()) {
+            List<String> lockKeys = userStorageMap.keySet().stream()
+                    .map(this::getLockKey)
+                    .collect(Collectors.toList());
+
+            acquiredKeys = lockOperator.tryLockBatch(lockKeys, owner, 1000);
+            if (acquiredKeys == null) {
                 throw new BaseException("系统繁忙，请稍后重试");
             }
-
-            // 判断一下有没有全部拿到（防止出现没拿全的情况，但是又拿了锁，需要释放）
-            if (acquiredUserIds.size() != userStorageMap.size()) {
-                throw new BaseException("系统繁忙，请稍后重试");
-            }
-
             // 批量更新用户存储
             batchUpdateUserStorage(userStorageMap);
         } finally {
-            if (acquiredUserIds != null && !acquiredUserIds.isEmpty()) {
-                releaseBatchLocks(acquiredUserIds, owner); // 释放所有已获取的用户锁
-            }
+            if (acquiredKeys != null) lockOperator.releaseBatch(acquiredKeys, owner);
             StorageUpdateContext.clear();   // 清理 ThreadLocal
         }
 
@@ -301,47 +296,6 @@ public class StorageHandlerAspect {
         if (count <= 0) {
             log.error("Failed to update user storage after upload/modify, userId: {}", userId);
             throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
-        }
-    }
-
-    // ======================== 批量锁操作 ========================
-
-    /**
-     * 批量获取用户锁。
-     * <p>在指定超时时间内依次获取所有用户的锁；任一获取失败则释放已获取的锁并返回 null。</p>
-     * <p>每把锁最多等 300ms，避免单个用户锁阻塞导致整体超时。</p>
-     * @return 成功返回已获取锁的用户 ID 列表（锁仍持有），失败返回 null（锁已释放）
-     */
-    private List<Long> acquireBatchLocks(Map<Long, Long> userStorageMap, String owner, long timeoutMillis) {
-        long startTime = System.currentTimeMillis();
-        List<Long> acquiredUserIds = new ArrayList<>(); // 获取成功的用户 ID 列表
-
-        for (Long userId : userStorageMap.keySet()) {
-            long remainingTime = timeoutMillis - (System.currentTimeMillis() - startTime);
-            if (remainingTime <= 0) {
-                releaseBatchLocks(acquiredUserIds, owner);
-                return null;
-            }
-
-            String lockKey = getLockKey(userId);
-            if (!lockOperator.tryLock(lockKey, owner, Math.min(remainingTime, 200))) {
-                releaseBatchLocks(acquiredUserIds, owner);
-                return null;
-            }
-
-            acquiredUserIds.add(userId);    // 获取成功，加入已获取锁的用户 ID 列表
-        }
-
-        // 返回已获取锁的用户 ID 列表
-        return acquiredUserIds;
-    }
-
-    /**
-     * 释放批量获取的用户锁。
-     */
-    private void releaseBatchLocks(List<Long> userIds, String owner) {
-        for (Long userId : userIds) {
-            lockOperator.releaseLock(getLockKey(userId), owner);
         }
     }
 

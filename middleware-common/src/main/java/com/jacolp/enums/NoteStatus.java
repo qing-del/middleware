@@ -88,6 +88,16 @@ public enum NoteStatus {
     }
 
     /**
+     * 检查是否已经通过审核
+     *
+     * @param status 笔记状态
+     * @return true=已通过, false=未通过
+     */
+    public static boolean isPassed(NoteStatus status) {
+        return status == APPROVED || status == PUBLISHED;
+    }
+
+    /**
      * 检查是否可以转换到目标状态
      *
      * @param target 目标状态

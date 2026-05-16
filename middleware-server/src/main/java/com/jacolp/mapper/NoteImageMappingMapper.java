@@ -47,6 +47,8 @@ public interface NoteImageMappingMapper {
 
     int softDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
 
+    int hardDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
+
     int softDeleteByNoteIdAndParsedImageNames(@Param("noteId") Long noteId,
                                               @Param("parsedImageNames") List<String> parsedImageNames);
 

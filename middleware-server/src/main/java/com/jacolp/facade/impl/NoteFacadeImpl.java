@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.jacolp.context.PermissionContext;
 import com.jacolp.annotation.StorageHandler;
 import com.jacolp.component.JsonOperator;
 import com.jacolp.constant.NoteConstant;
@@ -115,7 +116,7 @@ public class NoteFacadeImpl implements NoteFacade {
         }
 
         // 解析 Markdown — 一次扫描提取标签、图片、内联笔记三类关联
-        MarkdownHtmlEngine.NoteReletionInfo scanResult = MarkdownHtmlEngine.scanNoteReletionInfo(rawMarkdown);
+        MarkdownHtmlEngine.NoteRelationInfo scanResult = MarkdownHtmlEngine.scanNoteReletionInfo(rawMarkdown);
 
         // 构建传输使用的数据使用的 dto
         UploadToInsertNoteDTO dto = buildUploadToInsertNoteDTO(file, topicId, userId, originalFilename, scanResult);
@@ -140,7 +141,7 @@ public class NoteFacadeImpl implements NoteFacade {
         // 建立三类映射 — 标签/图片/内联笔记，初始 target_id = null 等待用户绑定
         noteRelationService.initTagBatchInsertMappings(noteId, dto.getTags());
         noteRelationService.initImageBatchInsertMappings(note, dto.getImageNames());
-        noteRelationService.initNoteBatchInsertMappings(noteId, scanResult.noteNames());
+        noteRelationService.initNoteBatchInsertMappings(noteId, scanResult.reflection());
 
         // 构建返回结果
         NoteUploadVO vo = new NoteUploadVO();
@@ -193,12 +194,12 @@ public class NoteFacadeImpl implements NoteFacade {
         String newMarkdown = readMultipartAsString(file);
 
         // 扫描新旧文本，对比差异
-        MarkdownHtmlEngine.NoteReletionInfo oldScan = MarkdownHtmlEngine.scanNoteReletionInfo(oldMarkdown);
-        MarkdownHtmlEngine.NoteReletionInfo newScan = MarkdownHtmlEngine.scanNoteReletionInfo(newMarkdown);
+        MarkdownHtmlEngine.NoteRelationInfo oldScan = MarkdownHtmlEngine.scanNoteReletionInfo(oldMarkdown);
+        MarkdownHtmlEngine.NoteRelationInfo newScan = MarkdownHtmlEngine.scanNoteReletionInfo(newMarkdown);
         NoteDiffVO diffVO = buildDiff(
                 oldScan.tags(), newScan.tags(),
                 oldScan.imageNames(), newScan.imageNames(),
-                oldScan.noteNames(), newScan.noteNames());
+                oldScan.reflection(), newScan.reflection());
 
         // 保存新内容
         noteContext.setMarkdownContentNew(newMarkdown);
@@ -256,10 +257,10 @@ public class NoteFacadeImpl implements NoteFacade {
             noteContextService.update(contextEntity);
 
             // 删除旧映射 → 重新建立新映射
-            noteRelationService.deleteByNoteIds(List.of(noteId));
+            noteRelationService.hardDeleteByNoteIds(List.of(noteId));
             noteRelationService.initTagBatchInsertMappings(noteId, diff.getNewTags());
             noteRelationService.initImageBatchInsertMappings(existed, diff.getNewImages());
-            noteRelationService.initNoteBatchInsertMappings(noteId, diff.getNewNoteNames());
+            noteRelationService.initNoteBatchInsertMappings(noteId, diff.getNewNoteReflection());
 
             // 状态回到 NEW
             existed.setStatus(NoteStatus.NEW.getCode());
@@ -558,8 +559,8 @@ public class NoteFacadeImpl implements NoteFacade {
         vo.setNewTags(newTags);
         vo.setOldImages(oldImages);
         vo.setNewImages(newImages);
-        vo.setOldNoteNames(oldNotes);
-        vo.setNewNoteNames(newNotes);
+        vo.setOldNoteReflection(oldNotes);
+        vo.setNewNoteReflection(newNotes);
         return vo;
     }
 
@@ -567,7 +568,7 @@ public class NoteFacadeImpl implements NoteFacade {
      * 初始化上传笔记传输数据使用的 DTO 的内容
      */
     private UploadToInsertNoteDTO buildUploadToInsertNoteDTO(MultipartFile file, Long topicId, Long userId,
-                                                             String originalFilename, MarkdownHtmlEngine.NoteReletionInfo scanResult) {
+                                                             String originalFilename, MarkdownHtmlEngine.NoteRelationInfo scanResult) {
         UploadToInsertNoteDTO dto = new UploadToInsertNoteDTO();
         dto.setFileSize(file.getSize());
         dto.setTopicId(topicId);
@@ -596,7 +597,7 @@ public class NoteFacadeImpl implements NoteFacade {
      * 构建 diffVO。
      */
     private @NonNull NoteChangeDiffEntity buildNoteChangeDiffEntity(Long noteId, Long fileSize, NoteDiffVO diffVO,
-                                                                    MarkdownHtmlEngine.NoteReletionInfo newScan,
+                                                                    MarkdownHtmlEngine.NoteRelationInfo newScan,
                                                                     Long existedFileSize) {
         NoteChangeDiffEntity diffEntity = new NoteChangeDiffEntity();
         diffEntity.setNoteId(noteId);
