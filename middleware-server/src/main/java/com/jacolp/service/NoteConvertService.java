@@ -1,6 +1,8 @@
 package com.jacolp.service;
 
 import com.jacolp.exception.BaseException;
+import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 
 import java.util.List;
@@ -8,16 +10,16 @@ import java.util.List;
 public interface NoteConvertService {
     /**
      * 将 Markdown 原文转换为 HTML 并写入数据库。
-     * @param noteId      笔记 ID
-     * @param rawMarkdown Markdown 原文
+     * @param note      笔记 ID
+     * @param context Markdown 原文
      * @return 解析出的标题（可能不同于文件名）
      * @throws BaseException 写入数据库失败的时候会抛出此异常
      */
-    String convertAndSave(Long noteId, String rawMarkdown);
+    String convertAndSave(NoteEntity note, NoteContextEntity context);
 
     /**
-     * 删除 笔记已转换的内容
-     * @param noteId
+     * 删除单条转换结果。
+     * @throws BaseException 删除失败的时候会抛出此异常
      */
     void delete(Long noteId);
 

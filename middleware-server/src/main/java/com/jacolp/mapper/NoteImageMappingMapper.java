@@ -22,7 +22,7 @@ public interface NoteImageMappingMapper {
      * @param userId 用户 id（传入null的话不开启校验）
      * @return 笔记图片映射行 （不存在 / 没有所属权的时候返回 null）
      */
-    NoteImageMappingEntity selectByIdWithValidUserId(Long mappingId, Long userId);
+    NoteImageMappingEntity selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
 
     int bindImageById(@Param("id") Long id,
                       @Param("imageId") Long imageId,
@@ -46,6 +46,8 @@ public interface NoteImageMappingMapper {
     int softDeleteByNoteId(@Param("noteId") Long noteId);
 
     int softDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
+
+    int hardDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
 
     int softDeleteByNoteIdAndParsedImageNames(@Param("noteId") Long noteId,
                                               @Param("parsedImageNames") List<String> parsedImageNames);

@@ -11,6 +11,8 @@ import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.result.Result;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.component.LockOperator;
+
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -31,9 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 /**
  * 存储空间校验切面 - 配额校验 + 一致性保证 + 存储空间更新
@@ -46,8 +46,7 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j
 public class StorageHandlerAspect {
 
-    /** 用户 ID → 用户锁映射 */
-    private final ConcurrentHashMap<Long, ReentrantLock> userStorageLockMap = new ConcurrentHashMap<>();
+    @Autowired private LockOperator lockOperator;
 
     @Autowired private ImageMapper imageMapper;
     @Autowired private UserMapper userMapper;
@@ -91,12 +90,13 @@ public class StorageHandlerAspect {
      */
     private Object handleSingleDelete(ProceedingJoinPoint joinPoint) throws Throwable {
         Long userId = BaseContext.getCurrentId();
-        ReentrantLock userLock = getLock(userId);
+        String lockKey = getLockKey(userId);
+        String owner = getLockOwner();
 
         boolean acquired = false;
         try {
             // 加用户锁，最大等待 300ms
-            acquired = userLock.tryLock(300, TimeUnit.MILLISECONDS);
+            acquired = lockOperator.tryLock(lockKey, owner, 300);
             if (!acquired) {
                 throw new BaseException("系统繁忙，请稍后！");
             }
@@ -108,7 +108,9 @@ public class StorageHandlerAspect {
             syncStorageAfterDelete(userId);
             return result;
         } finally {
-            if (acquired) userLock.unlock();    // 防止没上锁就解锁
+            if (acquired) {
+                lockOperator.releaseLock(lockKey, owner);
+            }
             StorageUpdateContext.clear();   // 清理 ThreadLocal
         }
     }
@@ -153,7 +155,8 @@ public class StorageHandlerAspect {
     private Object handleBatchDelete(ProceedingJoinPoint joinPoint) throws Throwable {
 
         Object result;
-        List<Long> acquiredUserIds = null;
+        String owner = getLockOwner();
+        List<String> acquiredKeys = null;
 
         try {
             result = joinPoint.proceed();
@@ -164,24 +167,18 @@ public class StorageHandlerAspect {
                 throw new BaseException("未知错误");
             }
 
-            // 尝试获取所有用户的锁（最多等待 1000 ms）
-            acquiredUserIds = acquireBatchLocks(userStorageMap, 1000);
-            // 锁全部获取失败
-            if (acquiredUserIds == null || acquiredUserIds.isEmpty()) {
+            List<String> lockKeys = userStorageMap.keySet().stream()
+                    .map(this::getLockKey)
+                    .collect(Collectors.toList());
+
+            acquiredKeys = lockOperator.tryLockBatch(lockKeys, owner, 1000);
+            if (acquiredKeys == null) {
                 throw new BaseException("系统繁忙，请稍后重试");
             }
-
-            // 判断一下有没有全部拿到（防止出现没拿全的情况，但是又拿了锁，需要释放）
-            if (acquiredUserIds.size() != userStorageMap.size()) {
-                throw new BaseException("系统繁忙，请稍后重试");
-            }
-
             // 批量更新用户存储
             batchUpdateUserStorage(userStorageMap);
         } finally {
-            if (acquiredUserIds != null && !acquiredUserIds.isEmpty()) {
-                releaseBatchLocks(acquiredUserIds); // 释放所有已获取的用户锁
-            }
+            if (acquiredKeys != null) lockOperator.releaseBatch(acquiredKeys, owner);
             StorageUpdateContext.clear();   // 清理 ThreadLocal
         }
 
@@ -206,11 +203,12 @@ public class StorageHandlerAspect {
         Long userId = BaseContext.getCurrentId();
         long requiredBytes = resolveRequiredBytes(joinPoint, annotation, file);
 
-        ReentrantLock userLock = getLock(userId);
+        String lockKey = getLockKey(userId);
+        String owner = getLockOwner();
         boolean acquired = false;
         try {
             // 0. 加用户锁，最大等待 300ms
-            acquired = userLock.tryLock(300, TimeUnit.MILLISECONDS);
+            acquired = lockOperator.tryLock(lockKey, owner, 300);
             if (!acquired) {
                 throw new BaseException("系统繁忙，请稍后！");
             }
@@ -234,7 +232,9 @@ public class StorageHandlerAspect {
 
             return result;
         } finally {
-            if (acquired) userLock.unlock();    // 防止没上锁，但是又解锁
+            if (acquired) {
+                lockOperator.releaseLock(lockKey, owner);
+            }
             StorageUpdateContext.clear();   // 清理 ThreadLocal
         }
     }
@@ -247,7 +247,7 @@ public class StorageHandlerAspect {
         // 尝试从用户表中获取存储信息
         UserQuoteStorageDTO quote = userMapper.selectQuoteStorageById(userId);
         if (quote == null) {
-            throw new BaseException(UserConstant.NOT_FIND_USER);
+            throw new BaseException(UserConstant.NOT_FOUND_USER);
         }
 
         // 检查一下 maxStorageBytes 是否正常有确定值，没有就需要去查角色表来获取
@@ -299,82 +299,14 @@ public class StorageHandlerAspect {
         }
     }
 
-    // ======================== 批量锁操作 ========================
-
-    /**
-     * 批量获取用户锁。
-     * <p>在指定超时时间内依次获取所有用户的锁；任一获取失败则释放已获取的锁并返回 null。</p>
-     * <p>每把锁最多等 300ms，避免单个用户锁阻塞导致整体超时。</p>
-     * @return 成功返回已获取锁的用户 ID 列表（锁仍持有），失败返回 null（锁已释放）
-     */
-    private List<Long> acquireBatchLocks(Map<Long, Long> userStorageMap, long timeoutMillis) {
-        long startTime = System.currentTimeMillis();
-        List<Long> acquiredUserIds = new ArrayList<>(); // 获取成功的用户 ID 列表
-
-        for (Long userId : userStorageMap.keySet()) {
-            long remainingTime = timeoutMillis - (System.currentTimeMillis() - startTime);
-            if (remainingTime <= 0) {
-                releaseBatchLocks(acquiredUserIds);
-                return null;
-            }
-
-            ReentrantLock userLock = getLock(userId);
-            try {
-                // 尝试获取用户的锁，然后最大等待时间为200ms
-                if (!userLock.tryLock(Math.min(remainingTime, 200), TimeUnit.MILLISECONDS)) {
-                    releaseBatchLocks(acquiredUserIds);
-                    return null;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                releaseBatchLocks(acquiredUserIds);
-                return null;
-            }
-            acquiredUserIds.add(userId);    // 获取成功，加入已获取锁的用户 ID 列表
-        }
-
-        // 返回已获取锁的用户 ID 列表
-        return acquiredUserIds;
-    }
-
-    /**
-     * 释放批量获取的用户锁。
-     */
-    private void releaseBatchLocks(List<Long> userIds) {
-        for (Long userId : userIds) {
-            getLock(userId).unlock();
-        }
-    }
-
     // ======================== 锁管理 ========================
 
-    /**
-     * 获取用户锁。
-     * <p>（ConcurrentHashMap computeIfAbsent 原子创建）</p>
-     */
-    private ReentrantLock getLock(Long userId) {
-        return userStorageLockMap.computeIfAbsent(userId, k -> new ReentrantLock());
+    private String getLockKey(Long userId) {
+        return "StorageLock:User:" + userId;
     }
 
-    /**
-     * 清空锁表中空闲的用户锁。
-     * <p>尝试获取锁成功说明无人在用，可安全移除；</p>
-     * <p>GC 会回收已从 map 中移除且不可达的锁对象。</p>
-     */
-    public void clearLockMap() {
-        userStorageLockMap.forEach((userId, userLock) -> {
-            boolean isLocked = false;
-            try {
-                isLocked = userLock.tryLock(100, TimeUnit.MILLISECONDS);
-                if (isLocked) {
-                    userStorageLockMap.remove(userId);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                if (isLocked) userLock.unlock();
-            }
-        });
+    private String getLockOwner() {
+        return Thread.currentThread().getName() + ":" + Thread.currentThread().getId();
     }
 
     // ======================== 批量存储更新 ========================
@@ -458,7 +390,7 @@ public class StorageHandlerAspect {
     }
 
     /**
-     * 从方法参数中提取 MultipartFile。
+     * 从方法参数中提取 MultipartFile.
      */
     private MultipartFile extractMultipartFile(ProceedingJoinPoint joinPoint) {
         for (Object arg : joinPoint.getArgs()) {

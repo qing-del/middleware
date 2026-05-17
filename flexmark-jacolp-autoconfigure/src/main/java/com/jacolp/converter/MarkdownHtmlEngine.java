@@ -233,10 +233,30 @@ public class MarkdownHtmlEngine {
      * @param imageNames 从 Obsidian 图片嵌入语法提取出的图片文件名列表
      * @param noteLinks  从双链语法中解析出的笔记链接完整信息列表（含 anchor 和 nickname）
      */
-    public record NoteReletionInfo(List<String> tags, List<String> imageNames, List<ParsedNoteLink> noteLinks) {
+    public record NoteRelationInfo(List<String> tags, List<String> imageNames, List<ParsedNoteLink> noteLinks) {
 
         /**
-         * 向后兼容：仅返回目标笔记名称列表（去重），供无需感知 anchor/nickname 的旧调用方使用。
+         * 回目标笔记映射信息列表：noteName#anchor|nickname
+         * <p>- 如果锚点、别名不存在，不会强制加入，例如：noteName|nickname, noteName#anchor, noteName</p>
+         */
+        public List<String> reflection() {
+            return noteLinks.stream()
+                    .map(noteLink -> {
+                        StringBuilder result =  new StringBuilder(noteLink.noteName);
+                        if (noteLink.anchor != null && !noteLink.anchor.isBlank()) {
+                            result.append("#").append(noteLink.anchor);
+                        }
+                        if (noteLink.nickname != null && !noteLink.nickname.isBlank()) {
+                            result.append("|").append(noteLink.nickname);
+                        }
+                        return result.toString();
+                    })
+                    .distinct()
+                    .toList();
+        }
+
+        /**
+         * 仅会返回去重之后的笔记名称列表
          */
         public List<String> noteNames() {
             return noteLinks.stream()
@@ -882,7 +902,7 @@ public class MarkdownHtmlEngine {
      * 若需要 anchor / nickname 信息，请直接调用 {@link #scanNoteReletionInfo} 并读取 {@code noteLinks()}。
      */
     public static List<String> extractNoteNamesFromMarkdown(String rawMarkdown) {
-        return scanNoteReletionInfo(rawMarkdown).noteNames();
+        return scanNoteReletionInfo(rawMarkdown).reflection();
     }
 
     /**
@@ -898,7 +918,7 @@ public class MarkdownHtmlEngine {
      * @param rawMarkdown 原始 Markdown 文本
      * @return 同时包含 tags 与 imageNames 与 Notes 的结果对象
      */
-    public static NoteReletionInfo scanNoteReletionInfo(String rawMarkdown) {
+    public static NoteRelationInfo scanNoteReletionInfo(String rawMarkdown) {
         List<String> tags = new ArrayList<>();
         LinkedHashSet<String> imageNames = new LinkedHashSet<>();
         // noteLinks 保持插入顺序，且通过 seenKeys 对四元 (noteName, anchor, nickname) 去重
@@ -1027,7 +1047,7 @@ public class MarkdownHtmlEngine {
             // StringReader 不会抛出实际 I/O 异常，这里仅为满足 AutoCloseable 接口签名
         }
 
-        return new NoteReletionInfo(List.copyOf(tags), List.copyOf(imageNames), List.copyOf(noteLinks));
+        return new NoteRelationInfo(List.copyOf(tags), List.copyOf(imageNames), List.copyOf(noteLinks));
     }
 
     /**

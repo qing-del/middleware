@@ -1,54 +1,35 @@
 package com.jacolp.controller.admin;
 
-import com.jacolp.annotation.NoteFileLimit;
-import com.jacolp.constant.NoteConstant;
 import com.jacolp.exception.BaseException;
-import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
-import com.jacolp.pojo.dto.note.EachMappingBindDTO;
-import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.NoteModifyInfoDTO;
 import com.jacolp.pojo.dto.note.NoteQueryDTO;
-import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.vo.image.ImageSimpleVO;
-import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
-import com.jacolp.pojo.vo.note.NoteDiffVO;
-import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
-import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
-import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.facade.NoteFacade;
 import com.jacolp.service.NoteContextService;
 import com.jacolp.service.NoteConvertService;
 import com.jacolp.service.NoteCoreService;
-import com.jacolp.service.NoteRelationService;
 
 import com.jacolp.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController("Admin-NoteController")
 @RequestMapping("/admin/note")
 @Slf4j
+@CrossOrigin("*")
+@Validated
 @Schema(description = "Admin - 笔记管理")
 @Tag(name = "Admin-笔记管理", description = "笔记生命周期管理接口")
 public class NoteController {
@@ -101,13 +82,10 @@ public class NoteController {
     @DeleteMapping("/delete")
     @Operation(summary = "批量删除笔记",
             description = "批量删除笔记主记录并同步清理转换结果、Diff、内容和三类关联映射，随后回收当前用户已占用的存储空间。")
-    public Result<String> delete(@Parameter(description = "笔记ID，使用英文逗号分隔") @RequestParam String ids) {
+    public Result<String> delete(@Parameter(description = "笔记ID，使用英文逗号分隔")
+                                 @RequestParam @NotBlank(message = "待删除的笔记 ID 列表不能为空") String ids) {
         List<Long> idList = IdParserUtil.parseIds(ids, "笔记");
         log.info("Admin delete notes, ids: {}", idList);
-
-        if (ids == null || ids.isEmpty()) {
-            return Result.error("待删除的笔记 ID 列表不能为空");
-        }
 
         noteFacade.adminDeleteNotes(idList);
         return Result.success();

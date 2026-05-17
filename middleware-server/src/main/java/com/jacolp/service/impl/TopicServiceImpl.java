@@ -56,7 +56,6 @@ public class TopicServiceImpl implements TopicService {
     public void addTopic(TopicAddDTO dto) {
         Long userId = BaseContext.getCurrentId();
         String topicName = normalizeTopicName(dto.getTopicName());
-        validateTopicName(topicName);
 
         // 同一用户下主题名唯一
         TopicEntity existed = topicMapper.selectByUserIdAndTopicName(userId, topicName);
@@ -89,7 +88,6 @@ public class TopicServiceImpl implements TopicService {
     @Override
     public void modifyTopic(TopicModifyDTO dto) {
         Long userId = BaseContext.getCurrentId();
-        validateTopicId(dto.getId());
 
         // 业务约束：主题不存在则不允许修改
         TopicEntity existed = topicMapper.selectById(dto.getId());
@@ -148,14 +146,9 @@ public class TopicServiceImpl implements TopicService {
         }
 
 
-        Long userId = dto.getUserId();
-        if (userId != null && userId <= 0) {
-            throw new BaseException(UserConstant.NOT_FIND_USER);
-        }
-
         // PageHelper 必须在查询语句前调用
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-        List<TopicListVO> records = topicMapper.listByCondition(userId, normalizeKeyword(dto.getKeyword()));
+        List<TopicListVO> records = topicMapper.listByCondition(dto.getUserId(), normalizeKeyword(dto.getKeyword()));
         PageInfo<TopicListVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }
@@ -301,25 +294,6 @@ public class TopicServiceImpl implements TopicService {
             return null;
         }
         return keyword.trim();
-    }
-
-    /**
-     * 校验主题名称。
-     * - 名称不能为空
-     * - 长度不能超过 25 个字符
-     */
-    private void validateTopicName(String topicName) {
-        /*
-         * 这里先做应用层校验：
-         * - 更早返回明确错误信息
-         * - 避免无意义数据库交互
-         */
-        if (!StringUtils.hasText(topicName)) {
-            throw new BaseException(TopicConstant.TOPIC_NAME_REQUIRED);
-        }
-        if (topicName.length() > TopicConstant.MAX_TOPIC_NAME_LENGTH) {
-            throw new BaseException(TopicConstant.TOPIC_NAME_TOO_LONG);
-        }
     }
 
     /**

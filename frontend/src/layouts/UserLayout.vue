@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { authApi } from '@/api/auth'
-import type { User } from '@/types'
-import { useRouter } from 'vue-router'
-import { 
-  ChevronLeft, Zap, LayoutDashboard, FileText, Layers, Hash, 
-  Image as ImageIcon, LogOut, Search, Bell, CheckCircle2, Sparkles, HardDrive,
-  ArrowRight
+import {
+  ChevronLeft, Zap, LayoutDashboard, FileText, Layers, Hash,
+  Image as ImageIcon, LogOut, Search, Bell, CheckCircle2
 } from 'lucide-vue-next'
 
-const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
-const user = ref<User | null>(null)
 const isLoading = ref(true)
 
-const menuItems = [
-  { id: 'dashboard', label: '工作台', icon: LayoutDashboard, active: true },
-  { id: 'notes', label: '我的笔记', icon: FileText },
-  { id: 'topics', label: '主题管理', icon: Layers },
-  { id: 'tags', label: '标签生态', icon: Hash },
-  { id: 'images', label: '图床画廊', icon: ImageIcon }
-]
+const menuItems = computed(() => [
+  { id: 'dashboard', label: '工作台', icon: LayoutDashboard, to: '/user/dashboard' },
+  { id: 'notes', label: '我的笔记', icon: FileText, to: '/user/notes' },
+  { id: 'topics', label: '主题管理', icon: Layers, to: '/user/topics' },
+  { id: 'tags', label: '标签生态', icon: Hash, to: '/user/tags' },
+  { id: 'images', label: '图床画廊', icon: ImageIcon, to: '/user/images' }
+])
+
+function isMenuActive(id: string): boolean {
+  return route.path.startsWith(`/user/${id}`) || (id === 'dashboard' && route.path === '/user')
+}
 
 function toggleSidebar() {
   isCollapsed.value = !isCollapsed.value
@@ -38,7 +38,9 @@ function getRoleBadgeClass(roleId: number) {
 
 function getRoleText(roleId: number) {
   if (roleId === 1 || roleId === 2) return 'Administrator'
-  return 'Pro User'
+  if (roleId === 3) return 'User'
+  if (roleId === 4) return 'VIP User'
+  return 'Unknown'
 }
 
 function handleLogout() {
@@ -89,10 +91,10 @@ onMounted(async () => {
           <div class="h-12 w-full skeleton rounded-xl mb-1.5"></div>
         </template>
         <template v-else>
-          <a v-for="item in menuItems" :key="item.id" href="#" :class="['glass-nav-item flex items-center px-4 py-3 rounded-xl mb-1.5 overflow-hidden whitespace-nowrap group', item.active ? 'glass-nav-active' : 'text-slate-400']">
-            <component :is="item.icon" :class="['w-5 h-5 flex-shrink-0 relative z-10', item.active ? '' : 'group-hover:scale-110 transition-transform']" />
+          <router-link v-for="item in menuItems" :key="item.id" :to="item.to" :class="['glass-nav-item flex items-center px-4 py-3 rounded-xl mb-1.5 overflow-hidden whitespace-nowrap group', isMenuActive(item.id) ? 'glass-nav-active' : 'text-slate-400']">
+            <component :is="item.icon" :class="['w-5 h-5 flex-shrink-0 relative z-10', isMenuActive(item.id) ? '' : 'group-hover:scale-110 transition-transform']" />
             <span :class="['menu-label text-sm font-medium tracking-wide relative z-10 ml-3 transition-all duration-300 whitespace-nowrap', isCollapsed ? 'opacity-0 w-0 overflow-hidden' : '']">{{ item.label }}</span>
-          </a>
+          </router-link>
         </template>
       </nav>
 
@@ -184,7 +186,7 @@ onMounted(async () => {
                 <div class="relative">
                   <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-[2px] group-hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] transition-all">
                     <div class="w-full h-full rounded-full bg-[#020617] flex items-center justify-center overflow-hidden">
-                      <span class="text-xs font-black text-white">{{ authStore.user.nickname.charAt(0).toUpperCase() }}</span>
+                      <span class="text-xs font-black text-white">{{ (authStore.user?.nickname || authStore.user?.username || 'U').charAt(0).toUpperCase() }}</span>
                     </div>
                   </div>
                   <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#020617] rounded-full"></div>

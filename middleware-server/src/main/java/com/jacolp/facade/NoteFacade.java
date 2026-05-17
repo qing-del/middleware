@@ -1,19 +1,18 @@
 package com.jacolp.facade;
 
+import java.util.List;
+
+import org.springframework.web.multipart.MultipartFile;
+
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.context.StorageUpdateContext;
-import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
-import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
-import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
-import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.vo.image.ImageSimpleVO;
-import com.jacolp.pojo.vo.note.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
+import com.jacolp.pojo.vo.note.NoteDetailVO;
+import com.jacolp.pojo.vo.note.NoteDiffVO;
+import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
+import com.jacolp.pojo.vo.note.NoteUploadVO;
 
 public interface NoteFacade {
     /**
@@ -109,13 +108,6 @@ public interface NoteFacade {
     void updateNoteStatus(Long noteId, Short status);
 
     /**
-     * 获取笔记关联信息
-     * @param noteId
-     * @return
-     */
-    NoteRelationDetailVO getRelationInfo(Long noteId);
-
-    /**
      * 获取笔记完整详情 --
      * <p>- 通过 {@link PermissionContext} 来控制是否校验所有权</p>
      * <p>聚合笔记基本信息、主题名、标签名列表、图片简要列表、
@@ -124,33 +116,8 @@ public interface NoteFacade {
     NoteDetailVO getInfo(Long noteId);
 
     /**
-     * 获取图片简要列表
-     * <p>- 此处没有权限校验</p>
+     * 删除转换结果
+     * @param noteId
      */
-    List<ImageSimpleVO> listImageSimpleVOsByNoteId(Long noteId);
-
-    /**
-     * 绑定标签映射关系
-     * @param dto
-     */
-    void bindTagMapping(TagMappingBindDTO dto);
-
-    /**
-     * 绑定图片映射关系
-     * @param dto
-     */
-    void bindImageMapping(ImageMappingBindDTO dto);
-
-    /**
-     * 绑定笔记映射关系
-     * @param dto
-     */
-    void bindEachMapping(EachMappingBindDTO dto);
-
-    /**
-     * 检查笔记关联信息是否完整
-     * @param noteId 笔记 ID
-     * @return 缺失的笔记关联信息
-     */
-    NoteCheckBindingVO checkRelationCompletion(Long noteId);
+    void deleteConverted(Long noteId);
 }

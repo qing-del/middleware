@@ -27,20 +27,20 @@ public interface NoteRelationService {
 
     /**
      * 批量插入 图片初始关系行关系
-     * @param noteId 笔记 ID
+     * @param note 笔记
      * @param images 图片名称列表
      * @return 插入的行数
      */
-    int initImageBatchInsertMappings(Long noteId, List<String> images);
+    int initImageBatchInsertMappings(NoteEntity note, List<String> images);
 
 
     /**
      * 批量插入初始关系行关系
      * @param noteId 笔记 ID
-     * @param noteTitles 笔记标题列表
+     * @param noteReflection 笔记标题列表
      * @return 插入的行数
      */
-    int initNoteBatchInsertMappings(Long noteId, List<String> noteTitles);
+    int initNoteBatchInsertMappings(Long noteId, List<String> noteReflection);
 
     /**
      * 获取笔记关系详情
@@ -199,6 +199,12 @@ public interface NoteRelationService {
     void deleteByNoteIds(List<Long> noteIds);
 
     /**
+     * 批量硬删除 以 noteId 为源头的笔记关系
+     * @param noteIds 笔记 ID 列表
+     */
+    void hardDeleteByNoteIds(List<Long> noteIds);
+
+    /**
      * 判断引用关系是否存在
      * @param id 被引用数据类型的 ID
      * @param type 被引用的类型：1-主题,2-标签,3-图片,4-笔记
@@ -239,9 +245,30 @@ public interface NoteRelationService {
     List<NoteSimpleVO> listNoteSimplesByImageId(Long imageId);
 
     /**
-     * 获取图片关系数量
+     * 获取与该标签相关的笔记数量
      * @param tagId 标签 ID
      * @return 图片关系数量
      */
     long countRelationByTagId(@Param("tagId") Long tagId);
+
+    /**
+     * 判断笔记是否缺失标签
+     * @param noteId 笔记 ID
+     * @return 笔记是否缺失标签
+     */
+    boolean isMissingTags(Long noteId);
+
+    /**
+     * 判断笔记是否缺失图片
+     * @param noteId 笔记 ID
+     * @return 笔记是否缺失图片
+     */
+    boolean isMissingImages(Long noteId);
+
+    /**
+     * 判断笔记是否缺失笔记
+     * @param noteId 笔记 ID
+     * @return 笔记是否缺失笔记
+     */
+    boolean isMissingNotes(Long noteId);
 }

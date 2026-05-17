@@ -22,7 +22,8 @@ public interface NoteMapper {
 
     int updateNote(NoteEntity note);
 
-    @Select("select id, user_id, topic_id, title, description, storage_type, status, missing_info_mask, missing_count, md_file_size, create_time, update_time " +
+    @Select("select id, user_id, topic_id, title, description, storage_type, status, is_changing, " +
+            "missing_info_mask, missing_count, md_file_size, create_time, update_time " +
             "from biz_note " +
             "where id = #{id}")
     NoteEntity selectById(@Param("id") Long id);

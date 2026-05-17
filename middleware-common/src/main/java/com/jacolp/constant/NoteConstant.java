@@ -30,6 +30,12 @@ public class NoteConstant {
     public static final String NOTE_DIFF_EXIST = "已存在未处理的改变";
 
     /**
+     * 笔记是否正在修改：0-否，1-是
+     */
+    public static final Short NOT_CHANGING = 0;
+    public static final Short IS_CHANGING = 1;
+
+    /**
      * 笔记是否删除：0-未删除，1-已删除
      */
     public static final Short NOT_DELETED = 0;

@@ -4,6 +4,8 @@ import java.util.List;
 
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
+import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.pojo.entity.NoteEntity;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,23 +43,23 @@ public class NoteConvertServiceImpl implements NoteConvertService {
 
     /**
      * 将 Markdown 原文转换为 HTML 并写入数据库。
-     * @param noteId      笔记 ID
-     * @param rawMarkdown Markdown 原文
+     * @param note      笔记 ID
+     * @param context Markdown 原文
      * @return 解析出的标题（可能不同于文件名）
      * @throws BaseException 写入数据库失败的时候会抛出此异常
      */
     @Override
-    public String convertAndSave(Long noteId, String rawMarkdown) {
+    public String convertAndSave(NoteEntity note, NoteContextEntity context) {
         // 设置上下文供图片解析插件获取 noteId
-        NoteImageResolveContext.setCurrentNoteId(noteId);
+        NoteImageResolveContext.setCurrentNoteId(note.getId());
         try {
-            HtmlProcessResult result = markdownHtmlEngine.process(rawMarkdown);
-            FrontMatter meta = result.meta();
+            HtmlProcessResult result = markdownHtmlEngine.process(context.getMarkdownContent());
+            FrontMatter meta = result.meta().withFallbackTitle(note.getTitle());
 
-            NoteConvertedEntity converted = buildNoteConvertEntity(noteId, meta, result);
+            NoteConvertedEntity converted = buildNoteConvertEntity(note.getId(), meta, result);
             int affected = noteConvertMapper.upsertConverted(converted);
             if (affected < 1) {
-                log.error("Note convert failed, noteId: {}", noteId);
+                log.error("Note convert failed, noteId: {}", note.getId());
                 throw new BaseException(NoteConstant.NOTE_CONVERT_FAILED);
             }
             return meta.title();
@@ -68,10 +70,15 @@ public class NoteConvertServiceImpl implements NoteConvertService {
 
     /**
      * 删除单条转换结果。
+     * @throws BaseException 删除失败的时候会抛出此异常
      */
     @Override
     public void delete(Long noteId) {
-        noteConvertMapper.deleteByNoteId(noteId);
+        int affected = noteConvertMapper.deleteByNoteId(noteId);
+        if (affected < 1) {
+            log.error("Note convert delete failed, noteId: {}", noteId);
+            throw new BaseException(NoteConstant.NOTE_DELETE_FAILED);
+        }
     }
 
     /**

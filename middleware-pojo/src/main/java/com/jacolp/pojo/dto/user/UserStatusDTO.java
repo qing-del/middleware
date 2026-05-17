@@ -1,6 +1,7 @@
 package com.jacolp.pojo.dto.user;
 
 import com.jacolp.pojo.provider.TargetUserProvider;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserStatusDTO implements TargetUserProvider {
 
-    /** 目标用户 ID */
+    @NotBlank(message = "用户ID不能为空")
     private Long id;
 
     @Override

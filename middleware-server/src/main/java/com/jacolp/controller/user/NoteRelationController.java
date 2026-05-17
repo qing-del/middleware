@@ -1,6 +1,19 @@
 package com.jacolp.controller.user;
 
-import com.jacolp.facade.NoteFacade;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.jacolp.facade.NoteRelationFacade;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
@@ -8,40 +21,36 @@ import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.result.Result;
-import com.jacolp.service.NoteRelationService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController("User-NoteRelationController")
 @RequestMapping("/user/note/relation")
 @Schema(description = "User - 笔记关联管理")
 @io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记关联管理", description = "用户端笔记关联管理接口")
 @Slf4j
+@CrossOrigin("*")
 public class NoteRelationController {
 
-    @Autowired private NoteFacade noteFacade;
-    @Autowired private NoteRelationService noteRelationService;
+    @Autowired private NoteRelationFacade noteRelationFacade;
 
     @PostMapping("/check/{noteId}")
     @Operation(summary = "校验关联完整性",
-            description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，会自动转换笔记状态。")
+            description = "遍历笔记的标签、图片和双链三类映射，判断是否都已完整绑定且审核通过，会自动转换笔记状态；如果收到的结果中`isCompeted`这个值不为true即为缺失信息转换失败。")
     public Result<NoteCheckBindingVO> checkRelationCompletion(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin check note relation completion, noteId: {}", noteId);
-        return Result.success(noteFacade.checkRelationCompletion(noteId));
+        return Result.success(noteRelationFacade.checkRelationCompletion(noteId));
     }
 
     @GetMapping("/{noteId}")
     @Operation(summary = "查询笔记关联映射",
             description = "查询笔记与标签、图片、双链笔记三类关联的全部映射行、绑定状态和缺失标记，用于编辑器联动展示。")
     public Result<NoteRelationDetailVO> relationInfo(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
-        log.info("Admin get note relation info, noteId: {}", noteId);
-        return Result.success(noteFacade.getRelationInfo(noteId));
+        log.info("User get note relation info, noteId: {}", noteId);
+        return Result.success(noteRelationFacade.getRelationInfo(noteId));
     }
 
     @GetMapping("/images/{noteId}")
@@ -49,7 +58,7 @@ public class NoteRelationController {
             description = "按笔记 ID 读取图片映射及图片基础信息，返回给前端用于绑定状态展示、差异确认和详情页渲染。")
     public Result<List<ImageSimpleVO>> listImages(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin list note images, noteId: {}", noteId);
-        return Result.success(noteFacade.listImageSimpleVOsByNoteId(noteId));
+        return Result.success(noteRelationFacade.listImageSimpleVOsByNoteId(noteId));
     }
 
     @PutMapping("/tag/bind")
@@ -58,7 +67,7 @@ public class NoteRelationController {
     public Result<String> bindTag(
             @Parameter(description = "标签绑定请求（映射行ID、目标标签ID）") @RequestBody TagMappingBindDTO dto) {
         log.info("Admin bind tag mapping, mappingId: {}, tagId: {}", dto.getMappingId(), dto.getTagId());
-        noteFacade.bindTagMapping(dto);
+        noteRelationFacade.bindTagMapping(dto);
         return Result.success();
     }
 
@@ -67,7 +76,7 @@ public class NoteRelationController {
             description = "解除指定标签映射行与标签的绑定关系，清空 tagId 与审核标记后重新计算笔记缺失信息。")
     public Result<String> unbindTag(@Parameter(description = "映射行ID") @PathVariable Long mappingId) {
         log.info("Admin unbind tag mapping, mappingId: {}", mappingId);
-        noteRelationService.unbindTagMapping(mappingId);
+                noteRelationFacade.unbindTagMapping(mappingId);
         return Result.success();
     }
 
@@ -77,7 +86,7 @@ public class NoteRelationController {
     public Result<String> bindImage(
             @Parameter(description = "图片绑定请求（映射行ID、目标图片ID）") @RequestBody ImageMappingBindDTO dto) {
         log.info("Admin bind image mapping, mappingId: {}, imageId: {}", dto.getMappingId(), dto.getImageId());
-        noteFacade.bindImageMapping(dto);
+        noteRelationFacade.bindImageMapping(dto);
         return Result.success();
     }
 
@@ -86,7 +95,7 @@ public class NoteRelationController {
             description = "解除指定图片映射行的图片绑定，清空 imageId 和跨用户标记，并重新判断笔记是否仍存在缺失信息。")
     public Result<String> unbindImage(@Parameter(description = "映射行ID") @PathVariable Long mappingId) {
         log.info("Admin unbind image mapping, mappingId: {}", mappingId);
-        noteRelationService.unbindImageMapping(mappingId);
+        noteRelationFacade.unbindImageMapping(mappingId);
         return Result.success();
     }
 
@@ -96,7 +105,7 @@ public class NoteRelationController {
     public Result<String> bindEach(
             @Parameter(description = "双链绑定请求（映射行ID、目标笔记ID）") @RequestBody EachMappingBindDTO dto) {
         log.info("Admin bind note-each mapping, mappingId: {}, noteId: {}", dto.getMappingId(), dto.getNoteId());
-        noteFacade.bindEachMapping(dto);
+        noteRelationFacade.bindEachMapping(dto);
         return Result.success();
     }
 
@@ -105,7 +114,7 @@ public class NoteRelationController {
             description = "解除指定双链映射行与目标笔记的绑定关系，清空 targetNoteId 后重算笔记关联完整性。")
     public Result<String> unbindEach(@Parameter(description = "映射行ID") @PathVariable Long mappingId) {
         log.info("Admin unbind note-each mapping, mappingId: {}", mappingId);
-        noteRelationService.unbindEachMapping(mappingId);
+                noteRelationFacade.unbindEachMapping(mappingId);
         return Result.success();
     }
 }
