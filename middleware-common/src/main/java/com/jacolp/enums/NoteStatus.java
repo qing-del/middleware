@@ -98,6 +98,15 @@ public enum NoteStatus {
     }
 
     /**
+     * 检查是否可以绑定/解绑操作
+     * @param status 笔记状态
+     * @return true=可以绑定, false=不允许绑定
+     */
+    public static boolean canBindOperation(NoteStatus status) {
+        return status == NEW || status == PENDING_INFO || status == READY_TO_CONVERT;
+    }
+
+    /**
      * 检查是否可以转换到目标状态
      *
      * @param target 目标状态

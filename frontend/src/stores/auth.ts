@@ -81,6 +81,14 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login')
   }
 
+  function adminLogout(options?: { withServer?: boolean }) {
+    const withServer = options?.withServer ?? true
+    if (withServer) {
+      void authApi.adminLogout().catch(() => {})
+    }
+    clearSession()
+  }
+
   function logout(options?: { withServer?: boolean }) {
     const withServer = options?.withServer ?? true
     if (withServer) {
@@ -107,6 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchUserInfo,
     fetchAdminUserInfo,
     refreshCurrentUserInfo,
+    adminLogout,
     logout
   }
 })

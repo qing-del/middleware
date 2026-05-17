@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.jacolp.context.BindEachRowContext;
+import com.jacolp.exception.BaseException;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -105,6 +106,12 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
         // 检查是否需要更新笔记状态
         NoteEntity note = noteCoreService.getById(mapping.getNoteId());
+
+        // 检查状态是否允许操作
+        if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
         if (note.getMissingCount() <= 1) {
             tryConvertNoteToReady(note);
         } else {
@@ -125,6 +132,12 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
         // 检查是否需要更新笔记状态
         NoteEntity note = noteCoreService.getById(result.getNoteId());
+
+        // 检查状态是否允许操作
+        if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
         if (NoteConstant.STATUS_READY_TO_CONVERT.equals(note.getStatus())) {
             note.setStatus(NoteConstant.MISSED_INFO);
         }
@@ -150,6 +163,12 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
         // 检查是否需要更新笔记状态
         NoteEntity note = noteCoreService.getById(mapping.getNoteId());
+
+        // 检查状态是否允许操作
+        if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
         if (note.getMissingCount() <= 1) {
             tryConvertNoteToReady(note);
         } else {
@@ -170,6 +189,12 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
         // 检查是否需要更新笔记状态
         NoteEntity note = noteCoreService.getById(result.getNoteId());
+
+        // 检查状态是否允许操作
+        if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
         if (NoteConstant.STATUS_READY_TO_CONVERT.equals(note.getStatus())) {
             note.setStatus(NoteConstant.MISSED_INFO);
         }
@@ -202,10 +227,16 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
         // 检查是否需要更新笔记状态
         NoteEntity note = noteCoreService.getById(mapping.getNoteId());
+
+        // 检查状态是否允许操作
+        if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
         if (note.getMissingCount() <= affectedRow) {
             tryConvertNoteToReady(note);
         } else {
-            note.setMissingCount(Math.max(note.getMissingCount() - 1, 0));
+            note.setMissingCount(Math.max(note.getMissingCount() - affectedRow, 0));
             if (noteRelationService.isMissingNotes(note.getId())) {
                 note.setMissingInfoMask(note.getMissingInfoMask() & ~NoteMissingInfoMask.NOTE.getMask());
             }
@@ -222,6 +253,12 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
         // 检查是否需要更新笔记状态
         NoteEntity note = noteCoreService.getById(result.getNoteId());
+
+        // 检查状态是否允许操作
+        if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
         if (NoteConstant.STATUS_READY_TO_CONVERT.equals(note.getStatus())) {
             note.setStatus(NoteConstant.MISSED_INFO);
         }

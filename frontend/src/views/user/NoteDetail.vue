@@ -164,6 +164,8 @@ async function handleConvert() {
     await noteApi.convertNote(note.value.id)
     showAlert('转换成功，正在刷新...')
     await fetchNote()
+    await nextTick()
+    await bindTocEvents()
   } catch {
     showAlert('转换失败，请确认笔记关联完整')
   } finally {
@@ -202,16 +204,33 @@ async function handleSubmitAudit() {
 function scrollToHashAnchor() {
   const hash = route.hash
   if (!hash) return
-  const id = hash.replace('#', '')
-  if (!id) return
-  // Wait for v-html DOM to be fully rendered
-  nextTick(() => {
-    const el = document.getElementById(id)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' })
-    }
-  })
+  try {
+    const id = decodeURIComponent(hash.replace('#', ''))
+    if (!id) return
+    // Wait for v-html DOM to be fully rendered
+    nextTick(() => {
+      setTimeout(() => {
+        let el = document.getElementById(id)
+        if (!el) el = document.getElementById(id.toLowerCase().replace(/\s+/g, '-'))
+        if (!el) el = document.getElementById(id.replace(/\s+/g, '-'))
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' })
+        }
+      }, 150)
+    })
+  } catch (e) {
+    console.error('Hash scroll error', e)
+  }
 }
+
+watch(
+  () => route.hash,
+  (newHash, oldHash) => {
+    if (newHash && newHash !== oldHash && !loading.value) {
+      scrollToHashAnchor()
+    }
+  }
+)
 
 // ── Data fetching ─────────────────────────────────
 async function fetchNote() {
@@ -304,9 +323,13 @@ function handleInternalLinkClick(e: Event) {
   }
 }
 
-function handleEachNoteClick(each: { targetNoteId: number; isMissing: number }) {
+function handleEachNoteClick(each: { targetNoteId: number; isMissing: number; anchor?: string }) {
   if (!each.isMissing) {
-    router.push(`/user/notes/${each.targetNoteId}`)
+    if (each.anchor) {
+      router.push(`/user/notes/${each.targetNoteId}#${each.anchor}`)
+    } else {
+      router.push(`/user/notes/${each.targetNoteId}`)
+    }
   }
 }
 
@@ -436,11 +459,18 @@ function onTocLinkClick(e: Event) {
   const link = (e.target as HTMLElement).closest('a[href^="#"]') as HTMLAnchorElement | null
   if (!link) return
   e.preventDefault()
-  const id = link.getAttribute('href')?.slice(1)
-  if (id) {
-    const el = document.getElementById(id)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' })
+  const rawId = link.getAttribute('href')?.slice(1)
+  if (rawId) {
+    try {
+      const id = decodeURIComponent(rawId)
+      let el = document.getElementById(id) || document.getElementById(rawId)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' })
+        router.replace({ hash: `#${rawId}` })
+      }
+    } catch (err) {
+      const el = document.getElementById(rawId)
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
     }
   }
   showTocPanel.value = false

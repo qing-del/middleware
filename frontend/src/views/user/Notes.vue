@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { noteApi, getNoteStatusInfo, NoteStatusCode } from '@/api/notes'
-import type { NoteItem, PageResult, NoteQueryParams, NoteDiffVO } from '@/api/notes'
+import type { NoteItem, PageResult, NoteQueryParams, NoteDiffVO, NoteRelationDetailVO } from '@/api/notes'
 import { topicApi } from '@/api/topics'
 import type { TopicItem } from '@/api/topics'
 import {
@@ -42,6 +42,38 @@ const showSourceModal = ref(false)
 const sourceContent = ref('')
 const sourceTitle = ref('')
 
+// ── Relation Details Cache ───────────────────────
+const relationCache = ref<Record<number, NoteRelationDetailVO>>({})
+
+function getNoteRelationCount(note: NoteItem, kind: 'tag' | 'image' | 'link'): number {
+  const cached = relationCache.value[note.id]
+  if (cached) {
+    if (kind === 'tag') return cached.tags?.length ?? 0
+    if (kind === 'image') return cached.images?.length ?? 0
+    return cached.eachNotes?.length ?? 0
+  }
+  // Fallback to server-provided counts
+  if (kind === 'tag') return note.tagCount ?? 0
+  if (kind === 'image') return note.imageCount ?? 0
+  return note.eachNoteCount ?? 0
+}
+
+async function ensureRelations(note: NoteItem) {
+  if (relationCache.value[note.id]) return relationCache.value[note.id]
+  try {
+    const res = await noteApi.getRelations(note.id)
+    relationCache.value[note.id] = res
+
+    // Sync data back to note item for tags (helps initial rendering of tag list if available)
+    if (res.tags?.length && (!note.tags || !note.tags.length)) {
+      note.tags = res.tags.filter(t => !t.isMissing).map(t => t.tagName || t.parsedTagName)
+    }
+    return res
+  } catch {
+    return null
+  }
+}
+
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const isModifyUpload = computed(() => uploadMode.value === 'modify')
@@ -61,6 +93,57 @@ function showTooltip(e: MouseEvent, text: string, color = 'blue') {
   tooltipColor.value = color
   tooltipVisible.value = true
   positionTooltip(e)
+}
+
+async function showRelationTooltip(e: MouseEvent, note: NoteItem, kind: 'tags' | 'images' | 'links' | 'status') {
+  const colorMap: Record<string, string> = { tags: 'purple', images: 'amber', links: 'emerald', status: 'blue' }
+  const color = kind === 'status'
+    ? (note.status === NoteStatusCode.REJECTED ? 'rose' : (note.status === NoteStatusCode.PENDING_INFO || note.status === NoteStatusCode.PENDING_AUDIT ? 'amber' : 'blue'))
+    : colorMap[kind]
+
+  // 1. Show immediate basic info
+  tooltipText.value = kind === 'status' ? getStatusTooltip(note) : getRelationTooltip(note, kind)
+  tooltipColor.value = color
+  tooltipVisible.value = true
+  positionTooltip(e)
+
+  // 2. Fetch/Ensure details in background
+  const details = await ensureRelations(note)
+  if (details && tooltipVisible.value) {
+    // 3. Update with details if still visible and same note
+    if (kind === 'status') {
+      tooltipText.value = getDetailedStatusTooltip(note, details)
+    } else {
+      tooltipText.value = getDetailedRelationTooltip(note, kind, details)
+    }
+  }
+}
+
+function getDetailedRelationTooltip(_note: NoteItem, kind: 'tags' | 'images' | 'links', relations: NoteRelationDetailVO): string {
+  if (kind === 'tags') {
+    const list = relations.tags.map(t => `#${t.tagName || t.parsedTagName}${t.isMissing ? ' (缺失)' : ''}`)
+    return list.length ? `关联标签 (${list.length})：\n${list.join('\n')}` : '无关联标签。'
+  }
+  if (kind === 'images') {
+    const list = relations.images.map(img => `• ${img.filename || img.parsedImageName}${img.isMissing ? ' (缺失)' : ' (OK)'}`)
+    return list.length ? `关联图片 (${list.length})：\n${list.join('\n')}` : '无关联图片。'
+  }
+  if (kind === 'links') {
+    const list = relations.eachNotes.map(link => `[[${link.targetNoteTitle || link.parsedNoteName}]]${link.isMissing ? ' (缺失)' : ' (OK)'}`)
+    return list.length ? `双链关联 (${list.length})：\n${list.join('\n')}` : '无双链关联。'
+  }
+  return ''
+}
+
+function getDetailedStatusTooltip(note: NoteItem, relations: NoteRelationDetailVO): string {
+  if (note.status === NoteStatusCode.PENDING_INFO) {
+    const missing: string[] = []
+    relations.tags.filter(t => t.isMissing).forEach(t => missing.push(`标签: ${t.parsedTagName}`))
+    relations.images.filter(i => i.isMissing).forEach(i => missing.push(`图片: ${i.parsedImageName}`))
+    relations.eachNotes.filter(e => e.isMissing).forEach(e => missing.push(`双链: ${e.parsedNoteName}`))
+    return missing.length ? `检测到以下缺失项：\n${missing.join('\n')}` : getStatusTooltip(note)
+  }
+  return getStatusTooltip(note)
 }
 
 function positionTooltip(e: MouseEvent) {
@@ -161,6 +244,13 @@ async function fetchTopics() {
   }
 }
 
+async function preloadRelations(notes: NoteItem[]) {
+  // Use Promise.all to fetch concurrently for better speed, 
+  // or a sequential loop if we want to reduce server peak load.
+  // Given pageSize is small (15), concurrent is fine.
+  await Promise.all(notes.map(n => ensureRelations(n)))
+}
+
 async function fetchNotes() {
   loading.value = true
   try {
@@ -186,6 +276,11 @@ async function fetchNotes() {
     }
 
     noteList.value = records
+    
+    // Auto-load relations for current page
+    if (records.length > 0) {
+      void preloadRelations(records)
+    }
   } finally {
     loading.value = false
   }
@@ -601,7 +696,7 @@ onMounted(() => {
                     <template v-if="note.tags && note.tags.length">
                       <span v-for="(tag, ti) in (note.tags as unknown as string[])" :key="ti" class="mini-tag px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 border border-white/10"># {{ tag }}</span>
                     </template>
-                    <span v-else-if="note.tagCount > 0" class="text-[10px] text-slate-600">含 {{ note.tagCount }} 个标签</span>
+                    <span v-else-if="getNoteRelationCount(note, 'tag') > 0" class="text-[10px] text-slate-600">含 {{ getNoteRelationCount(note, 'tag') }} 个标签</span>
                     <span v-else class="text-[10px] text-slate-600"># 独立笔记 (无标签)</span>
                   </div>
                 </div>
@@ -609,32 +704,32 @@ onMounted(() => {
               <td class="px-5 py-4">
                 <div class="flex items-center space-x-3 flex-wrap gap-y-1">
                   <span tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
-                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'tags'), 'purple')"
+                    @mouseenter="e => showRelationTooltip(e, note, 'tags')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">
                     <Hash class="w-3.5 h-3.5 text-purple-400" />
-                    <span>{{ note.tagCount ?? 0 }}</span>
+                    <span>{{ getNoteRelationCount(note, 'tag') }}</span>
                   </span>
                   <span v-if="note.missingCount > 0" tabindex="0" class="relation-chip status-breathe status-glow-amber inline-flex items-center space-x-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-500"
-                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'images'), 'amber')"
+                    @mouseenter="e => showRelationTooltip(e, note, 'images')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">
                     <Image class="w-3.5 h-3.5" />
-                    <span class="font-bold">{{ note.imageCount ?? 0 }}</span>
+                    <span class="font-bold">{{ getNoteRelationCount(note, 'image') }}</span>
                   </span>
                   <span v-else tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
-                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'images'), 'blue')"
+                    @mouseenter="e => showRelationTooltip(e, note, 'images')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">
                     <Image class="w-3.5 h-3.5 text-blue-400" />
-                    <span>{{ note.imageCount ?? 0 }}</span>
+                    <span>{{ getNoteRelationCount(note, 'image') }}</span>
                   </span>
                   <span tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
-                    @mouseenter="e => showTooltip(e, getRelationTooltip(note, 'links'), 'emerald')"
+                    @mouseenter="e => showRelationTooltip(e, note, 'links')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">
                     <Link class="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{{ note.eachNoteCount ?? 0 }}</span>
+                    <span>{{ getNoteRelationCount(note, 'link') }}</span>
                   </span>
                 </div>
               </td>
@@ -642,7 +737,7 @@ onMounted(() => {
                 <div class="flex flex-col items-start space-y-1.5">
                   <span tabindex="0" class="note-status-chip inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border"
                     :class="[getNoteStatusInfo(note.status).cls, isStatusEmphasized(note.status) ? getStatusEmphasisClass(note.status) : 'status-chip-steady']"
-                    @mouseenter="e => showTooltip(e, getStatusTooltip(note), note.status === NoteStatusCode.REJECTED ? 'rose' : (note.status === NoteStatusCode.PENDING_INFO || note.status === NoteStatusCode.PENDING_AUDIT ? 'amber' : 'blue'))"
+                    @mouseenter="e => showRelationTooltip(e, note, 'status')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">
                     <component :is="getStatusIcon(getNoteStatusInfo(note.status).icon)" class="w-3 h-3 mr-1" />

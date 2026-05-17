@@ -113,8 +113,75 @@ export interface UserStatusParams {
   targetUserId?: number
 }
 
+// ── Audit types ──────────────────────────────────
+export interface AuditNoteItem {
+  id: number
+  title: string
+  applicantUserId: number
+  nickname: string
+  status: number
+  updateTime: string
+}
+
+export interface AuditMetaItem {
+  id: number
+  applyType: number // 1: Topic, 2: Tag
+  targetName: string
+  applicantUserId: number
+  nickname: string
+  status: number
+  updateTime: string
+}
+
+export interface AuditImageItem {
+  id: number
+  filename: string
+  ossUrl: string
+  applicantUserId: number
+  nickname: string
+  status: number
+  updateTime: string
+}
+
+export interface AuditQueryParams {
+  status?: number
+  applicantUserId?: number
+  pageNum?: number
+  pageSize?: number
+}
+
+export interface MetaAuditQueryParams extends AuditQueryParams {
+  applyType?: number
+}
+
+export interface AuditBatchReviewDTO {
+  ids: number[]
+  status: number
+  rejectReason?: string
+}
+
 // ── API methods ───────────────────────────────────
 export const adminApi = {
+  // === Audit ===
+  getNoteAuditList(params: AuditQueryParams): Promise<PageResult<AuditNoteItem>> {
+    return request.post('/admin/audit/note/list', params)
+  },
+  getMetaAuditList(params: MetaAuditQueryParams): Promise<PageResult<AuditMetaItem>> {
+    return request.post('/admin/audit/meta/list', params)
+  },
+  getImageAuditList(params: AuditQueryParams): Promise<PageResult<AuditImageItem>> {
+    return request.post('/admin/audit/image/list', params)
+  },
+  batchReviewNotes(data: AuditBatchReviewDTO): Promise<number> {
+    return request.put('/admin/audit/note/review/batch', data)
+  },
+  batchReviewMetas(data: AuditBatchReviewDTO): Promise<number> {
+    return request.put('/admin/audit/meta/review/batch', data)
+  },
+  batchReviewImages(data: AuditBatchReviewDTO): Promise<number> {
+    return request.put('/admin/audit/image/review/batch', data)
+  },
+
   // === Topics ===
   getTopicList(params: TopicQueryParams): Promise<PageResult<AdminTopicItem>> {
     return request.post('/admin/topic/list', params)

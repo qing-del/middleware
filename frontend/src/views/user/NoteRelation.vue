@@ -291,9 +291,9 @@ onMounted(() => {
     <template v-else>
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div class="flex items-center space-x-3">
-          <button class="group flex items-center space-x-2 text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl border border-white/5" @click="$router.push(`/user/notes/${route.params.noteId}`)">
+          <button class="group flex items-center space-x-2 text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl border border-white/5" @click="$router.push('/user/notes')">
             <ArrowLeft class="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span class="text-sm font-bold">返回笔记</span>
+            <span class="text-sm font-bold">返回列表</span>
           </button>
           <div class="hidden md:flex items-center text-sm font-medium text-slate-400">
             <span class="hover:text-white cursor-pointer transition-colors" @click="$router.push('/user/notes')">我的笔记</span>

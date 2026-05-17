@@ -33,7 +33,7 @@ function toggleSidebar() {
 }
 
 function handleLogout() {
-  authStore.logout()
+  authStore.adminLogout()
 }
 
 onMounted(async () => {

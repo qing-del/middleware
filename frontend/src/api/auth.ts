@@ -11,8 +11,23 @@ export const authApi = {
   adminLogin(data: { username: string; password: string }) {
     return request.post('/admin/user/login', data)
   },
+  adminLogout() {
+    const token = localStorage.getItem('token')
+    const authToken = `Bearer ${token}`
+    return request.post('/admin/user/logout', null, {
+      headers: {
+        Authorization: authToken
+      }
+    })
+  },
   logout() {
-    return request.post('/logout')
+    const token = localStorage.getItem('token')
+    const authToken = `Bearer ${token}`
+    return request.post('/user/user/logout', null, {
+      headers: {
+        Authorization: authToken
+      }
+    })
   },
   getCurrentUser(): Promise<User> {
     return request.get('/user/user/me')
