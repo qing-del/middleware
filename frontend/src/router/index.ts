@@ -98,6 +98,11 @@ const router = createRouter({
           component: () => import('@/views/admin/Notes.vue')
         },
         {
+          path: 'notes/:noteId',
+          name: 'AdminNoteDetail',
+          component: () => import('@/views/admin/NoteDetail.vue')
+        },
+        {
           path: 'topics',
           name: 'AdminTopics',
           component: () => import('@/views/admin/Topics.vue')

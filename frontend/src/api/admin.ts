@@ -9,6 +9,7 @@ export interface PageResult<T> {
 // ── Topics ────────────────────────────────────────
 export interface AdminTopicItem {
   id: number
+  userId?: number
   topicName: string
   sortOrder: number
   noteCount: number
@@ -28,6 +29,7 @@ export interface TopicQueryParams {
 // ── Tags ──────────────────────────────────────────
 export interface AdminTagItem {
   id: number
+  userId?: number
   tagName: string
   isPass: number
   createTime: string

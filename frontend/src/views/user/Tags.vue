@@ -2,11 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { tagApi } from '@/api/tags'
 import type { TagItem } from '@/api/tags'
+import { useAuthStore } from '@/stores/auth'
 import {
   Tags, Plus, Search, Globe, Hash, Send, Info, Loader2,
   X, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-vue-next'
 
+const authStore = useAuthStore()
 const loading = ref(true)
 const tagList = ref<TagItem[]>([])
 const total = ref(0)
@@ -314,9 +316,12 @@ onMounted(() => {
                 />
               </td>
               <td class="px-6 py-4">
-                <div class="tag-badge inline-flex w-max items-center space-x-1.5 rounded-full border border-white/10 px-3 py-1.5">
-                  <Hash class="h-3.5 w-3.5 text-purple-400" />
-                  <span class="text-sm font-bold text-slate-200">{{ tag.tagName }}</span>
+                <div class="flex flex-col">
+                  <div class="tag-badge inline-flex w-max items-center space-x-1.5 rounded-full border border-white/10 px-3 py-1.5">
+                    <Hash class="h-3.5 w-3.5 text-purple-400" />
+                    <span class="text-sm font-bold text-slate-200">{{ tag.tagName }}</span>
+                  </div>
+                  <span v-if="searchMode === 'global' && tag.userId && tag.userId !== authStore.user?.id" class="text-[9px] text-slate-600 bg-black/30 px-1.5 py-0.5 rounded border border-white/5 mt-1.5 ml-1 w-max">UID:{{ tag.userId }}</span>
                 </div>
               </td>
               <td class="px-6 py-4">

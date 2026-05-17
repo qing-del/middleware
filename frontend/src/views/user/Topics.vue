@@ -2,12 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { topicApi } from '@/api/topics'
 import type { TopicItem } from '@/api/topics'
+import { useAuthStore } from '@/stores/auth'
 import {
   Layers, Plus, Search, Globe, FolderTree, Pencil, Trash2,
   Send, Info, Loader2, X, ChevronLeft, ChevronRight,
   ArrowUpDown
 } from 'lucide-vue-next'
 
+const authStore = useAuthStore()
 const loading = ref(true)
 const topicList = ref<TopicItem[]>([])
 const total = ref(0)
@@ -338,7 +340,10 @@ onMounted(() => {
                   <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
                     <FolderTree class="h-4 w-4" />
                   </div>
-                  <span class="text-sm font-bold text-slate-200">{{ topic.topicName }}</span>
+                  <div class="flex flex-col">
+                    <span class="text-sm font-bold text-slate-200">{{ topic.topicName }}</span>
+                    <span v-if="searchMode === 'global' && topic.userId && topic.userId !== authStore.user?.id" class="text-[9px] text-slate-600 bg-black/30 px-1.5 py-0.5 rounded border border-white/5 mt-0.5 w-max">UID:{{ topic.userId }}</span>
+                  </div>
                 </div>
               </td>
               <td class="px-6 py-4">

@@ -96,11 +96,13 @@ public interface NoteCoreService {
     /**
      * 批量更新笔记状态
      * <p>- 不支持回滚，仅作日志记录</p>
+     *
      * @param noteIds 笔记 ID
      * @param status  笔记状态
+     * @return
      * @throws BaseException 全部更新失败
      */
-    void updateStatusByIds(List<Long> noteIds, Short status);
+    int updateStatusByIds(List<Long> noteIds, Short status);
 
     /**
      * 修改笔记信息 -- （通用）

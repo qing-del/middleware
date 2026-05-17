@@ -41,6 +41,7 @@ public interface UserMapper {
 
     /**
      * 批量更新用户存储（仅更新 used_storage_bytes）
+     * <p>- 建议批量<b>减少</b>{@code used_storage_bytes}使用，增加不建议使用</p>
      * @param users 用户列表
      * @return 更新数量
      */
@@ -53,4 +54,20 @@ public interface UserMapper {
      * @return
      */
     int upsertUser(List<UserEntity> users);
+
+    /**
+     * 批量更新用户存储（仅更新 used_storage_bytes）
+     * <p>- 带有 CAS 特性， 如果 CAS 失败会返回 0</p>
+     * @param updateUser 用户
+     * @return 更新数量
+     */
+    int updateStorageById(UserEntity updateUser);
+
+    /**
+     * 批量更新用户最大存储（仅更新 max_storage_bytes）
+     * @param id 用户ID
+     * @param maxStorageBytes 最大存储字节数
+     * @return 更新数量
+     */
+    int updateMaxStorageById(Long id, Long maxStorageBytes);
 }

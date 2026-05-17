@@ -213,7 +213,7 @@ public class StorageHandlerAspect {
                 throw new BaseException("系统繁忙，请稍后！");
             }
             // 1. 查用户表获取最大配额
-            CachedStorageInfo cachedInfo = loadCachedStorageInfo(userId);
+            CachedStorageInfo cachedInfo = loadAndSyncCachedStorageInfo(userId);
 
             // 2. 查 note + image 两表算实际使用量（一致性检查）
             long actualUsedBytes = computeActualUsedStorage(userId);
@@ -228,7 +228,7 @@ public class StorageHandlerAspect {
 
             // 5. 操作后写回（基于 actualUsedBytes 直接运算，不再用缓存值，不再重新 sum）
             syncStorageAfterUploadOrModify(userId, result, actualUsedBytes,
-                                           cachedInfo.maxBytes(), annotation.operationType(), requiredBytes);
+                    annotation.operationType(), requiredBytes);
 
             return result;
         } finally {
@@ -241,9 +241,10 @@ public class StorageHandlerAspect {
 
     /**
      * 从用户表加载缓存的存储信息（仅用于获取 maxBytes）。
+     * <p>- 如果不符合会自动同步数据库（单次网络IO）</p>
      * @return 返回该用户的最大存储额度
      */
-    private CachedStorageInfo loadCachedStorageInfo(Long userId) {
+    private CachedStorageInfo loadAndSyncCachedStorageInfo(Long userId) {
         // 尝试从用户表中获取存储信息
         UserQuoteStorageDTO quote = userMapper.selectQuoteStorageById(userId);
         if (quote == null) {
@@ -256,6 +257,13 @@ public class StorageHandlerAspect {
             maxStorageBytes = roleMapper.selectMaxStorageById(quote.getRoleId());
         }
 
+        // 写入数据库中同步
+        int affect = userMapper.updateMaxStorageById(quote.getId(), maxStorageBytes);
+        if (affect <= 0) {
+            log.error("Failed to update user storage after load, userId: {}", userId);
+            throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
+        }
+
         // 返回
         return new CachedStorageInfo(maxStorageBytes);
     }
@@ -264,11 +272,10 @@ public class StorageHandlerAspect {
      * 上传/修改后，基于实际使用量直接运算并写回存储。
      * <p>操作后不再查 DB，直接用 actualUsedBytes 运算后写回。</p>
      * @param actualUsedBytes 操作前通过 note+image 两表 sum 得到的实际使用量
-     * @param maxBytes       最大配额（来自用户表或角色默认值）
      * @param deltaBytes     UPLOAD=文件大小，MODIFY=差量（可为负数）
      */
     private void syncStorageAfterUploadOrModify(Long userId, Object result,
-                                                long actualUsedBytes, long maxBytes,
+                                                long actualUsedBytes,
                                                 StorageOperationType opType,
                                                 long deltaBytes) {
         // 仅业务成功时才更新；失败时保持原值
@@ -289,13 +296,11 @@ public class StorageHandlerAspect {
         UserEntity updateUser = new UserEntity();
         updateUser.setId(userId);
         updateUser.setUsedStorageBytes(newUsedBytes);
-        updateUser.setMaxStorageBytes(maxBytes);
 
         // 写回DB
-        int count = userMapper.updateById(updateUser);
+        int count = userMapper.updateStorageById(updateUser);
         if (count <= 0) {
-            log.error("Failed to update user storage after upload/modify, userId: {}", userId);
-            throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
+            throw new BaseException(ImageConstant.IMAGE_STORAGE_QUOTA_EXCEEDED);
         }
     }
 

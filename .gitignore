@@ -58,3 +58,7 @@ CLAUDE.md
 /logs/**
 /.codex/
 /frontend/dist/
+
+### Docker ###
+.env
+/data/

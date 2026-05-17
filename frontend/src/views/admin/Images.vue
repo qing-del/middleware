@@ -147,13 +147,15 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="glass-panel sticky top-0 z-30 flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-300" :class="isBatchMode ? 'translate-y-0 opacity-100' : '-translate-y-[10px] opacity-0 pointer-events-none'">
-      <span class="text-sm font-bold text-cyan-200">已选取 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 张图片</span>
-      <div class="flex items-center space-x-2">
+    <Transition name="batch-float">
+      <div v-if="isBatchMode" class="glass-panel sticky top-0 z-30 flex items-center justify-between rounded-xl px-4 py-3">
+        <span class="text-sm font-bold text-cyan-200">已选取 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 张图片</span>
+        <div class="flex items-center space-x-2">
         <button class="flex items-center space-x-1.5 rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-bold text-cyan-200 transition-all hover:bg-cyan-400 hover:text-slate-950" @click="handleTransfer"><Upload class="h-3.5 w-3.5" /><span>迁移云端</span></button>
         <button class="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white" @click="handleBatchDelete"><Trash2 class="h-3.5 w-3.5" /><span>批量删除</span></button>
+        </div>
       </div>
-    </div>
+    </Transition>
 
     <div v-if="loading" class="relative z-10 flex flex-col items-center justify-center space-y-3 py-24"><Loader2 class="h-8 w-8 animate-spin text-cyan-300" /><span class="text-xs text-slate-500">加载中...</span></div>
     <div v-else-if="imageList.length === 0" class="relative z-10 flex flex-col items-center justify-center space-y-4 py-24"><Image class="h-12 w-12 text-slate-600" /><p class="text-sm text-slate-500">暂无图片数据</p></div>
@@ -234,4 +236,34 @@ onMounted(() => {
 .modal-enter-active, .modal-leave-active { transition: opacity 0.28s ease, transform 0.38s cubic-bezier(0.22,1,0.36,1); }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.92) translateY(18px); }
 .modal-enter-to, .modal-leave-from { opacity: 1; transform: scale(1) translateY(0); }
+
+/* ── Batch Float Animation ── */
+@keyframes batch-slide-up {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.batch-float-enter-active { transition: opacity 0.42s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.batch-float-enter-from,
+.batch-float-leave-to { opacity: 0; }
+.batch-float-leave-active { transition: opacity 0.26s ease; }
+.batch-float-leave-active > * { opacity: 0; transform: translateY(16px) scale(0.98); transition: transform 0.26s ease, opacity 0.26s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .staggered-fade-enter-active,
+  .staggered-fade-leave-active,
+  .staggered-fade-move,
+  .fade-enter-active,
+  .fade-leave-active,
+  .modal-enter-active,
+  .modal-leave-active,
+  .batch-float-enter-active,
+  .batch-float-leave-active,
+  .glass-card { transition-duration: 0.01s !important; }
+  .staggered-fade-enter-from,
+  .staggered-fade-leave-to,
+  .modal-enter-from,
+  .modal-leave-to { opacity: 0; transform: none; }
+  .glass-card:hover { transform: none; }
+}
 </style>

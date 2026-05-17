@@ -635,7 +635,7 @@ public class ImageServiceImpl implements ImageService {
     private void validateTopic(Long topicId) {
         // 校验 topicId 是否合法
         if (topicId != null && topicId > 0) {
-            if (!topicService.topicExists(topicId)) {
+            if (!topicService.topicValid(topicId)) {
                 throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
             }
         }

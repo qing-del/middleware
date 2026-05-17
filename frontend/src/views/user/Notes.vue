@@ -688,6 +688,7 @@ onMounted(() => {
                   <div class="flex items-center space-x-2">
                     <h3 class="text-sm font-bold text-slate-200 group-hover:text-blue-300 transition-colors truncate max-w-[260px]">{{ note.title }}</h3>
                     <span v-if="note.mdFileSize" class="text-[9px] font-mono text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/5 flex-shrink-0">{{ formatBytes(note.mdFileSize) }}</span>
+                    <span v-if="searchMode === 'global'" class="text-[9px] text-slate-600 bg-black/30 px-1.5 py-0.5 rounded border border-white/5 flex-shrink-0">UID:{{ note.userId }}</span>
                   </div>
                   <div class="flex items-center space-x-2 mt-2 flex-wrap gap-y-1">
                     <span v-if="note.topicName" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/20">

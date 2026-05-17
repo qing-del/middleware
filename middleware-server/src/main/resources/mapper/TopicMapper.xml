@@ -29,6 +29,7 @@
     <select id="listByCondition" resultType="com.jacolp.pojo.vo.topic.TopicListVO">
         SELECT
             t.id,
+            t.user_id AS userId,
             t.topic_name AS topicName,
             t.sort_order AS sortOrder,
             t.create_time AS createTime,
