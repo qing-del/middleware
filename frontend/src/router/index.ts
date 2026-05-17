@@ -4,10 +4,18 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
+      path: '/login',
       name: 'Login',
       component: () => import('@/views/Login.vue'),
       meta: { requiresAuth: false }
+    },
+    {
+      path: '/dashboard',
+      redirect: '/user/dashboard'
+    },
+    {
+      path: '/',
+      redirect: '/login'
     },
     {
       path: '/user',
@@ -16,7 +24,7 @@ const router = createRouter({
       children: [
         {
           path: '',
-          redirect: '/dashboard'
+          redirect: '/user/dashboard'
         },
         {
           path: 'dashboard',
@@ -27,6 +35,21 @@ const router = createRouter({
           path: 'notes',
           name: 'UserNotes',
           component: () => import('@/views/user/Notes.vue')
+        },
+        {
+          path: 'notes/:noteId',
+          name: 'UserNoteDetail',
+          component: () => import('@/views/user/NoteDetail.vue')
+        },
+        {
+          path: 'notes/:noteId/relations',
+          name: 'UserNoteRelations',
+          component: () => import('@/views/user/NoteRelation.vue')
+        },
+        {
+          path: 'notes/:noteId/diff',
+          name: 'UserNoteDiff',
+          component: () => import('@/views/user/NoteDiff.vue')
         },
         {
           path: 'topics',
@@ -95,19 +118,15 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token')
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
 
   if (requiresAuth && !token) {
     next('/login')
-  } else if (to.path === '/login' || to.path === '/') {
-    // 如果访问 login 或根路径，有 token 就去 dashboard，没有 token 就留在 login
-    if (token) {
-      next('/dashboard')
-    } else {
-      next()
-    }
+  } else if ((to.path === '/login' || to.path === '/') && token) {
+    // 如果访问 login 或根路径且有 token，去 dashboard
+    next('/dashboard')
   } else {
     next()
   }

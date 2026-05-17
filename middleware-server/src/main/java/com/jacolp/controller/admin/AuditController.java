@@ -2,11 +2,7 @@ package com.jacolp.controller.admin;
 
 import com.jacolp.facade.AuditFacade;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
 import com.jacolp.pojo.dto.image.ImageAuditListDTO;
@@ -25,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("Admin-AuditController")
 @RequestMapping("/admin/audit")
 @Slf4j
+@CrossOrigin("*")
 @Schema(description = "Admin - 审核管理")
 @Tag(name = "Admin-审核管理", description = "元数据、图片与笔记的审核记录查询与批量审核接口")
 public class AuditController {

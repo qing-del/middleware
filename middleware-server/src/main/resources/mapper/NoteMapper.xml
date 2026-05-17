@@ -50,9 +50,11 @@
                         <if test="description != null">description = #{description},</if>
                         <if test="storageType != null">storage_type = #{storageType},</if>
                         <if test="status != null">status = #{status},</if>
+                        <if test="isChanging != null">is_changing = #{isChanging},</if>
                         <if test="missingInfoMask != null">missing_info_mask = #{missingInfoMask},</if>
                         <if test="missingCount != null">missing_count = #{missingCount},</if>
                         <if test="mdFileSize != null">md_file_size = #{mdFileSize},</if>
+                        update_time = NOW(),
                 </set>
                 WHERE id = #{id}
         </update>
@@ -60,7 +62,7 @@
         <select id="selectVoById" resultMap="NoteVOMap">
                 SELECT
                     n.*,
-                    t.title
+                    t.topic_name AS topicName
                 FROM biz_note n
                 LEFT JOIN biz_topic t ON t.id = n.topic_id
                 WHERE n.id = #{id}
@@ -149,7 +151,7 @@
         <select id="listByUserCondition" resultMap="NoteVOMap">
                 SELECT
                     n.*,
-                    t.title
+                    t.topic_name as topicName
                 FROM biz_note n
                 LEFT JOIN biz_topic t ON t.id = n.topic_id
                 <where>

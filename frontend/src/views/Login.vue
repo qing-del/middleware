@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
-import { authApi } from '@/api/auth'
+import { useAuthStore } from '@/stores/auth'
 import {
   Zap, ChevronRight, Link, FileDiff, User, Mail, Lock,
   ShieldCheck, Loader2, ArrowRight, CheckCircle2
 } from 'lucide-vue-next'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 视图状态：login, register, admin
 const currentView = ref<'login' | 'register' | 'admin'>('login')
@@ -175,72 +176,69 @@ function animateCanvas() {
   animationFrameId = requestAnimationFrame(animateCanvas)
 }
 
-function setView(newView: 'login' | 'register' | 'admin') {
+// 核心优化：重构的平滑伸缩动画
+async function setView(newView: 'login' | 'register' | 'admin') {
   if (currentView.value === newView || isAnimating.value) return
   isAnimating.value = true
 
   const card = cardRef.value
-  if (!card) return
+  const formContent = formContentRef.value
+  if (!card || !formContent) return
 
+  // 1. 先将内部表单内容优雅淡出（缩小且透明）
+  formContent.style.opacity = '0'
+  formContent.style.transform = 'scale(0.96) translateY(10px)'
+
+  // 等待内容完全消失 (与 form-transition 中定义的 200ms 同步)
+  await new Promise(resolve => setTimeout(resolve, 200))
+
+  // 2. 锁定卡片当前尺寸，防止 Vue 更新 DOM 时发生闪烁
   const startHeight = card.offsetHeight
   const startWidth = card.offsetWidth
-
   card.style.height = startHeight + 'px'
-  card.style.maxWidth = startWidth + 'px'
+  card.style.width = startWidth + 'px'
+  card.style.transition = 'none'
 
-  if (formContentRef.value) {
-    formContentRef.value.style.opacity = '0'
-    formContentRef.value.style.transform = 'scale(0.96) translateY(10px)'
-  }
+  // 3. 切换视图状态，Vue 会根据 v-if 插入/移除节点
+  currentView.value = newView
+  await nextTick()
 
-  setTimeout(() => {
-    currentView.value = newView
+  // 4. 重置样式，让容器根据新内容自然撑开，以便我们测量目标尺寸
+  card.classList.remove('max-w-[380px]', 'max-w-[420px]', 'max-w-[460px]')
+  if (newView === 'admin') card.classList.add('max-w-[380px]')
+  else if (newView === 'register') card.classList.add('max-w-[460px]')
+  else card.classList.add('max-w-[420px]')
 
-    card.style.transition = 'none'
-    const fieldEmail = document.getElementById('field-email')
-    const fieldConfirm = document.getElementById('field-confirm')
-    if (fieldEmail) fieldEmail.style.transition = 'none'
-    if (fieldConfirm) fieldConfirm.style.transition = 'none'
+  card.style.height = 'auto'
+  card.style.width = '100%' // 必须设置，让它充满 max-w 限定
+  const targetHeight = card.offsetHeight
+  const targetWidth = card.offsetWidth
 
-    card.classList.remove('max-w-[380px]', 'max-w-[420px]', 'max-w-[460px]')
-    card.style.maxWidth = ''
+  // 5. 将卡片瞬间还原到原始尺寸，准备执行伸展动画
+  card.style.height = startHeight + 'px'
+  card.style.width = startWidth + 'px'
+  void card.offsetHeight // 强制触发浏览器重绘
 
-    if (newView === 'admin') {
-      card.classList.add('max-w-[380px]')
-    } else if (newView === 'register') {
-      card.classList.add('max-w-[460px]')
-    } else {
-      card.classList.add('max-w-[420px]')
-    }
+  // 6. 开启 CSS 平滑过渡，由原点同时缩放宽高（Flexbox 会让它自动居中定住）
+  card.style.transition = 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+  card.style.height = targetHeight + 'px'
+  card.style.width = targetWidth + 'px'
 
-    card.style.height = 'auto'
-    const targetHeight = card.offsetHeight
-    const targetWidth = card.offsetWidth
+  // 等待卡片尺寸伸缩完成 (400ms)
+  await new Promise(resolve => setTimeout(resolve, 400))
 
-    card.style.height = startHeight + 'px'
-    card.style.maxWidth = startWidth + 'px'
-    void card.offsetHeight
+  // 7. 清理内联样式，交回给 Tailwind 的类名接管，保持响应式能力
+  card.style.height = ''
+  card.style.width = ''
+  card.style.transition = ''
 
-    card.style.transition = ''
-    if (fieldEmail) fieldEmail.style.transition = ''
-    if (fieldConfirm) fieldConfirm.style.transition = ''
+  // 8. 卡片稳定后，淡入新表单内容
+  formContent.style.opacity = '1'
+  formContent.style.transform = 'scale(1) translateY(0)'
 
-    card.style.height = targetHeight + 'px'
-    card.style.maxWidth = targetWidth + 'px'
-
-    if (formContentRef.value) {
-      formContentRef.value.style.opacity = '1'
-      formContentRef.value.style.transform = 'scale(1) translateY(0)'
-    }
-
-    setTimeout(() => {
-      if (card.style.height === targetHeight + 'px') {
-        card.style.height = 'auto'
-      }
-      card.style.maxWidth = ''
-      isAnimating.value = false
-    }, 500)
-  }, 300)
+  // 等待内容完全浮现
+  await new Promise(resolve => setTimeout(resolve, 200))
+  isAnimating.value = false
 }
 
 function toggleFeatures() {
@@ -288,21 +286,32 @@ async function handleSubmit() {
   if (loaderIconRef.value) loaderIconRef.value.classList.remove('hidden')
 
   try {
-    let token: string
     if (currentView.value === 'admin') {
-      token = await authApi.adminLogin({ username: formData.username, password: formData.password }) as unknown as string
+      await authStore.adminLogin({ username: formData.username, password: formData.password })
+      showToast('安全认证通过...', 'success')
+      setTimeout(() => {
+        router.push('/admin')
+      }, 1000)
+    } else if (currentView.value === 'register') {
+      await authStore.register({
+        username: formData.username,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        email: formData.email
+      })
+      showToast('账号创建成功，请登录', 'success')
+      setTimeout(() => {
+        setView('login')
+      }, 1200)
     } else {
-      token = await authApi.login({ username: formData.username, password: formData.password }) as unknown as string
+      await authStore.login({ username: formData.username, password: formData.password })
+      showToast('安全认证通过...', 'success')
+      setTimeout(() => {
+        router.push('/user')
+      }, 1000)
     }
-
-    localStorage.setItem('token', token)
-    showToast('安全认证通过...', 'success')
-
-    setTimeout(() => {
-      router.push(currentView.value === 'admin' ? '/admin' : '/user')
-    }, 1000)
   } catch (error: any) {
-    showToast(error.message || '认证失败', 'error')
+    showToast(error.message || '操作失败', 'error')
   } finally {
     btn.disabled = false
     if (submitTextRef.value) submitTextRef.value.classList.remove('opacity-0')
@@ -429,16 +438,12 @@ onUnmounted(() => {
                 <input type="text" v-model="formData.username" name="username" placeholder="用户名" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
               </div>
 
-              <!-- 邮箱 (Grid 平滑折叠) -->
-              <div id="field-email" :class="['field-wrapper', { 'is-expanded': currentView === 'register' }]">
-                <div class="field-inner">
-                  <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                      <Mail class="w-[18px] h-[18px]" />
-                    </div>
-                    <input type="email" v-model="formData.email" name="email" placeholder="邮箱地址" :required="currentView === 'register'" class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
-                  </div>
+              <!-- 邮箱（通过 v-if 接管，不再使用繁重的 CSS 展开动画） -->
+              <div v-if="currentView === 'register'" class="relative group transition-all duration-300 mt-4">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Mail class="w-[18px] h-[18px]" />
                 </div>
+                <input type="email" v-model="formData.email" name="email" placeholder="邮箱地址" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
               </div>
 
               <!-- 密码 -->
@@ -449,16 +454,12 @@ onUnmounted(() => {
                 <input type="password" v-model="formData.password" name="password" placeholder="密码" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
               </div>
 
-              <!-- 确认密码 (Grid 平滑折叠) -->
-              <div id="field-confirm" :class="['field-wrapper', { 'is-expanded': currentView === 'register' }]">
-                <div class="field-inner">
-                  <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                      <ShieldCheck class="w-[18px] h-[18px]" />
-                    </div>
-                    <input type="password" v-model="formData.confirmPassword" name="confirmPassword" placeholder="确认密码" :required="currentView === 'register'" class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
-                  </div>
+              <!-- 确认密码 -->
+              <div v-if="currentView === 'register'" class="relative group transition-all duration-300 mt-4">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <ShieldCheck class="w-[18px] h-[18px]" />
                 </div>
+                <input type="password" v-model="formData.confirmPassword" name="confirmPassword" placeholder="确认密码" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
               </div>
 
               <!-- 提交按钮 -->
@@ -492,6 +493,11 @@ onUnmounted(() => {
                   <button @click="setView('login')" type="button" class="group flex items-center space-x-2 text-xs text-rose-400 font-bold hover:text-rose-300 transition-all uppercase tracking-widest">
                     <div class="w-1.5 h-1.5 rounded-full bg-rose-500 group-hover:animate-ping"></div>
                     <span>退出管理入口</span>
+                  </button>
+                </template>
+                <template v-else-if="currentView === 'register'">
+                  <button @click="setView('login')" type="button" class="text-xs text-slate-400 font-bold hover:text-white transition-all uppercase tracking-wider underline underline-offset-8 decoration-slate-500/20 hover:decoration-slate-500">
+                    返回身份认证
                   </button>
                 </template>
                 <template v-else>
@@ -562,34 +568,17 @@ onUnmounted(() => {
   animation-delay: 2s;
 }
 
-/* 表单内容淡入淡出过渡 */
+/* 优化后的表单内容淡入淡出速度 (更快更顺畅) */
 .form-transition {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 卡片整体的高宽伸缩过渡 */
+/* 卡片容器：移除过渡样式，由 JS 接管保证平滑 */
 .glass-card-morph {
-  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              height 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.5s ease;
+  /* JS 内部会自动注入宽高动画，这里仅保留基础样式 */
+  box-shadow: 0 40px 100px -20px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.2), inset 0 -1px 1px rgba(0,0,0,0.4);
 }
-
-/* 内部 Grid 折叠动画 */
-.field-wrapper {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0;
-  transform: translateY(-5px);
-  margin-top: 0;
-}
-.field-wrapper.is-expanded {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transform: translateY(0);
-  margin-top: 1rem;
-}
-.field-inner { overflow: hidden; }
 
 /* 特性面板 */
 .feature-panel-hide {

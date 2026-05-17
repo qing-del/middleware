@@ -193,7 +193,7 @@ public class TagServiceImpl implements TagService {
 
         Long userId = dto.getUserId();
         if (userId != null && userId <= 0) {
-            throw new BaseException(UserConstant.NOT_FIND_USER);
+            throw new BaseException(UserConstant.NOT_FOUND_USER);
         }
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());

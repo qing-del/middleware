@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-ImageController")
 @RequestMapping("/user/image")
 @Slf4j
+@CrossOrigin("*")
 @Schema(description = "User - 图片管理")
 @Tag(name = "User-图片管理", description = "用户端图片管理接口")
 public class ImageController {

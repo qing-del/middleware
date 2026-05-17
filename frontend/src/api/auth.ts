@@ -5,10 +5,35 @@ export const authApi = {
   login(data: { username: string; password: string }) {
     return request.post('/user/user/login', data)
   },
+  register(data: { username: string; password: string; confirmPassword: string; email: string }) {
+    return request.post('/user/user/register', data)
+  },
   adminLogin(data: { username: string; password: string }) {
     return request.post('/admin/user/login', data)
   },
+  adminLogout() {
+    const token = localStorage.getItem('token')
+    const authToken = `Bearer ${token}`
+    return request.post('/admin/user/logout', null, {
+      headers: {
+        Authorization: authToken
+      }
+    })
+  },
+  logout() {
+    const token = localStorage.getItem('token')
+    const authToken = `Bearer ${token}`
+    return request.post('/user/user/logout', null, {
+      headers: {
+        Authorization: authToken
+      }
+    })
+  },
   getCurrentUser(): Promise<User> {
     return request.get('/user/user/me')
+  },
+  // 管理端获取当前用户信息
+  getCurrentAdminUser(): Promise<User> {
+    return request.get('/admin/user/me')
   }
 }

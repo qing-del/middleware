@@ -8,11 +8,13 @@ import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.properties.JwtProperties;
 import com.jacolp.result.Result;
 import com.jacolp.utils.JwtUtil;
+import com.jacolp.utils.KeyToolUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -23,9 +25,10 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 @Slf4j
 public class JwtTokenUserInterceptor implements HandlerInterceptor {
-
-    @Autowired private JwtProperties jwtProperties;
     private static final ObjectMapper OBJECT_MAPPER = new JacksonObjectMapper();
+
+    @Autowired private StringRedisTemplate redis;
+    @Autowired private JwtProperties jwtProperties;
 
     /**
      * verify JWT token
@@ -34,11 +37,9 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
      * @param response
      * @param handler
      * @return
-     * @throws Exception
      */
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
-            throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         // determine whether the currently intercepted method is for the Controller or for some other resources
         if (!(handler instanceof HandlerMethod)) {
             // 当前拦截到的不是动态方法，直接放行
@@ -46,7 +47,10 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         }
 
         // 1、从请求头中获取令牌
-        String token = request.getHeader(jwtProperties.getUserTokenName());
+        String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7); // 截取掉 "Bearer " 前缀拿到真实的 JWT
+        }
 
         // 2、校验令牌
         try {
@@ -54,11 +58,20 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return false;
             }
-            log.info("JWT verification: {}", token);
+            log.debug("JWT verification: {}", token);
             Claims claims = JwtUtil.parseJWT(jwtProperties.getUserSecretKey(), token);
             Long userId = Long.valueOf(claims.get(UserConstant.USER_ID_CLAIM).toString());
-            log.info("Current user ID: {}", userId);
-            // 3、将用户 ID 存入线程上下文
+            log.debug("Current user ID: {}", userId);
+
+            // 在 Redis 中校验用户 jwt 令牌
+            String jwt = redis.opsForValue().get(KeyToolUtil.getUserLoginKey(userId));
+            if (jwt == null || !jwt.equals(token)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                setResult(response, Result.error("认证令牌无效或已过期"));
+                return false;
+            }
+
+            // 将用户 ID 存入线程上下文
             BaseContext.setCurrentId(userId);
             PermissionContext.setAdmin(false);
             // 4、通过，放行

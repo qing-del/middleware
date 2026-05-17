@@ -88,6 +88,25 @@ public enum NoteStatus {
     }
 
     /**
+     * 检查是否已经通过审核
+     *
+     * @param status 笔记状态
+     * @return true=已通过, false=未通过
+     */
+    public static boolean isPassed(NoteStatus status) {
+        return status == APPROVED || status == PUBLISHED;
+    }
+
+    /**
+     * 检查是否可以绑定/解绑操作
+     * @param status 笔记状态
+     * @return true=可以绑定, false=不允许绑定
+     */
+    public static boolean canBindOperation(NoteStatus status) {
+        return status == NEW || status == PENDING_INFO || status == READY_TO_CONVERT;
+    }
+
+    /**
      * 检查是否可以转换到目标状态
      *
      * @param target 目标状态
@@ -105,14 +124,14 @@ public enum NoteStatus {
 
 
         switch (this) {
-            case NEW:   // 创建 -> 缺失信息
-                return target == PENDING_INFO;
+            case NEW:   // 创建 -> 缺失信息 | 待转换
+                return target == PENDING_INFO || target == READY_TO_CONVERT;
             case PENDING_INFO:  // 缺失信息 -> 待转换
                 return target == READY_TO_CONVERT;
             case READY_TO_CONVERT:  // 待转换 -> 已转换
                 return target == CONVERTED;
-            case CONVERTED: // 已转换 -> 待审核
-                return target == PENDING_AUDIT;
+            case CONVERTED: // 已转换 -> 待审核 | 待转换（删除转换缓存）
+                return target == PENDING_AUDIT || target == READY_TO_CONVERT;
             case PENDING_AUDIT: // 待审核 -> 已通过 / 拒绝 /  已转换(取消审核)
                 return target == APPROVED || target == REJECTED || target == CONVERTED;
             case APPROVED:  // 已通过 -> 已公开

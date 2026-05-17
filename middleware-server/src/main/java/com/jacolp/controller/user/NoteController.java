@@ -5,17 +5,11 @@ import com.jacolp.constant.NoteConstant;
 import com.jacolp.pojo.dto.note.*;
 import com.jacolp.pojo.vo.note.*;
 import com.jacolp.service.NoteConvertService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.facade.NoteFacade;
@@ -36,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-NoteController")
 @RequestMapping("/user/note")
 @Slf4j
+@CrossOrigin("*")
+@Validated
 @Schema(description = "User - 笔记管理")
 @io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记管理", description = "用户端笔记管理接口")
 public class NoteController {
@@ -95,13 +91,8 @@ public class NoteController {
             description = "对 modify-upload 产生的待确认 Diff 进行最终处理：确认时用新内容覆盖旧内容并重建关联映射，取消时清理临时内容和变更记录；整个过程保持笔记原有发布状态不变。")
     public Result confirmChange(
             @Parameter(description = "笔记ID") @PathVariable Long noteId,
-            @Parameter(description = "变更确认请求（包含确认或取消标记）") @RequestBody NoteChangeConfirmDTO dto) {
+            @Parameter(description = "变更确认请求（包含确认或取消标记）") @RequestBody @Valid @NotNull NoteChangeConfirmDTO dto) {
         log.info("User confirm note change, noteId: {}", noteId);
-
-        if (dto == null || dto.getConfirm() == null) {
-            return Result.error("确认参数不能为空");
-        }
-
         noteFacade.confirmChange(noteId, dto);
         return Result.success();
     }
@@ -170,6 +161,15 @@ public class NoteController {
     public Result convert(@Parameter(description = "笔记ID") @RequestParam Long noteId) {
         log.info("User convert note: {}", noteId);
         noteFacade.convertNote(noteId);
+        return Result.success();
+    }
+
+    @DeleteMapping("/convert")
+    @Operation(summary = "删除笔记转换缓存",
+           description = "删除笔记转换缓存，并清理临时文件和转换记录；同时将笔记状态转换为“待转换”。")
+    public Result deleteConverted(@Parameter(description = "笔记ID") @RequestParam Long noteId) {
+        log.info("User delete converted note cache, noteId: {}", noteId);
+        noteFacade.deleteConverted(noteId);
         return Result.success();
     }
 

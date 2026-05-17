@@ -5,8 +5,13 @@ import com.jacolp.constant.DatabaseConstant;
 import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.BaseException;
 import com.jacolp.result.Result;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -36,6 +41,32 @@ public class GlobalExceptionHandler {
         // 设置 401 状态码
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         return Result.error(ex.getMessage());
+    }
+
+    /**
+     * 捕获 Spring Validation 绑定异常
+     */
+    @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
+    public Result validationExceptionHandler(Exception ex) {
+        log.error("Validation exception: {}", ex.getMessage());
+        BindingResult bindingResult = ex instanceof MethodArgumentNotValidException manv
+                ? manv.getBindingResult()
+                : ((BindException) ex).getBindingResult();
+        return Result.error(extractBindingErrorMessage(bindingResult));
+    }
+
+    /**
+     * 捕获方法参数校验异常
+     */
+    @ExceptionHandler({ConstraintViolationException.class})
+    public Result constraintViolationExceptionHandler(ConstraintViolationException ex) {
+        log.error("Constraint violation exception: {}", ex.getMessage());
+        String msg = ex.getConstraintViolations()
+                .stream()
+                .findFirst()
+                .map(cv -> cv.getMessage())
+                .orElse("请求参数校验失败");
+        return Result.error(msg);
     }
 
     /**
@@ -72,5 +103,16 @@ public class GlobalExceptionHandler {
         }
 
         return Result.error("未知错误");
+    }
+
+    private String extractBindingErrorMessage(BindingResult bindingResult) {
+        if (bindingResult == null) {
+            return "请求参数校验失败";
+        }
+        FieldError fieldError = bindingResult.getFieldError();
+        if (fieldError != null && fieldError.getDefaultMessage() != null) {
+            return fieldError.getDefaultMessage();
+        }
+        return "请求参数校验失败";
     }
 }

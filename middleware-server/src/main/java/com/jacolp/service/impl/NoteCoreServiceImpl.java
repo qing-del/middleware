@@ -76,9 +76,9 @@ public class NoteCoreServiceImpl implements NoteCoreService {
         if (dto == null) {
             dto = new UserNoteQueryDTO();
         }
-        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-
         String title = (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) ? dto.getTitle().trim() : null;
+
+        PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
         List<NoteVO> records = noteMapper.listByUserCondition(BaseContext.getCurrentId(), dto.getTopicId(), title);
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());

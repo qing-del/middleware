@@ -1,8 +1,13 @@
 package com.jacolp.pojo.dto.user;
 
+import com.jacolp.constant.UserConstant;
 import com.jacolp.pojo.provider.RoleIdProvider;
 import com.jacolp.pojo.provider.TargetUserProvider;
 import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,20 +22,25 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserModifyDTO implements TargetUserProvider, RoleIdProvider, UsernameAndPasswordProvider {
 
-    /** 被修改用户的 ID（必填） */
+    @NotBlank(message = "用户ID不能为空")
+    @Positive(message = "用户ID必须为正数")
     private Long id;
 
+    @Size(min = UserConstant.USERNAME_MIN_LENGTH, max = UserConstant.USERNAME_MAX_LENGTH, message = "用户名长度必须在 4 - 50 之间")
     private String username;
 
+    @Size(min = UserConstant.USERNAME_MIN_LENGTH, max = UserConstant.USERNAME_MAX_LENGTH, message = "用户名长度必须在 4 - 50 之间")
     private String nickname;
 
+    @Email(message = "邮箱格式不正确")
     private String email;
 
+    @Positive(message = "角色ID必须为正数")
     private Long roleId;
 
     private Integer status;
 
-    /** 新密码（选填，填了就覆盖旧密码） */
+    @Size(min = UserConstant.PASSWORD_MIN_LENGTH, max = UserConstant.PASSWORD_MAX_LENGTH, message = "密码长度必须在 6 - 60 之间")
     private String newPassword;
 
     /** 确认密码（必须与 newPassword 一致） */

@@ -136,7 +136,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
         }
 
         // 扫描标签、图片、笔记
-        MarkdownHtmlEngine.NoteReletionInfo scanResult = MarkdownHtmlEngine.scanNoteReletionInfo(rawMarkdown);
+        MarkdownHtmlEngine.NoteRelationInfo scanResult = MarkdownHtmlEngine.scanNoteReletionInfo(rawMarkdown);
         List<String> tags = normalizeDistinctList(scanResult.tags());
         List<String> imageNames = normalizeDistinctList(scanResult.imageNames());
         List<MarkdownHtmlEngine.ParsedNoteLink> noteLinks = List.copyOf(scanResult.noteLinks());
@@ -194,12 +194,12 @@ public class NoteServiceImplOld implements NoteServiceOld {
         String newMarkdown = readMultipartAsString(file); // 新内容
 
         // 扫描新旧内容的标签和图片，计算 Diff
-        MarkdownHtmlEngine.NoteReletionInfo oldScan = MarkdownHtmlEngine.scanNoteReletionInfo(oldMarkdown);
-        MarkdownHtmlEngine.NoteReletionInfo newScan = MarkdownHtmlEngine.scanNoteReletionInfo(newMarkdown);
+        MarkdownHtmlEngine.NoteRelationInfo oldScan = MarkdownHtmlEngine.scanNoteReletionInfo(oldMarkdown);
+        MarkdownHtmlEngine.NoteRelationInfo newScan = MarkdownHtmlEngine.scanNoteReletionInfo(newMarkdown);
         NoteDiffVO diffVO = buildDiff(
                 oldScan.tags(), newScan.tags(),
                 oldScan.imageNames(), newScan.imageNames(),
-                oldScan.noteNames(), newScan.noteNames());
+                oldScan.reflection(), newScan.reflection());
 
         // 获取不同文件的大小
         long oldFileSize = safeLong(existed.getMdFileSize());
@@ -264,7 +264,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
             String newMarkdown = contextEntity.getMarkdownContentNew();
 
             // 从 modifyNoteSource 时保存的 scanJson 中读取扫描结果，避免二次扫描 Markdown 文本
-            MarkdownHtmlEngine.NoteReletionInfo scan = parseScanJson(diffEntity.getScanJson());
+            MarkdownHtmlEngine.NoteRelationInfo scan = parseScanJson(diffEntity.getScanJson());
             List<String> currentTags = normalizeDistinctList(scan.tags());
             List<String> currentImages = normalizeDistinctList(scan.imageNames());
             List<MarkdownHtmlEngine.ParsedNoteLink> currentNoteLinks = List.copyOf(scan.noteLinks());
@@ -902,7 +902,7 @@ public class NoteServiceImplOld implements NoteServiceOld {
         }
 
         // 4) 执行绑定并刷新来源笔记缺失状态。
-        noteEachMappingMapper.bindNoteById(mapping.getId(), targetNote.getId(), AuditConstant.PASS);
+//        noteEachMappingMapper.bindNoteBySourceIdAndParseName(mapping.getId(), targetNote.getId(), AuditConstant.PASS);
         refreshNoteMissingInfo(mapping.getSourceNoteId());
     }
 
@@ -2147,8 +2147,8 @@ public class NoteServiceImplOld implements NoteServiceOld {
         diffVO.setNewTags(new ArrayList<>(difference(oldTagSet, newTagSet)));
         diffVO.setOldImages(new ArrayList<>(difference(newImageSet, oldImageSet)));
         diffVO.setNewImages(new ArrayList<>(difference(oldImageSet, newImageSet)));
-        diffVO.setOldNoteNames(new ArrayList<>(difference(newNoteSet, oldNoteSet)));
-        diffVO.setNewNoteNames(new ArrayList<>(difference(oldNoteSet, newNoteSet)));
+        diffVO.setOldNoteReflection(new ArrayList<>(difference(newNoteSet, oldNoteSet)));
+        diffVO.setNewNoteReflection(new ArrayList<>(difference(oldNoteSet, newNoteSet)));
         return diffVO;
     }
 
@@ -2200,12 +2200,12 @@ public class NoteServiceImplOld implements NoteServiceOld {
      * JSON 解析成扫描结果。
      * <p>从 modifyNoteSource 时保存的 scanJson 中反序列化 NoteReletionInfo</p>
      */
-    private MarkdownHtmlEngine.NoteReletionInfo parseScanJson(String scanJson) {
+    private MarkdownHtmlEngine.NoteRelationInfo parseScanJson(String scanJson) {
         if (scanJson == null || scanJson.isEmpty()) {
             throw new BaseException("扫描数据缺失，请重新上传");
         }
         try {
-            return objectMapper.readValue(scanJson, MarkdownHtmlEngine.NoteReletionInfo.class);
+            return objectMapper.readValue(scanJson, MarkdownHtmlEngine.NoteRelationInfo.class);
         } catch (JsonProcessingException ex) {
             throw new BaseException("扫描数据解析失败");
         }

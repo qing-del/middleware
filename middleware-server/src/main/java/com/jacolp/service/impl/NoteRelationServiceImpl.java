@@ -6,8 +6,10 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.jacolp.annotation.CheckMissingInfo;
+import com.jacolp.context.BindEachRowContext;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.pojo.vo.note.*;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +24,6 @@ import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
@@ -33,9 +34,7 @@ import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
-import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteRelationService;
-import com.jacolp.service.TagService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -96,7 +95,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @CheckMissingInfo(enableTransaction = true)
     public NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagEntity targetTag) {
         // 1) 基础参数校验
-        if (dto == null || dto.getMappingId() == null || dto.getTagId() == null) {
+        if (dto == null) {
             throw new BaseException("映射ID和标签ID不能为空");
         }
         Long userId = BaseContext.getCurrentId();
@@ -104,14 +103,16 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         // 2) 校验映射行归属与目标标签存在性
         NoteTagMappingEntity mapping = requireOwnedTagMapping(dto.getMappingId(), userId);
 
-        if (!Objects.equals(mapping.getParsedTagName(), targetTag.getTagName())) {
+        if (!mapping.getParsedTagName().equals(targetTag.getTagName())) {
             throw new BaseException("标签名称与映射行解析名称不一致，无法绑定");
         }
-        if (!AuditConstant.PASS.equals(targetTag.getIsPass())) {
+        // 不是自己的标签，且目标标签未通过审核
+        if (!BaseContext.getCurrentId().equals(targetTag.getUserId()) &&
+                !AuditConstant.PASS.equals(targetTag.getIsPass())) {
             throw new BaseException("目标标签未通过审核，无法绑定");
         }
 
-        noteTagMappingMapper.bindTagById(mapping.getId(), targetTag.getId(), AuditConstant.PASS);
+        noteTagMappingMapper.bindTagById(mapping.getId(), targetTag.getId(), targetTag.getIsPass());
         return mapping;
     }
 
@@ -127,17 +128,14 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @Override
     @CheckMissingInfo(enableTransaction = true)
     public NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, ImageEntity targetImage) {
-        if (dto == null || dto.getMappingId() == null || dto.getImageId() == null) {
+        if (dto == null) {
             throw new BaseException("映射ID和图片ID不能为空");
         }
         Long userId = BaseContext.getCurrentId();
 
         NoteImageMappingEntity mapping = requireOwnedImageMapping(dto.getMappingId(), userId);
 
-
-        if (!Objects.equals(mapping.getParsedImageName(), targetImage.getFilename())) {
-            throw new BaseException("图片名称与映射行解析名称不一致，无法绑定");
-        }
+        // 不是自己的图片，且图片未通过审核
         if (!userId.equals(targetImage.getUserId())) {
             if (!AuditConstant.PASS.equals(targetImage.getIsPass())) {
                 throw new BaseException("目标图片未通过审核，无法绑定");
@@ -148,7 +146,8 @@ public class NoteRelationServiceImpl implements NoteRelationService {
                 ? NoteConstant.IS_CROSS_USER
                 : NoteConstant.NOT_IS_CROSS_USER;
 
-        noteImageMappingMapper.bindImageById(mapping.getId(), targetImage.getId(), targetImage.getUserId(), isCrossUser, targetImage.getIsPass());
+        noteImageMappingMapper.bindImageById(mapping.getId(), targetImage.getId(),
+                targetImage.getUserId(), isCrossUser, targetImage.getIsPass());
         return mapping;
     }
 
@@ -164,25 +163,27 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @Override
     @CheckMissingInfo(enableTransaction = true)
     public NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteEntity targetNote) {
-        if (dto == null || dto.getMappingId() == null || dto.getNoteId() == null) {
+        if (dto == null) {
             throw new BaseException("映射ID和笔记ID不能为空");
         }
         Long userId = BaseContext.getCurrentId();
 
         NoteEachMappingEntity mapping = requireOwnedEachMapping(dto.getMappingId(), userId);
 
-        if (!Objects.equals(mapping.getParsedNoteName(), targetNote.getTitle())) {
+        if (!mapping.getParsedNoteName().equals(targetNote.getTitle())) {
             throw new BaseException("笔记标题与映射行解析名称不一致，无法绑定");
         }
 
         // 如果笔记不属于建立绑定的人 需要笔记审核状态
         NoteStatus targetStatus = NoteStatus.fromCode(targetNote.getStatus());
-        if (!Objects.equals(targetNote.getUserId(), BaseContext.getCurrentId())
+        if (!BaseContext.getCurrentId().equals(targetNote.getUserId())
                 && (!targetStatus.isApproved() && !targetStatus.isPublished())) {
             throw new BaseException("目标笔记未通过审核，无法绑定");
         }
 
-        noteEachMappingMapper.bindNoteById(mapping.getId(), targetNote.getId(), AuditConstant.PASS);
+        int affected = noteEachMappingMapper.bindNoteBySourceIdAndParseName(mapping.getSourceNoteId(), mapping.getParsedNoteName(), targetNote.getId(),
+                NoteStatus.isPassed(NoteStatus.fromCode(targetNote.getStatus())) ? AuditConstant.PASS : AuditConstant.WAIT);
+        BindEachRowContext.setAffectedRows(affected);
 
         return mapping;
     }
@@ -197,7 +198,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     /**
-     * 校验关联完整性，自动补绑定 + 计算缺失信息。
+     * 校验关联完整性，计算缺失信息。
      * <p>状态流转：NEW → PENDING_INFO → (信息齐全时) READY_TO_CONVERT。</p>
      */
     @Override
@@ -211,9 +212,20 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         int missingMask = missingInfo.getMissingMask();
         int missingCount = missingInfo.getMissingCount();
 
-        List<String> missingTags = getMissingTagNames(note.getId());
-        List<String> missingImages = getMissingImageNames(note.getId());
-        List<String> missingNoteNames = getMissingEachNoteNames(note.getId());
+        // 如果标签缺失
+        if (NoteMissingInfoMask.isTagMissing(missingMask)) {
+            result.setMissingTags(getMissingTagNames(note.getId()));
+        }
+
+        // 如果图片缺失
+        if (NoteMissingInfoMask.isImageMissing(missingMask)) {
+            result.setMissingImages(getMissingImageNames(note.getId()));
+        }
+
+        // 如果笔记缺失
+        if (NoteMissingInfoMask.isNoteMissing(missingMask)) {
+            result.setMissingNoteNames(getMissingEachNoteNames(note.getId()));
+        }
 
         boolean isComplete = missingCount == 0;
 
@@ -221,9 +233,6 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         result.setComplete(isComplete);
         result.setMissingInfoMask(missingMask);
         result.setMissingCount(missingCount);
-        result.setMissingTags(missingTags);
-        result.setMissingImages(missingImages);
-        result.setMissingNoteNames(missingNoteNames);
 
         return result;
     }
@@ -287,14 +296,14 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         for (NoteTagMappingEntity mapping : mappings) {
             TagEntity target = tagMap.get(mapping.getParsedTagName());
             if (target == null ||
-                    (userId.equals(target.getUserId()) && !AuditConstant.PASS.equals(target.getIsPass()))) {
+                    (!userId.equals(target.getUserId()) && !AuditConstant.PASS.equals(target.getIsPass()))) {
                 continue;
             }
 
             NoteTagMappingEntity bind = new NoteTagMappingEntity();
             bind.setId(mapping.getId());
             bind.setTagId(target.getId());
-            bind.setIsPass(AuditConstant.PASS);
+            bind.setIsPass(target.getIsPass());
             toBind.add(bind);
         }
 
@@ -356,18 +365,16 @@ public class NoteRelationServiceImpl implements NoteRelationService {
                 continue;
             }
             NoteStatus targetNoteStatus = NoteStatus.fromCode(target.getStatus());
-            if (!targetNoteStatus.isApproved() && !targetNoteStatus.isPublished()) {
-                continue;
-            }
-            if (Objects.equals(mapping.getTargetNoteId(), target.getId())
-                    && AuditConstant.PASS.equals(mapping.getIsPass())) {
+            if (!NoteStatus.PUBLISHED.equals(targetNoteStatus)
+            && (target.getUserId() != null && !target.getUserId().equals(BaseContext.getCurrentId()))) {
                 continue;
             }
 
             NoteEachMappingEntity bind = new NoteEachMappingEntity();
             bind.setId(mapping.getId());
             bind.setTargetNoteId(target.getId());
-            bind.setIsPass(AuditConstant.PASS);
+            bind.setIsPass(NoteStatus.isPassed(targetNoteStatus) ? AuditConstant.PASS : AuditConstant.WAIT);
+            bind.setTargetNoteId(target.getId());
             toBind.add(bind);
         }
 
@@ -422,7 +429,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
-    public int initImageBatchInsertMappings(Long noteId, List<String> images) {
+    public int initImageBatchInsertMappings(NoteEntity note, List<String> images) {
         if (images == null || images.isEmpty()) {
             return 0;
         }
@@ -436,9 +443,12 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         List<NoteImageMappingEntity> mappings = new ArrayList<>();
         for (String imageName : distinctImages) {
             NoteImageMappingEntity mapping = new NoteImageMappingEntity();
-            mapping.setNoteId(noteId);
+            mapping.setNoteId(note.getId());
+            mapping.setNoteTitle(note.getTitle());
+            mapping.setNoteUserId(note.getUserId());
             mapping.setParsedImageName(imageName);
             mapping.setImageId(null);
+            mapping.setIsCrossUser(NoteConstant.NOT_IS_CROSS_USER); // 默认先设置为没有跨用户
             mapping.setIsPass(AuditConstant.WAIT);
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
             mapping.setCreateTime(java.time.LocalDateTime.now());
@@ -449,11 +459,11 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
-    public int initNoteBatchInsertMappings(Long noteId, List<String> noteTitles) {
-        if (noteTitles == null || noteTitles.isEmpty()) {
+    public int initNoteBatchInsertMappings(Long noteId, List<String> noteReflection) {
+        if (noteReflection == null || noteReflection.isEmpty()) {
             return 0;
         }
-        List<String> distinctTitles = noteTitles.stream()
+        List<String> distinctTitles = noteReflection.stream()
                 .filter(StringUtils::hasText)
                 .distinct()
                 .toList();
@@ -462,10 +472,15 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         }
         List<NoteEachMappingEntity> mappings = new ArrayList<>();
         for (String noteName : distinctTitles) {
+            // 解析映射信息
+            ParseReflection reflection = getParseReflection(noteName);
+
             NoteEachMappingEntity mapping = new NoteEachMappingEntity();
             mapping.setSourceNoteId(noteId);
             mapping.setTargetNoteId(null);
-            mapping.setParsedNoteName(noteName);
+            mapping.setParsedNoteName(reflection.parseName());
+            mapping.setAnchor(reflection.anchor());
+            mapping.setNickname(reflection.nickname());
             mapping.setIsPass(AuditConstant.WAIT);
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
             mapping.setCreateTime(java.time.LocalDateTime.now());
@@ -516,6 +531,21 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
+    public boolean isMissingTags(Long noteId) {
+        return noteTagMappingMapper.existNullTargetTag(noteId) > 1;
+    }
+
+    @Override
+    public boolean isMissingImages(Long noteId) {
+        return false;
+    }
+
+    @Override
+    public boolean isMissingNotes(Long noteId) {
+        return false;
+    }
+
+    @Override
     public void deleteByNoteIds(List<Long> noteIds) {
         if (noteIds == null || noteIds.isEmpty()) {
             return;
@@ -525,8 +555,18 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         noteEachMappingMapper.softDeleteBySourceNoteIds(noteIds);
     }
 
-    // ===== 私有方法 =====
+    @Override
+    public void hardDeleteByNoteIds(List<Long> noteIds) {
+        if (noteIds == null || noteIds.isEmpty()) {
+            return;
+        }
+        noteTagMappingMapper.hardDeleteByNoteIds(noteIds);
+        noteImageMappingMapper.hardDeleteByNoteIds(noteIds);
+        noteEachMappingMapper.hardDeleteBySourceNoteIds(noteIds);
+    }
 
+
+    // ===== 私有方法 =====
     private List<NoteTagMappingRowVO> buildTagRows(List<NoteTagMappingEntity> mappings, Map<Long, TagEntity> tagMap) {
         return mappings.stream().map(mapping -> {
             TagEntity tag = mapping.getTagId() == null ? null : tagMap.get(mapping.getTagId());
@@ -702,5 +742,44 @@ public class NoteRelationServiceImpl implements NoteRelationService {
                 .map(NoteEachMappingEntity::getParsedNoteName)
                 .filter(StringUtils::hasText)
                 .toList();
+    }
+
+    /**
+     * 解析信息
+     */
+    private record ParseReflection(String parseName, String anchor, String nickname) {
+    }
+
+    /**
+     * 解析笔记名称
+     * <p>- 获取笔记名称的解析名称、锚点、昵称</p>
+     * <p>- 解析 {@code noteName#anchor|nickname}</p>
+     * @param reflectionInfo 笔记映射信息
+     * @return 解析信息
+     */
+    private static @NonNull ParseReflection getParseReflection(String reflectionInfo) {
+        int anchorIndex = reflectionInfo.indexOf("#");
+        int nicknameIndex = reflectionInfo.indexOf("|");
+
+        String parseName = null;
+        String anchor = null;
+        if (anchorIndex > 0) {
+            parseName = reflectionInfo.substring(0, anchorIndex).trim();
+            anchor = reflectionInfo.substring(anchorIndex + 1, nicknameIndex > 0 ?
+                    nicknameIndex : reflectionInfo.length());
+        }
+        String nickname = null;
+        if (nicknameIndex > 0) {
+            if (parseName == null) {
+                parseName = reflectionInfo.substring(0, nicknameIndex).trim();
+            }
+            nickname = reflectionInfo.substring(nicknameIndex + 1);
+        }
+
+        parseName = parseName == null ? reflectionInfo.trim() : parseName.trim();
+        anchor = anchor == null || anchor.isEmpty() ? null : anchor.trim();
+        nickname = nickname == null || nickname.isEmpty() ? null : nickname.trim();
+
+        return new ParseReflection(parseName, anchor, nickname);
     }
 }

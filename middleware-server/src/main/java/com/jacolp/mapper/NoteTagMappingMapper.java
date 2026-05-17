@@ -21,7 +21,7 @@ public interface NoteTagMappingMapper {
      * @param userId 用户 id（传入null的话不开启校验）
      * @return 笔记标签映射行 （不存在 / 没有所属权的时候返回 null）
      */
-    NoteTagMappingEntity selectByIdWithValidUserId(Long mappingId, Long userId);
+    NoteTagMappingEntity selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
 
     List<Long> selectTagIdsByNoteId(@Param("noteId") Long noteId);
 
@@ -38,6 +38,8 @@ public interface NoteTagMappingMapper {
     int softDeleteByNoteId(@Param("noteId") Long noteId);
 
     int softDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
+
+    int hardDeleteByNoteIds(@Param("noteIds") List<Long> noteIds);
 
     int softDeleteByNoteIdAndTagIds(@Param("noteId") Long noteId, @Param("tagIds") List<Long> tagIds);
 
@@ -69,4 +71,13 @@ public interface NoteTagMappingMapper {
      */
     @Select("SELECT COUNT(1) FROM biz_note_tag_mapping WHERE tag_id = #{tagId} AND is_deleted = 0")
     long countByTagId(Long tagId);
+
+    /**
+     * 统计指定笔记的未绑定标签数量
+     * @param noteId 笔记 id
+     * @return 未绑定标签映射行数量
+     */
+    @Select("SELECT COUNT(1) FROM biz_note_tag_mapping " +
+            "WHERE note_id = #{noteId} AND tag_id IS NULL AND is_deleted = 0")
+    int existNullTargetTag(Long noteId);
 }

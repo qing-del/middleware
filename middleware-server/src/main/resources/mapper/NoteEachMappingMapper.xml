@@ -56,12 +56,13 @@
         </foreach>
     </insert>
 
-    <update id="bindNoteById">
+    <update id="bindNoteBySourceIdAndParseName">
         UPDATE biz_note_each_mapping
         SET target_note_id = #{targetNoteId},
             is_pass = #{isPass},
             update_time = NOW()
-        WHERE id = #{id}
+        WHERE source_note_id = #{sourceNoteId}
+          AND parsed_note_name = #{parsedNoteName}
           AND is_deleted = 0
     </update>
 
@@ -111,6 +112,14 @@
         </foreach>
           AND is_deleted = 0
     </update>
+
+    <delete id="hardDeleteBySourceNoteIds">
+        DELETE FROM biz_note_each_mapping
+        WHERE source_note_id IN
+        <foreach collection="sourceNoteIds" item="sourceNoteId" open="(" separator="," close=")">
+            #{sourceNoteId}
+        </foreach>
+    </delete>
 
     <delete id="deleteSoftDeletedRows">
         DELETE FROM biz_note_each_mapping

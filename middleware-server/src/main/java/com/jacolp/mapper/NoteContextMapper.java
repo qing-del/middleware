@@ -44,5 +44,5 @@ public interface NoteContextMapper {
      * @param userId 用户 ID（传入 null 则不进行所有权校验）
      * @return 笔记内容（不存在 / 没有所有权会返回 null）
      */
-    NoteContextEntity selectByNoteIdWithValidUserId(Long noteId, Long userId);
+    NoteContextEntity selectByNoteIdWithValidUserId(@Param("noteId") Long noteId, @Param("userId") Long userId);
 }

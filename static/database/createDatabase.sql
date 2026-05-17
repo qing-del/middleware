@@ -99,6 +99,7 @@ CREATE TABLE `biz_note` (
                             `description` varchar(255) DEFAULT NULL COMMENT '笔记描述',
                             `storage_type` tinyint NOT NULL COMMENT '存储方式-0:本地存储, 1:阿里云OSS, 2:Cloudflare R2(预留)',
                             `status` tinyint NOT NULL DEFAULT 0 COMMENT '笔记状态(0:已创建,1:缺失信息,2:待转换,3:已转换,4:审核中,5:已通过,6:已公开,7:已拒绝,8:已删除)',
+                            `is_changing` tinyint NOT NULL DEFAULT 0 COMMENT '笔记正在转换中(0:否,1:是)',
                             `missing_info_mask` tinyint NOT NULL DEFAULT 0 COMMENT '缺失信息掩码(1:标签,2:图片,4:内联笔记)',
                             `missing_count` tinyint NOT NULL DEFAULT 0 COMMENT '缺失信息数量,为0时自动扫描并触发状态转换',
                             `md_file_size` bigint NOT NULL DEFAULT 0 COMMENT 'MD文件大小合计(字节, 上传时由服务端写入, 用于存储配额统计)',

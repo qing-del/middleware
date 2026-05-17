@@ -55,10 +55,10 @@ public class JwtTokenActiveInterceptor implements HandlerInterceptor {
                 setResult(response, Result.error("未提供认证令牌"));
                 return false;
             }
-            log.info("JWT verification: {}", token);
+            log.debug("JWT verification: {}", token);
             Claims claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
             Long userId = Long.valueOf(claims.get(UserConstant.USER_ID_CLAIM).toString());
-            log.info("Current user that need to active ID: {}", userId);
+            log.debug("Current user that need to active ID: {}", userId);
             BaseContext.setCurrentId(userId);
 
             // 获取激活信号码

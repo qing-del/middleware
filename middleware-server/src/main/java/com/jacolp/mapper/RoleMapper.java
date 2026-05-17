@@ -1,5 +1,6 @@
 package com.jacolp.mapper;
 
+import com.jacolp.pojo.entity.RoleEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
@@ -7,8 +8,11 @@ import org.apache.ibatis.annotations.Select;
 public interface RoleMapper {
 
     @Select("select COUNT(1) from sys_role where id = #{id}")
-    Integer selectById(Long id);
+    Integer countById(Long id);
 
     @Select("select max_storage_bytes from sys_role where id = #{id}")
     Long selectMaxStorageById(Long id);
+
+    @Select("select * from sys_role where id = #{id}")
+    RoleEntity getById(long user);
 }

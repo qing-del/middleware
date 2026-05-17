@@ -5,6 +5,14 @@ public class UserConstant {
     public static final String USER_ID_CLAIM = "userId";
 
     /**
+     * 用户名、密码长度限制
+     */
+    public static final int USERNAME_MIN_LENGTH = 4;
+    public static final int USERNAME_MAX_LENGTH = 50;
+    public static final int PASSWORD_MIN_LENGTH = 6;
+    public static final int PASSWORD_MAX_LENGTH = 60;
+
+    /**
      * 用户状态
      */
     public static final int DELETED_STATUS = -1;
@@ -19,7 +27,7 @@ public class UserConstant {
     public static final String ACTIVE_SIGN_KEY = "active";
 
     public static final String USER_LOGIN_FAILED = "用户登录失败";
-    public static final String NOT_FIND_USER = "用户不存在";
+    public static final String NOT_FOUND_USER = "用户不存在";
     public static final String USER_IS_BANNED = "用户已封禁";
     public static final String USER_PASSWORD_ERROR = "用户密码错误";
     public static final String PERMISSION_DENIED = "无权限";
