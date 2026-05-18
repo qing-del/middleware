@@ -14,11 +14,11 @@ export const emailApi = {
     return request.get('/user/email/status')
   },
 
-  requestActivation(): Promise<ApiResponse<string>> {
-    return request.get('/user/user/getActivatedToken')
-  },
-
   activateAccount(token: string): Promise<ApiResponse<string>> {
     return request.get(`/user/user/active/${token}`)
+  },
+
+  verifyCode(code: string): Promise<ApiResponse<string>> {
+    return request.post('/user/user/active-code', { code })
   }
 }

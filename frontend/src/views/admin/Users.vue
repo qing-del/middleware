@@ -27,7 +27,8 @@ const form = ref({
   nickname: '',
   email: '',
   roleId: 3,
-  status: 1
+  status: 1,
+  maxStorageBytes: undefined as number | undefined
 })
 const submitting = ref(false)
 
@@ -135,7 +136,7 @@ function toggleSelect(id: number) {
 function openCreateModal() {
   modalMode.value = 'create'
   editingUserId.value = null
-  form.value = { username: '', password: '', nickname: '', email: '', roleId: 3, status: 1 }
+  form.value = { username: '', password: '', nickname: '', email: '', roleId: 3, status: 1, maxStorageBytes: undefined }
   modalVisible.value = true
 }
 
@@ -148,7 +149,8 @@ function openEditModal(user: AdminUserItem) {
     nickname: user.nickname || '',
     email: user.email || '',
     roleId: user.roleId,
-    status: user.status
+    status: user.status,
+    maxStorageBytes: user.maxStorageBytes
   }
   modalVisible.value = true
 }
@@ -173,7 +175,8 @@ async function handleSubmit() {
         nickname: form.value.nickname || undefined,
         email: form.value.email || undefined,
         roleId: form.value.roleId,
-        status: form.value.status
+        status: form.value.status,
+        maxStorageBytes: form.value.maxStorageBytes
       }
       if (form.value.password) {
         payload.newPassword = form.value.password
@@ -406,6 +409,10 @@ onMounted(() => {
                     <option :value="2">未激活</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label class="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-400">存储配额 (字节)</label>
+                <input v-model.number="form.maxStorageBytes" type="number" class="admin-input w-full" placeholder="默认 104857600 (100MB)" />
               </div>
               <div class="flex justify-end space-x-3 pt-4">
                 <button type="button" class="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-white/5 hover:text-white" @click="closeModal">取消</button>

@@ -40,4 +40,11 @@ public interface UserUserService {
      * @param userId 用户ID
      */
     void sendActivationEmail(Long userId);
+
+    /**
+     * 通过 6 位激活码激活账号
+     * @param code 6位数字激活码
+     * @return 激活结果
+     */
+    String verifyActivationCode(String code);
 }

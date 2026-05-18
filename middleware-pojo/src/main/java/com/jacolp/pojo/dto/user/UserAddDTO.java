@@ -37,4 +37,7 @@ public class UserAddDTO implements RoleIdProvider, UsernameAndPasswordProvider {
 
     /** 账号状态（选填，默认1正常启用） */
     private Integer status;
+
+    /** 用户最大存储空间(字节)，留空则默认 100MB */
+    private Long maxStorageBytes;
 }

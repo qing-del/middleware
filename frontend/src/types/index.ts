@@ -4,6 +4,9 @@ export interface User {
   nickname: string | null
   email?: string
   roleId: number
+  status?: number
+  maxStorageBytes?: number
+  usedStorageBytes?: number
 }
 
 export interface LoginData {

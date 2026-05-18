@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   ChevronLeft, Shield, LayoutDashboard, ShieldAlert, Users, FileText,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
@@ -31,6 +32,10 @@ function isMenuActive(id: string): boolean {
 
 function toggleSidebar() {
   isCollapsed.value = !isCollapsed.value
+}
+
+function goToProfile() {
+  router.push('/admin/profile')
 }
 
 function handleLogout() {
@@ -157,7 +162,7 @@ onMounted(async () => {
           <div class="w-px h-5 bg-white/10"></div>
 
           <!-- 用户信息 -->
-          <div class="flex items-center space-x-3 cursor-pointer group">
+          <div class="flex items-center space-x-3 cursor-pointer group" @click="goToProfile">
             <template v-if="isLoading">
               <div class="flex items-center space-x-3">
                 <div class="flex flex-col items-end space-y-1">

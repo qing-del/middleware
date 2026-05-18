@@ -73,9 +73,9 @@ const router = createRouter({
           component: () => import('@/views/user/Images.vue')
         },
         {
-          path: 'email',
-          name: 'UserEmail',
-          component: () => import('@/views/user/Email.vue')
+          path: 'profile',
+          name: 'UserProfile',
+          component: () => import('@/views/user/Profile.vue')
         }
       ]
     },
@@ -132,6 +132,11 @@ const router = createRouter({
           path: 'email',
           name: 'AdminEmail',
           component: () => import('@/views/admin/Email.vue')
+        },
+        {
+          path: 'profile',
+          name: 'AdminProfile',
+          component: () => import('@/views/user/Profile.vue')
         }
       ]
     }

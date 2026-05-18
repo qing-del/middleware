@@ -18,7 +18,6 @@ import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.result.Result;
-import com.jacolp.utils.JwtUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -98,19 +97,6 @@ public class UserController {
         return Result.success("账户已删除");
     }
 
-    @GetMapping("/getActivatedToken")
-    @Operation(summary = "发送激活邮件",
-            description = "向当前用户注册邮箱发送账号激活链接，内含有时效的激活令牌")
-    @RateLimit(windowSeconds = 60, maxRequests = 1) // 1分钟内只能请求一次
-    @RateLimit(windowSeconds = 3600, maxRequests = 3)   // 1小时内只能请求3次
-    public Result<String> getActivatedToken() {
-        Long userId = BaseContext.getCurrentId();
-        log.info("User request activation email, userId: {}", userId);
-        userUserService.sendActivationEmail(userId);
-        return Result.success("激活邮件已发送，请查收邮箱");
-    }
-
-
     /**
      * 用户激活
      * @param token 激活码
@@ -122,5 +108,21 @@ public class UserController {
     public Result<String> active(@PathVariable String token) {
         log.info("User active: {}", token);
         return Result.success(userUserService.activeAccount(BaseContext.getCurrentId()));
+    }
+
+    @PostMapping("/active-code")
+    @Operation(summary = "通过激活码激活账号",
+            description = "通过邮箱中收到的 6 位数字激活码完成账号激活，无需 JWT 令牌")
+    @RateLimit(windowSeconds = 60, maxRequests = 1)
+    @RateLimit(windowSeconds = 3600, maxRequests = 5)
+    public Result<String> activeByCode(
+            @Parameter(description = "6位数字激活码，key 为 code")
+            @RequestBody Map<String, String> body) {
+        String code = body.get("code");
+        if (code == null || code.isBlank()) {
+            return Result.error("激活码不能为空");
+        }
+        log.info("User active by code: {}", code);
+        return Result.success(userUserService.verifyActivationCode(code));
     }
 }

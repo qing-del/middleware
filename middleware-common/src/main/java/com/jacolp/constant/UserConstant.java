@@ -25,6 +25,7 @@ public class UserConstant {
      */
     public static final String JWT_NOT_VALID = "无效的激活链接";
     public static final String ACTIVE_SIGN_KEY = "active";
+    public static final String ACTIVE_CODE_PREFIX = "active:code:";
 
     public static final String USER_LOGIN_FAILED = "用户登录失败";
     public static final String NOT_FOUND_USER = "用户不存在";

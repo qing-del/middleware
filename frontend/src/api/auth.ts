@@ -35,5 +35,8 @@ export const authApi = {
   // 管理端获取当前用户信息
   getCurrentAdminUser(): Promise<User> {
     return request.get('/admin/user/me')
+  },
+  updateProfile(data: { nickname?: string; email?: string; password?: string; newPassword?: string; confirmPassword?: string }): Promise<string> {
+    return request.put('/user/user/me', data)
   }
 }

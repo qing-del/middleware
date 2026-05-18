@@ -274,4 +274,17 @@ public class UserUserServiceImpl implements UserUserService {
         emailSenderService.sendActivationEmail(user);
         log.info("Activation email sent to: {}", user.getEmail());
     }
+
+    @Override
+    public String verifyActivationCode(String code) {
+        String redisKey = KeyToolUtil.getActiveCodeKey(code);
+        String userIdStr = redis.opsForValue().get(redisKey);
+        if (userIdStr == null) {
+            throw new BaseException("激活码无效或已过期");
+        }
+        Long userId = Long.valueOf(userIdStr);
+        String result = activeAccount(userId);
+        redis.delete(redisKey);
+        return result;
+    }
 }

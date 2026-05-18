@@ -96,6 +96,7 @@ export interface UserCreateParams {
   nickname?: string
   email?: string
   status?: number
+  maxStorageBytes?: number
 }
 
 export interface UserModifyParams {
@@ -105,6 +106,7 @@ export interface UserModifyParams {
   email?: string
   roleId?: number
   status?: number
+  maxStorageBytes?: number
   newPassword?: string
   confirmPassword?: string
   password?: string
