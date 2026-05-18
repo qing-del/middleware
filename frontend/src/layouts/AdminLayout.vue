@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   ChevronLeft, Shield, LayoutDashboard, ShieldAlert, Users, FileText,
-  Layers, Hash, Image as ImageIcon, Power, Search, Bell, ShieldAlert as ShieldAlertIcon
+  Layers, Hash, Image as ImageIcon, Mail, Power, Search, Bell, ShieldAlert as ShieldAlertIcon
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -20,7 +20,8 @@ const menuItems = computed(() => [
   { id: 'notes', label: '全局笔记', icon: FileText, to: '/admin/notes' },
   { id: 'topics', label: '主题调度', icon: Layers, to: '/admin/topics' },
   { id: 'tags', label: '标签矩阵', icon: Hash, to: '/admin/tags' },
-  { id: 'images', label: '云端图床', icon: ImageIcon, to: '/admin/images' }
+  { id: 'images', label: '云端图床', icon: ImageIcon, to: '/admin/images' },
+  { id: 'email', label: '邮件中心', icon: Mail, to: '/admin/email' }
 ])
 
 function isMenuActive(id: string): boolean {

@@ -36,8 +36,8 @@ public interface UserUserService {
     String activeAccount(Long token);
 
     /**
-     * 用于获取用户激活码
+     * 发送激活邮件
      * @param userId 用户ID
      */
-    String getActiveAccountToken(Long userId);
+    void sendActivationEmail(Long userId);
 }

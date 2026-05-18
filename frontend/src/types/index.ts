@@ -23,3 +23,23 @@ export interface ApiResponse<T> {
   msg: string
   data: T
 }
+
+export interface EmailSendParams {
+  userId?: number
+  roleId?: number
+  subject: string
+  body: string
+  templateName?: string
+}
+
+export interface EmailResult {
+  successCount: number
+  failCount: number
+  message: string
+}
+
+export interface EmailStatus {
+  email: string | null
+  username: string
+  isActive: boolean
+}

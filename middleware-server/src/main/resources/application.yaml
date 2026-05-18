@@ -28,12 +28,27 @@ spring:
           max-idle: 8
           min-idle: 0
           max-wait: 100ms
+  mail:
+    host: ${jacolp.mail.host}
+    port: ${jacolp.mail.port}
+    username: ${jacolp.mail.username}
+    password: ${jacolp.mail.password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          socketFactory:
+            port: 465
+            class: javax.net.ssl.SSLSocketFactory
 
 jacolp:
   admin:
     username: ${jacolp.admin.username}
     password: ${jacolp.admin.password}
-  default-password: ${jacolp.default-password}
+    email: ${jacolp.admin.email}
+  default-password: ${jacolp.default-password}  # 默认测试密码
   jwt:
     admin-secret-key: ${jwt.admin-secret-key}
     admin-ttl: 7200000
@@ -41,13 +56,14 @@ jacolp:
     user-secret-key: ${jwt.user-secret-key}
     user-ttl: 7200000
     user-token-name: ${jwt.user-token-name}
-    avtive-secret-key: ${jacolp.jwt.avtive-secret-key}
-    avtive-ttl: 900000  # 15 分钟
+    active-secret-key: ${jacolp.jwt.active-secret-key}
+    active-ttl: 900000  # 15 分钟
     active-token-name: ${jacolp.jwt.active-token-name}
   markdown:
     root: ${jacolp.markdown.root}
     input-dir: ${jacolp.markdown.input}
     output-dir: ${jacolp.markdown.output}
+  base-url: ${jacolp.app.base-url}
   aliyun:
     oss:
       keep-live-time: 45  # 单位是秒

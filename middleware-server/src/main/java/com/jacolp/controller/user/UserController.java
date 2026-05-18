@@ -3,6 +3,7 @@ package com.jacolp.controller.user;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.jacolp.annotation.RateLimit;
 import com.jacolp.service.UserUserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,14 +99,15 @@ public class UserController {
     }
 
     @GetMapping("/getActivatedToken")
-    @Operation(summary = "获取激活码",
-            description = "用户注册之后，填写好邮箱（开发阶段暂时不用），即可接受激活码")
+    @Operation(summary = "发送激活邮件",
+            description = "向当前用户注册邮箱发送账号激活链接，内含有时效的激活令牌")
+    @RateLimit(windowSeconds = 60, maxRequests = 1) // 1分钟内只能请求一次
+    @RateLimit(windowSeconds = 3600, maxRequests = 3)   // 1小时内只能请求3次
     public Result<String> getActivatedToken() {
         Long userId = BaseContext.getCurrentId();
-        log.info("User get activated token, userId: {}", userId);
-
-        // TODO 后续改造成发送邮件
-        return Result.success(userUserService.getActiveAccountToken(userId));
+        log.info("User request activation email, userId: {}", userId);
+        userUserService.sendActivationEmail(userId);
+        return Result.success("激活邮件已发送，请查收邮箱");
     }
 
 

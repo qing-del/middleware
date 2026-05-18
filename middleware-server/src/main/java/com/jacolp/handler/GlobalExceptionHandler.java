@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jacolp.constant.DatabaseConstant;
 import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.BaseException;
+import com.jacolp.exception.RateLimitExceededException;
 import com.jacolp.result.Result;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -40,6 +41,13 @@ public class GlobalExceptionHandler {
         log.error("Exception information:{}", ex.getMessage());
         // 设置 401 状态码
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return Result.error(ex.getMessage());
+    }
+
+    @ExceptionHandler
+    public Result rateLimitExceptionHandler(RateLimitExceededException ex, HttpServletResponse response) {
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+        response.setStatus(429); // Too Many Requests
         return Result.error(ex.getMessage());
     }
 

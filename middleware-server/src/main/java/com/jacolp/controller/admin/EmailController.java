@@ -1,0 +1,31 @@
+package com.jacolp.controller.admin;
+
+import com.jacolp.pojo.dto.email.EmailSendDTO;
+import com.jacolp.pojo.dto.email.EmailResultDTO;
+import com.jacolp.result.Result;
+import com.jacolp.service.EmailSenderService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+@RestController("Admin-EmailController")
+@RequestMapping("/admin/email")
+@Slf4j
+@CrossOrigin("*")
+@Schema(description = "Admin - 邮件管理")
+@Tag(name = "Admin-邮件管理", description = "管理员发送自定义邮件接口")
+public class EmailController {
+    @Autowired private EmailSenderService emailSenderService;
+
+    @PostMapping("/send")
+    @Operation(summary = "发送自定义邮件",
+            description = "管理员可指定单个用户或按角色群发，邮件内容可以为纯文本或 HTML")
+    public Result<EmailResultDTO> sendEmail(@RequestBody @Valid EmailSendDTO dto) {
+        log.info("Admin send custom email, userId: {}, roleId: {}", dto.getUserId(), dto.getRoleId());
+        return Result.success(emailSenderService.sendCustomEmail(dto));
+    }
+}

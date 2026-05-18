@@ -10,6 +10,12 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/activate/:token',
+      name: 'ActivateAccount',
+      component: () => import('@/views/ActivateAccount.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
       path: '/dashboard',
       redirect: '/user/dashboard'
     },
@@ -65,6 +71,11 @@ const router = createRouter({
           path: 'images',
           name: 'UserImages',
           component: () => import('@/views/user/Images.vue')
+        },
+        {
+          path: 'email',
+          name: 'UserEmail',
+          component: () => import('@/views/user/Email.vue')
         }
       ]
     },
@@ -116,6 +127,11 @@ const router = createRouter({
           path: 'images',
           name: 'AdminImages',
           component: () => import('@/views/admin/Images.vue')
+        },
+        {
+          path: 'email',
+          name: 'AdminEmail',
+          component: () => import('@/views/admin/Email.vue')
         }
       ]
     }

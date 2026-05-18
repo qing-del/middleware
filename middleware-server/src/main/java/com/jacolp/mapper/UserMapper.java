@@ -17,6 +17,9 @@ public interface UserMapper {
     @Select("select * from sys_user where username = #{username}")
     UserEntity selectByUsername(String username);
 
+    @Select("select id, username, nickname, email, role_id, status from sys_user where role_id = #{roleId}")
+    List<UserEntity> selectByRoleId(Integer roleId);
+
     int upsertCreator(UserEntity user);
 
     int updateById(UserEntity user);
