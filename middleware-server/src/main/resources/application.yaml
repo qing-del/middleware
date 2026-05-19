@@ -68,6 +68,8 @@ jacolp:
     oss:
       keep-live-time: 45  # 单位是秒
       enabled: true
+  audio:
+    callback-token: ${jacolp.audio.callback-token}
   image:
     delete-image-task-time: 1 # 单位是分钟
 

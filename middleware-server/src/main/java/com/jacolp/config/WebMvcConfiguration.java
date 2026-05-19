@@ -33,6 +33,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns("/admin/user/login")
+                .excludePathPatterns("/admin/audio/callback/**")
                 .excludePathPatterns(
                         "/doc.html",
                         "/webjars/**",

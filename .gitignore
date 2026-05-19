@@ -46,6 +46,7 @@ CLAUDE.md
 /.github/
 *.drawio.bkp
 *.drawio
+AGENTS.md
 
 ### Frontend ###
 /frontend/logs/**
@@ -69,3 +70,4 @@ CLAUDE.md
 /docker/
 /docker/**
 /.dockerignore
+/static/document/
