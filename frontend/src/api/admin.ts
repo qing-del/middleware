@@ -1,6 +1,6 @@
 import request from '@/utils/request'
-import type { NoteBacklinkVO } from '@/api/notes'
-export type { NoteBacklinkVO } from '@/api/notes'
+import type { NoteBacklinkVO, TagBacklinkVO, ImageBacklinkVO } from '@/api/notes'
+export type { NoteBacklinkVO, TagBacklinkVO, ImageBacklinkVO } from '@/api/notes'
 
 // ── Shared types ──────────────────────────────────
 export interface PageResult<T> {
@@ -287,6 +287,16 @@ export const adminApi = {
   /** 查询反向引用笔记 (Admin) — 哪些笔记引用了 noteId */
   getNoteBacklinks(noteId: number): Promise<NoteBacklinkVO[]> {
     return request.get(`/admin/note/relation/backlinks/${noteId}`)
+  },
+
+  /** 查询标签反向引用笔记 (Admin) */
+  getTagBacklinks(tagId: number): Promise<TagBacklinkVO[]> {
+    return request.get(`/admin/note/relation/backlinks/tag/${tagId}`)
+  },
+
+  /** 查询图片反向引用笔记 (Admin) */
+  getImageBacklinks(imageId: number): Promise<ImageBacklinkVO[]> {
+    return request.get(`/admin/note/relation/backlinks/image/${imageId}`)
   }
 }
 

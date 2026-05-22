@@ -18,9 +18,11 @@ import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.pojo.vo.note.TagBacklinkVO;
 import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -68,6 +70,22 @@ public class NoteRelationController {
     public Result<List<NoteBacklinkVO>> listBacklinks(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("User list note backlinks, noteId: {}", noteId);
         return Result.success(noteRelationFacade.listBacklinksByNoteId(noteId));
+    }
+
+    @GetMapping("/backlinks/tag/{tagId}")
+    @Operation(summary = "查询标签反向引用笔记",
+            description = "按标签 ID 反查所有引用了它的源笔记。目标标签需为当前用户拥有或已通过审核(isPass=1)。")
+    public Result<List<TagBacklinkVO>> listTagBacklinks(@Parameter(description = "标签ID") @PathVariable Long tagId) {
+        log.info("User list tag backlinks, tagId: {}", tagId);
+        return Result.success(noteRelationFacade.listBacklinksByTagId(tagId));
+    }
+
+    @GetMapping("/backlinks/image/{imageId}")
+    @Operation(summary = "查询图片反向引用笔记",
+            description = "按图片 ID 反查所有引用了它的源笔记。目标图片需为当前用户拥有或已公开(isPublic=1)。")
+    public Result<List<ImageBacklinkVO>> listImageBacklinks(@Parameter(description = "图片ID") @PathVariable Long imageId) {
+        log.info("User list image backlinks, imageId: {}", imageId);
+        return Result.success(noteRelationFacade.listBacklinksByImageId(imageId));
     }
 
     @PutMapping("/tag/bind")

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { adminApi } from '@/api/admin'
 import type { AdminImageItem, PageResult } from '@/api/admin'
-import { Image, Search, Trash2, Loader2, X, ChevronLeft, ChevronRight, Globe, Eye, Upload, Info } from 'lucide-vue-next'
+import type { ImageBacklinkVO } from '@/api/notes'
+import { getNoteStatusInfo } from '@/api/notes'
+import { Image, Search, Trash2, Loader2, X, ChevronLeft, ChevronRight, Globe, Eye, Upload, Info, FileText } from 'lucide-vue-next'
 
 const loading = ref(true)
 const imageList = ref<AdminImageItem[]>([])
@@ -17,6 +20,32 @@ const pageSize = ref(12)
 const selectedIds = ref<Set<number>>(new Set())
 const previewUrl = ref('')
 const showPreview = ref(false)
+
+const router = useRouter()
+
+// ── Image backlinks ──
+const showImageBacklinks = ref(false)
+const imageBacklinks = ref<ImageBacklinkVO[]>([])
+const imageBacklinksLoading = ref(false)
+const imageBacklinksFetchedId = ref<number | null>(null)
+
+async function openImageBacklinks(imageId: number) {
+  showImageBacklinks.value = true
+  if (imageBacklinksFetchedId.value !== imageId) {
+    imageBacklinksLoading.value = true
+    try {
+      imageBacklinks.value = await adminApi.getImageBacklinks(imageId)
+      imageBacklinksFetchedId.value = imageId
+    } finally {
+      imageBacklinksLoading.value = false
+    }
+  }
+}
+
+function handleImageBacklinkClick(b: ImageBacklinkVO) {
+  showImageBacklinks.value = false
+  router.push(`/admin/notes/${b.sourceNoteId}`)
+}
 
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
@@ -168,6 +197,7 @@ onMounted(() => {
           <div v-if="img.isPass === 2" class="pointer-events-none absolute inset-0 bg-rose-500/10 mix-blend-overlay"></div>
           <div class="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <button v-if="img.ossUrl" class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="预览" @click="previewUrl = img.ossUrl; showPreview = true"><Eye class="h-4 w-4 text-white" /></button>
+            <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="查看引用笔记" @click="openImageBacklinks(img.id)"><FileText class="h-4 w-4 text-rose-200" /></button>
             <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="删除" @click="handleDelete(img.id)"><Trash2 class="h-4 w-4 text-rose-200" /></button>
           </div>
           <span class="absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white backdrop-blur-md">{{ formatBytes(img.fileSize) }}</span>
@@ -209,6 +239,52 @@ onMounted(() => {
           <div class="relative z-10 max-h-[90vh] max-w-[90vw]">
             <button class="absolute -top-12 right-0 p-2 text-slate-400 transition-colors hover:text-white" @click="showPreview = false"><X class="h-6 w-6" /></button>
             <img :src="previewUrl" class="max-h-[85vh] max-w-full rounded-xl object-contain shadow-2xl" />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showImageBacklinks" class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" @click="showImageBacklinks = false"></div>
+      </Transition>
+      <Transition name="modal">
+        <div v-if="showImageBacklinks" class="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <div class="glass-panel modal-card relative z-10 w-full max-w-lg rounded-3xl p-8">
+            <div class="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-rose-500/20 blur-[40px]"></div>
+            <div class="mb-6 flex items-center justify-between">
+              <h3 class="text-xl font-bold text-white">图片引用笔记</h3>
+              <button class="text-slate-500 transition-colors hover:text-white" @click="showImageBacklinks = false"><X class="h-5 w-5" /></button>
+            </div>
+            <div class="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2">
+              <div v-if="imageBacklinksLoading" class="text-xs text-slate-500 text-center py-8 flex items-center justify-center gap-2">
+                <Loader2 class="w-4 h-4 animate-spin" /> 加载中...
+              </div>
+              <div v-else-if="!imageBacklinks.length" class="text-xs text-slate-500 text-center py-8">暂无笔记引用此图片</div>
+              <div v-else>
+                <div
+                  v-for="b in imageBacklinks"
+                  :key="b.sourceNoteId"
+                  class="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5 hover:border-rose-500/30 group/ref transition-colors cursor-pointer"
+                  @click="handleImageBacklinkClick(b)"
+                >
+                  <div class="flex items-center space-x-2 overflow-hidden">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-rose-500/10 text-rose-400">
+                      <FileText class="w-4 h-4" />
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                      <span class="text-xs font-medium truncate text-slate-300 group-hover/ref:text-rose-300 transition-colors">
+                        {{ b.sourceNoteTitle }}
+                      </span>
+                      <span class="text-[9px] text-slate-500 mt-0.5 truncate">via [[{{ b.parsedImageName }}]]</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border" :class="getNoteStatusInfo(b.sourceNoteStatus).cls">{{ getNoteStatusInfo(b.sourceNoteStatus).label }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </Transition>

@@ -531,6 +531,16 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
+    public List<TagBacklinkVO> listBacklinksByTagId(Long tagId, Long userId) {
+        return noteTagMappingMapper.selectBacklinksByTagId(tagId, userId);
+    }
+
+    @Override
+    public List<ImageBacklinkVO> listBacklinksByImageId(Long imageId, Long userId) {
+        return noteImageMappingMapper.selectBacklinksByImageId(imageId, userId);
+    }
+
+    @Override
     public int countByImageId(Long imageId) {
         return noteImageMappingMapper.countByImageId(imageId);
     }
