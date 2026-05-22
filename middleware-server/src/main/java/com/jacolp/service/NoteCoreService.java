@@ -57,6 +57,16 @@ public interface NoteCoreService {
     List<NoteEntity> getByIds(List<Long> ids);
 
     /**
+     * 根据 ID 获取笔记实体（无所有权校验）
+     * <p>- 仅供需要做自定义可见性校验的 Facade 内部使用</p>
+     * <p>- 仍会校验存在性与是否软删除</p>
+     * @param id 笔记 ID
+     * @return 笔记实体
+     * @throws BaseException 笔记不存在或已删除
+     */
+    NoteEntity getEntityById(Long id);
+
+    /**
      * 检查是否存在笔记
      *
      * @param userId  用户 ID

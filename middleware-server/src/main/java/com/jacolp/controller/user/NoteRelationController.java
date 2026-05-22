@@ -18,6 +18,7 @@ import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.result.Result;
@@ -59,6 +60,14 @@ public class NoteRelationController {
     public Result<List<ImageSimpleVO>> listImages(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin list note images, noteId: {}", noteId);
         return Result.success(noteRelationFacade.listImageSimpleVOsByNoteId(noteId));
+    }
+
+    @GetMapping("/backlinks/{noteId}")
+    @Operation(summary = "查询反向引用笔记",
+            description = "按笔记 ID 反查所有引用了它的源笔记。仅返回当前用户拥有，或源笔记已公开(status=6)的引用方；目标笔记本身需为当前用户拥有或已公开。")
+    public Result<List<NoteBacklinkVO>> listBacklinks(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
+        log.info("User list note backlinks, noteId: {}", noteId);
+        return Result.success(noteRelationFacade.listBacklinksByNoteId(noteId));
     }
 
     @PutMapping("/tag/bind")

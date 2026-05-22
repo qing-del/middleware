@@ -9,6 +9,7 @@ import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.*;
+import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
@@ -271,4 +272,21 @@ public interface NoteRelationService {
      * @return 笔记是否缺失笔记
      */
     boolean isMissingNotes(Long noteId);
+
+    /**
+     * 获取反向引用列表（哪些笔记引用了 noteId 这一笔记）
+     * <p>- 此处没有目标笔记可见性校验，调用方需要保证 noteId 对当前 userId 的可见性</p>
+     * <p>- 此处保证了被引用笔记的可见性</p>
+     * @param noteId 被引用的笔记 ID
+     * @param userId 当前用户 ID；为 null 时不做归属/公开过滤（管理端使用）
+     * @return 反向引用列表
+     */
+    List<NoteBacklinkVO> listBacklinksByNoteId(Long noteId, Long userId);
+
+    /**
+     * 根据图片 id 统计图片映射行数量
+     * @param imageId 图片 id
+     * @return 图片映射行数量
+     */
+    int countByImageId(Long imageId);
 }

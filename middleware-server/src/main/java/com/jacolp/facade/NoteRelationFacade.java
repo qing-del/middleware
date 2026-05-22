@@ -7,6 +7,7 @@ import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 
@@ -70,4 +71,13 @@ public interface NoteRelationFacade {
      * @return 缺失的笔记关联信息
      */
     NoteCheckBindingVO checkRelationCompletion(Long noteId);
+
+    /**
+     * 查询反向引用列表（哪些笔记引用了 noteId）
+     * <p>- 用户端：校验目标笔记可见性（拥有者 或 status=6 已公开）</p>
+     * <p>- 管理端：跳过可见性校验</p>
+     * @param noteId 被引用的笔记 ID
+     * @return 反向引用列表
+     */
+    List<NoteBacklinkVO> listBacklinksByNoteId(Long noteId);
 }

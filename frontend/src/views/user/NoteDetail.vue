@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { noteApi, getNoteStatusInfo, NoteStatusCode } from '@/api/notes'
-import type { NoteDetailVO, NoteRelationDetailVO, NoteItem } from '@/api/notes'
+import type { NoteDetailVO, NoteRelationDetailVO, NoteItem, NoteBacklinkVO } from '@/api/notes'
 import { imageApi } from '@/api/images'
 import type { ImageItem } from '@/api/images'
 import { tagApi } from '@/api/tags'
@@ -47,6 +47,13 @@ const bindSearchError = ref<string | null>(null)
 const bindResults = ref<BindResultItem[]>([])
 const selectedBindTargetId = ref<number | null>(null)
 const currentBind = ref<{ type: BindTargetType; mappingId: number; parsedName: string } | null>(null)
+
+// ── Backlinks (reverse references) — lazy loaded ──
+const backlinks = ref<NoteBacklinkVO[]>([])
+const backlinksLoading = ref(false)
+const backlinksError = ref<string | null>(null)
+const backlinksExpanded = ref(false)
+const backlinksFetched = ref(false)
 
 // Floating TOC state
 const showTocPanel = ref(false)
@@ -290,6 +297,41 @@ async function refreshRelations() {
   await Promise.all([refreshNoteSummary(), fetchRelations()])
 }
 
+// ── Backlinks: lazy load on button click ──────────
+async function fetchBacklinks() {
+  const noteId = Number(route.params.noteId)
+  if (!noteId || isNaN(noteId)) return
+  backlinksLoading.value = true
+  backlinksError.value = null
+  try {
+    backlinks.value = await noteApi.getBacklinks(noteId)
+    backlinksFetched.value = true
+  } catch (e: any) {
+    backlinksError.value = e?.message || '加载反向引用失败'
+  } finally {
+    backlinksLoading.value = false
+  }
+}
+
+async function toggleBacklinks() {
+  if (backlinksExpanded.value) {
+    backlinksExpanded.value = false
+    return
+  }
+  backlinksExpanded.value = true
+  if (!backlinksFetched.value) {
+    await fetchBacklinks()
+  }
+}
+
+function handleBacklinkClick(b: NoteBacklinkVO) {
+  if (b.anchor) {
+    router.push(`/user/notes/${b.sourceNoteId}#${b.anchor}`)
+  } else {
+    router.push(`/user/notes/${b.sourceNoteId}`)
+  }
+}
+
 // ── Router reuse watcher ─────────────────────────
 // When navigating from NoteDetail → NoteDetail (e.g. via internal link),
 // Vue Router reuses the same component instance, so onMounted won't fire.
@@ -306,6 +348,10 @@ watch(
     relationError.value = null
     relationLoading.value = false
     relationTab.value = 'images'
+    backlinks.value = []
+    backlinksExpanded.value = false
+    backlinksFetched.value = false
+    backlinksError.value = null
     showTocPanel.value = false
     // Reset scroll position
     const main = document.querySelector('main')
@@ -878,6 +924,56 @@ onUnmounted(() => {
             </div>
             <p class="text-xs font-bold uppercase tracking-widest">孤立节点 (Isolated)</p>
             <p class="text-[10px] mt-1 opacity-50 text-center max-w-[150px]">这篇笔记目前没有任何关联资产</p>
+          </div>
+
+          <!-- Backlinks (反向引用) — lazy fetched on click -->
+          <div class="mt-4 glass-panel rounded-2xl border border-white/10 overflow-hidden">
+            <button
+              class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-cyan-500/5 transition-colors group"
+              :class="backlinksExpanded ? 'border-b border-white/5 bg-cyan-500/5' : ''"
+              @click="toggleBacklinks"
+            >
+              <span class="flex items-center gap-2 text-sm font-bold text-white">
+                <Link class="w-4 h-4 text-cyan-400" />
+                反向引用
+                <span v-if="backlinksFetched" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">{{ backlinks.length }}</span>
+                <span v-else class="text-[10px] text-slate-500 font-normal">点击加载</span>
+              </span>
+              <ChevronRight class="w-4 h-4 text-slate-400 transition-transform" :class="backlinksExpanded ? 'rotate-90 text-cyan-300' : 'group-hover:text-cyan-400'" />
+            </button>
+            <Transition name="fade">
+              <div v-if="backlinksExpanded" class="p-3 max-h-[40vh] overflow-y-auto custom-scrollbar space-y-2">
+                <div v-if="backlinksLoading" class="text-xs text-slate-500 text-center py-4 flex items-center justify-center gap-2">
+                  <Loader2 class="w-3.5 h-3.5 animate-spin" /> 加载中...
+                </div>
+                <div v-else-if="backlinksError" class="text-xs text-rose-400 text-center py-4">{{ backlinksError }}</div>
+                <div v-else-if="!backlinks.length" class="text-xs text-slate-500 text-center py-4">暂无笔记引用此篇</div>
+                <div v-else>
+                  <div
+                    v-for="b in backlinks"
+                    :key="b.sourceNoteId"
+                    class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/5 hover:border-cyan-500/30 group transition-colors cursor-pointer mb-2 last:mb-0"
+                    @click="handleBacklinkClick(b)"
+                  >
+                    <div class="flex items-center space-x-2 overflow-hidden">
+                      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-cyan-500/10 text-cyan-400">
+                        <FileText class="w-4 h-4" />
+                      </div>
+                      <div class="flex flex-col min-w-0">
+                        <span class="text-xs font-medium truncate text-slate-300 group-hover:text-cyan-300 transition-colors">
+                          {{ b.sourceNoteTitle }}
+                        </span>
+                        <span class="text-[9px] text-slate-500 mt-0.5 truncate">via [[{{ b.parsedNoteName }}{{ b.anchor ? '#' + b.anchor : '' }}]]</span>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                      <span v-if="b.isCrossUser === 1" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20" title="跨用户引用">跨用户</span>
+                      <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border" :class="getNoteStatusInfo(b.sourceNoteStatus).cls">{{ getNoteStatusInfo(b.sourceNoteStatus).label }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Transition>
           </div>
             </div>
           </Transition>

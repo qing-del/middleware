@@ -1,4 +1,6 @@
 import request from '@/utils/request'
+import type { NoteBacklinkVO } from '@/api/notes'
+export type { NoteBacklinkVO } from '@/api/notes'
 
 // ── Shared types ──────────────────────────────────
 export interface PageResult<T> {
@@ -281,6 +283,10 @@ export const adminApi = {
   /** 批量删除笔记 */
   deleteNotes(ids: number[]): Promise<string> {
     return request.delete('/admin/note/delete', { params: { ids: ids.join(',') } })
+  },
+  /** 查询反向引用笔记 (Admin) — 哪些笔记引用了 noteId */
+  getNoteBacklinks(noteId: number): Promise<NoteBacklinkVO[]> {
+    return request.get(`/admin/note/relation/backlinks/${noteId}`)
   }
 }
 

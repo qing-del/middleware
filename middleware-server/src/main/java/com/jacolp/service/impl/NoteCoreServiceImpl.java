@@ -109,6 +109,15 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     }
 
     @Override
+    public NoteEntity getEntityById(Long id) {
+        NoteEntity note = noteMapper.selectById(id);
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+        return note;
+    }
+
+    @Override
     public List<NoteEntity> getByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();

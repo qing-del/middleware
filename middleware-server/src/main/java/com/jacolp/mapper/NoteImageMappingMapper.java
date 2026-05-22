@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
+import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface NoteImageMappingMapper {
@@ -79,4 +80,12 @@ public interface NoteImageMappingMapper {
      * @return
      */
     ArrayList<NoteSimpleVO> selectNoteSimpleByImageId(@Param("imageId") Long imageId);
+
+    /**
+     * 根据图片 id 统计图片映射行数量
+     * @param imageId 图片 id
+     * @return 图片映射行数量
+     */
+    @Select("SELECT COUNT(1) FROM biz_note_image_mapping WHERE image_id = #{imageId} AND is_deleted = 0")
+    int countByImageId(Long imageId);
 }
