@@ -18,4 +18,9 @@ public interface ApiDailyUsageMapper {
      * @return 更新后的 used_count
      */
     int incrementUsage(@Param("userId") Long userId, @Param("date") LocalDate date);
+
+    /**
+     * 原子递减当日用量
+     */
+    int decrementUsage(Long userId, LocalDate today);
 }

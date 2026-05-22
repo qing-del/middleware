@@ -1,8 +1,11 @@
 package com.jacolp.mapper;
 
+import com.jacolp.pojo.dto.audio.AudioTaskPageQueryDTO;
 import com.jacolp.pojo.entity.AudioTaskEntity;
+import jakarta.validation.constraints.NotNull;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,7 +18,7 @@ public interface AudioTaskMapper {
 
     AudioTaskEntity selectById(Long id);
 
-    List<AudioTaskEntity> selectByUserId(@Param("userId") Long userId);
+    List<AudioTaskEntity> selectByUserId(@Param("dto") AudioTaskPageQueryDTO dto);
 
     /**
      * CAS 更新任务状态，WHERE status = expectedStatus 保证幂等性。
@@ -29,4 +32,7 @@ public interface AudioTaskMapper {
                         @Param("completedDate") LocalDate completedDate);
 
     List<AudioTaskEntity> selectPendingTimeout(@Param("before") LocalDateTime before);
+
+    @Select("SELECT user_id FROM audio_task WHERE id = #{taskId}")
+    Long getUserIdByTaskId(@NotNull(message = "taskId 不能为空") Long taskId);
 }

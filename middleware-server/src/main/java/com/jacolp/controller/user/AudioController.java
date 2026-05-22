@@ -1,5 +1,7 @@
 package com.jacolp.controller.user;
 
+import com.jacolp.annotation.RateLimit;
+import com.jacolp.constant.RateLimitConstant;
 import com.jacolp.pojo.dto.audio.AudioTaskPageQueryDTO;
 import com.jacolp.pojo.dto.audio.AudioTaskSubmitDTO;
 import com.jacolp.pojo.vo.audio.AudioTaskSubmitVO;
@@ -29,6 +31,7 @@ public class AudioController {
     @Autowired private AudioTaskService audioTaskService;
 
     @PostMapping("/generate")
+    @RateLimit(windowSeconds = 60, maxRequests = 5, prefix = RateLimitConstant.AUDIO_TASK_RATE_LIMIT_KEY)
     @Operation(summary = "提交音频生成任务",
             description = "提交文本转语音任务，指定语速、背景音类型和噪音因子，任务异步处理，返回 taskId 供后续轮询。")
     public Result<AudioTaskSubmitVO> generate(@RequestBody @Valid AudioTaskSubmitDTO dto) {

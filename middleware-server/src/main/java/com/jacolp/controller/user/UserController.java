@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.jacolp.annotation.RateLimit;
+import com.jacolp.constant.RateLimitConstant;
 import com.jacolp.service.UserUserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,8 +114,8 @@ public class UserController {
     @PostMapping("/active-code")
     @Operation(summary = "通过激活码激活账号",
             description = "通过邮箱中收到的 6 位数字激活码完成账号激活，无需 JWT 令牌")
-    @RateLimit(windowSeconds = 60, maxRequests = 1)
-    @RateLimit(windowSeconds = 3600, maxRequests = 5)
+    @RateLimit(windowSeconds = 60, maxRequests = 1, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
+    @RateLimit(windowSeconds = 3600, maxRequests = 5, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
     public Result<String> activeByCode(
             @Parameter(description = "6位数字激活码，key 为 code")
             @RequestBody Map<String, String> body) {

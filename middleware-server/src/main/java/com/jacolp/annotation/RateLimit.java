@@ -21,4 +21,7 @@ public @interface RateLimit {
 
     /** 窗口内最多允许的请求次数 */
     int maxRequests();
+
+    /** 滑动窗口的前缀 */
+    String prefix();
 }

@@ -34,9 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 @Order(0) // 优先级最高
 @Slf4j
 public class RateLimitAspect {
-
-    private static final String RATE_LIMIT_PREFIX = "rate_limit";
-
     @Autowired
     private StringRedisTemplate redis;
 
@@ -109,6 +106,6 @@ public class RateLimitAspect {
     private String buildKey(RateLimit limit, MethodSignature signature) {
         Long userId = BaseContext.getCurrentId();
         String methodKey = signature.getDeclaringType().getSimpleName() + "." + signature.getName();
-        return RATE_LIMIT_PREFIX + ":" + methodKey + ":" + userId + ":" + limit.windowSeconds();
+        return limit.prefix() + ":" + methodKey + ":" + userId + ":" + limit.windowSeconds();
     }
 }

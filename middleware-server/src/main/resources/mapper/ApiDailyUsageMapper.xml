@@ -9,4 +9,9 @@
         ON DUPLICATE KEY UPDATE used_count = used_count + 1
     </insert>
 
+    <update id="decrementUsage">
+        update biz_api_daily_usage set used_count = used_count - 1
+        where user_id = #{userId} and record_date = #{date}
+    </update>
+
 </mapper>

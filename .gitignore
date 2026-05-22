@@ -70,4 +70,3 @@ AGENTS.md
 /docker/
 /docker/**
 /.dockerignore
-/static/document/

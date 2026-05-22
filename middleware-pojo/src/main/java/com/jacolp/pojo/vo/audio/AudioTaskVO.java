@@ -14,6 +14,12 @@ public class AudioTaskVO {
     @Schema(description = "任务ID")
     private Long id;
 
+    @Schema(description = "音频源文本")
+    private String sourceText;
+
+    @Schema(description = "提交任务的用户ID")
+    private Long userId;
+
     @Schema(description = "语速倍率")
     private BigDecimal speed;
 

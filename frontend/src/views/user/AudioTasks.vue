@@ -3,9 +3,9 @@ import { ref, watch } from 'vue'
 import { audioApi, type AudioTaskVO } from '@/api/audio'
 import { useAuthStore } from '@/stores/auth'
 import { buildResourceUrl } from '@/utils/resourceUrl'
-import { 
-  Mic, Clock, CheckCircle2, XCircle, Play, Pause, 
-  RotateCcw, Calendar, Gauge, Waves, ChevronLeft, ChevronRight, Loader2, Music
+import {
+  Mic, Clock, CheckCircle2, XCircle, Play, Pause,
+  RotateCcw, Calendar, Gauge, Waves, ChevronLeft, ChevronRight, Loader2, Music, FileText, X
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -14,6 +14,15 @@ const tasks = ref<AudioTaskVO[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(12)
+const showSourceModal = ref(false)
+const sourceTitle = ref('')
+const sourceContent = ref('')
+
+function openSourceModal(task: AudioTaskVO) {
+  sourceTitle.value = '任务 #' + task.id + ' 源文本'
+  sourceContent.value = task.sourceText || ''
+  showSourceModal.value = true
+}
 
 async function fetchTasks() {
   loading.value = true
@@ -161,6 +170,17 @@ watch(
                 <span class="text-xs font-bold">{{ task.noiseType }}</span>
               </div>
             </div>
+
+            <!-- 源文本 -->
+            <div>
+              <button
+                @click="openSourceModal(task)"
+                class="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 text-[10px] font-bold transition-all border border-white/10"
+              >
+                <FileText class="w-3.5 h-3.5" />
+                查看文本
+              </button>
+            </div>
           </div>
         </div>
 
@@ -225,6 +245,33 @@ watch(
         </button>
       </div>
     </div>
+
+    <!-- 源文本弹窗 -->
+    <Teleport to="body">
+      <Transition name="modal-backdrop">
+        <div v-if="showSourceModal" class="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md" @click="showSourceModal = false" />
+      </Transition>
+      <Transition name="modal-panel">
+        <div v-if="showSourceModal" class="fixed inset-0 z-[60] flex items-center justify-center px-4 pointer-events-none">
+          <div class="glass-panel modal-card relative z-10 max-w-2xl w-full max-h-[80vh] rounded-2xl overflow-hidden flex flex-col pointer-events-auto">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                  <FileText class="w-4 h-4" />
+                </div>
+                <h3 class="text-sm font-bold text-white truncate max-w-[400px]">{{ sourceTitle }}</h3>
+              </div>
+              <button class="text-slate-500 hover:text-white p-2 rounded-full hover:bg-white/5" @click="showSourceModal = false">
+                <X class="w-5 h-5" />
+              </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6">
+              <pre class="text-sm text-slate-300 font-mono whitespace-pre-wrap break-all">{{ sourceContent }}</pre>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -233,6 +280,25 @@ watch(
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+
+.modal-backdrop-enter-active,
+.modal-backdrop-leave-active { transition: opacity 0.28s ease; }
+.modal-backdrop-enter-from,
+.modal-backdrop-leave-to { opacity: 0; }
+
+.modal-panel-enter-active,
+.modal-panel-leave-active {
+  transition: opacity 0.32s ease, transform 0.42s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.modal-panel-enter-from,
+.modal-panel-leave-to { opacity: 0; transform: translateY(18px) scale(0.96); }
+.modal-panel-enter-to,
+.modal-panel-leave-from { opacity: 1; transform: translateY(0) scale(1); }
+
+.modal-card {
+  transform-origin: center center;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
 /* 简单的音频播放器样式微调，Vite 环境下可能需要更复杂的样式覆盖 */

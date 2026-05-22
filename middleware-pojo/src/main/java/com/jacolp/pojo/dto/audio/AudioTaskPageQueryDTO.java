@@ -1,6 +1,7 @@
 package com.jacolp.pojo.dto.audio;
 
 import com.jacolp.pojo.provider.PageParamProvider;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,4 +19,7 @@ public class AudioTaskPageQueryDTO implements PageParamProvider {
 
     @Positive(message = "页大小不能小于0")
     private Integer pageSize;
+
+    @Schema(description = "任务状态筛选（null=不过滤）")
+    private Integer status;
 }

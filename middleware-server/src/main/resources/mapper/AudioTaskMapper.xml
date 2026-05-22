@@ -15,7 +15,8 @@
     <select id="selectByUserId" resultType="com.jacolp.pojo.entity.AudioTaskEntity">
         SELECT * FROM audio_tasks
         <where>
-            <if test="userId != null">user_id = #{userId}</if>
+            <if test="dto.userId != null">AND user_id = #{dto.userId}</if>
+            <if test="dto.status != null">AND status = #{dto.status}</if>
         </where>
         ORDER BY create_time DESC
     </select>

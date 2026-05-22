@@ -32,6 +32,7 @@ import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -63,6 +64,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public AudioTaskSubmitVO submitTask(AudioTaskSubmitDTO dto) {
         Long userId = BaseContext.getCurrentId();
 
@@ -110,6 +112,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean callbackFinish(AudioCallbackFinishDTO dto) {
         if (dto.getStatus() != AudioConstant.TASK_STATUS_SUCCESS
                 && dto.getStatus() != AudioConstant.TASK_STATUS_FAILED) {
@@ -119,6 +122,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
         LocalDate completedDate = dto.getStatus() == AudioConstant.TASK_STATUS_SUCCESS
                 ? LocalDate.now() : null;
 
+
         int updated = audioTaskMapper.casUpdateStatus(
                 dto.getTaskId(),
                 AudioConstant.TASK_STATUS_PROCESSING,
@@ -127,8 +131,16 @@ public class AudioTaskServiceImpl implements AudioTaskService {
                 dto.getErrorMsg(),
                 completedDate);
 
+
         if (updated == 0) {
             log.warn("callbackFinish CAS failed, taskId: {} (already processed or not found)", dto.getTaskId());
+
+            // 更新用户使用额度
+            Long userId = audioTaskMapper.getUserIdByTaskId(dto.getTaskId());
+            LocalDate today = LocalDate.now();
+            // 原子递减（并发安全）
+            apiDailyUsageMapper.decrementUsage(userId, today);
+
             return false;
         }
         log.info("Audio task finished, taskId: {}, status: {}", dto.getTaskId(), dto.getStatus());
@@ -155,21 +167,19 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     @Override
     public PageResult listTasks(AudioTaskPageQueryDTO dto) {
         // 非管理员只能查询自己的任务，管理员可按 userId 筛选或查询全部
-        Long userId;
         if (!PermissionContext.isAdmin()) {
-            userId = BaseContext.getCurrentId();
-        } else {
-            userId = dto.getUserId();
+            dto.setUserId(BaseContext.getCurrentId());
         }
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-        List<AudioTaskEntity> list = audioTaskMapper.selectByUserId(userId);
+        List<AudioTaskEntity> list = audioTaskMapper.selectByUserId(dto);
         Page<AudioTaskEntity> p = (Page<AudioTaskEntity>) list;
         List<AudioTaskVO> voList = list.stream().map(task -> {
             AudioTaskVO vo = new AudioTaskVO();
             BeanUtils.copyProperties(task, vo);
             return vo;
         }).collect(Collectors.toList());
+
         return new PageResult(p.getTotal(), voList);
     }
 

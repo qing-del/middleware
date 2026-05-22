@@ -7,6 +7,7 @@ export interface PageResult<T> {
 
 export interface AudioTaskVO {
   id: number
+  sourceText: string
   speed: number
   noiseType: string
   noiseFactor: number
@@ -14,6 +15,7 @@ export interface AudioTaskVO {
   status: number
   resultUrl?: string
   errorMsg?: string
+  userId: number
   createTime: string
   completedDate?: string
 }
@@ -22,6 +24,7 @@ export interface AudioTaskPageQueryDTO {
   userId?: number
   pageNum: number
   pageSize: number
+  status?: number
 }
 
 export interface AudioTaskSubmitDTO {
