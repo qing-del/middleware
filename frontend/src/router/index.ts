@@ -73,6 +73,11 @@ const router = createRouter({
           component: () => import('@/views/user/Images.vue')
         },
         {
+          path: 'audio',
+          name: 'UserAudioTasks',
+          component: () => import('@/views/user/AudioTasks.vue')
+        },
+        {
           path: 'profile',
           name: 'UserProfile',
           component: () => import('@/views/user/Profile.vue')
@@ -132,6 +137,11 @@ const router = createRouter({
           path: 'email',
           name: 'AdminEmail',
           component: () => import('@/views/admin/Email.vue')
+        },
+        {
+          path: 'audio',
+          name: 'AdminAudioTasks',
+          component: () => import('@/views/admin/AudioTasks.vue')
         },
         {
           path: 'profile',

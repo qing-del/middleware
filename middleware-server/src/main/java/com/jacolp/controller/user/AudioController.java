@@ -45,7 +45,7 @@ public class AudioController {
         return Result.success(audioTaskService.getTask(taskId));
     }
 
-    @GetMapping("/tasks")
+    @PostMapping("/list")
     @Operation(summary = "分页查询当前用户音频任务列表")
     public Result<PageResult> listTasks(
             @Parameter(description = "分页参数") @Valid @RequestBody AudioTaskPageQueryDTO queryDTO) {

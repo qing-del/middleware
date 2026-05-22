@@ -44,4 +44,5 @@ public class UserConstant {
     public static final String EMAIL_NOT_PROVIDED = "邮箱未提供";
     public static final String INVALID_EMAIL_FORMAT = "邮箱格式不正确";
     public static final String UNSUPPORTED_EMAIL_DOMAIN = "不支持的邮箱域名";
+    public static final String MAX_STORAGE_LIMIT = "存储空间已满";
 }

@@ -154,11 +154,12 @@ public class AudioTaskServiceImpl implements AudioTaskService {
      */
     @Override
     public PageResult listTasks(AudioTaskPageQueryDTO dto) {
-        Long userId = dto.getUserId();
-
-        // 校验拦截 & 重定向目标资源
-        if (!PermissionContext.isAdmin() && !userId.equals(BaseContext.getCurrentId())) {
+        // 非管理员只能查询自己的任务，管理员可按 userId 筛选或查询全部
+        Long userId;
+        if (!PermissionContext.isAdmin()) {
             userId = BaseContext.getCurrentId();
+        } else {
+            userId = dto.getUserId();
         }
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());

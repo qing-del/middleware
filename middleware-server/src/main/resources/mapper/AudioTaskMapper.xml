@@ -13,7 +13,11 @@
     </select>
 
     <select id="selectByUserId" resultType="com.jacolp.pojo.entity.AudioTaskEntity">
-        SELECT * FROM audio_tasks WHERE user_id = #{userId} ORDER BY create_time DESC
+        SELECT * FROM audio_tasks
+        <where>
+            <if test="userId != null">user_id = #{userId}</if>
+        </where>
+        ORDER BY create_time DESC
     </select>
 
     <update id="casUpdateStatus">

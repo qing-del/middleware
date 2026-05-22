@@ -1041,6 +1041,7 @@ onMounted(() => {
         :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }"
       >{{ tooltipText }}</div>
     </Teleport>
+
   </div>
 </template>
 

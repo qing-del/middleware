@@ -7,11 +7,12 @@ import { imageApi } from '@/api/images'
 import type { ImageItem } from '@/api/images'
 import { tagApi } from '@/api/tags'
 import type { TagItem } from '@/api/tags'
+import AudioTaskModal from '@/components/AudioTaskModal.vue'
 import {
   ArrowLeft, Globe, FileEdit, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, ShieldCheck, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
   LayoutPanelTop, Loader2, RefreshCw, X, ChevronRight, FileText, Clock,
-  Search, Plug, Unlink2
+  Search, Plug, Unlink2, Mic
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -52,6 +53,13 @@ const showTocPanel = ref(false)
 const tocWrapperRef = ref<HTMLElement | null>(null)
 const tocBallRef = ref<HTMLElement | null>(null)
 const tocPanelRef = ref<HTMLElement | null>(null)
+
+type AudioTaskModalExpose = { open: () => void }
+const audioModalRef = ref<AudioTaskModalExpose | null>(null)
+
+const openAudioModal = () => {
+  audioModalRef.value?.open()
+}
 
 // 动态管理悬浮面板的方向和定位，解决直接操作 DOM class 被 Vue 重新渲染覆盖的问题
 const panelPosClasses = ref(['bottom-full', 'right-0', 'mb-4', 'origin-bottom-right'])
@@ -1149,12 +1157,15 @@ onUnmounted(() => {
               <ListTree class="w-4 h-4 mr-2 text-blue-400" /> 文档快速导航
             </h4>
             <!-- Quick action buttons — always visible -->
-            <div class="flex items-center space-x-2 mb-4 pb-3" :class="{ 'border-b border-white/5': note.converted.tocHtml }">
+            <div class="flex flex-wrap items-center gap-2 mb-4 pb-3" :class="{ 'border-b border-white/5': note.converted.tocHtml }">
               <button class="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-blue-500/20 text-slate-400 hover:text-blue-300 text-xs font-bold transition-colors flex items-center justify-center" @click="scrollToTop">
                 <ArrowUpToLine class="w-3.5 h-3.5 mr-1" /> 返回顶部
               </button>
               <button class="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-purple-500/20 text-slate-400 hover:text-purple-300 text-xs font-bold transition-colors flex items-center justify-center" @click="toggleMatrix">
                 <LayoutPanelTop class="w-3.5 h-3.5 mr-1" /> 资产矩阵
+              </button>
+              <button class="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-300 text-xs font-bold transition-colors flex items-center justify-center" @click="openAudioModal">
+                <Mic class="w-3.5 h-3.5 mr-1" /> 音频助手
               </button>
             </div>
             <!-- tocHtml rendered (only when there's actual TOC content) -->
@@ -1170,6 +1181,8 @@ onUnmounted(() => {
           </div>
         </div>
       </Teleport>
+
+      <AudioTaskModal ref="audioModalRef" :showTrigger="false" />
     </template>
   </div>
 </template>
