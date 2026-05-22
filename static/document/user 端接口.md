@@ -998,6 +998,220 @@
 ```
 
 
+## 查询反向引用笔记
+
+
+**接口地址**:`/user/note/relation/backlinks/{noteId}`
+
+
+**请求方式**:`GET`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>按笔记 ID 反查所有引用了它的源笔记。仅返回当前用户拥有，或源笔记已公开(status=6)的引用方；目标笔记本身需为当前用户拥有或已公开。</p>
+
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|noteId|笔记ID|path|true|integer(int64)||
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultListNoteBacklinkVO|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||array|NoteBacklinkVO|
+|&emsp;&emsp;sourceNoteId|源笔记 ID|integer(int64)||
+|&emsp;&emsp;sourceNoteTitle|源笔记标题|string||
+|&emsp;&emsp;parsedNoteName|源笔记链接解析后的标题|string||
+|&emsp;&emsp;anchor|锚点|string||
+|&emsp;&emsp;nickname|解析别名|string||
+|&emsp;&emsp;isCrossUser|是否跨用户|integer(int32)||
+|&emsp;&emsp;sourceNoteStatus|源笔记状态|integer(int32)||
+|&emsp;&emsp;createTime|创建时间|string(date-time)||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": [
+		{
+			"sourceNoteId": 0,
+			"sourceNoteTitle": "",
+			"parsedNoteName": "",
+			"anchor": "",
+			"nickname": "",
+			"isCrossUser": 0,
+			"sourceNoteStatus": 0,
+			"createTime": ""
+		}
+	]
+}
+```
+
+
+## 查询标签反向引用笔记
+
+
+**接口地址**:`/user/note/relation/backlinks/tag/{tagId}`
+
+
+**请求方式**:`GET`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>按标签 ID 反查所有引用了它的源笔记。目标标签需为当前用户拥有或已通过审核(isPass=1)。</p>
+
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|tagId|标签ID|path|true|integer(int64)||
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultListTagBacklinkVO|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||array|TagBacklinkVO|
+|&emsp;&emsp;sourceNoteId|源笔记 ID|integer(int64)||
+|&emsp;&emsp;sourceNoteTitle|源笔记标题|string||
+|&emsp;&emsp;parsedTagName|源笔记中解析出的标签名称|string||
+|&emsp;&emsp;isCrossUser|是否跨用户|integer(int32)||
+|&emsp;&emsp;sourceNoteStatus|源笔记状态|integer(int32)||
+|&emsp;&emsp;createTime|创建时间|string(date-time)||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": [
+		{
+			"sourceNoteId": 0,
+			"sourceNoteTitle": "",
+			"parsedTagName": "",
+			"isCrossUser": 0,
+			"sourceNoteStatus": 0,
+			"createTime": ""
+		}
+	]
+}
+```
+
+
+## 查询图片反向引用笔记
+
+
+**接口地址**:`/user/note/relation/backlinks/image/{imageId}`
+
+
+**请求方式**:`GET`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>按图片 ID 反查所有引用了它的源笔记。目标图片需为当前用户拥有或已公开(isPublic=1)。</p>
+
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|imageId|图片ID|path|true|integer(int64)||
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultListImageBacklinkVO|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||array|ImageBacklinkVO|
+|&emsp;&emsp;sourceNoteId|源笔记 ID|integer(int64)||
+|&emsp;&emsp;sourceNoteTitle|源笔记标题|string||
+|&emsp;&emsp;parsedImageName|源笔记中解析出的图片名称|string||
+|&emsp;&emsp;isCrossUser|是否跨用户|integer(int32)||
+|&emsp;&emsp;sourceNoteStatus|源笔记状态|integer(int32)||
+|&emsp;&emsp;createTime|创建时间|string(date-time)||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": [
+		{
+			"sourceNoteId": 0,
+			"sourceNoteTitle": "",
+			"parsedImageName": "",
+			"isCrossUser": 0,
+			"sourceNoteStatus": 0,
+			"createTime": ""
+		}
+	]
+}
+```
+
+
 ## 解绑标签映射
 
 
