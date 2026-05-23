@@ -6,6 +6,7 @@ import com.jacolp.pojo.dto.note.*;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.github.pagehelper.PageHelper;
@@ -108,6 +109,15 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     }
 
     @Override
+    public NoteEntity getEntityById(Long id) {
+        NoteEntity note = noteMapper.selectById(id);
+        if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
+            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
+        }
+        return note;
+    }
+
+    @Override
     public List<NoteEntity> getByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
@@ -146,7 +156,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     }
 
     @Override
-    public void updateStatusByIds(List<Long> noteIds, Short status) {
+    public int updateStatusByIds(List<Long> noteIds, Short status) {
         if (noteIds != null && !noteIds.isEmpty()) {
             int affected = noteMapper.updateStatusByIds(noteIds, status);
             if (affected != noteIds.size()) {
@@ -156,6 +166,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
                 }
             }
         }
+        return 0;
     }
 
     @Override
@@ -185,31 +196,38 @@ public class NoteCoreServiceImpl implements NoteCoreService {
      * <p>仅允许申请自己的笔记，且不能已通过审核或已有待审核申请。</p>
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void submitNoteAudit(Long noteId) {
         Long userId = BaseContext.getCurrentId();
         if (noteId == null || noteId <= 0) {
             throw new BaseException(NoteConstant.NOTE_ID_INVALID);
         }
 
-        NoteEntity note = noteMapper.selectById(noteId);
-        if (note == null) {
-            throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
-        }
-        if (!note.getUserId().equals(userId)) {
-            throw new BaseException(NoteConstant.NOTE_NOT_OWNER);
-        }
+        NoteEntity note = getById(noteId);  // TODO this自调用，后续解耦审核模块的时候优化
+
+        // 检查笔记状态是否可以发生转换
         NoteStatus status = NoteStatus.fromCode(note.getStatus());
         if (status.isApproved() || status.isPublished()) {
             throw new BaseException(NoteConstant.NOTE_ALREADY_PASSED);
         }
+        if (!status.canTransitionTo(NoteStatus.PENDING_AUDIT)) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
+        // 检查是否存在待审核申请
         if (auditService.hasPendingNoteAudit(noteId)) {
             throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
         }
 
+        // 插入笔记审核记录
         NoteAuditRecordEntity record = new NoteAuditRecordEntity();
         record.setApplicantUserId(userId);
         record.setNoteId(noteId);
         auditService.createNoteAuditRecord(record);
+
+        // 更新笔记状态
+        note.setStatus(NoteStatus.PENDING_AUDIT.getCode());
+        update(note);   // TODO this自调用，后续解耦审核模块的时候优化
     }
 
     // ==================== 用户端查询 ====================

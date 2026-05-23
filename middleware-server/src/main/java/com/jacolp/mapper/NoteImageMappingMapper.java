@@ -3,11 +3,13 @@ package com.jacolp.mapper;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
+import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface NoteImageMappingMapper {
@@ -79,4 +81,21 @@ public interface NoteImageMappingMapper {
      * @return
      */
     ArrayList<NoteSimpleVO> selectNoteSimpleByImageId(@Param("imageId") Long imageId);
+
+    /**
+     * 根据图片 id 统计图片映射行数量
+     * @param imageId 图片 id
+     * @return 图片映射行数量
+     */
+    @Select("SELECT COUNT(1) FROM biz_note_image_mapping WHERE image_id = #{imageId} AND is_deleted = 0")
+    int countByImageId(Long imageId);
+
+    /**
+     * 查询引用了指定图片的源笔记列表（图片反向引用）
+     * @param imageId 目标图片 id
+     * @param userId 当前用户 id；传 null 时跳过归属/公开过滤（管理端使用）
+     * @return 反向引用列表（包含源笔记标题、状态、跨用户标记等）
+     */
+    List<ImageBacklinkVO> selectBacklinksByImageId(@Param("imageId") Long imageId,
+                                                   @Param("userId") Long userId);
 }

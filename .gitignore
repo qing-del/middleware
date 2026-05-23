@@ -36,7 +36,7 @@ build/
 ### configuration ###
 application-dev.yaml
 
-### MyNotes ###
+### MyNotes & Agent ###
 notes
 /flexmark/**/
 /.aboutInterface/
@@ -46,6 +46,9 @@ CLAUDE.md
 /.github/
 *.drawio.bkp
 *.drawio
+AGENTS.md
+
+### Frontend ###
 /frontend/logs/**
 /frontend/logs/
 /frontend/node_modules/
@@ -58,3 +61,12 @@ CLAUDE.md
 /logs/**
 /.codex/
 /frontend/dist/
+
+### Docker ###
+.env
+/data/
+/Dockerfile
+/docker-compose.yml
+/docker/
+/docker/**
+/.dockerignore

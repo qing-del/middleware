@@ -5,7 +5,7 @@ import com.jacolp.pojo.provider.RoleIdProvider;
 import com.jacolp.pojo.provider.TargetUserProvider;
 import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -22,7 +22,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserModifyDTO implements TargetUserProvider, RoleIdProvider, UsernameAndPasswordProvider {
 
-    @NotBlank(message = "用户ID不能为空")
+    @NotNull(message = "用户ID不能为空")
     @Positive(message = "用户ID必须为正数")
     private Long id;
 
@@ -45,6 +45,9 @@ public class UserModifyDTO implements TargetUserProvider, RoleIdProvider, Userna
 
     /** 确认密码（必须与 newPassword 一致） */
     private String confirmPassword;
+
+    /** 用户最大存储空间(字节)，仅管理员可设置 */
+    private Long maxStorageBytes;
 
     @Override
     public Long getTargetUserId() {

@@ -2,6 +2,7 @@ import request from '@/utils/request'
 
 export interface TagItem {
   id: number
+  userId?: number
   tagName: string
   isPass: number       // 0=待审核, 1=已通过, 2=已拒绝
   createTime: string

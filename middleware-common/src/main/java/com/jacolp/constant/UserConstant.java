@@ -25,6 +25,7 @@ public class UserConstant {
      */
     public static final String JWT_NOT_VALID = "无效的激活链接";
     public static final String ACTIVE_SIGN_KEY = "active";
+    public static final String ACTIVE_CODE_PREFIX = "active:code:";
 
     public static final String USER_LOGIN_FAILED = "用户登录失败";
     public static final String NOT_FOUND_USER = "用户不存在";
@@ -43,4 +44,5 @@ public class UserConstant {
     public static final String EMAIL_NOT_PROVIDED = "邮箱未提供";
     public static final String INVALID_EMAIL_FORMAT = "邮箱格式不正确";
     public static final String UNSUPPORTED_EMAIL_DOMAIN = "不支持的邮箱域名";
+    public static final String MAX_STORAGE_LIMIT = "存储空间已满";
 }

@@ -156,4 +156,32 @@
           AND is_deleted = 0
     </select>
 
+    <select id="selectBacklinksByTargetNoteId" resultType="com.jacolp.pojo.vo.note.NoteBacklinkVO">
+        SELECT
+            m.source_note_id   AS sourceNoteId,
+            n.title            AS sourceNoteTitle,
+            m.parsed_note_name AS parsedNoteName,
+            m.anchor           AS anchor,
+            m.nickname         AS nickname,
+            <choose>
+                <when test="userId != null">
+                    CASE WHEN n.user_id = #{userId} THEN 0 ELSE 1 END AS isCrossUser,
+                </when>
+                <otherwise>
+                    0 AS isCrossUser,
+                </otherwise>
+            </choose>
+            n.status           AS sourceNoteStatus,
+            m.create_time      AS createTime
+        FROM biz_note_each_mapping m
+        INNER JOIN biz_note n ON n.id = m.source_note_id
+        WHERE m.target_note_id = #{targetNoteId}
+          AND m.is_deleted = 0  # 映射行有效
+          AND n.status != 8     # 笔记不为删除
+        <if test="userId != null">
+            AND (n.user_id = #{userId} OR n.status = 6)     # 笔记属于作者 / 笔记处于公开状态
+        </if>
+        ORDER BY m.create_time DESC
+    </select>
+
 </mapper>

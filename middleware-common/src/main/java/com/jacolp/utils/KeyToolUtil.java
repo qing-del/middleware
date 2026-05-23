@@ -21,4 +21,13 @@ public class KeyToolUtil {
     public static @NonNull String getUserLoginKey(Long userId) {
         return UserConstant.USER_ID_CLAIM + ":" + userId;
     }
+
+    /**
+     * 获取激活码对应的 Redis key（6位数字 → userId）
+     * @param code 6位激活码
+     * @return Redis key
+     */
+    public static @NonNull String getActiveCodeKey(String code) {
+        return UserConstant.ACTIVE_CODE_PREFIX + code;
+    }
 }

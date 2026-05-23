@@ -24,6 +24,9 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${jacolp.admin.password}")
     private String adminPassword;
 
+    @Value("${jacolp.admin.email}")
+    private String adminEmail;
+
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
 
@@ -40,6 +43,7 @@ public class DataInitializer implements CommandLineRunner {
         creator.setId(1L);
         creator.setUsername(adminUsername);
         creator.setPassword(passwordEncoder.encode(adminPassword));
+        creator.setEmail(adminEmail);
         creator.setRoleId(RoleConstant.CREATOR);
         creator.setStatus(UserConstant.ACTIVE_STATUS);
         int count = userMapper.upsertCreator(creator);

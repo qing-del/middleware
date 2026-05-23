@@ -33,6 +33,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
         registry.addInterceptor(jwtTokenAdminInterceptor)
                 .addPathPatterns("/admin/**")
                 .excludePathPatterns("/admin/user/login")
+                .excludePathPatterns("/admin/audio/callback/**")
                 .excludePathPatterns(
                         "/doc.html",
                         "/webjars/**",
@@ -47,6 +48,7 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .excludePathPatterns("/user/user/login")
                 .excludePathPatterns("/user/user/register")
                 .excludePathPatterns("/user/user/active/**");   // 将激活接口放行
+
 
         // 用户激活接口
         registry.addInterceptor(jwtTokenActiveInterceptor)

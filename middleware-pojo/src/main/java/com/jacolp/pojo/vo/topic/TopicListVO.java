@@ -14,6 +14,8 @@ public class TopicListVO implements Serializable {
 
     private Long id;
 
+    private Long userId;
+
     private String topicName;
 
     private Integer sortOrder;

@@ -14,6 +14,28 @@ const currentPage = ref(1)
 const pageSize = ref(15)
 const selectedIds = ref<Set<number>>(new Set())
 
+// User nickname cache
+const userNicknameCache = ref<Map<number, string>>(new Map())
+
+function getUserDisplayName(userId: number): string {
+  const nick = userNicknameCache.value.get(userId)
+  return nick ? `${nick} (UID:${userId})` : `UID:${userId}`
+}
+
+async function prefetchUserNicknames() {
+  const ids = [...new Set(topicList.value.map(t => t.userId).filter(Boolean) as number[])]
+  const uncached = ids.filter(id => !userNicknameCache.value.has(id))
+  if (uncached.length === 0) return
+  const results = await Promise.allSettled(
+    uncached.map(id => adminApi.getUserDetail(id))
+  )
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value) {
+      userNicknameCache.value.set(uncached[i], r.value.nickname || String(uncached[i]))
+    }
+  })
+}
+
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
@@ -58,6 +80,7 @@ async function fetchTopics() {
     })
     topicList.value = (res as unknown as PageResult<AdminTopicItem>).records ?? []
     total.value = (res as unknown as PageResult<AdminTopicItem>).total ?? 0
+    if (topicList.value.length > 0) void prefetchUserNicknames()
   } finally {
     loading.value = false
   }
@@ -124,10 +147,12 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="glass-panel relative z-10 flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-300" :class="isBatchMode ? 'translate-y-0 opacity-100' : '-translate-y-[10px] opacity-0 pointer-events-none'">
-      <span class="text-sm font-bold text-cyan-200">已选择 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 个主题</span>
-      <button class="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white" @click="handleBatchDelete"><Trash2 class="h-3.5 w-3.5" /><span>批量删除</span></button>
-    </div>
+    <Transition name="batch-float">
+      <div v-if="isBatchMode" class="glass-panel relative z-10 flex items-center justify-between rounded-xl px-4 py-3">
+        <span class="text-sm font-bold text-cyan-200">已选择 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 个主题</span>
+        <button class="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white" @click="handleBatchDelete"><Trash2 class="h-3.5 w-3.5" /><span>批量删除</span></button>
+      </div>
+    </Transition>
 
     <div class="glass-panel relative z-10 overflow-hidden rounded-2xl border border-white/10">
       <div class="overflow-x-auto">
@@ -144,10 +169,16 @@ onMounted(() => {
           <tbody class="divide-y divide-white/5">
             <tr v-if="loading"><td colspan="7" class="px-6 py-16 text-center"><Loader2 class="mx-auto mb-3 h-6 w-6 animate-spin text-cyan-300" /><span class="text-xs text-slate-500">加载中...</span></td></tr>
             <tr v-else-if="topicList.length === 0"><td colspan="7" class="px-6 py-16 text-center text-sm text-slate-500">暂无主题数据</td></tr>
+            <TransitionGroup v-else name="list">
             <tr v-for="topic in topicList" :key="topic.id" class="group transition-colors duration-200 hover:bg-white/5">
               <td class="px-4 py-4"><input type="checkbox" class="glass-checkbox" :checked="selectedIds.has(topic.id)" @change="toggleSelect(topic.id)" /></td>
               <td class="px-4 py-4 font-mono text-xs text-slate-500">{{ topic.id }}</td>
-              <td class="px-4 py-4 text-sm font-bold text-slate-200">{{ topic.topicName }}</td>
+              <td class="px-4 py-4">
+                <div class="flex flex-col">
+                  <span class="text-sm font-bold text-slate-200">{{ topic.topicName }}</span>
+                  <span v-if="topic.userId" class="text-[10px] text-slate-500 mt-0.5">{{ getUserDisplayName(topic.userId) }}</span>
+                </div>
+              </td>
               <td class="px-4 py-4"><span class="rounded bg-black/30 px-2 py-1 font-mono text-xs text-slate-400">{{ topic.sortOrder }}</span></td>
               <td class="px-4 py-4">
                 <div class="flex items-center space-x-2">
@@ -167,6 +198,7 @@ onMounted(() => {
                 </div>
               </td>
             </tr>
+            </TransitionGroup>
           </tbody>
         </table>
       </div>
@@ -190,4 +222,32 @@ onMounted(() => {
 .admin-input { height: 36px; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); padding: 0 0.75rem; color: white; font-size: 0.75rem; outline: none; transition: border-color 0.2s ease, background-color 0.2s ease; }
 .admin-input::placeholder { color: rgb(100 116 139); }
 .admin-input:focus { border-color: rgba(34,211,238,0.5); background: rgba(0,0,0,0.35); }
+
+/* ── Batch Float Animation ── */
+@keyframes batch-slide-up {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.batch-float-enter-active { transition: opacity 0.42s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.batch-float-enter-from,
+.batch-float-leave-to { opacity: 0; }
+.batch-float-leave-active { transition: opacity 0.26s ease; }
+.batch-float-leave-active > * { opacity: 0; transform: translateY(16px) scale(0.98); transition: transform 0.26s ease, opacity 0.26s ease; }
+
+.list-enter-active,
+.list-leave-active { transition: all 0.4s ease; }
+.list-enter-from { opacity: 0; transform: translateY(20px); }
+.list-leave-to { opacity: 0; transform: translateX(30px); }
+.list-move { transition: transform 0.4s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .list-enter-active,
+  .list-leave-active,
+  .list-move,
+  .batch-float-enter-active,
+  .batch-float-leave-active { transition-duration: 0.01s !important; }
+  .list-enter-from,
+  .list-leave-to { opacity: 0; transform: none; }
+}
 </style>

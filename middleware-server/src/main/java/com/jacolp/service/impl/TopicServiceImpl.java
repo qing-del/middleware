@@ -260,11 +260,14 @@ public class TopicServiceImpl implements TopicService {
     }
 
     @Override
-    public boolean topicExists(Long topicId) {
+    public boolean topicValid(Long topicId) {
         if (topicId == null || topicId <= 0) {
             return false;
         }
-        return topicMapper.countById(topicId) > 0;
+        TopicEntity topic = topicMapper.selectById(topicId);
+        return topic != null &&     // 主题存在
+                (topic.getUserId().equals(BaseContext.getCurrentId()) ||    // 属于自己
+                        AuditConstant.PASS.equals(topic.getIsPass()));  // 或者是通过审核的
     }
 
     @Override

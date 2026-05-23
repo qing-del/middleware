@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
+import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 
 @Mapper
 public interface NoteEachMappingMapper {
@@ -59,4 +60,13 @@ public interface NoteEachMappingMapper {
      * @return 未绑定内联笔记映射行数量
      */
     int countByNoteIdAndTargetIdIsNull(@Param("noteId") Long noteId);
+
+    /**
+     * 查询引用了指定笔记的源笔记列表（反向引用）
+     * @param targetNoteId 目标笔记 id（即被引用的笔记）
+     * @param userId 当前用户 id；传 null 时跳过归属/公开过滤（管理端使用）
+     * @return 反向引用列表（包含源笔记标题、状态、跨用户标记等）
+     */
+    List<NoteBacklinkVO> selectBacklinksByTargetNoteId(@Param("targetNoteId") Long targetNoteId,
+                                                       @Param("userId") Long userId);
 }

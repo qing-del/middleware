@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   ChevronLeft, Shield, LayoutDashboard, ShieldAlert, Users, FileText,
-  Layers, Hash, Image as ImageIcon, Power, Search, Bell, ShieldAlert as ShieldAlertIcon
+  Layers, Hash, Image as ImageIcon, Mail, Power, Search, Bell, ShieldAlert as ShieldAlertIcon, Music
 } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
@@ -20,7 +21,9 @@ const menuItems = computed(() => [
   { id: 'notes', label: '全局笔记', icon: FileText, to: '/admin/notes' },
   { id: 'topics', label: '主题调度', icon: Layers, to: '/admin/topics' },
   { id: 'tags', label: '标签矩阵', icon: Hash, to: '/admin/tags' },
-  { id: 'images', label: '云端图床', icon: ImageIcon, to: '/admin/images' }
+  { id: 'images', label: '云端图床', icon: ImageIcon, to: '/admin/images' },
+  { id: 'audio', label: '音频任务', icon: Music, to: '/admin/audio' },
+  { id: 'email', label: '邮件中心', icon: Mail, to: '/admin/email' }
 ])
 
 function isMenuActive(id: string): boolean {
@@ -30,6 +33,10 @@ function isMenuActive(id: string): boolean {
 
 function toggleSidebar() {
   isCollapsed.value = !isCollapsed.value
+}
+
+function goToProfile() {
+  router.push('/admin/profile')
 }
 
 function handleLogout() {
@@ -156,7 +163,7 @@ onMounted(async () => {
           <div class="w-px h-5 bg-white/10"></div>
 
           <!-- 用户信息 -->
-          <div class="flex items-center space-x-3 cursor-pointer group">
+          <div class="flex items-center space-x-3 cursor-pointer group" @click="goToProfile">
             <template v-if="isLoading">
               <div class="flex items-center space-x-3">
                 <div class="flex flex-col items-end space-y-1">

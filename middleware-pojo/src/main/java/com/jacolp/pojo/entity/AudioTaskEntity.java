@@ -1,19 +1,18 @@
 package com.jacolp.pojo.entity;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * API 异步任务明细表 biz_api_task_log 对应实体。
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ApiTaskLogEntity implements Serializable {
+public class AudioTaskEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -21,9 +20,15 @@ public class ApiTaskLogEntity implements Serializable {
 
     private Long userId;
 
-    private String taskType;
+    private String sourceText;
 
-    private Integer taskStatus;  // 状态：0-处理中, 1-成功, 2-失败
+    private BigDecimal speed;
+
+    private String noiseType;
+
+    private BigDecimal noiseFactor;
+
+    private Integer status;
 
     private String resultUrl;
 
@@ -31,5 +36,7 @@ public class ApiTaskLogEntity implements Serializable {
 
     private LocalDateTime createTime;
 
-    private LocalDateTime finishTime;
+    private LocalDateTime updateTime;
+
+    private LocalDate completedDate;
 }

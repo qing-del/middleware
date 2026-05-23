@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   ChevronLeft, Zap, LayoutDashboard, FileText, Layers, Hash,
-  Image as ImageIcon, LogOut, Search, Bell, CheckCircle2
+  Image as ImageIcon, LogOut, Search, Bell, CheckCircle2, Music
 } from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
@@ -18,7 +19,8 @@ const menuItems = computed(() => [
   { id: 'notes', label: '我的笔记', icon: FileText, to: '/user/notes' },
   { id: 'topics', label: '主题管理', icon: Layers, to: '/user/topics' },
   { id: 'tags', label: '标签生态', icon: Hash, to: '/user/tags' },
-  { id: 'images', label: '图床画廊', icon: ImageIcon, to: '/user/images' }
+  { id: 'images', label: '图床画廊', icon: ImageIcon, to: '/user/images' },
+  { id: 'audio', label: '音频中心', icon: Music, to: '/user/audio' }
 ])
 
 function isMenuActive(id: string): boolean {
@@ -41,6 +43,10 @@ function getRoleText(roleId: number) {
   if (roleId === 3) return 'User'
   if (roleId === 4) return 'VIP User'
   return 'Unknown'
+}
+
+function goToProfile() {
+  router.push('/user/profile')
 }
 
 function handleLogout() {
@@ -167,7 +173,7 @@ onMounted(async () => {
           <div class="w-px h-5 bg-white/10"></div>
 
           <!-- 用户信息 -->
-          <div class="flex items-center space-x-3 cursor-pointer group">
+          <div class="flex items-center space-x-3 cursor-pointer group" @click="goToProfile">
             <template v-if="isLoading">
               <div class="flex items-center space-x-3">
                 <div class="flex flex-col items-end space-y-1">

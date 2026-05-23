@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jacolp.mapper.ApiDailyUsageMapper">
+
+    <insert id="incrementUsage">
+        INSERT INTO biz_api_daily_usage (user_id, record_date, used_count)
+        VALUES (#{userId}, #{date}, 1)
+        ON DUPLICATE KEY UPDATE used_count = used_count + 1
+    </insert>
+
+    <update id="decrementUsage">
+        update biz_api_daily_usage set used_count = used_count - 1
+        where user_id = #{userId} and record_date = #{date}
+    </update>
+
+</mapper>

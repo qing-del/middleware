@@ -2,6 +2,7 @@ import request from '@/utils/request'
 
 export interface TopicItem {
   id: number
+  userId?: number
   topicName: string
   sortOrder: number
   noteCount: number

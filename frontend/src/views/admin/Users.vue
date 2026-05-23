@@ -27,7 +27,8 @@ const form = ref({
   nickname: '',
   email: '',
   roleId: 3,
-  status: 1
+  status: 1,
+  maxStorageBytes: undefined as number | undefined
 })
 const submitting = ref(false)
 
@@ -135,7 +136,7 @@ function toggleSelect(id: number) {
 function openCreateModal() {
   modalMode.value = 'create'
   editingUserId.value = null
-  form.value = { username: '', password: '', nickname: '', email: '', roleId: 3, status: 1 }
+  form.value = { username: '', password: '', nickname: '', email: '', roleId: 3, status: 1, maxStorageBytes: undefined }
   modalVisible.value = true
 }
 
@@ -148,7 +149,8 @@ function openEditModal(user: AdminUserItem) {
     nickname: user.nickname || '',
     email: user.email || '',
     roleId: user.roleId,
-    status: user.status
+    status: user.status,
+    maxStorageBytes: user.maxStorageBytes
   }
   modalVisible.value = true
 }
@@ -173,7 +175,8 @@ async function handleSubmit() {
         nickname: form.value.nickname || undefined,
         email: form.value.email || undefined,
         roleId: form.value.roleId,
-        status: form.value.status
+        status: form.value.status,
+        maxStorageBytes: form.value.maxStorageBytes
       }
       if (form.value.password) {
         payload.newPassword = form.value.password
@@ -257,13 +260,15 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="glass-panel relative z-10 flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-300" :class="isBatchMode ? 'translate-y-0 opacity-100' : '-translate-y-[10px] opacity-0 pointer-events-none'">
-      <span class="text-sm font-bold text-cyan-200">已选择 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 个用户</span>
-      <button class="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white" @click="handleBatchDelete">
-        <Trash2 class="h-3.5 w-3.5" />
-        <span>批量删除</span>
-      </button>
-    </div>
+    <Transition name="batch-float">
+      <div v-if="isBatchMode" class="glass-panel relative z-10 flex items-center justify-between rounded-xl px-4 py-3">
+        <span class="text-sm font-bold text-cyan-200">已选择 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 个用户</span>
+        <button class="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white" @click="handleBatchDelete">
+          <Trash2 class="h-3.5 w-3.5" />
+          <span>批量删除</span>
+        </button>
+      </div>
+    </Transition>
 
     <div class="glass-panel relative z-10 overflow-hidden rounded-2xl border border-white/10">
       <div class="overflow-x-auto">
@@ -404,6 +409,10 @@ onMounted(() => {
                     <option :value="2">未激活</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label class="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-400">存储配额 (字节)</label>
+                <input v-model.number="form.maxStorageBytes" type="number" class="admin-input w-full" placeholder="默认 104857600 (100MB)" />
               </div>
               <div class="flex justify-end space-x-3 pt-4">
                 <button type="button" class="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-white/5 hover:text-white" @click="closeModal">取消</button>
@@ -566,5 +575,30 @@ onMounted(() => {
 .modal-card {
   transform-origin: center center;
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ── Batch Float Animation ── */
+@keyframes batch-slide-up {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.batch-float-enter-active { transition: opacity 0.42s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.batch-float-enter-from,
+.batch-float-leave-to { opacity: 0; }
+.batch-float-leave-active { transition: opacity 0.26s ease; }
+.batch-float-leave-active > * { opacity: 0; transform: translateY(16px) scale(0.98); transition: transform 0.26s ease, opacity 0.26s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-enter-active,
+  .fade-leave-active,
+  .modal-enter-active,
+  .modal-leave-active,
+  .batch-float-enter-active,
+  .batch-float-leave-active { transition-duration: 0.01s !important; }
+  .modal-enter-from,
+  .modal-leave-to { opacity: 0; transform: none; }
+  .toggle-knob { transition-duration: 0.01s; }
+  .role-badge-admin { animation: none; }
 }
 </style>

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { adminApi } from '@/api/admin'
 import type { AdminImageItem, PageResult } from '@/api/admin'
-import { Image, Search, Trash2, Loader2, X, ChevronLeft, ChevronRight, Globe, Eye, Upload, Info } from 'lucide-vue-next'
+import type { ImageBacklinkVO } from '@/api/notes'
+import { getNoteStatusInfo } from '@/api/notes'
+import { Image, Search, Trash2, Loader2, X, ChevronLeft, ChevronRight, Globe, Eye, Upload, Info, FileText } from 'lucide-vue-next'
 
 const loading = ref(true)
 const imageList = ref<AdminImageItem[]>([])
@@ -17,6 +20,32 @@ const pageSize = ref(12)
 const selectedIds = ref<Set<number>>(new Set())
 const previewUrl = ref('')
 const showPreview = ref(false)
+
+const router = useRouter()
+
+// ── Image backlinks ──
+const showImageBacklinks = ref(false)
+const imageBacklinks = ref<ImageBacklinkVO[]>([])
+const imageBacklinksLoading = ref(false)
+const imageBacklinksFetchedId = ref<number | null>(null)
+
+async function openImageBacklinks(imageId: number) {
+  showImageBacklinks.value = true
+  if (imageBacklinksFetchedId.value !== imageId) {
+    imageBacklinksLoading.value = true
+    try {
+      imageBacklinks.value = await adminApi.getImageBacklinks(imageId)
+      imageBacklinksFetchedId.value = imageId
+    } finally {
+      imageBacklinksLoading.value = false
+    }
+  }
+}
+
+function handleImageBacklinkClick(b: ImageBacklinkVO) {
+  showImageBacklinks.value = false
+  router.push(`/admin/notes/${b.sourceNoteId}`)
+}
 
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
@@ -147,13 +176,15 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="glass-panel sticky top-0 z-30 flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-300" :class="isBatchMode ? 'translate-y-0 opacity-100' : '-translate-y-[10px] opacity-0 pointer-events-none'">
-      <span class="text-sm font-bold text-cyan-200">已选取 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 张图片</span>
-      <div class="flex items-center space-x-2">
+    <Transition name="batch-float">
+      <div v-if="isBatchMode" class="glass-panel sticky top-0 z-30 flex items-center justify-between rounded-xl px-4 py-3">
+        <span class="text-sm font-bold text-cyan-200">已选取 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 张图片</span>
+        <div class="flex items-center space-x-2">
         <button class="flex items-center space-x-1.5 rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-bold text-cyan-200 transition-all hover:bg-cyan-400 hover:text-slate-950" @click="handleTransfer"><Upload class="h-3.5 w-3.5" /><span>迁移云端</span></button>
         <button class="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500 hover:text-white" @click="handleBatchDelete"><Trash2 class="h-3.5 w-3.5" /><span>批量删除</span></button>
+        </div>
       </div>
-    </div>
+    </Transition>
 
     <div v-if="loading" class="relative z-10 flex flex-col items-center justify-center space-y-3 py-24"><Loader2 class="h-8 w-8 animate-spin text-cyan-300" /><span class="text-xs text-slate-500">加载中...</span></div>
     <div v-else-if="imageList.length === 0" class="relative z-10 flex flex-col items-center justify-center space-y-4 py-24"><Image class="h-12 w-12 text-slate-600" /><p class="text-sm text-slate-500">暂无图片数据</p></div>
@@ -166,6 +197,7 @@ onMounted(() => {
           <div v-if="img.isPass === 2" class="pointer-events-none absolute inset-0 bg-rose-500/10 mix-blend-overlay"></div>
           <div class="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <button v-if="img.ossUrl" class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="预览" @click="previewUrl = img.ossUrl; showPreview = true"><Eye class="h-4 w-4 text-white" /></button>
+            <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="查看引用笔记" @click="openImageBacklinks(img.id)"><FileText class="h-4 w-4 text-rose-200" /></button>
             <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="删除" @click="handleDelete(img.id)"><Trash2 class="h-4 w-4 text-rose-200" /></button>
           </div>
           <span class="absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white backdrop-blur-md">{{ formatBytes(img.fileSize) }}</span>
@@ -211,6 +243,52 @@ onMounted(() => {
         </div>
       </Transition>
     </Teleport>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showImageBacklinks" class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" @click="showImageBacklinks = false"></div>
+      </Transition>
+      <Transition name="modal">
+        <div v-if="showImageBacklinks" class="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <div class="glass-panel modal-card relative z-10 w-full max-w-lg rounded-3xl p-8">
+            <div class="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-rose-500/20 blur-[40px]"></div>
+            <div class="mb-6 flex items-center justify-between">
+              <h3 class="text-xl font-bold text-white">图片引用笔记</h3>
+              <button class="text-slate-500 transition-colors hover:text-white" @click="showImageBacklinks = false"><X class="h-5 w-5" /></button>
+            </div>
+            <div class="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2">
+              <div v-if="imageBacklinksLoading" class="text-xs text-slate-500 text-center py-8 flex items-center justify-center gap-2">
+                <Loader2 class="w-4 h-4 animate-spin" /> 加载中...
+              </div>
+              <div v-else-if="!imageBacklinks.length" class="text-xs text-slate-500 text-center py-8">暂无笔记引用此图片</div>
+              <div v-else>
+                <div
+                  v-for="b in imageBacklinks"
+                  :key="b.sourceNoteId"
+                  class="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5 hover:border-rose-500/30 group/ref transition-colors cursor-pointer"
+                  @click="handleImageBacklinkClick(b)"
+                >
+                  <div class="flex items-center space-x-2 overflow-hidden">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-rose-500/10 text-rose-400">
+                      <FileText class="w-4 h-4" />
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                      <span class="text-xs font-medium truncate text-slate-300 group-hover/ref:text-rose-300 transition-colors">
+                        {{ b.sourceNoteTitle }}
+                      </span>
+                      <span class="text-[9px] text-slate-500 mt-0.5 truncate">via [[{{ b.parsedImageName }}]]</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border" :class="getNoteStatusInfo(b.sourceNoteStatus).cls">{{ getNoteStatusInfo(b.sourceNoteStatus).label }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -234,4 +312,34 @@ onMounted(() => {
 .modal-enter-active, .modal-leave-active { transition: opacity 0.28s ease, transform 0.38s cubic-bezier(0.22,1,0.36,1); }
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.92) translateY(18px); }
 .modal-enter-to, .modal-leave-from { opacity: 1; transform: scale(1) translateY(0); }
+
+/* ── Batch Float Animation ── */
+@keyframes batch-slide-up {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.batch-float-enter-active { transition: opacity 0.42s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.batch-float-enter-from,
+.batch-float-leave-to { opacity: 0; }
+.batch-float-leave-active { transition: opacity 0.26s ease; }
+.batch-float-leave-active > * { opacity: 0; transform: translateY(16px) scale(0.98); transition: transform 0.26s ease, opacity 0.26s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .staggered-fade-enter-active,
+  .staggered-fade-leave-active,
+  .staggered-fade-move,
+  .fade-enter-active,
+  .fade-leave-active,
+  .modal-enter-active,
+  .modal-leave-active,
+  .batch-float-enter-active,
+  .batch-float-leave-active,
+  .glass-card { transition-duration: 0.01s !important; }
+  .staggered-fade-enter-from,
+  .staggered-fade-leave-to,
+  .modal-enter-from,
+  .modal-leave-to { opacity: 0; transform: none; }
+  .glass-card:hover { transform: none; }
+}
 </style>

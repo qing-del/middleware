@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.jacolp.constant.NoteConstant;
+import com.jacolp.constant.UserConstant;
+import com.jacolp.constant.AuditConstant;
+import com.jacolp.constant.TagConstant;
+import com.jacolp.constant.ImageConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.NoteMissingInfoMask;
@@ -30,8 +34,11 @@ import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.ImageBacklinkVO;
+import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.pojo.vo.note.TagBacklinkVO;
 import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteCoreService;
 import com.jacolp.service.NoteRelationService;
@@ -282,6 +289,83 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         syncBindableMappings(noteId, note.getUserId(), note.getTopicId());
 
         return tryConvertNoteToReady(note);
+    }
+
+    /**
+     * 查询反向引用列表（哪些笔记引用了 noteId）
+     * <p>用户端要求目标笔记可见性：拥有者 或 已公开(status=6)</p>
+     * <p>管理端跳过可见性校验</p>
+     */
+    @Override
+    public List<NoteBacklinkVO> listBacklinksByNoteId(Long noteId) {
+        if (PermissionContext.isAdmin()) {
+            return noteRelationService.listBacklinksByNoteId(noteId, null);
+        }
+
+        Long currentUserId = BaseContext.getCurrentId();
+        NoteEntity target = noteCoreService.getEntityById(noteId);
+
+        // 校验可见性
+        boolean isOwner = Objects.equals(target.getUserId(), currentUserId);    // 校验归属权
+        boolean isPublished = NoteStatus.PUBLISHED.getCode().equals(target.getStatus());    // 校验是否已发布
+        if (!isOwner && !isPublished) {
+            throw new BaseException(UserConstant.PERMISSION_DENIED);
+        }
+
+        return noteRelationService.listBacklinksByNoteId(noteId, currentUserId);
+    }
+
+    /**
+     * 查询标签反向引用列表（哪些笔记引用了 tagId）
+     * <p>用户端要求目标标签可见性：拥有者 或 已通过审核(isPass=1)</p>
+     * <p>管理端跳过可见性校验</p>
+     */
+    @Override
+    public List<TagBacklinkVO> listBacklinksByTagId(Long tagId) {
+        if (PermissionContext.isAdmin()) {
+            return noteRelationService.listBacklinksByTagId(tagId, null);
+        }
+
+        Long currentUserId = BaseContext.getCurrentId();
+        TagEntity tag = tagService.getByIds(List.of(tagId)).stream()
+                .findFirst().orElse(null);
+        if (tag == null) {
+            throw new BaseException(TagConstant.TAG_NOT_FOUND);
+        }
+
+        boolean isOwner = Objects.equals(tag.getUserId(), currentUserId);
+        boolean isApproved = Objects.equals(tag.getIsPass(), AuditConstant.PASS);
+        if (!isOwner && !isApproved) {
+            throw new BaseException(UserConstant.PERMISSION_DENIED);
+        }
+
+        return noteRelationService.listBacklinksByTagId(tagId, currentUserId);
+    }
+
+    /**
+     * 查询图片反向引用列表（哪些笔记引用了 imageId）
+     * <p>用户端要求目标图片可见性：拥有者 或 已公开(isPublic=1)</p>
+     * <p>管理端跳过可见性校验</p>
+     */
+    @Override
+    public List<ImageBacklinkVO> listBacklinksByImageId(Long imageId) {
+        if (PermissionContext.isAdmin()) {
+            return noteRelationService.listBacklinksByImageId(imageId, null);
+        }
+
+        Long currentUserId = BaseContext.getCurrentId();
+        ImageEntity image = imageService.getById(imageId);
+        if (image == null) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+
+        boolean isOwner = Objects.equals(image.getUserId(), currentUserId);
+        boolean isPublic = Objects.equals(image.getIsPublic(), (short) 1);
+        if (!isOwner && !isPublic) {
+            throw new BaseException(UserConstant.PERMISSION_DENIED);
+        }
+
+        return noteRelationService.listBacklinksByImageId(imageId, currentUserId);
     }
 
     /**
