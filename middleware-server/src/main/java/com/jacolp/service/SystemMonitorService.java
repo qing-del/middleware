@@ -8,4 +8,9 @@ public interface SystemMonitorService {
      * @return
      */
     MonitorDataVO collect();
+
+    /**
+     * 重置QPS计数器
+     */
+    void resetQPSCounter();
 }

@@ -63,6 +63,11 @@ public class SystemMonitorServiceImpl implements SystemMonitorService {
                 .build();
     }
 
+    @Override
+    public void resetQPSCounter() {
+        qpsCounter.getAndReset();
+    }
+
     /**
      * 获取线程状态
      * <p>- 每 {@link #COLLECT_INTERVAL_MS} ms 执行一次</p>

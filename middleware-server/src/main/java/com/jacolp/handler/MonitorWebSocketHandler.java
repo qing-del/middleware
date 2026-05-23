@@ -46,7 +46,10 @@ public class MonitorWebSocketHandler extends TextWebSocketHandler {
 
     @Scheduled(fixedRate = 1000)
     public void broadcastMetrics() {
-        if (sessions.isEmpty()) return;
+        if (sessions.isEmpty()) {
+            systemMonitorService.resetQPSCounter();
+            return;
+        }
 
         try {
             MonitorDataVO data = systemMonitorService.collect();

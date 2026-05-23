@@ -1,6 +1,7 @@
 package com.jacolp.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jacolp.component.QpsCounter;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
@@ -30,6 +31,8 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
     @Autowired private StringRedisTemplate redis;
     @Autowired private JwtProperties jwtProperties;
 
+    @Autowired private QpsCounter qpsCounter;
+
 
     /**
      * 校验jwt
@@ -46,6 +49,9 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
             // 当前拦截到的不是动态方法，直接放行
             return true;
         }
+
+        // 计数器
+        qpsCounter.increment();
 
         // 1、从请求头中获取令牌
         String token = request.getHeader("Authorization");
