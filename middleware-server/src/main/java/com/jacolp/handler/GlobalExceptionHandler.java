@@ -77,31 +77,6 @@ public class GlobalExceptionHandler {
         return Result.error(msg);
     }
 
-    /**
-     * 捕获 Spring Validation 绑定异常
-     */
-    @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
-    public Result validationExceptionHandler(Exception ex) {
-        log.error("Validation exception: {}", ex.getMessage());
-        BindingResult bindingResult = ex instanceof MethodArgumentNotValidException manv
-                ? manv.getBindingResult()
-                : ((BindException) ex).getBindingResult();
-        return Result.error(extractBindingErrorMessage(bindingResult));
-    }
-
-    /**
-     * 捕获方法参数校验异常
-     */
-    @ExceptionHandler({ConstraintViolationException.class})
-    public Result constraintViolationExceptionHandler(ConstraintViolationException ex) {
-        log.error("Constraint violation exception: {}", ex.getMessage());
-        String msg = ex.getConstraintViolations()
-                .stream()
-                .findFirst()
-                .map(cv -> cv.getMessage())
-                .orElse("请求参数校验失败");
-        return Result.error(msg);
-    }
 
     /**
      * 捕获 Jackson 的异常
