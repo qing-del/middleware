@@ -50,7 +50,15 @@ public interface TopicService {
      */
     TopicStatsVO getUserTopicStats();
 
-    boolean topicExists(Long topicId);
+    /**
+     * 校验主题是否存在
+     * <p>- 如果存在且主题为自己的通过</p>
+     * <p>- 如果存在，且主题不属于自己，但主题已通过审核则为通过</p>
+     * <p>- 如果存在，主题不属于自己，且主题未通过审核，则为不通过</p>
+     * @param topicId
+     * @return 通过 true，不通过 false
+     */
+    boolean topicValid(Long topicId);
 
     int updatePassStatusByIds(List<Long> ids, Short isPass);
 }

@@ -1,6 +1,7 @@
 package com.jacolp.facade.impl;
 
 import com.jacolp.constant.AuditConstant;
+import com.jacolp.constant.NoteConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
@@ -14,6 +15,7 @@ import com.jacolp.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ public class AuditFacadeImpl implements AuditFacade {
     @Autowired private NoteRelationService noteRelationService;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int batchReviewMeta(AuditBatchReviewDTO dto) {
         // 1) 校验请求参数并过滤无效 ID。
         AuditReviewContext context = validateReviewRequest(dto);
@@ -64,6 +67,7 @@ public class AuditFacadeImpl implements AuditFacade {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int batchReviewImage(AuditBatchReviewDTO dto) {
         // 1) 校验请求参数并过滤无效 ID。
         AuditReviewContext context = validateReviewRequest(dto);
@@ -82,6 +86,7 @@ public class AuditFacadeImpl implements AuditFacade {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int batchReviewNote(AuditBatchReviewDTO dto) {
         // 1) 校验请求参数并过滤无效 ID。
         AuditReviewContext context = validateReviewRequest(dto);
@@ -194,12 +199,17 @@ public class AuditFacadeImpl implements AuditFacade {
      * @param noteIds 笔记ID列表
      * @param context 审核上下文
      * @param affected 本次审核表实际影响行数
+     * @throws BaseException 笔记更新失败
      */
     private void updateNotesAndEachMappingsPass(List<Long> noteIds, AuditReviewContext context, int affected) {
         // 批量更新笔记状态。将审核状态映射为 NoteStatus
         Short noteStatus = context.getStatus().equals(AuditConstant.PASS) ?
                 NoteStatus.APPROVED.getCode() : NoteStatus.REJECTED.getCode();
-        noteCoreService.updateStatusByIds(noteIds, noteStatus);
+        int rows = noteCoreService.updateStatusByIds(noteIds, noteStatus);
+        if (rows < affected) {
+            log.error("Failed to update note status! : {}", noteIds);
+            throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
+        }
         noteRelationService.updateEachMappingPassBySourceNoteIds(noteIds, context.getStatus());
     }
 }

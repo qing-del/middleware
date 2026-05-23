@@ -1,13 +1,13 @@
 package com.jacolp.aspect;
 
 import com.jacolp.annotation.StorageHandler;
-import com.jacolp.constant.ImageConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
+import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
 import com.jacolp.result.Result;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.entity.NoteEntity;
@@ -27,10 +27,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.StorageUpdateContext;
 import com.jacolp.mapper.ImageMapper;
-import com.jacolp.pojo.entity.UserEntity;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -129,20 +127,8 @@ public class StorageHandlerAspect {
             throw new BaseException("未知错误");
         }
 
-        // 查询用户已使用的配额
-        UserQuoteStorageDTO quote = userMapper.selectQuoteStorageById(userId);
-        long currentUsed = quote.getUsedStorageBytes() != null ? quote.getUsedStorageBytes() : 0L;
-        long newUsed = Math.max(0L, currentUsed - fileSize);    // 保底最小为 0
-
-        // 更新到DB
-        UserEntity updateUser = new UserEntity();
-        updateUser.setId(userId);
-        updateUser.setUsedStorageBytes(newUsed);
-        int count = userMapper.updateById(updateUser);
-        if (count <= 0) {
-            log.error("Failed to update user storage after delete, userId: {}", userId);
-            throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
-        }
+        long deltaBytes = -fileSize;
+        applyDeltaUpdate(userId, deltaBytes, null);
     }
 
     // ======================== 批量删除策略 ========================
@@ -213,14 +199,14 @@ public class StorageHandlerAspect {
                 throw new BaseException("系统繁忙，请稍后！");
             }
             // 1. 查用户表获取最大配额
-            CachedStorageInfo cachedInfo = loadCachedStorageInfo(userId);
+            CachedStorageInfo cachedInfo = loadAndSyncCachedStorageInfo(userId);
 
             // 2. 查 note + image 两表算实际使用量（一致性检查）
             long actualUsedBytes = computeActualUsedStorage(userId);
 
             // 3. 配额校验（基于实际值）
             if (actualUsedBytes + requiredBytes > cachedInfo.maxBytes()) {
-                throw new BaseException(ImageConstant.IMAGE_STORAGE_QUOTA_EXCEEDED);
+                throw new BaseException(UserConstant.MAX_STORAGE_LIMIT);
             }
 
             // 4. 执行业务逻辑
@@ -228,7 +214,7 @@ public class StorageHandlerAspect {
 
             // 5. 操作后写回（基于 actualUsedBytes 直接运算，不再用缓存值，不再重新 sum）
             syncStorageAfterUploadOrModify(userId, result, actualUsedBytes,
-                                           cachedInfo.maxBytes(), annotation.operationType(), requiredBytes);
+                    cachedInfo.maxBytes(), requiredBytes);
 
             return result;
         } finally {
@@ -241,9 +227,10 @@ public class StorageHandlerAspect {
 
     /**
      * 从用户表加载缓存的存储信息（仅用于获取 maxBytes）。
+     * <p>- 如果不符合会自动同步数据库（单次网络IO）</p>
      * @return 返回该用户的最大存储额度
      */
-    private CachedStorageInfo loadCachedStorageInfo(Long userId) {
+    private CachedStorageInfo loadAndSyncCachedStorageInfo(Long userId) {
         // 尝试从用户表中获取存储信息
         UserQuoteStorageDTO quote = userMapper.selectQuoteStorageById(userId);
         if (quote == null) {
@@ -254,8 +241,14 @@ public class StorageHandlerAspect {
         Long maxStorageBytes = quote.getMaxStorageBytes();
         if (maxStorageBytes == null) {
             maxStorageBytes = roleMapper.selectMaxStorageById(quote.getRoleId());
-        }
 
+            // 写入数据库中同步
+            int affect = userMapper.updateMaxStorageById(quote.getId(), maxStorageBytes);
+            if (affect <= 0) {
+                log.error("Failed to update user storage after load, userId: {}", userId);
+                throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
+            }
+        }
         // 返回
         return new CachedStorageInfo(maxStorageBytes);
     }
@@ -264,12 +257,11 @@ public class StorageHandlerAspect {
      * 上传/修改后，基于实际使用量直接运算并写回存储。
      * <p>操作后不再查 DB，直接用 actualUsedBytes 运算后写回。</p>
      * @param actualUsedBytes 操作前通过 note+image 两表 sum 得到的实际使用量
-     * @param maxBytes       最大配额（来自用户表或角色默认值）
      * @param deltaBytes     UPLOAD=文件大小，MODIFY=差量（可为负数）
      */
     private void syncStorageAfterUploadOrModify(Long userId, Object result,
-                                                long actualUsedBytes, long maxBytes,
-                                                StorageOperationType opType,
+                                                long actualUsedBytes,
+                                                long maxBytes,
                                                 long deltaBytes) {
         // 仅业务成功时才更新；失败时保持原值
         boolean businessSucceeded = !(result instanceof Result r) || r.getCode() == Result.SUCCESS;
@@ -285,18 +277,7 @@ public class StorageHandlerAspect {
             throw new BaseException("存储量溢出！");
         }
 
-        // 构建更新对象
-        UserEntity updateUser = new UserEntity();
-        updateUser.setId(userId);
-        updateUser.setUsedStorageBytes(newUsedBytes);
-        updateUser.setMaxStorageBytes(maxBytes);
-
-        // 写回DB
-        int count = userMapper.updateById(updateUser);
-        if (count <= 0) {
-            log.error("Failed to update user storage after upload/modify, userId: {}", userId);
-            throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
-        }
+        applyDeltaUpdate(userId, deltaBytes, maxBytes);
     }
 
     // ======================== 锁管理 ========================
@@ -318,41 +299,50 @@ public class StorageHandlerAspect {
      */
     private void batchUpdateUserStorage(Map<Long, Long> userStorageMap) {
         List<Long> userIds = new ArrayList<>(userStorageMap.keySet());
-        List<UserQuoteStorageDTO> userStorageList = userMapper.selectQuoteStorageByIds(userIds); // 批量查询
+        int userNum = userMapper.countByIds(userIds);
 
-        // 构建 userId → 存储信息映射
-        Map<Long, UserQuoteStorageDTO> infoMap = new HashMap<>();
-        for (UserQuoteStorageDTO info : userStorageList) {
-            infoMap.put(info.getId(), info);
+        if (userNum != userIds.size()) {
+            log.error("Some users not found, userIds: {}", userIds);
+            throw new BaseException(UserConstant.NOT_FOUND_USER);
         }
 
-        // 计算每个用户的新存储值（减去已删除文件大小）
-        List<UserEntity> updateList = new ArrayList<>();
-        for (Map.Entry<Long, Long> entry : userStorageMap.entrySet()) {
-            Long userId = entry.getKey();
-            Long deltaBytes = entry.getValue();
-
-            UserQuoteStorageDTO info = infoMap.get(userId);
-            if (info != null) {
-                long currentUsed = info.getUsedStorageBytes() != null ? info.getUsedStorageBytes() : 0L;
-                long newUsed = Math.max(0L, currentUsed - deltaBytes);  // 最小不能为 负数
-
-                // 构建更新对象
-                UserEntity user = new UserEntity();
-                user.setId(userId);
-                user.setUsedStorageBytes(newUsed);
-                updateList.add(user);
-            }
-        }
+        List<UserStorageHandlerDTO> updateList = userIds.stream()
+                .map(userId -> new UserStorageHandlerDTO(userId, userStorageMap.get(userId)))
+                .toList();
 
         // 批量 upsert
         if (!updateList.isEmpty()) {
-            int count = userMapper.batchUpsertStorage(updateList);
+            int count = userMapper.batchUpdateStorage(updateList);
             if (count < updateList.size()) {
                 log.error("Failed to batch upsert storage, count: {}, expected: {}",
                         count, updateList.size());
             }
         }
+    }
+
+    /**
+     * 基于增量更新存储，满足不超卖条件即可成功。
+     */
+    private void applyDeltaUpdate(Long userId, long deltaBytes, Long maxBytes) {
+        if (deltaBytes == 0) {
+            return;
+        }
+
+        UserStorageHandlerDTO updateUser = new UserStorageHandlerDTO();
+        updateUser.setId(userId);
+        updateUser.setDeltaStorageBytes(deltaBytes);
+
+        int count = userMapper.updateStorageById(updateUser);
+        if (count > 0) {
+            return;
+        }
+
+        if (maxBytes != null && deltaBytes > 0) {
+            throw new BaseException(UserConstant.MAX_STORAGE_LIMIT);
+        }
+
+        log.error("Failed to update user storage with delta, userId: {}", userId);
+        throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);
     }
 
     // ======================== 工具方法 ========================
@@ -407,3 +397,4 @@ public class StorageHandlerAspect {
     private record CachedStorageInfo(long maxBytes) {
     }
 }
+

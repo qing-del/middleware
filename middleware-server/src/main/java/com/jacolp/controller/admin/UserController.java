@@ -15,6 +15,7 @@ import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.AdminUserService;
 import com.jacolp.utils.JwtUtil;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -69,7 +70,7 @@ public class UserController {
     @Operation(summary = "修改用户信息", description = "修改指定用户的基本信息、权限或密码，需要上级角色权限。")
     @RequireSuperiorRole
     public Result<String> modify(
-            @Parameter(description = "用户修改请求，包含目标用户ID和需要修改的字段") @RequestBody UserModifyDTO userModifyDTO) {
+            @Parameter(description = "用户修改请求，包含目标用户ID和需要修改的字段") @RequestBody @Valid UserModifyDTO userModifyDTO) {
         log.info("Admin modify user, target id: {}", userModifyDTO.getId());
         adminUserService.modifyUser(userModifyDTO);
         return Result.success();
@@ -78,7 +79,7 @@ public class UserController {
     @PostMapping("/user")
     @Operation(summary = "管理员新增账户", description = "管理员直接创建新用户账户，无需注册流程。")
     public Result<String> add(
-            @Parameter(description = "新增用户请求，包含用户名、密码和角色信息") @RequestBody UserAddDTO userAddDTO) {
+            @Parameter(description = "新增用户请求，包含用户名、密码和角色信息") @RequestBody @Valid UserAddDTO userAddDTO) {
         log.info("Admin add user, username: {}", userAddDTO.getUsername());
         adminUserService.addUser(userAddDTO);
         return Result.success();

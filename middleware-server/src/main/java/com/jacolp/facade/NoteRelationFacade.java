@@ -7,8 +7,11 @@ import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.ImageBacklinkVO;
+import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.pojo.vo.note.TagBacklinkVO;
 
 import java.util.List;
 
@@ -70,4 +73,31 @@ public interface NoteRelationFacade {
      * @return 缺失的笔记关联信息
      */
     NoteCheckBindingVO checkRelationCompletion(Long noteId);
+
+    /**
+     * 查询反向引用列表（哪些笔记引用了 noteId）
+     * <p>- 用户端：校验目标笔记可见性（拥有者 或 status=6 已公开）</p>
+     * <p>- 管理端：跳过可见性校验</p>
+     * @param noteId 被引用的笔记 ID
+     * @return 反向引用列表
+     */
+    List<NoteBacklinkVO> listBacklinksByNoteId(Long noteId);
+
+    /**
+     * 查询标签反向引用列表（哪些笔记引用了 tagId）
+     * <p>- 用户端：校验目标标签可见性（拥有者 或 isPass=1 已通过审核）</p>
+     * <p>- 管理端：跳过可见性校验</p>
+     * @param tagId 被引用的标签 ID
+     * @return 标签反向引用列表
+     */
+    List<TagBacklinkVO> listBacklinksByTagId(Long tagId);
+
+    /**
+     * 查询图片反向引用列表（哪些笔记引用了 imageId）
+     * <p>- 用户端：校验目标图片可见性（拥有者 或 isPublic=1 已公开）</p>
+     * <p>- 管理端：跳过可见性校验</p>
+     * @param imageId 被引用的图片 ID
+     * @return 图片反向引用列表
+     */
+    List<ImageBacklinkVO> listBacklinksByImageId(Long imageId);
 }

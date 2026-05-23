@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { adminApi, type AuditNoteItem, type AuditMetaItem, type AuditImageItem, type AuditBatchReviewDTO, type PageResult } from '@/api/admin'
 import {
   Shield, Search, FileText, Image as ImageIcon, Hash,
   Loader2, ChevronLeft, ChevronRight, Eye, X, ExternalLink,
-  User, Clock, AlertCircle, Info, CheckCircle2, XCircle
+  User, Clock, AlertCircle, CheckCircle2
 } from 'lucide-vue-next'
 
 // ── Types & Constants ───────────────────────────
@@ -22,6 +23,7 @@ interface NormalizedAuditItem {
 }
 
 // ── State ─────────────────────────────────────────
+const router = useRouter()
 const currentType = ref<AuditType>('note')
 const currentStatus = ref(0) // 0: Pending, 1: Approved, 2: Rejected
 const currentPage = ref(1)
@@ -212,6 +214,10 @@ function openDetail(item: NormalizedAuditItem) {
   showModal.value = true
 }
 
+function viewNoteDetail(id: number) {
+  router.push(`/admin/notes/${id}`)
+}
+
 function closeModal() {
   showModal.value = false
 }
@@ -285,7 +291,7 @@ watch(applicantIdFilter, () => {
           </button>
         </div>
 
-        <select :value="currentStatus" class="admin-input w-28" @change="handleStatusChange(($event.target as HTMLSelectElement).value as unknown as number)">
+        <select :value="currentStatus" class="admin-input w-28" @change="handleStatusChange(Number(($event.target as HTMLSelectElement).value))">
           <option :value="0">状态: 待审核</option>
           <option :value="1">状态: 已通过</option>
           <option :value="2">状态: 已驳回</option>
@@ -301,13 +307,15 @@ watch(applicantIdFilter, () => {
     </div>
 
     <!-- Batch Action Bar (consistent with Users.vue) -->
-    <div class="glass-panel relative z-10 flex items-center justify-between rounded-xl px-4 py-3 transition-all duration-300" :class="isBatchMode ? 'translate-y-0 opacity-100' : '-translate-y-[10px] opacity-0 pointer-events-none'">
-      <span class="text-sm font-bold text-rose-200">已选择 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 项审核申请</span>
-      <button class="flex items-center space-x-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-white" @click="handleBatchApprove">
-        <CheckCircle2 class="h-3.5 w-3.5" />
-        <span>批量通过</span>
-      </button>
-    </div>
+    <Transition name="batch-float">
+      <div v-if="isBatchMode" class="glass-panel relative z-10 flex items-center justify-between rounded-xl px-4 py-3">
+        <span class="text-sm font-bold text-rose-200">已选择 <span class="mx-1 text-white">{{ selectedIds.size }}</span> 项审核申请</span>
+        <button class="flex items-center space-x-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500 hover:text-white" @click="handleBatchApprove">
+          <CheckCircle2 class="h-3.5 w-3.5" />
+          <span>批量通过</span>
+        </button>
+      </div>
+    </Transition>
 
     <!-- Data Table (consistent with Users.vue) -->
     <div class="glass-panel relative z-10 overflow-hidden rounded-2xl border border-white/10">
@@ -383,7 +391,12 @@ watch(applicantIdFilter, () => {
                   </td>
                   <td class="px-4 py-4 text-right">
                     <div class="flex items-center justify-end space-x-2 translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
-                      <button class="flex h-7 w-7 items-center justify-center rounded bg-white/5 text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400" title="详情" @click.stop="openDetail(item)">
+                      <button v-if="item.type === 'note'"
+                        class="flex h-7 w-7 items-center justify-center rounded bg-white/5 text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400" title="查看笔记详情" @click.stop="viewNoteDetail(item.id)">
+                        <ExternalLink class="h-3.5 w-3.5" />
+                      </button>
+                      <button v-else
+                        class="flex h-7 w-7 items-center justify-center rounded bg-white/5 text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400" title="审核详情" @click.stop="openDetail(item)">
                         <ExternalLink class="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -421,7 +434,7 @@ watch(applicantIdFilter, () => {
         <div v-if="showModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
       </Transition>
       <Transition name="modal">
-        <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" @click.self="closeModal">
           <div class="glass-panel modal-card relative z-10 w-full max-w-2xl rounded-3xl p-8 overflow-hidden">
             <div class="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-rose-400/20 blur-[40px]"></div>
             
@@ -454,9 +467,16 @@ watch(applicantIdFilter, () => {
                 <span class="text-[10px] text-slate-500 uppercase block mb-2">内容预览</span>
                 <div class="min-h-[120px] bg-black/30 rounded-xl flex items-center justify-center border border-white/5">
                   <template v-if="currentRecord?.type === 'note'">
-                    <div class="flex flex-col items-center opacity-40">
-                      <FileText class="w-8 h-8 mb-2" />
-                      <span class="text-xs">笔记详情请进入详情页查看</span>
+                    <div class="flex flex-col items-center gap-3 py-4">
+                      <FileText class="w-8 h-8 text-rose-400" />
+                      <span class="text-sm font-bold text-white">{{ currentRecord?.title }}</span>
+                      <button
+                        class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all text-xs font-bold border border-rose-500/20"
+                        @click="currentRecord && viewNoteDetail(currentRecord.id)"
+                      >
+                        <ExternalLink class="w-3.5 h-3.5" />
+                        <span>查看完整笔记内容</span>
+                      </button>
                     </div>
                   </template>
                   <template v-else-if="currentRecord?.type === 'image'">
@@ -625,5 +645,38 @@ watch(applicantIdFilter, () => {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(244, 63, 94, 0.5);
+}
+
+/* ── Batch Float Animation ── */
+@keyframes batch-slide-up {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  72% { opacity: 1; transform: translateY(-4px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.batch-float-enter-active { transition: opacity 0.42s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.batch-float-enter-from,
+.batch-float-leave-to { opacity: 0; }
+.batch-float-leave-active { transition: opacity 0.26s ease; }
+.batch-float-leave-active > * { opacity: 0; transform: translateY(16px) scale(0.98); transition: transform 0.26s ease, opacity 0.26s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .list-enter-active,
+  .list-leave-active,
+  .list-move,
+  .fade-enter-active,
+  .fade-leave-active,
+  .modal-enter-active,
+  .modal-leave-active,
+  .batch-float-enter-active,
+  .batch-float-leave-active {
+    transition-duration: 0.01s !important;
+  }
+  .list-enter-from,
+  .list-leave-to,
+  .modal-enter-from,
+  .modal-leave-to {
+    opacity: 0;
+    transform: none;
+  }
 }
 </style>

@@ -1,0 +1,13 @@
+package com.jacolp.pojo.dto.user;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserStorageHandlerDTO {
+    private Long id;
+    private Long deltaStorageBytes;
+}

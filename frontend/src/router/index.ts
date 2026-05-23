@@ -10,6 +10,12 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/activate/:token',
+      name: 'ActivateAccount',
+      component: () => import('@/views/ActivateAccount.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
       path: '/dashboard',
       redirect: '/user/dashboard'
     },
@@ -65,6 +71,16 @@ const router = createRouter({
           path: 'images',
           name: 'UserImages',
           component: () => import('@/views/user/Images.vue')
+        },
+        {
+          path: 'audio',
+          name: 'UserAudioTasks',
+          component: () => import('@/views/user/AudioTasks.vue')
+        },
+        {
+          path: 'profile',
+          name: 'UserProfile',
+          component: () => import('@/views/user/Profile.vue')
         }
       ]
     },
@@ -98,6 +114,11 @@ const router = createRouter({
           component: () => import('@/views/admin/Notes.vue')
         },
         {
+          path: 'notes/:noteId',
+          name: 'AdminNoteDetail',
+          component: () => import('@/views/admin/NoteDetail.vue')
+        },
+        {
           path: 'topics',
           name: 'AdminTopics',
           component: () => import('@/views/admin/Topics.vue')
@@ -111,6 +132,21 @@ const router = createRouter({
           path: 'images',
           name: 'AdminImages',
           component: () => import('@/views/admin/Images.vue')
+        },
+        {
+          path: 'email',
+          name: 'AdminEmail',
+          component: () => import('@/views/admin/Email.vue')
+        },
+        {
+          path: 'audio',
+          name: 'AdminAudioTasks',
+          component: () => import('@/views/admin/AudioTasks.vue')
+        },
+        {
+          path: 'profile',
+          name: 'AdminProfile',
+          component: () => import('@/views/user/Profile.vue')
         }
       ]
     }

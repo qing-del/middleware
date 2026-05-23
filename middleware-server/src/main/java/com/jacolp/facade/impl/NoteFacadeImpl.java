@@ -104,7 +104,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @StorageHandler(operationType = StorageOperationType.UPLOAD)
     public NoteUploadVO uploadNote(MultipartFile file, Long topicId) {
         Long userId = BaseContext.getCurrentId();
-        if (topicId != null && !topicService.topicExists(topicId)) {
+        if (topicId != null && !topicService.topicValid(topicId)) {
             throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
         }
         String originalFilename = normalizeFilename(file.getOriginalFilename());

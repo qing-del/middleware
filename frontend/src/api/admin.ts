@@ -1,4 +1,6 @@
 import request from '@/utils/request'
+import type { NoteBacklinkVO, TagBacklinkVO, ImageBacklinkVO } from '@/api/notes'
+export type { NoteBacklinkVO, TagBacklinkVO, ImageBacklinkVO } from '@/api/notes'
 
 // ── Shared types ──────────────────────────────────
 export interface PageResult<T> {
@@ -9,6 +11,7 @@ export interface PageResult<T> {
 // ── Topics ────────────────────────────────────────
 export interface AdminTopicItem {
   id: number
+  userId?: number
   topicName: string
   sortOrder: number
   noteCount: number
@@ -28,6 +31,7 @@ export interface TopicQueryParams {
 // ── Tags ──────────────────────────────────────────
 export interface AdminTagItem {
   id: number
+  userId?: number
   tagName: string
   isPass: number
   createTime: string
@@ -94,6 +98,7 @@ export interface UserCreateParams {
   nickname?: string
   email?: string
   status?: number
+  maxStorageBytes?: number
 }
 
 export interface UserModifyParams {
@@ -103,6 +108,7 @@ export interface UserModifyParams {
   email?: string
   roleId?: number
   status?: number
+  maxStorageBytes?: number
   newPassword?: string
   confirmPassword?: string
   password?: string
@@ -277,6 +283,20 @@ export const adminApi = {
   /** 批量删除笔记 */
   deleteNotes(ids: number[]): Promise<string> {
     return request.delete('/admin/note/delete', { params: { ids: ids.join(',') } })
+  },
+  /** 查询反向引用笔记 (Admin) — 哪些笔记引用了 noteId */
+  getNoteBacklinks(noteId: number): Promise<NoteBacklinkVO[]> {
+    return request.get(`/admin/note/relation/backlinks/${noteId}`)
+  },
+
+  /** 查询标签反向引用笔记 (Admin) */
+  getTagBacklinks(tagId: number): Promise<TagBacklinkVO[]> {
+    return request.get(`/admin/note/relation/backlinks/tag/${tagId}`)
+  },
+
+  /** 查询图片反向引用笔记 (Admin) */
+  getImageBacklinks(imageId: number): Promise<ImageBacklinkVO[]> {
+    return request.get(`/admin/note/relation/backlinks/image/${imageId}`)
   }
 }
 

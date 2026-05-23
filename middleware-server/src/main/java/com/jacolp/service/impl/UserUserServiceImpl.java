@@ -42,6 +42,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Autowired private StringRedisTemplate redis;
     @Autowired private JwtProperties jwtProperties;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private EmailSenderServiceImpl emailSenderService;
 
     @Override
     public String loginUser(@NotNull @Valid UserLoginDTO userLoginDTO) {
@@ -240,11 +241,11 @@ public class UserUserServiceImpl implements UserUserService {
     }
 
     /**
-     * 用于获取用户激活码
+     * 发送激活邮件
      * @param userId 用户ID
      */
     @Override
-    public String getActiveAccountToken(Long userId) {
+    public void sendActivationEmail(Long userId) {
         UserEntity user = userMapper.selectById(userId);
 
         // 检查用户是否存在
@@ -270,11 +271,20 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
         }
 
-        // 生成 JWT
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.ACTIVE_SIGN_KEY, true);
-        claims.put(UserConstant.USER_ID_CLAIM, userId);
+        emailSenderService.sendActivationEmail(user);
+        log.info("Activation email sent to: {}", user.getEmail());
+    }
 
-        return JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
+    @Override
+    public String verifyActivationCode(String code) {
+        String redisKey = KeyToolUtil.getActiveCodeKey(code);
+        String userIdStr = redis.opsForValue().get(redisKey);
+        if (userIdStr == null) {
+            throw new BaseException("激活码无效或已过期");
+        }
+        Long userId = Long.valueOf(userIdStr);
+        String result = activeAccount(userId);
+        redis.delete(redisKey);
+        return result;
     }
 }

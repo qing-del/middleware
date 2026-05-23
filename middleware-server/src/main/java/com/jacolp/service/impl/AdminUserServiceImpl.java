@@ -181,6 +181,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setRoleId(dto.getRoleId());
         Integer status = dto.getStatus();
         user.setStatus(status != null ? status : UserConstant.ACTIVE_STATUS);
+        user.setMaxStorageBytes(dto.getMaxStorageBytes() != null
+                ? dto.getMaxStorageBytes() : RoleConstant.USER_MAX_STORAGE_BYTES);
 
         int rows = userMapper.insertUser(user);
         if (rows != 1) {

@@ -46,7 +46,8 @@ public class JwtTokenActiveInterceptor implements HandlerInterceptor {
         }
 
         // 1、从请求头中获取令牌
-        String token = request.getHeader(jwtProperties.getAdminTokenName());
+        String[] split = request.getRequestURI().split("/");
+        String token = split[split.length - 1];
 
         // 2、校验令牌
         try {
@@ -56,7 +57,7 @@ public class JwtTokenActiveInterceptor implements HandlerInterceptor {
                 return false;
             }
             log.debug("JWT verification: {}", token);
-            Claims claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
+            Claims claims = JwtUtil.parseJWT(jwtProperties.getActiveSecretKey(), token);
             Long userId = Long.valueOf(claims.get(UserConstant.USER_ID_CLAIM).toString());
             log.debug("Current user that need to active ID: {}", userId);
             BaseContext.setCurrentId(userId);

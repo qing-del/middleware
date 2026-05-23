@@ -25,7 +25,6 @@ public class ImageDeleteTask {
      * 删除在死信队列中等待删除的图片
      */
     @Scheduled(fixedRateString = "${jacolp.image.delete-image-task-time:60}", timeUnit = TimeUnit.MINUTES)
-    @Transactional
     public void deleteImageTask() {
         log.debug("Start to delete images from OSS");
         List<ImageDeleteDeadLetterEntity> list = imageDeleteDeadLetterMapper.selectBatch(

@@ -3,6 +3,8 @@ package com.jacolp.controller.user;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.jacolp.annotation.RateLimit;
+import com.jacolp.constant.RateLimitConstant;
 import com.jacolp.service.UserUserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +19,6 @@ import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.result.Result;
-import com.jacolp.utils.JwtUtil;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -97,18 +98,6 @@ public class UserController {
         return Result.success("账户已删除");
     }
 
-    @GetMapping("/getActivatedToken")
-    @Operation(summary = "获取激活码",
-            description = "用户注册之后，填写好邮箱（开发阶段暂时不用），即可接受激活码")
-    public Result<String> getActivatedToken() {
-        Long userId = BaseContext.getCurrentId();
-        log.info("User get activated token, userId: {}", userId);
-
-        // TODO 后续改造成发送邮件
-        return Result.success(userUserService.getActiveAccountToken(userId));
-    }
-
-
     /**
      * 用户激活
      * @param token 激活码
@@ -120,5 +109,21 @@ public class UserController {
     public Result<String> active(@PathVariable String token) {
         log.info("User active: {}", token);
         return Result.success(userUserService.activeAccount(BaseContext.getCurrentId()));
+    }
+
+    @PostMapping("/active-code")
+    @Operation(summary = "通过激活码激活账号",
+            description = "通过邮箱中收到的 6 位数字激活码完成账号激活，无需 JWT 令牌")
+    @RateLimit(windowSeconds = 60, maxRequests = 1, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
+    @RateLimit(windowSeconds = 3600, maxRequests = 5, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
+    public Result<String> activeByCode(
+            @Parameter(description = "6位数字激活码，key 为 code")
+            @RequestBody Map<String, String> body) {
+        String code = body.get("code");
+        if (code == null || code.isBlank()) {
+            return Result.error("激活码不能为空");
+        }
+        log.info("User active by code: {}", code);
+        return Result.success(userUserService.verifyActivationCode(code));
     }
 }

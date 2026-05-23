@@ -97,6 +97,11 @@ export const useAuthStore = defineStore('auth', () => {
     clearSession()
   }
 
+  async function updateProfile(data: { nickname?: string; email?: string; password?: string; newPassword?: string; confirmPassword?: string }) {
+    await authApi.updateProfile(data)
+    await refreshCurrentUserInfo()
+  }
+
   async function refreshCurrentUserInfo() {
     if (isAdmin.value) {
       return fetchAdminUserInfo()
@@ -114,6 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     fetchUserInfo,
     fetchAdminUserInfo,
+    updateProfile,
     refreshCurrentUserInfo,
     adminLogout,
     logout

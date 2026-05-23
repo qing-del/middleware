@@ -262,6 +262,42 @@ export interface NoteEachMappingRowVO {
   isMissing: number
 }
 
+// ── Backlinks (reverse references) ────────────────
+export interface NoteBacklinkVO {
+  sourceNoteId: number
+  sourceNoteTitle: string
+  parsedNoteName: string
+  anchor: string
+  nickname: string
+  /** 0=本人 1=跨用户 */
+  isCrossUser: number
+  /** 引用方笔记的状态码（NoteStatusCode） */
+  sourceNoteStatus: number
+  createTime: string
+}
+
+export interface TagBacklinkVO {
+  sourceNoteId: number
+  sourceNoteTitle: string
+  parsedTagName: string
+  /** 0=本人 1=跨用户 */
+  isCrossUser: number
+  /** 引用方笔记的状态码（NoteStatusCode） */
+  sourceNoteStatus: number
+  createTime: string
+}
+
+export interface ImageBacklinkVO {
+  sourceNoteId: number
+  sourceNoteTitle: string
+  parsedImageName: string
+  /** 0=本人 1=跨用户 */
+  isCrossUser: number
+  /** 引用方笔记的状态码（NoteStatusCode） */
+  sourceNoteStatus: number
+  createTime: string
+}
+
 // ── Check binding ─────────────────────────────────
 export interface NoteCheckBindingVO {
   noteId: number
@@ -376,6 +412,21 @@ export const noteApi = {
   /** 查询笔记关联图片 */
   getRelationImages(noteId: number): Promise<NoteImageSimpleVO[]> {
     return request.get(`/user/note/relation/images/${noteId}`)
+  },
+
+  /** 查询反向引用笔记（哪些笔记引用了 noteId） */
+  getBacklinks(noteId: number): Promise<NoteBacklinkVO[]> {
+    return request.get(`/user/note/relation/backlinks/${noteId}`)
+  },
+
+  /** 查询标签反向引用笔记 */
+  getTagBacklinks(tagId: number): Promise<TagBacklinkVO[]> {
+    return request.get(`/user/note/relation/backlinks/tag/${tagId}`)
+  },
+
+  /** 查询图片反向引用笔记 */
+  getImageBacklinks(imageId: number): Promise<ImageBacklinkVO[]> {
+    return request.get(`/user/note/relation/backlinks/image/${imageId}`)
   },
 
   /** 绑定标签映射 */

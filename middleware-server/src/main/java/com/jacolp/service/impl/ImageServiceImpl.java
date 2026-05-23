@@ -520,6 +520,7 @@ public class ImageServiceImpl implements ImageService {
             throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
         }
 
+        // 检查笔记是否存在 & 是否有权限
         ImageEntity image = imageMapper.selectById(id);
         if (image == null) {
             throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
@@ -529,6 +530,13 @@ public class ImageServiceImpl implements ImageService {
             throw new BaseException(ImageConstant.IMAGE_NOT_OWNER);
         }
 
+        // 检查笔记是否存在引用
+        int noteCount = noteRelationServiceImpl.countByImageId(id);
+        if (noteCount > 0) {
+            throw new BaseException(ImageConstant.IMAGE_IN_USE);
+        }
+
+        // 执行删除逻辑
         if (image.getStorageType() != null &&
             image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) {
             insertToDeadLetterQueue(image); // 插入到死信队列表中
@@ -635,7 +643,7 @@ public class ImageServiceImpl implements ImageService {
     private void validateTopic(Long topicId) {
         // 校验 topicId 是否合法
         if (topicId != null && topicId > 0) {
-            if (!topicService.topicExists(topicId)) {
+            if (!topicService.topicValid(topicId)) {
                 throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
             }
         }

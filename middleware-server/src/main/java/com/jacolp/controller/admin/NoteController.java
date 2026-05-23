@@ -71,8 +71,7 @@ public class NoteController {
             description = "预留接口，当前暂不支持强制设置笔记状态，调用时将抛出异常。")
     public Result forceSetNoteStatus(
             @Parameter(description = "存在的笔记状态之一即可") @PathVariable Long status,
-            @Parameter(description = "笔记ID") @PathVariable Long noteId
-    ) {
+            @Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Admin force set note status, noteId: {}, status: {}", noteId, status);
 
         throw new BaseException("暂不支持强制设置笔记状态");    // TODO 后续开发

@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
+import com.jacolp.pojo.vo.note.TagBacklinkVO;
 import org.apache.ibatis.annotations.Select;
 
 @Mapper
@@ -80,4 +81,13 @@ public interface NoteTagMappingMapper {
     @Select("SELECT COUNT(1) FROM biz_note_tag_mapping " +
             "WHERE note_id = #{noteId} AND tag_id IS NULL AND is_deleted = 0")
     int existNullTargetTag(Long noteId);
+
+    /**
+     * 查询引用了指定标签的源笔记列表（标签反向引用）
+     * @param tagId 目标标签 id
+     * @param userId 当前用户 id；传 null 时跳过归属/公开过滤（管理端使用）
+     * @return 反向引用列表（包含源笔记标题、状态、跨用户标记等）
+     */
+    List<TagBacklinkVO> selectBacklinksByTagId(@Param("tagId") Long tagId,
+                                               @Param("userId") Long userId);
 }
