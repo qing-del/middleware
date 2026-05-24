@@ -101,12 +101,6 @@ const allRelationsIntact = computed(() => {
   return note.value.missingCount === 0
 })
 
-const hasAnyRelations = computed(() => {
-  if (!note.value) return false
-  const n = note.value
-  return (n.tags?.length ?? 0) > 0 || (n.images?.length ?? 0) > 0 || (n.eachNotes?.length ?? 0) > 0
-})
-
 // ── Actions ───────────────────────────────────────
 async function handleConvert() {
   if (!note.value || converting.value) return

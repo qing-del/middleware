@@ -243,7 +243,7 @@ public class StorageHandlerAspect {
             maxStorageBytes = roleMapper.selectMaxStorageById(quote.getRoleId());
 
             // 写入数据库中同步
-            int affect = userMapper.updateMaxStorageById(quote.getId(), maxStorageBytes);
+            int affect = userMapper.updateMaxStorageById(userId, maxStorageBytes);
             if (affect <= 0) {
                 log.error("Failed to update user storage after load, userId: {}", userId);
                 throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);

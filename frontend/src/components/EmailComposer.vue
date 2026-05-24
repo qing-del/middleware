@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { Mail, Send, Eye, Loader2 } from 'lucide-vue-next'
 
-const props = defineProps<{
+defineProps<{
   mode: 'admin' | 'user'
 }>()
 
@@ -17,7 +17,6 @@ const roleId = ref<number | undefined>()
 const showPreview = ref(false)
 const sending = ref(false)
 
-const accent = props.mode === 'admin' ? 'rose' : 'indigo'
 
 async function handleSubmit() {
   if (!subject.value.trim() || !body.value.trim()) return

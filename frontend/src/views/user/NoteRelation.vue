@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { noteApi, getNoteStatusInfo } from '@/api/notes'
 import type { NoteDetailVO, NoteRelationDetailVO, NoteItem } from '@/api/notes'
 import { imageApi } from '@/api/images'
@@ -14,7 +14,6 @@ import {
 } from 'lucide-vue-next'
 
 const route = useRoute()
-const router = useRouter()
 
 const loading = ref(true)
 const error = ref<string | null>(null)

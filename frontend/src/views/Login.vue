@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Message } from '@arco-design/web-vue'
 import { useAuthStore } from '@/stores/auth'
 import {
   Zap, ChevronRight, Link, FileDiff, User, Mail, Lock,
@@ -258,7 +257,7 @@ function toggleFeatures() {
   }
 }
 
-function showToast(msg: string, type: 'success' | 'error' = 'success') {
+function showToast(msg: string, _type: 'success' | 'error' = 'success') {
   const toast = document.getElementById('toast-container')
   const toastMsg = document.getElementById('toast-msg')
   if (!toast || !toastMsg) return

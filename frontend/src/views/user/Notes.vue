@@ -88,13 +88,6 @@ const tooltipX = ref(0)
 const tooltipY = ref(0)
 const tooltipColor = ref('blue')
 
-function showTooltip(e: MouseEvent, text: string, color = 'blue') {
-  tooltipText.value = text
-  tooltipColor.value = color
-  tooltipVisible.value = true
-  positionTooltip(e)
-}
-
 async function showRelationTooltip(e: MouseEvent, note: NoteItem, kind: 'tags' | 'images' | 'links' | 'status') {
   const colorMap: Record<string, string> = { tags: 'purple', images: 'amber', links: 'emerald', status: 'blue' }
   const color = kind === 'status'

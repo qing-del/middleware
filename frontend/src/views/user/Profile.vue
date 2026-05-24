@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { emailApi } from '@/api/email'
 import { adminApi } from '@/api/admin'
@@ -33,7 +33,6 @@ const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 
-const accent = computed(() => authStore.isAdmin ? 'rose' : 'indigo')
 
 async function fetchEmailStatus() {
   emailLoading.value = true
