@@ -4,6 +4,8 @@ import com.jacolp.pojo.entity.RoleEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 @Mapper
 public interface RoleMapper {
 
@@ -15,4 +17,7 @@ public interface RoleMapper {
 
     @Select("select * from sys_role where id = #{id}")
     RoleEntity getById(long user);
+
+    @Select("select * from sys_role")
+    List<RoleEntity> getAll();
 }
