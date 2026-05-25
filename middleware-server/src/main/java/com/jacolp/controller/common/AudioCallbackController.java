@@ -29,6 +29,13 @@ public class AudioCallbackController {
     @Value("${jacolp.audio.callback-token}")
     private String callbackToken;
 
+    @GetMapping("/callback/test")
+    @Operation(summary = "测试连接接口")
+    public Result<String> callbackTest(HttpServletRequest request) {
+        validateCallbackToken(request);
+        return Result.success("Connected Successfully!");
+    }
+
     @PostMapping("/callback/start")
     @Operation(summary = "回调 A：任务开始处理",
             description = "Python 消费者从 Redis 取出任务后调用，将任务状态从 PENDING 更新为 PROCESSING。（前端不用对接）")

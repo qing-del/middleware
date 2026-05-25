@@ -1,0 +1,59 @@
+# ============================================================
+# Docker 环境运行时配置
+# 挂载到容器 /app/config/application.yml 即可覆盖 classpath 默认值
+# 敏感信息仍建议通过环境变量注入，此处仅放 Docker 环境固定值
+# ============================================================
+
+spring:
+  profiles:
+    # Docker 环境不需要 dev profile，设为空或自定义
+    active: docker
+  datasource:
+    # 以下占位符会从环境变量自动映射，见 docker-compose.yml 中的 environment 段
+    url: jdbc:mysql://${jacolp.datasource.host:mysql}:${jacolp.datasource.port:3306}/${jacolp.datasource.database:personal_saas}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+    username: ${jacolp.datasource.username:root}
+    password: ${jacolp.datasource.password}
+  data:
+    redis:
+      host: ${jacolp.redis.host:redis}
+      port: ${jacolp.redis.port:6379}
+
+jacolp:
+  admin:
+    username: ${jacolp.admin.username:admin}
+    password: ${jacolp.admin.password}
+  default-password: ${jacolp.default-password:123456}
+  jwt:
+    admin-secret-key: ${jwt.admin-secret-key}
+    admin-ttl: 7200000
+    admin-token-name: ${jwt.admin-token-name:adminToken}
+    user-secret-key: ${jwt.user-secret-key}
+    user-ttl: 7200000
+    user-token-name: ${jwt.user-token-name:userToken}
+    active-secret-key: ${jacolp.jwt.active-secret-key}
+    active-ttl: 900000
+    active-token-name: ${jacolp.jwt.active-token-name:activeToken}
+  markdown:
+    # Docker 中 markdown 输入输出目录（容器内路径）
+    root: /app/data/markdown
+    input: /app/data/markdown/input
+    output: /app/data/markdown/output
+  aliyun:
+    oss:
+      keep-live-time: 45
+      enabled: ${jacolp.aliyun.oss.enabled:true}
+  image:
+    delete-image-task-time: 60
+
+aliyun:
+  oss:
+    endpoint: https://${jacolp.aliyun.oss.endpoint}
+    bucket-name: ${jacolp.aliyun.oss.bucket-name}
+    region: ${jacolp.aliyun.oss.region}
+
+# 如果使用 Cloudflare R2，取消下面的注释并配置环境变量
+# jacolp:
+#   cloudflare:
+#     account-id: ${CLOUDFLARE_ACCOUNT_ID}
+#     s3-api: https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+#     bucket-name: ${jacolp.cloudflare.bucket-name:middleware-jacolp}

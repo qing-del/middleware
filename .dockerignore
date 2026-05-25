@@ -1,0 +1,28 @@
+# Maven / Java
+**/target/
+**/.mvn/
+*.jar
+*.war
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+.env
+data/
+docker-compose*.yml
+Dockerfile*
+
+# OS
+.DS_Store
+Thumbs.db
