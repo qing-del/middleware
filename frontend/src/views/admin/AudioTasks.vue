@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { audioApi, type AudioTaskVO } from '@/api/audio'
-import { useAuthStore } from '@/stores/auth'
 import { buildResourceUrl } from '@/utils/resourceUrl'
 import {
   Clock, CheckCircle2, XCircle, RotateCcw, Calendar,
-  Gauge, Waves, ChevronLeft, ChevronRight, Loader2, Music, User, Search, FileText, X
+  ChevronLeft, ChevronRight, Loader2, Music, User, Search, FileText, X
 } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
 const loading = ref(true)
 const tasks = ref<AudioTaskVO[]>([])
 const total = ref(0)

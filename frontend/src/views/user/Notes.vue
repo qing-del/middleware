@@ -10,7 +10,7 @@ import {
   Hash, Image, Link, Network, Layers, Eye, Wrench, RefreshCw, RotateCcw, FileDiff,
   CornerUpLeft, AlertCircle, Clock, CheckCircle2, XCircle, FileEdit,
   AlertTriangle, UploadCloud, ArrowRight, X, FolderTree, ChevronDown,
-  Send, FilePlus, FileCode, HelpCircle, Ban
+  Send, FilePlus, FileCode, HelpCircle, Ban, PenLine
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -41,6 +41,7 @@ const searchMode = ref<'personal' | 'global'>('personal')
 const showSourceModal = ref(false)
 const sourceContent = ref('')
 const sourceTitle = ref('')
+const currentSourceId = ref<number | null>(null)
 
 // ── Relation Details Cache ───────────────────────
 const relationCache = ref<Record<number, NoteRelationDetailVO>>({})
@@ -87,13 +88,6 @@ const tooltipText = ref('')
 const tooltipX = ref(0)
 const tooltipY = ref(0)
 const tooltipColor = ref('blue')
-
-function showTooltip(e: MouseEvent, text: string, color = 'blue') {
-  tooltipText.value = text
-  tooltipColor.value = color
-  tooltipVisible.value = true
-  positionTooltip(e)
-}
 
 async function showRelationTooltip(e: MouseEvent, note: NoteItem, kind: 'tags' | 'images' | 'links' | 'status') {
   const colorMap: Record<string, string> = { tags: 'purple', images: 'amber', links: 'emerald', status: 'blue' }
@@ -490,12 +484,20 @@ async function handleViewSource(id: number) {
   try {
     const src = await noteApi.getSource(id)
     const note = noteList.value.find(n => n.id === id)
+    currentSourceId.value = id
     sourceTitle.value = note?.title ?? '笔记源文件'
     sourceContent.value = src as unknown as string
     showSourceModal.value = true
   } catch {
     showAlert('无法获取源文件。')
   }
+}
+
+function handleEditSource() {
+  if (currentSourceId.value == null) return
+  const id = currentSourceId.value
+  showSourceModal.value = false
+  router.push({ name: 'UserNoteEdit', params: { noteId: id }, query: { title: sourceTitle.value } })
 }
 
 function handleViewHtml(id: number) {
@@ -584,6 +586,11 @@ onMounted(() => {
           <input v-model="searchKeyword" type="text" placeholder="搜索笔记标题或内容..." class="absolute left-9 w-[220px] h-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none opacity-0 group-hover:opacity-100 focus-within:!opacity-100 transition-opacity duration-300 pr-4" @keyup.enter="handleSearch" />
         </div>
 
+        <button class="group relative px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all overflow-hidden flex items-center space-x-2" @click="$router.push('/user/notes/new')">
+          <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
+          <FilePlus class="w-4 h-4" />
+          <span>新建笔记</span>
+        </button>
         <button class="group relative px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center space-x-2" @click="openCreateUploadModal">
           <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
           <FileUp class="w-4 h-4" />
@@ -1026,6 +1033,19 @@ onMounted(() => {
           </div>
           <div class="flex-1 overflow-y-auto p-6">
             <pre class="text-sm text-slate-300 font-mono whitespace-pre-wrap break-all">{{ sourceContent }}</pre>
+          </div>
+          <div class="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+            <button
+              class="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition"
+              @click="showSourceModal = false"
+            >关闭</button>
+            <button
+              class="px-4 py-2 rounded-lg text-sm bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 flex items-center gap-2 transition"
+              @click="handleEditSource"
+            >
+              <PenLine class="w-4 h-4" />
+              <span>编辑源文件</span>
+            </button>
           </div>
         </div>
       </div>

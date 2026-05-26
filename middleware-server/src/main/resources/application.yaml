@@ -71,7 +71,7 @@ jacolp:
   audio:
     callback-token: ${jacolp.audio.callback-token}
   image:
-    delete-image-task-time: 1 # 单位是分钟
+    delete-image-task-time: 60 # 单位是分钟
 
 aliyun:
   oss:

@@ -2,13 +2,18 @@ package com.jacolp.component;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
+import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
+import com.jacolp.pojo.entity.RoleEntity;
 import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.utils.RoleDataComputerUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 @Slf4j
@@ -29,9 +34,26 @@ public class DataInitializer implements CommandLineRunner {
 
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserMapper userMapper;
+    @Autowired private RoleMapper roleMapper;
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
+        initRoleData();
+        initCreatorAccount();
+    }
+
+    private void initRoleData() {
+        List<RoleEntity> roles = roleMapper.getAll();
+
+        for (RoleEntity role : roles) {
+            RoleDataComputerUtil.putStorage(role.getId(), role.getMaxStorageBytes());
+            RoleDataComputerUtil.putApiLimit(role.getId(), role.getDailyApiLimit());
+        }
+
+        log.info("Init role data success!");
+    }
+
+    private void initCreatorAccount() {
         // 检查是否存在管理员账号
         UserEntity creator = userMapper.selectById(1L);
         if (creator == null) {
@@ -46,6 +68,7 @@ public class DataInitializer implements CommandLineRunner {
         creator.setEmail(adminEmail);
         creator.setRoleId(RoleConstant.CREATOR);
         creator.setStatus(UserConstant.ACTIVE_STATUS);
+        creator.setMaxStorageBytes(RoleDataComputerUtil.getStorage(RoleConstant.CREATOR));
         int count = userMapper.upsertCreator(creator);
         if (count <= 0) {
             log.error("Failed to create admin account!");

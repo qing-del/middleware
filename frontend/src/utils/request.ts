@@ -1,13 +1,13 @@
-import axios from 'axios'
+import axios, { type AxiosRequestConfig } from 'axios'
 import { Message } from '@arco-design/web-vue'
 import router from '@/router'
 
-const request = axios.create({
+const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30000
 })
 
-request.interceptors.request.use(
+instance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token && !config.headers.Authorization) {
@@ -20,7 +20,7 @@ request.interceptors.request.use(
   }
 )
 
-request.interceptors.response.use(
+instance.interceptors.response.use(
   (response) => {
     const res = response.data
     // 兼容两种返回格式：1) { code: 1, data: ... } 2) 直接返回数据对象
@@ -47,5 +47,21 @@ request.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+function request<T = unknown>(config: AxiosRequestConfig): Promise<T> {
+  return instance(config) as unknown as Promise<T>
+}
+
+request.get = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+  instance.get(url, config) as unknown as Promise<T>
+
+request.post = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+  instance.post(url, data, config) as unknown as Promise<T>
+
+request.put = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+  instance.put(url, data, config) as unknown as Promise<T>
+
+request.delete = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+  instance.delete(url, config) as unknown as Promise<T>
 
 export default request

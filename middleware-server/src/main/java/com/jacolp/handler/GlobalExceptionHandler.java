@@ -77,7 +77,6 @@ public class GlobalExceptionHandler {
         return Result.error(msg);
     }
 
-
     /**
      * 捕获 Jackson 的异常
      * @param ex JsonProcessingException
