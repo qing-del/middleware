@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightSpecialChars, drawSelection, rectangularSelection, placeholder } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightSpecialChars, drawSelection, rectangularSelection, placeholder, Decoration, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
+import { EditorState, RangeSetBuilder } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { syntaxHighlighting, defaultHighlightStyle, syntaxTree } from '@codemirror/language'
 import { closeBrackets, autocompletion, completionKeymap } from '@codemirror/autocomplete'
 import { noteApi } from '@/api/notes'
 import { topicApi } from '@/api/topics'
@@ -117,6 +117,12 @@ const editorTheme = EditorView.theme({
     backgroundColor: 'rgba(59, 130, 246, 0.2)',
     outline: '1px solid rgba(59, 130, 246, 0.4)',
   },
+  '.cm-hr-line': {
+    borderBottom: '1px dashed rgba(148, 163, 184, 0.45)',
+    paddingBottom: '0.25rem',
+    marginBottom: '0.25rem',
+    color: '#94a3b8',
+  },
 })
 
 // ── Save keybinding ──────────────────────────────────
@@ -130,6 +136,41 @@ const saveKeymap = keymap.of([
     preventDefault: true,
   },
 ])
+
+// ── HorizontalRule (---) line decoration ─────────────
+const hrLineDeco = Decoration.line({ class: 'cm-hr-line' })
+
+function buildHrDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(view.state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        if (node.name === 'HorizontalRule') {
+          const line = view.state.doc.lineAt(node.from)
+          builder.add(line.from, line.from, hrLineDeco)
+        }
+      },
+    })
+  }
+  return builder.finish()
+}
+
+const horizontalRulePlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = buildHrDecorations(view)
+    }
+    update(u: ViewUpdate) {
+      if (u.docChanged || u.viewportChanged) {
+        this.decorations = buildHrDecorations(u.view)
+      }
+    }
+  },
+  { decorations: (v) => v.decorations },
+)
 
 // ── Editor helpers ───────────────────────────────────
 function createEditor(doc: string) {
@@ -146,12 +187,13 @@ function createEditor(doc: string) {
     history(),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     EditorView.lineWrapping,
-    keymap.of([...defaultKeymap, ...historyKeymap, ...completionKeymap]),
+    keymap.of([...defaultKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
     saveKeymap,
     editorTheme,
     placeholder('Start writing in Markdown...'),
     markdownLintGutter,
     markdownLinter,
+    horizontalRulePlugin,
     autocompletion({
       override: [createBracketLinkCompletion({ getCache: () => recentNotesCache.value })],
       activateOnTyping: true,

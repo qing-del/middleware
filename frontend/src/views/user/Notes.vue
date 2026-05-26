@@ -10,7 +10,7 @@ import {
   Hash, Image, Link, Network, Layers, Eye, Wrench, RefreshCw, RotateCcw, FileDiff,
   CornerUpLeft, AlertCircle, Clock, CheckCircle2, XCircle, FileEdit,
   AlertTriangle, UploadCloud, ArrowRight, X, FolderTree, ChevronDown,
-  Send, FilePlus, FileCode, HelpCircle, Ban
+  Send, FilePlus, FileCode, HelpCircle, Ban, PenLine
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -41,6 +41,7 @@ const searchMode = ref<'personal' | 'global'>('personal')
 const showSourceModal = ref(false)
 const sourceContent = ref('')
 const sourceTitle = ref('')
+const currentSourceId = ref<number | null>(null)
 
 // ── Relation Details Cache ───────────────────────
 const relationCache = ref<Record<number, NoteRelationDetailVO>>({})
@@ -483,12 +484,20 @@ async function handleViewSource(id: number) {
   try {
     const src = await noteApi.getSource(id)
     const note = noteList.value.find(n => n.id === id)
+    currentSourceId.value = id
     sourceTitle.value = note?.title ?? '笔记源文件'
     sourceContent.value = src as unknown as string
     showSourceModal.value = true
   } catch {
     showAlert('无法获取源文件。')
   }
+}
+
+function handleEditSource() {
+  if (currentSourceId.value == null) return
+  const id = currentSourceId.value
+  showSourceModal.value = false
+  router.push({ name: 'UserNoteEdit', params: { noteId: id }, query: { title: sourceTitle.value } })
 }
 
 function handleViewHtml(id: number) {
@@ -1024,6 +1033,19 @@ onMounted(() => {
           </div>
           <div class="flex-1 overflow-y-auto p-6">
             <pre class="text-sm text-slate-300 font-mono whitespace-pre-wrap break-all">{{ sourceContent }}</pre>
+          </div>
+          <div class="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+            <button
+              class="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition"
+              @click="showSourceModal = false"
+            >关闭</button>
+            <button
+              class="px-4 py-2 rounded-lg text-sm bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 flex items-center gap-2 transition"
+              @click="handleEditSource"
+            >
+              <PenLine class="w-4 h-4" />
+              <span>编辑源文件</span>
+            </button>
           </div>
         </div>
       </div>

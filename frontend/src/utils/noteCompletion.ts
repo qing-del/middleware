@@ -1,4 +1,5 @@
 import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete'
+import type { EditorState } from '@codemirror/state'
 import { noteApi } from '@/api/notes'
 
 export interface NoteOption {
@@ -23,6 +24,16 @@ function buildApply(title: string) {
   }
 }
 
+function buildApplyHeading(text: string) {
+  return (view: any, _completion: Completion, from: number, to: number) => {
+    const insert = `#${text}]]`
+    view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor: from + insert.length },
+    })
+  }
+}
+
 function toCompletion(opt: NoteOption): Completion {
   return {
     label: opt.title,
@@ -40,6 +51,36 @@ function dedupeByTitle(items: NoteOption[]): NoteOption[] {
     if (seen.has(it.title)) continue
     seen.add(it.title)
     out.push(it)
+  }
+  return out
+}
+
+interface HeadingItem {
+  level: number
+  text: string
+}
+
+// Extract all H1-H6 headings from the current doc by scanning lines.
+// Mirrors the regex used in markdownLint.ts so behavior stays consistent.
+function getHeadings(state: EditorState): HeadingItem[] {
+  const doc = state.doc
+  const out: HeadingItem[] = []
+  const seen = new Set<string>()
+  let insideFence = false
+  for (let i = 1; i <= doc.lines; i++) {
+    const text = doc.line(i).text
+    if (/^\s*```/.test(text)) {
+      insideFence = !insideFence
+      continue
+    }
+    if (insideFence) continue
+    const m = text.match(/^(#{1,6})\s+(\S.*?)\s*$/)
+    if (!m) continue
+    const level = m[1].length
+    const title = m[2]
+    if (seen.has(title)) continue
+    seen.add(title)
+    out.push({ level, text: title })
   }
   return out
 }
@@ -70,7 +111,30 @@ export function createBracketLinkCompletion(opts: BracketLinkOptions): Completio
   const localThreshold = opts.localThreshold ?? 3
 
   return async (ctx: CompletionContext): Promise<CompletionResult | null> => {
-    const before = ctx.matchBefore(/\[\[[^\[\]\n]*$/)
+    // Branch 1: [[# → current-document heading anchors
+    const headingMatch = ctx.matchBefore(/\[\[#[^\[\]\n]*$/)
+    if (headingMatch) {
+      const kw = headingMatch.text.slice(3).trim().toLowerCase()
+      const headings = getHeadings(ctx.state)
+      const filtered = kw
+        ? headings.filter((h) => h.text.toLowerCase().includes(kw))
+        : headings
+      if (!filtered.length) return null
+      return {
+        from: headingMatch.from + 2,
+        to: ctx.pos,
+        options: filtered.slice(0, 20).map((h) => ({
+          label: `#${h.text}`,
+          type: 'text',
+          detail: `H${h.level}`,
+          apply: buildApplyHeading(h.text),
+        })),
+        validFor: /^#[^\[\]\n]*$/,
+      }
+    }
+
+    // Branch 2: [[xxx → note titles (local cache + remote search). Skip when [[ is followed by #.
+    const before = ctx.matchBefore(/\[\[(?!#)[^\[\]\n]*$|\[\[$/)
     if (!before) return null
 
     const keyword = before.text.slice(2).trim()
