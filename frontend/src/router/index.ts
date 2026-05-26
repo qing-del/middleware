@@ -43,6 +43,16 @@ const router = createRouter({
           component: () => import('@/views/user/Notes.vue')
         },
         {
+          path: 'notes/new',
+          name: 'UserNoteCreate',
+          component: () => import('@/views/user/NoteEdit.vue')
+        },
+        {
+          path: 'notes/:noteId/edit',
+          name: 'UserNoteEdit',
+          component: () => import('@/views/user/NoteEdit.vue')
+        },
+        {
           path: 'notes/:noteId',
           name: 'UserNoteDetail',
           component: () => import('@/views/user/NoteDetail.vue')

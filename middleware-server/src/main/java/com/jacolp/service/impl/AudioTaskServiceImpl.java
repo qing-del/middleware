@@ -9,7 +9,6 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.exception.RateLimitExceededException;
 import com.jacolp.mapper.ApiDailyUsageMapper;
 import com.jacolp.mapper.AudioTaskMapper;
-import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.audio.AudioCallbackFinishDTO;
 import com.jacolp.pojo.dto.audio.AudioCallbackStartDTO;
@@ -17,26 +16,23 @@ import com.jacolp.pojo.dto.audio.AudioTaskPageQueryDTO;
 import com.jacolp.pojo.dto.audio.AudioTaskSubmitDTO;
 import com.jacolp.pojo.entity.ApiDailyUsageEntity;
 import com.jacolp.pojo.entity.AudioTaskEntity;
-import com.jacolp.pojo.entity.RoleEntity;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.audio.AudioTaskSubmitVO;
 import com.jacolp.pojo.vo.audio.AudioTaskVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AudioTaskService;
+import com.jacolp.utils.RoleDataComputerUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.connection.stream.MapRecord;
-import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +45,6 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     @Autowired private AudioTaskMapper audioTaskMapper;
     @Autowired private ApiDailyUsageMapper apiDailyUsageMapper;
     @Autowired private UserMapper userMapper;
-    @Autowired private RoleMapper roleMapper;
     @Autowired private StringRedisTemplate redis;
 
     @PostConstruct
@@ -197,8 +192,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
      */
     private void checkDailyQuota(Long userId) {
         UserEntity user = userMapper.selectById(userId);
-        RoleEntity role = roleMapper.getById(user.getRoleId());
-        int dailyLimit = role.getDailyApiLimit();
+        int dailyLimit = RoleDataComputerUtil.getApiLimit(user.getRoleId());
 
         LocalDate today = LocalDate.now();
         ApiDailyUsageEntity usage = apiDailyUsageMapper.selectByUserIdAndDate(userId, today);

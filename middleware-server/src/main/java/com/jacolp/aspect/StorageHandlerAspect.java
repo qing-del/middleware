@@ -4,7 +4,6 @@ import com.jacolp.annotation.StorageHandler;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteMapper;
-import com.jacolp.mapper.RoleMapper;
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
@@ -13,6 +12,7 @@ import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.component.LockOperator;
 
+import com.jacolp.utils.RoleDataComputerUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -49,7 +49,6 @@ public class StorageHandlerAspect {
     @Autowired private ImageMapper imageMapper;
     @Autowired private UserMapper userMapper;
     @Autowired private NoteMapper noteMapper;
-    @Autowired private RoleMapper roleMapper;
 
     @Pointcut("@annotation(storageHandler)")
     public void storageHandlerPointcut(StorageHandler storageHandler) {
@@ -240,10 +239,10 @@ public class StorageHandlerAspect {
         // 检查一下 maxStorageBytes 是否正常有确定值，没有就需要去查角色表来获取
         Long maxStorageBytes = quote.getMaxStorageBytes();
         if (maxStorageBytes == null) {
-            maxStorageBytes = roleMapper.selectMaxStorageById(quote.getRoleId());
+            maxStorageBytes = RoleDataComputerUtil.getStorage(quote.getRoleId());
 
             // 写入数据库中同步
-            int affect = userMapper.updateMaxStorageById(quote.getId(), maxStorageBytes);
+            int affect = userMapper.updateMaxStorageById(userId, maxStorageBytes);
             if (affect <= 0) {
                 log.error("Failed to update user storage after load, userId: {}", userId);
                 throw new BaseException(UserConstant.UPDATE_USER_STORAGE_FAILED);

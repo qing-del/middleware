@@ -200,7 +200,7 @@ async function handleConfirmChange(confirm: boolean) {
   try {
     await noteApi.confirmChange(noteId, confirm)
     showAlert(confirm ? '变更已确认并生效。' : '变更已取消并回滚。')
-    router.push(`/user/notes/${noteId}`)
+    router.push('/user/notes')
   } catch {
     showAlert(confirm ? '确认变更失败，请重试。' : '取消变更失败，请重试。')
   } finally {

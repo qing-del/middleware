@@ -22,8 +22,8 @@ CREATE TABLE `sys_role` (
 INSERT INTO `sys_role` (`role_name`, `role_code`, `daily_api_limit`, `max_storage_bytes`) VALUES
                                                                          ('创建者', 'CREATOR', 999999, 107374182400),
                                                                          ('管理员', 'ADMIN', 1000, 1073741824),
-                                                                         ('普通用户', 'USER', 5, 104857600),
-                                                                         ('高级VIP', 'VIP', 50, 524288000);
+                                                                         ('普通用户', 'USER', 15, 104857600),
+                                                                         ('高级VIP', 'VIP', 90, 524288000);
 
 
 -- ==========================================

@@ -65,8 +65,6 @@ AGENTS.md
 ### Docker ###
 .env
 /data/
-/Dockerfile
-/docker-compose.yml
 /docker/
 /docker/**
-/.dockerignore
+/frontend/.env.production

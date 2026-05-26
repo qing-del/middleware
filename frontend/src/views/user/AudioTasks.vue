@@ -4,7 +4,7 @@ import { audioApi, type AudioTaskVO } from '@/api/audio'
 import { useAuthStore } from '@/stores/auth'
 import { buildResourceUrl } from '@/utils/resourceUrl'
 import {
-  Mic, Clock, CheckCircle2, XCircle, Play, Pause,
+  Mic, Clock, CheckCircle2, XCircle, Play,
   RotateCcw, Calendar, Gauge, Waves, ChevronLeft, ChevronRight, Loader2, Music, FileText, X
 } from 'lucide-vue-next'
 
