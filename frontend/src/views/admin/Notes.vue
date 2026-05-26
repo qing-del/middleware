@@ -274,7 +274,12 @@ onMounted(() => { fetchNotes() })
                   <component :is="getStatusIcon(getNoteStatusInfo(note.status).icon)" class="w-3 h-3 mr-1" />
                   {{ getNoteStatusInfo(note.status).label }}
                 </span>
-                <span v-if="note.status === NoteStatusCode.PENDING_INFO && note.missingCount > 0" class="text-[10px] text-amber-500 ml-1">缺{{ note.missingCount }}项</span>
+                <span v-if="note.status === NoteStatusCode.PENDING_INFO && note.missingCount > 0" class="text-[10px] text-amber-500 ml-1">
+                  缺{{ note.missingCount }}项
+                  <template v-if="(note.missingInfoMask & 1) !== 0"> 标签</template>
+                  <template v-if="(note.missingInfoMask & 2) !== 0"> 图片</template>
+                  <template v-if="(note.missingInfoMask & 4) !== 0"> 双链</template>
+                </span>
               </td>
               <td class="px-4 py-4 text-xs text-slate-500">{{ formatDate(note.createTime) }}</td>
               <td class="px-4 py-4 text-right">
