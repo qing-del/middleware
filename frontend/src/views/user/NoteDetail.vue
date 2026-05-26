@@ -754,7 +754,7 @@ onUnmounted(() => {
             <button v-if="note.status === NoteStatusCode.PUBLISHED" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white transition-all text-xs font-bold" @click="handleUnpublish">
               <X class="w-3.5 h-3.5" /><span>下架笔记</span>
             </button>
-            <button v-if="getNoteStatusInfo(note.status).modifiable" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs font-bold" @click="showAlert('编辑功能开发中')">
+            <button v-if="getNoteStatusInfo(note.status).modifiable" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs font-bold" @click="$router.push(`/user/notes/${note.id}/edit?title=${encodeURIComponent(note.title)}`)">
               <FileEdit class="w-3.5 h-3.5" /><span>编辑源文件</span>
             </button>
           </template>

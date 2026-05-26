@@ -577,6 +577,11 @@ onMounted(() => {
           <input v-model="searchKeyword" type="text" placeholder="搜索笔记标题或内容..." class="absolute left-9 w-[220px] h-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none opacity-0 group-hover:opacity-100 focus-within:!opacity-100 transition-opacity duration-300 pr-4" @keyup.enter="handleSearch" />
         </div>
 
+        <button class="group relative px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all overflow-hidden flex items-center space-x-2" @click="$router.push('/user/notes/new')">
+          <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
+          <FilePlus class="w-4 h-4" />
+          <span>新建笔记</span>
+        </button>
         <button class="group relative px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center space-x-2" @click="openCreateUploadModal">
           <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
           <FileUp class="w-4 h-4" />
