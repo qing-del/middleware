@@ -3,6 +3,7 @@ package com.jacolp.service;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
+import com.jacolp.pojo.dto.user.EmailChangeRequestDTO;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import jakarta.validation.Valid;
@@ -47,4 +48,10 @@ public interface UserUserService {
      * @return 激活结果
      */
     String verifyActivationCode(String code);
+
+    /** 发起邮箱更改：校验原邮箱后向新邮箱发送验证码 */
+    void initiateEmailChange(@NotNull @Valid EmailChangeRequestDTO dto);
+
+    /** 验证邮箱更改码并更新数据库中的邮箱 */
+    String verifyEmailChangeCode(String code);
 }

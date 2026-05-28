@@ -33,6 +33,7 @@
     <select id="selectPendingTimeout" resultType="com.jacolp.pojo.entity.AudioTaskEntity">
         SELECT * FROM audio_tasks
         WHERE status = 0 AND create_time &lt; #{before}
+        LIMIT 500
     </select>
 
 </mapper>

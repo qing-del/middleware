@@ -28,6 +28,6 @@ public interface ImageDeleteDeadLetterMapper {
      * @param status 状态
      * @return 查询结果
      */
-    @Select("SELECT id, image_url FROM biz_image_delete_dead_letter WHERE status = #{status}")
+    @Select("SELECT id, image_url FROM biz_image_delete_dead_letter WHERE status = #{status} limit 500")
     List<ImageDeleteDeadLetterEntity> selectBatch(short status);
 }

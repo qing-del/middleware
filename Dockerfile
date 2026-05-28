@@ -43,7 +43,7 @@ RUN mkdir -p /app/data/markdown/input /app/data/markdown/output
 COPY --from=builder /build/middleware-server/target/*.jar app.jar
 
 # 复制 Docker 环境配置文件
-COPY docker/serverA/application-docker.yml /app/config/application.yml
+COPY application-docker.yml /app/config/application.yml
 
 # 健康检查 (需要 actuator)
 EXPOSE 8080

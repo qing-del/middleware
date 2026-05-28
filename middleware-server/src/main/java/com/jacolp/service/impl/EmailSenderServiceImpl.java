@@ -53,7 +53,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
                 jwtProperties.getActiveTtl(),
                 claims);
 
-        String activationUrl = baseUrl + "/active/" + token;
+        String activationUrl = baseUrl + "/user/user/active/" + token;
 
         // 生成 6 位数字激活码并存入 Redis
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
@@ -137,5 +137,25 @@ public class EmailSenderServiceImpl implements EmailSenderService {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
             throw new RuntimeException("邮件发送失败: " + e.getMessage(), e);
         }
+    }
+
+    @Override
+    public void sendEmailChangeCode(UserEntity user, String newEmail) {
+        String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
+        redis.opsForValue().set(
+                KeyToolUtil.getEmailChangeCodeKey(code),
+                user.getId() + "|" + newEmail,
+                Duration.ofMillis(jwtProperties.getActiveTtl()));
+        log.info("Email change code generated for user: {}, new email: {}", user.getId(), newEmail);
+
+        Context ctx = new Context();
+        ctx.setVariable("username", user.getUsername());
+        ctx.setVariable("newEmail", newEmail);
+        ctx.setVariable("verificationCode", code);
+        ctx.setVariable("expiryMinutes", jwtProperties.getActiveTtl() / 60000);
+        String html = templateEngine.process("email/email-change", ctx);
+
+        sendHtmlMail(newEmail, "CoreNode 邮箱修改验证", html);
+        log.info("Email change code sent to: {}", newEmail);
     }
 }

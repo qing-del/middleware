@@ -9,6 +9,7 @@ import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PasswordIncorrectException;
 import com.jacolp.exception.UserIsBanException;
 import com.jacolp.mapper.UserMapper;
+import com.jacolp.pojo.dto.user.EmailChangeRequestDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
@@ -101,6 +102,7 @@ public class UserUserServiceImpl implements UserUserService {
         user.setUsername(userRegisterDTO.getUsername());
         user.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
         user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
+        user.setEmail(userRegisterDTO.getEmail());  // 设置邮箱
         user.setRoleId(RoleConstant.USER);
         user.setStatus(UserConstant.UNACTIVE_STATUS);   // 默认用户状态为未激活
         user.setMaxStorageBytes(RoleConstant.USER_MAX_STORAGE_BYTES);   // 默认用户存储空间为 100MB
@@ -186,6 +188,9 @@ public class UserUserServiceImpl implements UserUserService {
         }
         // 检验是否需要更改邮箱
         if (StringUtils.hasText(dto.getEmail())) {
+            if (user.getStatus() == UserConstant.ACTIVE_STATUS) {
+                throw new BaseException(UserConstant.EMAIL_CHANGE_DIRECT_NOT_ALLOWED);
+            }
             user.setEmail(dto.getEmail());
         }
 
@@ -286,5 +291,73 @@ public class UserUserServiceImpl implements UserUserService {
         String result = activeAccount(userId);
         redis.delete(redisKey);
         return result;
+    }
+
+    @Override
+    public void initiateEmailChange(@NotNull @Valid EmailChangeRequestDTO dto) {
+        Long userId = BaseContext.getCurrentId();
+        UserEntity user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
+        }
+
+        if (user.getStatus() != UserConstant.ACTIVE_STATUS) {
+            throw new BaseException(UserConstant.ACCOUNT_NOT_ACTIVATED);
+        }
+
+        if (!dto.getOldEmail().equals(user.getEmail())) {
+            throw new BaseException(UserConstant.OLD_EMAIL_NOT_MATCH);
+        }
+
+        if (!EmailUtil.isValidEmail(dto.getNewEmail())) {
+            throw new BaseException(UserConstant.EMAIL_CHANGE_SEND_FAILED);
+        }
+        if (!EmailUtil.isSupportedEmail(dto.getNewEmail())) {
+            throw new BaseException(UserConstant.EMAIL_CHANGE_SEND_FAILED);
+        }
+
+        try {
+            emailSenderService.sendEmailChangeCode(user, dto.getNewEmail());
+        } catch (Exception e) {
+            log.error("Failed to send email change code to {}: {}", dto.getNewEmail(), e.getMessage());
+            throw new BaseException(UserConstant.EMAIL_CHANGE_SEND_FAILED);
+        }
+    }
+
+    @Override
+    public String verifyEmailChangeCode(String code) {
+        String redisKey = KeyToolUtil.getEmailChangeCodeKey(code);
+        String storedValue = redis.opsForValue().get(redisKey);
+        if (storedValue == null) {
+            throw new BaseException("验证码无效或已过期");
+        }
+
+        int pipeIndex = storedValue.lastIndexOf('|');
+        if (pipeIndex <= 0 || pipeIndex >= storedValue.length() - 1) {
+            redis.delete(redisKey);
+            throw new BaseException("验证码无效或已过期");
+        }
+
+        Long userId = Long.valueOf(storedValue.substring(0, pipeIndex));
+        String newEmail = storedValue.substring(pipeIndex + 1);
+
+        Long currentUserId = BaseContext.getCurrentId();
+        if (!userId.equals(currentUserId)) {
+            log.warn("Email change code mismatch: code owner={}, current user={}", userId, currentUserId);
+            throw new BaseException("验证码无效或已过期");
+        }
+
+        UserEntity updateEntity = new UserEntity();
+        updateEntity.setId(userId);
+        updateEntity.setEmail(newEmail);
+        int affected = userMapper.updateById(updateEntity);
+        if (affected <= 0) {
+            log.error("Email change DB update failed, userId: {}", userId);
+            throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
+        }
+
+        redis.delete(redisKey);
+        log.info("Email changed successfully, userId: {}, newEmail: {}", userId, newEmail);
+        return "邮箱修改成功";
     }
 }

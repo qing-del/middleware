@@ -20,5 +20,13 @@ export const emailApi = {
 
   verifyCode(code: string): Promise<string> {
     return request.post('/user/user/active-code', { code })
+  },
+
+  sendEmailChangeCode(oldEmail: string, newEmail: string): Promise<string> {
+    return request.post('/user/email/change-code', { oldEmail, newEmail })
+  },
+
+  verifyEmailChangeCode(code: string): Promise<string> {
+    return request.post('/user/email/verify-change', { code })
   }
 }
