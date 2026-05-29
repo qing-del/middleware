@@ -53,7 +53,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
                 jwtProperties.getActiveTtl(),
                 claims);
 
-        String activationUrl = baseUrl + "/user/user/active/" + token;
+        String activationUrl = baseUrl + "/active/" + token;
 
         // 生成 6 位数字激活码并存入 Redis
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));

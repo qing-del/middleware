@@ -91,7 +91,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
      * <p>- 如果是管理员会跳过校验</p>
      * <p>- 如果不是管理员会校验笔记归属权</p>
      * @param id 笔记 ID
-     * @return 笔记
+     * @return 笔记（自己的笔记 / 公开的笔记）
      * @throws BaseException 笔记不存在 / 笔记无权限访问
      */
     @Override
@@ -102,7 +102,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
         // 管理端越过所有权校验
-        if (!PermissionContext.isAdmin() && !note.getUserId().equals(BaseContext.getCurrentId())) {
+        if (!PermissionContext.isAdmin()
+                && !note.getUserId().equals(BaseContext.getCurrentId())) {
             throw new BaseException(UserConstant.PERMISSION_DENIED);
         }
         return note;
@@ -165,6 +166,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
                     throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
                 }
             }
+            return affected;
         }
         return 0;
     }
@@ -180,8 +182,6 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             note.setTopicId(dto.getTopicId());
         }
         // title 不允许通过 modifyInfo 修改
-
-        note.setStatus(NoteStatus.PENDING_AUDIT.getCode());
 
         if (noteMapper.updateNote(note) < 1) {
             log.error("Failed to update note info!");
@@ -228,6 +228,34 @@ public class NoteCoreServiceImpl implements NoteCoreService {
         // 更新笔记状态
         note.setStatus(NoteStatus.PENDING_AUDIT.getCode());
         update(note);   // TODO this自调用，后续解耦审核模块的时候优化
+    }
+
+    /**
+     * 用户端撤销笔记审核申请。
+     * <p>仅允许撤销自己处于 PENDING_AUDIT 状态的笔记，撤销后状态回退到 CONVERTED。</p>
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelNoteAudit(Long noteId) {
+        if (noteId == null || noteId <= 0) {
+            throw new BaseException(NoteConstant.NOTE_ID_INVALID);
+        }
+
+        NoteEntity note = getById(noteId);
+
+        // 仅 PENDING_AUDIT 状态可撤销，且需符合状态机的转换规则
+        NoteStatus status = NoteStatus.fromCode(note.getStatus());
+        if (status != NoteStatus.PENDING_AUDIT
+                || !status.canTransitionTo(NoteStatus.CONVERTED)) {
+            throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
+        }
+
+        // 删除待审核记录
+        auditService.cancelNoteAudit(noteId);
+
+        // 状态回退到 CONVERTED
+        note.setStatus(NoteStatus.CONVERTED.getCode());
+        update(note);
     }
 
     // ==================== 用户端查询 ====================
@@ -296,10 +324,10 @@ public class NoteCoreServiceImpl implements NoteCoreService {
 
     /**
      * 获取笔记的 VO。
-     * <p>- 会根据 {@link PermissionContext} 是否要校验所有权</p>
+     * <p>- 会根据 {@link PermissionContext} 与 {@link NoteVO#getStatus()} 是否公开 来判断 是否要校验所有权</p>
      * @param noteId 笔记 ID
      * @return 笔记的 VO
-     * @throws BaseException 笔记不存在 / 笔记无权限访问
+     * @throws BaseException 笔记不存在 / 笔记无权限访问 / 笔记未公开且无归属权
      */
     @Override
     public NoteVO getNoteVOById(Long noteId) {
@@ -309,7 +337,9 @@ public class NoteCoreServiceImpl implements NoteCoreService {
         }
 
         // 检查是否是管理员 & 校验所有权
-        if (!PermissionContext.isAdmin() && !noteVO.getUserId().equals(BaseContext.getCurrentId())) {
+        if (!noteVO.getStatus().equals(NoteStatus.PUBLISHED.getCode())
+                && !PermissionContext.isAdmin()
+                && !noteVO.getUserId().equals(BaseContext.getCurrentId())) {
             throw new BaseException(NoteConstant.NOTE_NOT_OWNER);
         }
 

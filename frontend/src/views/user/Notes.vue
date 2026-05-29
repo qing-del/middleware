@@ -442,8 +442,14 @@ async function handleSubmitAudit(id: number) {
   await fetchNotes()
 }
 
-async function handleCancelAudit(_id: number) {
-  showAlert('取消审核后会返回已转换状态，你可以继续修改笔记内容。')
+async function handleCancelAudit(id: number) {
+  if (!showConfirm('确认撤销审核申请吗？撤销后笔记状态会回退到已转换。')) return
+  try {
+    await noteApi.cancelAudit(id)
+    await fetchNotes()
+  } catch {
+    showAlert('撤销审核失败')
+  }
 }
 
 async function handleConvert(id: number) {

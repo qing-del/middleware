@@ -382,6 +382,11 @@ export const noteApi = {
     return request.post('/user/note/submitAudit', null, { params: { id: noteId } })
   },
 
+  /** 撤销笔记审核申请 */
+  cancelAudit(noteId: number): Promise<string> {
+    return request.post('/user/note/cancelAudit', null, { params: { id: noteId } })
+  },
+
   /** 转换笔记为HTML */
   convertNote(noteId: number): Promise<Record<string, never>> {
     return request.post('/user/note/convert', null, { params: { noteId } })

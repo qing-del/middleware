@@ -211,6 +211,30 @@ public class AuditServiceImpl implements AuditService {
         noteAuditMapper.insertAuditRecord(record);
     }
 
+    @Override
+    public void cancelMetaAudit(Short applyType, Long targetId) {
+        int affected = metaAuditMapper.deletePendingByApplyTypeAndTargetId(applyType, targetId);
+        if (affected < 1) {
+            throw new BaseException("未找到待审核的申请记录");
+        }
+    }
+
+    @Override
+    public void cancelImageAudit(Long imageId) {
+        int affected = imageAuditMapper.deletePendingByImageId(imageId);
+        if (affected < 1) {
+            throw new BaseException("未找到待审核的申请记录");
+        }
+    }
+
+    @Override
+    public void cancelNoteAudit(Long noteId) {
+        int affected = noteAuditMapper.deletePendingByNoteId(noteId);
+        if (affected < 1) {
+            throw new BaseException("未找到待审核的申请记录");
+        }
+    }
+
     /**
      * 规范化页码。
      *

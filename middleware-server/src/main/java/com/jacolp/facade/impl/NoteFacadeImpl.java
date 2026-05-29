@@ -442,7 +442,7 @@ public class NoteFacadeImpl implements NoteFacade {
         if (targetStatus == NoteStatus.PUBLISHED) {
             // 委托 NoteRelationService 做三类映射的通过性校验
             if (!noteRelationService.countByNoteIdAndPass(noteId)) {
-                throw new BaseException(TagConstant.TAG_NOT_PASS);
+                throw new BaseException("存在未通过的映射行，请检查主题、标签、内联笔记映射行！");
             }
         }
 
