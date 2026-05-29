@@ -13,4 +13,7 @@ public interface EmailSenderService {
 
     /** 底层发送 HTML 邮件 */
     void sendHtmlMail(String to, String subject, String htmlContent);
+
+    /** 发送邮箱更改验证码到新邮箱 */
+    void sendEmailChangeCode(UserEntity user, String newEmail);
 }

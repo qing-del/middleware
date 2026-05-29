@@ -249,6 +249,25 @@ public class TopicServiceImpl implements TopicService {
     }
 
     /**
+     * 用户端撤销主题审核申请。
+     */
+    @Override
+    public void cancelTopicAudit(Long topicId) {
+        Long userId = BaseContext.getCurrentId();
+        validateTopicId(topicId);
+
+        TopicEntity topic = topicMapper.selectById(topicId);
+        if (topic == null) {
+            throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
+        }
+        if (!topic.getUserId().equals(userId)) {
+            throw new BaseException("只能撤销自己主题的审核申请");
+        }
+
+        auditService.cancelMetaAudit(AuditConstant.TOPIC_APPLY_TYPE, topicId);
+    }
+
+    /**
      * 获取当前用户主题统计。
      */
     @Override

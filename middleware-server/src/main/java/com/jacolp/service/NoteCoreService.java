@@ -129,6 +129,14 @@ public interface NoteCoreService {
     void submitNoteAudit(Long noteId);
 
     /**
+     * 用户端撤销笔记审核申请。
+     * <p>笔记状态从 PENDING_AUDIT 回退到 CONVERTED，同时删除待审核记录。</p>
+     *
+     * @param noteId 笔记 ID
+     */
+    void cancelNoteAudit(Long noteId);
+
+    /**
      * 用户端关键词搜索（仅查自己的笔记）。
      *
      * @param dto 搜索条件，含关键词、主题、分页

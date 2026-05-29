@@ -30,4 +30,13 @@ public class KeyToolUtil {
     public static @NonNull String getActiveCodeKey(String code) {
         return UserConstant.ACTIVE_CODE_PREFIX + code;
     }
+
+    /**
+     * 获取邮箱更改验证码对应的 Redis key（6位数字 → userId|newEmail）
+     * @param code 6位验证码
+     * @return Redis key
+     */
+    public static @NonNull String getEmailChangeCodeKey(String code) {
+        return UserConstant.EMAIL_CHANGE_CODE_PREFIX + code;
+    }
 }

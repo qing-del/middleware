@@ -3,14 +3,19 @@ package com.jacolp.controller.user;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.jacolp.annotation.RateLimit;
+import com.jacolp.constant.RateLimitConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
+import com.jacolp.pojo.dto.user.EmailChangeRequestDTO;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.result.Result;
 import com.jacolp.service.UserUserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -47,5 +52,31 @@ public class EmailController {
         status.put("isActive", isActive);
         log.info("User email status query, userId: {}", userId);
         return Result.success(status);
+    }
+
+    @PostMapping("/change-code")
+    @Operation(summary = "发起邮箱修改",
+            description = "验证原邮箱后向新邮箱发送6位验证码")
+    @RateLimit(windowSeconds = 60, maxRequests = 1, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
+    @RateLimit(windowSeconds = 3600, maxRequests = 5, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
+    public Result<String> sendEmailChangeCode(
+            @Parameter(description = "原邮箱和新邮箱地址") @RequestBody @Valid EmailChangeRequestDTO dto) {
+        log.info("User request email change, userId: {}", BaseContext.getCurrentId());
+        userUserService.initiateEmailChange(dto);
+        return Result.success("验证码已发送至新邮箱，请查收");
+    }
+
+    @PostMapping("/verify-change")
+    @Operation(summary = "验证邮箱修改码",
+            description = "使用新邮箱中收到的6位验证码完成邮箱修改")
+    public Result<String> verifyEmailChange(
+            @Parameter(description = "6位数字验证码，key 为 code")
+            @RequestBody Map<String, String> body) {
+        String code = body.get("code");
+        if (code == null || code.isBlank()) {
+            return Result.error("验证码不能为空");
+        }
+        log.info("User verify email change code, userId: {}", BaseContext.getCurrentId());
+        return Result.success(userUserService.verifyEmailChangeCode(code));
     }
 }

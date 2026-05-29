@@ -8,7 +8,7 @@ import type { TagBacklinkVO } from '@/api/notes'
 import { useAuthStore } from '@/stores/auth'
 import {
   Tags, Plus, Search, Globe, Hash, Send, Info, Loader2,
-  X, ChevronLeft, ChevronRight, Trash2, Link, FileText
+  X, ChevronLeft, ChevronRight, Trash2, Link, FileText, CornerUpLeft
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -191,6 +191,16 @@ async function handleSubmitAudit(id: number) {
   if (!confirm('确认提交该标签进行审核吗？')) return
   await tagApi.submitAudit(id)
   await fetchTags()
+}
+
+async function handleCancelAudit(id: number) {
+  if (!confirm('确认撤销该标签的审核申请吗？')) return
+  try {
+    await tagApi.cancelAudit(id)
+    await fetchTags()
+  } catch {
+    // 错误信息由 request 拦截器统一弹出
+  }
 }
 
 onMounted(() => {
@@ -390,6 +400,15 @@ onMounted(() => {
                     <Link class="h-3 w-3" />
                     <span>引用</span>
                     <ChevronRight class="h-3 w-3 transition-transform" :class="expandedTagId === tag.id ? 'rotate-90' : ''" />
+                  </button>
+                  <button
+                    v-if="tag.isPass === 0"
+                    class="flex items-center space-x-1 rounded border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[10px] font-bold uppercase text-orange-400 transition-colors hover:bg-orange-500/20"
+                    title="撤销审核"
+                    @click="handleCancelAudit(tag.id)"
+                  >
+                    <CornerUpLeft class="h-3 w-3" />
+                    <span>撤销</span>
                   </button>
                   <button
                     v-if="tag.isPass !== 1"

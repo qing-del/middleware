@@ -15,8 +15,8 @@
         </insert>
 
     <insert id="insertUser" parameterType="com.jacolp.pojo.entity.UserEntity" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO sys_user (username, password, role_id, status, max_storage_bytes, create_time, update_time)
-        VALUES (#{username}, #{password}, #{roleId}, #{status}, #{maxStorageBytes}, now(), now())
+        INSERT INTO sys_user (username, password, email, role_id, status, max_storage_bytes, create_time, update_time)
+        VALUES (#{username}, #{password}, #{email}, #{roleId}, #{status}, #{maxStorageBytes}, now(), now())
     </insert>
 
     <update id="updateById" parameterType="com.jacolp.pojo.entity.UserEntity">

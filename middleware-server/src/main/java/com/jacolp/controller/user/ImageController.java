@@ -77,6 +77,15 @@ public class ImageController {
         return Result.success("审核申请已提交");
     }
 
+    @PostMapping("/cancelAudit")
+    @Operation(summary = "撤销图片审核申请",
+            description = "撤销当前用户的图片审核申请，仅删除待审核记录。")
+    public Result<String> cancelAudit(@Parameter(description = "图片ID") @RequestParam Long id) {
+        log.info("User cancel image audit, imageId: {}", id);
+        imageService.cancelImageAudit(id);
+        return Result.success("审核申请已撤销");
+    }
+
     @PostMapping("/upload")
     @ImageLimit
     @Operation(summary = "上传图片",

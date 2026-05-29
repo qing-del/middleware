@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import {
   Layers, Plus, Search, Globe, FolderTree, Pencil, Trash2,
   Send, Info, Loader2, X, ChevronLeft, ChevronRight,
-  ArrowUpDown
+  ArrowUpDown, CornerUpLeft
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -174,6 +174,16 @@ async function handleSubmitAudit(id: number) {
   if (!confirm('确认提交该主题进行审核吗？')) return
   await topicApi.submitAudit(id)
   await fetchTopics()
+}
+
+async function handleCancelAudit(id: number) {
+  if (!confirm('确认撤销该主题的审核申请吗？')) return
+  try {
+    await topicApi.cancelAudit(id)
+    await fetchTopics()
+  } catch {
+    // 错误信息由 request 拦截器统一弹出
+  }
 }
 
 onMounted(() => {
@@ -372,6 +382,15 @@ onMounted(() => {
               </td>
               <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2 translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
+                  <button
+                    v-if="topic.isPass === 0"
+                    class="flex items-center space-x-1 rounded border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[10px] font-bold uppercase text-orange-400 transition-colors hover:bg-orange-500/20"
+                    title="撤销审核"
+                    @click="handleCancelAudit(topic.id)"
+                  >
+                    <CornerUpLeft class="h-3 w-3" />
+                    <span>撤销</span>
+                  </button>
                   <button
                     v-if="topic.isPass !== 1"
                     class="flex items-center space-x-1 rounded border border-teal-500/20 bg-teal-500/10 px-2 py-1 text-[10px] font-bold uppercase text-teal-400 transition-colors hover:bg-teal-500/20"

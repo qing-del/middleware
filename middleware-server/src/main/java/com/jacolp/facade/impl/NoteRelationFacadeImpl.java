@@ -60,7 +60,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     @Override
     public NoteRelationDetailVO getRelationInfo(Long noteId) {
         if (!PermissionContext.isAdmin()) {
-            noteCoreService.getById(noteId);    // 不是管理员才需要校验
+            noteCoreService.getNoteVOById(noteId);    // 不是管理员才需要校验
         }
 
         // 先进行三联映射查询

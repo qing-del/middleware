@@ -456,6 +456,25 @@ public class ImageServiceImpl implements ImageService {
     }
 
     /**
+     * 用户端撤销图片审核申请。
+     */
+    @Override
+    public void cancelImageAudit(Long imageId) {
+        Long userId = BaseContext.getCurrentId();
+        validateImageId(imageId);
+
+        ImageEntity image = imageMapper.selectById(imageId);
+        if (image == null) {
+            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+        }
+        if (!image.getUserId().equals(userId)) {
+            throw new BaseException("只能撤销自己图片的审核申请");
+        }
+
+        auditService.cancelImageAudit(imageId);
+    }
+
+    /**
      * 获取当前用户图片统计。
      */
     @Override

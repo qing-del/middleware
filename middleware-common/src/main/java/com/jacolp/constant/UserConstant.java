@@ -45,4 +45,13 @@ public class UserConstant {
     public static final String INVALID_EMAIL_FORMAT = "邮箱格式不正确";
     public static final String UNSUPPORTED_EMAIL_DOMAIN = "不支持的邮箱域名";
     public static final String MAX_STORAGE_LIMIT = "存储空间已满";
+
+    /**
+     * 邮箱修改验证码常量
+     */
+    public static final String EMAIL_CHANGE_CODE_PREFIX = "emailchange:code:";
+    public static final String EMAIL_CHANGE_SEND_FAILED = "邮箱地址错误";
+    public static final String OLD_EMAIL_NOT_MATCH = "原邮箱地址与当前绑定邮箱不匹配";
+    public static final String EMAIL_CHANGE_DIRECT_NOT_ALLOWED = "已激活账号请通过邮箱验证流程修改邮箱";
+    public static final String ACCOUNT_NOT_ACTIVATED = "账号未激活，请先激活账号";
 }

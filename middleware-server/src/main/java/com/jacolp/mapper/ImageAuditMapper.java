@@ -2,6 +2,7 @@ package com.jacolp.mapper;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -54,4 +55,10 @@ public interface ImageAuditMapper {
                          @Param("status") Short status,
                          @Param("reviewerUserId") Long reviewerUserId,
                          @Param("rejectReason") String rejectReason);
+
+    /**
+     * 删除指定图片的待审核记录（用户撤销审核申请）。
+     */
+    @Delete("DELETE FROM biz_image_audit_record WHERE image_id = #{imageId} AND status = 0")
+    int deletePendingByImageId(@Param("imageId") Long imageId);
 }

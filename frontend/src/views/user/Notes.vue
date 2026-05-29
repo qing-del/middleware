@@ -221,9 +221,19 @@ function getStatusTooltip(note: NoteItem): string {
 }
 
 function getRelationTooltip(note: NoteItem, kind: 'tags' | 'images' | 'links'): string {
-  if (kind === 'tags') return `标签关联 ${note.tagCount ?? 0} 项。`
-  if (kind === 'links') return `双链关联 ${note.eachNoteCount ?? 0} 项。`
-  if (note.missingCount > 0) {
+  if (kind === 'tags') {
+    if (note.missingCount > 0 && (note.missingInfoMask & 1) !== 0) {
+      return `标签关联 ${note.tagCount ?? 0} 项，其中有标签处于缺失状态。`
+    }
+    return `标签关联 ${note.tagCount ?? 0} 项，当前检查通过。`
+  }
+  if (kind === 'links') {
+    if (note.missingCount > 0 && (note.missingInfoMask & 4) !== 0) {
+      return `双链关联 ${note.eachNoteCount ?? 0} 项，其中有内联笔记处于缺失状态。`
+    }
+    return `双链关联 ${note.eachNoteCount ?? 0} 项，当前检查通过。`
+  }
+  if (note.missingCount > 0 && (note.missingInfoMask & 2) !== 0) {
     return `图片关联 ${note.imageCount ?? 0} 项，其中仍有 ${note.missingCount} 项存在缺失或异常。`
   }
   return `图片关联 ${note.imageCount ?? 0} 项，当前检查通过。`
@@ -432,8 +442,14 @@ async function handleSubmitAudit(id: number) {
   await fetchNotes()
 }
 
-async function handleCancelAudit(_id: number) {
-  showAlert('取消审核后会返回已转换状态，你可以继续修改笔记内容。')
+async function handleCancelAudit(id: number) {
+  if (!showConfirm('确认撤销审核申请吗？撤销后笔记状态会回退到已转换。')) return
+  try {
+    await noteApi.cancelAudit(id)
+    await fetchNotes()
+  } catch {
+    showAlert('撤销审核失败')
+  }
 }
 
 async function handleConvert(id: number) {
@@ -711,19 +727,26 @@ onMounted(() => {
               </td>
               <td class="px-5 py-4">
                 <div class="flex items-center space-x-3 flex-wrap gap-y-1">
-                  <span tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
+                  <span v-if="(note.missingInfoMask & 1) !== 0" tabindex="0" class="relation-chip status-breathe status-glow-amber inline-flex items-center space-x-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-500 font-bold"
+                    @mouseenter="e => showRelationTooltip(e, note, 'tags')"
+                    @mousemove="positionTooltip"
+                    @mouseleave="hideTooltip">
+                    <Hash class="w-3.5 h-3.5" />
+                    <span>{{ getNoteRelationCount(note, 'tag') }}</span>
+                  </span>
+                  <span v-else tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
                     @mouseenter="e => showRelationTooltip(e, note, 'tags')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">
                     <Hash class="w-3.5 h-3.5 text-purple-400" />
                     <span>{{ getNoteRelationCount(note, 'tag') }}</span>
                   </span>
-                  <span v-if="note.missingCount > 0" tabindex="0" class="relation-chip status-breathe status-glow-amber inline-flex items-center space-x-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-500"
+                  <span v-if="(note.missingInfoMask & 2) !== 0" tabindex="0" class="relation-chip status-breathe status-glow-amber inline-flex items-center space-x-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-500 font-bold"
                     @mouseenter="e => showRelationTooltip(e, note, 'images')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">
                     <Image class="w-3.5 h-3.5" />
-                    <span class="font-bold">{{ getNoteRelationCount(note, 'image') }}</span>
+                    <span>{{ getNoteRelationCount(note, 'image') }}</span>
                   </span>
                   <span v-else tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
                     @mouseenter="e => showRelationTooltip(e, note, 'images')"
@@ -732,7 +755,14 @@ onMounted(() => {
                     <Image class="w-3.5 h-3.5 text-blue-400" />
                     <span>{{ getNoteRelationCount(note, 'image') }}</span>
                   </span>
-                  <span tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
+                  <span v-if="(note.missingInfoMask & 4) !== 0" tabindex="0" class="relation-chip status-breathe status-glow-amber inline-flex items-center space-x-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-500 font-bold"
+                    @mouseenter="e => showRelationTooltip(e, note, 'links')"
+                    @mousemove="positionTooltip"
+                    @mouseleave="hideTooltip">
+                    <Link class="w-3.5 h-3.5" />
+                    <span>{{ getNoteRelationCount(note, 'link') }}</span>
+                  </span>
+                  <span v-else tabindex="0" class="relation-chip inline-flex items-center space-x-1 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1 text-xs text-slate-400"
                     @mouseenter="e => showRelationTooltip(e, note, 'links')"
                     @mousemove="positionTooltip"
                     @mouseleave="hideTooltip">

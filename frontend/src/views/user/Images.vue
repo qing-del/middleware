@@ -9,7 +9,7 @@ import { noteApi, getNoteStatusInfo } from '@/api/notes'
 import type { ImageBacklinkVO } from '@/api/notes'
 import {
   Image, Upload, Search, Globe, Trash2, Send, Info,
-  Loader2, X, ChevronLeft, ChevronRight, Link, Maximize2, FileText
+  Loader2, X, ChevronLeft, ChevronRight, Link, Maximize2, FileText, CornerUpLeft
 } from 'lucide-vue-next'
 
 const loading = ref(true)
@@ -220,6 +220,16 @@ async function handleSubmitAudit(id: number) {
   await fetchImages()
 }
 
+async function handleCancelAudit(id: number) {
+  if (!confirm('确认撤销该图片的审核申请吗？')) return
+  try {
+    await imageApi.cancelAudit(id)
+    await fetchImages()
+  } catch {
+    // 错误信息由 request 拦截器统一弹出
+  }
+}
+
 function copyImageUrl(url: string) {
   navigator.clipboard.writeText(url).catch(() => {})
 }
@@ -295,6 +305,7 @@ onMounted(() => {
             <button v-if="img.ossUrl" class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="查看原图" @click="previewUrl = img.ossUrl; showPreview = true"><Maximize2 class="h-4 w-4 text-white" /></button>
             <button class="rounded-full border border-cyan-500/30 bg-cyan-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-cyan-500/40" title="查看引用笔记" @click="openImageBacklinks(img.id)"><FileText class="h-4 w-4 text-cyan-300" /></button>
             <button v-if="img.isPass === 2" class="rounded-full border border-teal-500/30 bg-teal-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-teal-500/40" title="重新提交审核" @click="handleSubmitAudit(img.id)"><Send class="h-4 w-4 text-teal-300" /></button>
+            <button v-if="img.isPass === 0" class="rounded-full border border-orange-500/30 bg-orange-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-orange-500/40" title="撤销审核" @click="handleCancelAudit(img.id)"><CornerUpLeft class="h-4 w-4 text-orange-300" /></button>
             <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="删除" @click="handleDelete(img.id)"><Trash2 class="h-4 w-4 text-rose-300" /></button>
           </div>
           <span class="absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white backdrop-blur-md">{{ formatBytes(img.fileSize) }}</span>

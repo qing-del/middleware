@@ -246,6 +246,22 @@ public class TagServiceImpl implements TagService {
     }
 
     /**
+     * 用户端撤销标签审核申请。
+     */
+    @Override
+    public void cancelTagAudit(Long tagId) {
+        Long userId = BaseContext.getCurrentId();
+        validateTagId(tagId);
+
+        TagEntity tag = tagMapper.selectByIdAndUserId(tagId, userId);
+        if (tag == null) {
+            throw new BaseException(TagConstant.TAG_NOT_FOUND);
+        }
+
+        auditService.cancelMetaAudit(AuditConstant.TAG_APPLY_TYPE, tagId);
+    }
+
+    /**
      * 获取当前用户标签统计。
      */
     @Override
