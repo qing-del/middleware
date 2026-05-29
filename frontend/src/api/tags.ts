@@ -53,6 +53,13 @@ export const tagApi = {
     })
   },
 
+  /** 撤销标签审核申请 */
+  cancelAudit(id: number): Promise<string> {
+    return request.post('/user/tag/cancelAudit', null, {
+      params: { id }
+    })
+  },
+
   /** 获取用户标签统计 */
   getStats(): Promise<TagStatsVO> {
     return request.get('/user/tag/stats')

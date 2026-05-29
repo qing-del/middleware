@@ -46,6 +46,11 @@ public interface TopicService {
     void submitTopicAudit(Long topicId);
 
     /**
+     * 用户端撤销主题审核申请。
+     */
+    void cancelTopicAudit(Long topicId);
+
+    /**
      * 获取当前用户主题统计。
      */
     TopicStatsVO getUserTopicStats();

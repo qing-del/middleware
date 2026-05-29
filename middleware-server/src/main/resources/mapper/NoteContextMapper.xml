@@ -46,7 +46,7 @@
         <where>
             c.note_id = #{noteId}
             AND n.status != 8
-            <if test="userId != null">AND n.user_id = #{userId}</if>
+            <if test="userId != null">AND (n.user_id = #{userId} OR n.status = 6)</if>
         </where>
     </select>
 </mapper>

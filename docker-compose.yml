@@ -148,27 +148,27 @@ services:
     networks:
       - internal
 
-  # ===================== Tailscale (组网) =====================
-  # 使用 host 网络模式，直接在宿主机上创建 tailscale0 虚拟网卡
-  # 宿主机加入 Tailscale 网络后，ServerB 可通过 Tailscale IP 访问本机
-  #   暴露的 Redis(6379) 和 Backend(8080) 端口
-  #
-  # 前置: Tailscale 管理面板 → Settings → Keys → Generate auth key
-  # 填入下方 TS_AUTHKEY 环境变量
-  tailscale:
-    image: tailscale/tailscale:latest
-    container_name: middleware-tailscale
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      TS_AUTHKEY: ${TS_AUTHKEY}
-      TS_HOSTNAME: ${TS_HOSTNAME:-server-a-middleware}
-      TS_STATE_DIR: /var/lib/tailscale
-    volumes:
-      - tailscale_data:/var/lib/tailscale
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
+#  # ===================== Tailscale (组网) =====================
+#  # 使用 host 网络模式，直接在宿主机上创建 tailscale0 虚拟网卡
+#  # 宿主机加入 Tailscale 网络后，ServerB 可通过 Tailscale IP 访问本机
+#  #   暴露的 Redis(6379) 和 Backend(8080) 端口
+#  #
+#  # 前置: Tailscale 管理面板 → Settings → Keys → Generate auth key
+#  # 填入下方 TS_AUTHKEY 环境变量
+#  tailscale:
+#    image: tailscale/tailscale:latest
+#    container_name: middleware-tailscale
+#    restart: unless-stopped
+#    network_mode: host
+#    environment:
+#      TS_AUTHKEY: ${TS_AUTHKEY}
+#      TS_HOSTNAME: ${TS_HOSTNAME:-server-a-middleware}
+#      TS_STATE_DIR: /var/lib/tailscale
+#    volumes:
+#      - tailscale_data:/var/lib/tailscale
+#    cap_add:
+#      - NET_ADMIN
+#      - NET_RAW
 
   # ===================== Cloudflare Tunnel (公网入口) =====================
   # 将 Nginx:80 映射到 app.your-domain.com

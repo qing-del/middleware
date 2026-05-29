@@ -64,6 +64,15 @@ public class NoteController {
         return Result.success("审核申请已提交");
     }
 
+    @PostMapping("/cancelAudit")
+    @Operation(summary = "撤销笔记审核申请",
+            description = "撤销当前用户的笔记审核申请。笔记状态从待审核回退到已转换，同时删除待审核记录。")
+    public Result<String> cancelAudit(@Parameter(description = "笔记ID") @RequestParam Long id) {
+        log.info("User cancel note audit, noteId: {}", id);
+        noteCoreService.cancelNoteAudit(id);
+        return Result.success("审核申请已撤销");
+    }
+
     @PostMapping("/upload")
     @NoteFileLimit
     @Operation(summary = "上传笔记",

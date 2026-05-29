@@ -82,6 +82,11 @@ public interface ImageService {
     void submitImageAudit(Long imageId);
 
     /**
+     * 用户端撤销图片审核申请。
+     */
+    void cancelImageAudit(Long imageId);
+
+    /**
      * 获取当前用户图片统计。
      */
     ImageOverviewVO getUserImageOverview();

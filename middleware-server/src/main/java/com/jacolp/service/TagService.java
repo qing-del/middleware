@@ -46,6 +46,11 @@ public interface TagService {
     void submitTagAudit(Long tagId);
 
     /**
+     * 用户端撤销标签审核申请。
+     */
+    void cancelTagAudit(Long tagId);
+
+    /**
      * 获取当前用户标签统计。
      */
     TagStatsVO getUserTagStats();

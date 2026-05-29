@@ -67,6 +67,13 @@ export const topicApi = {
     })
   },
 
+  /** 撤销主题审核申请 */
+  cancelAudit(id: number): Promise<string> {
+    return request.post('/user/topic/cancelAudit', null, {
+      params: { id }
+    })
+  },
+
   /** 获取用户主题统计 */
   getStats(): Promise<TopicStatsVO> {
     return request.get('/user/topic/stats')

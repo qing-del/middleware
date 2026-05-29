@@ -12,7 +12,7 @@ import {
   ArrowLeft, Globe, FileEdit, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, ShieldCheck, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
   LayoutPanelTop, Loader2, RefreshCw, X, ChevronRight, FileText, Clock,
-  Search, Plug, Unlink2, Mic
+  Search, Plug, Unlink2, Mic, CornerUpLeft
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -213,6 +213,15 @@ async function handleSubmitAudit() {
     await noteApi.submitAudit(note.value.id)
     await fetchNote()
   } catch { showAlert('提交审核失败') }
+}
+
+async function handleCancelAudit() {
+  if (!note.value) return
+  if (!showConfirm('确认撤销审核申请吗？撤销后笔记状态会回退到已转换。')) return
+  try {
+    await noteApi.cancelAudit(note.value.id)
+    await fetchNote()
+  } catch { showAlert('撤销审核失败') }
 }
 
 // ── Anchor scrolling ──────────────────────────────
@@ -747,6 +756,9 @@ onUnmounted(() => {
           <template v-if="note.converted">
             <button v-if="note.status === NoteStatusCode.CONVERTED" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white transition-all text-xs font-bold" @click="handleSubmitAudit">
               <ShieldCheck class="w-3.5 h-3.5" /><span>提交审核</span>
+            </button>
+            <button v-if="note.status === NoteStatusCode.PENDING_AUDIT" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500 hover:text-white transition-all text-xs font-bold" @click="handleCancelAudit">
+              <CornerUpLeft class="w-3.5 h-3.5" /><span>撤销审核</span>
             </button>
             <button v-if="note.status === NoteStatusCode.APPROVED" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-bold" @click="handlePublish">
               <Globe class="w-3.5 h-3.5" /><span>一键发布</span>

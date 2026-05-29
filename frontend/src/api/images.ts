@@ -49,6 +49,13 @@ export const imageApi = {
     })
   },
 
+  /** 撤销图片审核申请 */
+  cancelAudit(id: number): Promise<string> {
+    return request.post('/user/image/cancelAudit', null, {
+      params: { id }
+    })
+  },
+
   /** 获取用户图片统计 */
   getStats(): Promise<{ imageCount: number; passedCount: number }> {
     return request.get('/user/image/overview')

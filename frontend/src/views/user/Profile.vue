@@ -7,7 +7,7 @@ import type { UserModifyParams } from '@/api/admin'
 import type { EmailStatus } from '@/types'
 import {
   User, Mail, Lock, ShieldCheck, AlertCircle,
-  Loader2, KeyRound, HardDrive, Save
+  Loader2, KeyRound, HardDrive, Save, Edit3, ArrowRight, CheckCircle2
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -32,6 +32,16 @@ const passwordMsg = ref('')
 const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
+
+// --- Email change state ---
+const showEmailChange = ref(false)
+const emailChangeOld = ref('')
+const emailChangeNew = ref('')
+const emailChangeCode = ref('')
+const emailChangeSending = ref(false)
+const emailChangeVerifying = ref(false)
+const emailChangeMsg = ref('')
+const emailChangeStep = ref<'request' | 'verify'>('request')
 
 
 async function fetchEmailStatus() {
@@ -66,6 +76,7 @@ async function handleVerifyCode() {
     const msg = await emailApi.verifyCode(activationCode.value.trim())
     emailMessage.value = (msg as unknown as string) || '激活成功'
     activationCode.value = ''
+    await authStore.refreshCurrentUserInfo()
     await fetchEmailStatus()
   } catch {
     emailMessage.value = '激活码无效或已过期'
@@ -78,20 +89,23 @@ async function handleSaveProfile() {
   profileSaving.value = true
   profileMsg.value = ''
   try {
+    const isActive = emailStatus.value?.isActive
     if (authStore.isAdmin && authStore.user) {
       const payload: UserModifyParams = {
         id: authStore.user.id!,
         nickname: editNickname.value || undefined,
-        email: editEmail.value || undefined
       }
+      if (!isActive) payload.email = editEmail.value || undefined
       await adminApi.modifyUser(payload)
     } else {
       await authStore.updateProfile({
         nickname: editNickname.value || undefined,
-        email: editEmail.value || undefined
+        email: isActive ? undefined : (editEmail.value || undefined)
       })
     }
     profileMsg.value = '保存成功'
+    await authStore.refreshCurrentUserInfo()
+    await fetchEmailStatus()
   } catch {
     profileMsg.value = '保存失败'
   } finally {
@@ -130,11 +144,63 @@ async function handleChangePassword() {
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
+    await authStore.refreshCurrentUserInfo()
   } catch {
     passwordMsg.value = '密码修改失败，请检查当前密码是否正确'
   } finally {
     passwordSaving.value = false
   }
+}
+
+async function handleSendEmailChangeCode() {
+  emailChangeSending.value = true
+  emailChangeMsg.value = ''
+  try {
+    await emailApi.sendEmailChangeCode(emailChangeOld.value, emailChangeNew.value)
+    emailChangeStep.value = 'verify'
+    emailChangeMsg.value = '验证码已发送至新邮箱'
+  } catch (e: any) {
+    const msg = e?.response?.data?.msg || e?.message || ''
+    emailChangeMsg.value = msg || '发送失败，请检查邮箱地址是否正确'
+  } finally {
+    emailChangeSending.value = false
+  }
+}
+
+async function handleVerifyEmailChange() {
+  if (!emailChangeCode.value.trim()) return
+  emailChangeVerifying.value = true
+  emailChangeMsg.value = ''
+  try {
+    await emailApi.verifyEmailChangeCode(emailChangeCode.value.trim())
+    emailChangeMsg.value = '邮箱修改成功'
+    await authStore.refreshCurrentUserInfo()
+    await fetchEmailStatus()
+    resetEmailChange()
+  } catch (e: any) {
+    const msg = e?.response?.data?.msg || e?.message || ''
+    emailChangeMsg.value = msg || '验证码无效或已过期'
+  } finally {
+    emailChangeVerifying.value = false
+  }
+}
+
+function openEmailChange() {
+  showEmailChange.value = true
+  emailChangeStep.value = 'request'
+  emailChangeMsg.value = ''
+  emailChangeOld.value = authStore.user?.email || ''
+  emailChangeNew.value = ''
+  emailChangeCode.value = ''
+}
+
+function resetEmailChange() {
+  showEmailChange.value = false
+  emailChangeStep.value = 'request'
+  emailChangeOld.value = ''
+  emailChangeNew.value = ''
+  emailChangeCode.value = ''
+  emailChangeMsg.value = ''
 }
 
 function formatBytes(bytes: number | undefined): string {
@@ -202,12 +268,114 @@ onMounted(() => {
           </div>
           <div>
             <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1 block">邮箱</label>
+            <template v-if="emailStatus?.isActive">
+              <div class="flex items-center gap-3">
+                <p class="text-sm text-slate-300 font-medium bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 flex-1">
+                  {{ authStore.user?.email || '-' }}
+                </p>
+                <button
+                  @click="openEmailChange"
+                  class="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/30 transition-all shrink-0"
+                >
+                  <Edit3 class="w-3.5 h-3.5" />
+                  修改邮箱
+                </button>
+              </div>
+            </template>
             <input
+              v-else
               v-model="editEmail"
               type="email"
               class="w-full bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
               placeholder="输入邮箱地址"
             />
+          </div>
+
+          <!-- 邮箱修改流程（已激活用户） -->
+          <div v-if="showEmailChange && emailStatus?.isActive" class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 space-y-3">
+            <p class="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <Mail class="w-3.5 h-3.5 text-indigo-400" />
+              修改绑定邮箱
+            </p>
+
+            <!-- Step 1: 输入新旧邮箱 -->
+            <template v-if="emailChangeStep === 'request'">
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1 block">当前邮箱</label>
+                <input
+                  v-model="emailChangeOld"
+                  type="email"
+                  class="w-full bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
+                  disabled
+                />
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1 block">新邮箱</label>
+                <input
+                  v-model="emailChangeNew"
+                  type="email"
+                  class="w-full bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  placeholder="输入新的邮箱地址"
+                />
+              </div>
+              <div class="flex items-center gap-3">
+                <button
+                  @click="handleSendEmailChangeCode"
+                  :disabled="emailChangeSending || !emailChangeOld || !emailChangeNew"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-500 hover:bg-indigo-400 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Loader2 v-if="emailChangeSending" class="w-3.5 h-3.5 animate-spin" />
+                  <ArrowRight v-else class="w-3.5 h-3.5" />
+                  发送验证码
+                </button>
+                <button
+                  @click="resetEmailChange"
+                  class="px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  取消
+                </button>
+              </div>
+            </template>
+
+            <!-- Step 2: 输入验证码 -->
+            <template v-else>
+              <div class="flex items-center gap-2 text-xs text-slate-400">
+                <CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" />
+                验证码已发送至 <span class="text-slate-300 font-medium">{{ emailChangeNew }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input
+                  v-model="emailChangeCode"
+                  type="text"
+                  maxlength="6"
+                  class="w-48 bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 text-center tracking-[8px] font-mono focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  placeholder="000000"
+                />
+                <button
+                  @click="handleVerifyEmailChange"
+                  :disabled="emailChangeVerifying || emailChangeCode.length < 6"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-500 hover:bg-indigo-400 text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Loader2 v-if="emailChangeVerifying" class="w-3.5 h-3.5 animate-spin" />
+                  <KeyRound v-else class="w-3.5 h-3.5" />
+                  确认修改
+                </button>
+                <button
+                  @click="resetEmailChange"
+                  class="px-3 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  取消
+                </button>
+              </div>
+            </template>
+
+            <!-- Feedback -->
+            <p v-if="emailChangeMsg" :class="[
+              'text-xs font-medium px-3 py-2 rounded-lg',
+              emailChangeMsg.includes('成功')
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+            ]">{{ emailChangeMsg }}</p>
           </div>
 
           <div v-if="authStore.user?.maxStorageBytes" class="flex items-center gap-3 bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5">

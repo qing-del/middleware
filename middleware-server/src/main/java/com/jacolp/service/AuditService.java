@@ -88,4 +88,27 @@ public interface AuditService {
     boolean hasPendingNoteAudit(Long noteId);
 
     void createNoteAuditRecord(NoteAuditRecordEntity record);
+
+    /**
+     * 撤销主题/标签的待审核申请（删除待审核记录）。
+     * @param applyType 申请类型（1=主题, 2=标签）
+     * @param targetId 主题/标签 ID
+     * @throws com.jacolp.exception.BaseException 未找到待审核记录
+     */
+    void cancelMetaAudit(Short applyType, Long targetId);
+
+    /**
+     * 撤销图片的待审核申请（删除待审核记录）。
+     * @param imageId 图片 ID
+     * @throws com.jacolp.exception.BaseException 未找到待审核记录
+     */
+    void cancelImageAudit(Long imageId);
+
+    /**
+     * 撤销笔记的待审核申请（删除待审核记录）。
+     * <p>仅删除审核记录，笔记状态由调用方处理。</p>
+     * @param noteId 笔记 ID
+     * @throws com.jacolp.exception.BaseException 未找到待审核记录
+     */
+    void cancelNoteAudit(Long noteId);
 }

@@ -81,6 +81,15 @@ public class TagController {
         return Result.success("审核申请已提交");
     }
 
+    @PostMapping("/cancelAudit")
+    @Operation(summary = "撤销标签审核申请",
+            description = "撤销当前用户的标签审核申请，仅删除待审核记录。")
+    public Result<String> cancelAudit(@Parameter(description = "标签ID") @RequestParam Long id) {
+        log.info("User cancel tag audit, tagId: {}", id);
+        tagService.cancelTagAudit(id);
+        return Result.success("审核申请已撤销");
+    }
+
     /**
      * 查询当前用户的标签列表
      * <p>查询当前登录用户创建的所有标签，返回标签的基本信息。</p>
