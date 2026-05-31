@@ -1,0 +1,35 @@
+sandbox_mode = "workspace-write"
+[mcp_servers.brave-search]
+args = [
+    "-y",
+    "mcp-brave-search",
+]
+command = "npx.cmd"
+
+[mcp_servers.duckduckgo]
+args = [
+    "-y",
+    "duckduckgo-mcp-server",
+]
+command = "npx.cmd"
+
+[mcp_servers.puppeteer]
+args = [
+    "-y",
+    "puppeteer-mcp-server",
+]
+command = "npx.cmd"
+
+[mcp_servers.puppeteer.env]
+EXECUTABLE_PATH = '"C:/Program Files/Google/Chrome/Application/chrome.exe"'
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+
+[mcp_servers.tavily]
+args = [
+    "-y",
+    "tavily-mcp",
+]
+command = "npx.cmd"
+
+[mcp_servers.tavily.env]
+TAVILY_API_KEY = "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"
