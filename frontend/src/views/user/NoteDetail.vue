@@ -9,6 +9,7 @@ import { tagApi } from '@/api/tags'
 import type { TagItem } from '@/api/tags'
 import AudioTaskModal from '@/components/AudioTaskModal.vue'
 import { renderMermaidIn } from '@/utils/mermaid'
+import { wrapTablesIn } from '@/utils/table'
 import {
   ArrowLeft, Globe, FileEdit, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, ShieldCheck, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
@@ -387,6 +388,7 @@ watch(
   async (html) => {
     if (!html) return
     await nextTick()
+    wrapTablesIn(articleContentRef.value)
     await renderMermaidIn(articleContentRef.value)
   },
   { immediate: true }
@@ -1505,6 +1507,58 @@ onUnmounted(() => {
   padding: 1rem 1.5rem; border-radius: 0 12px 12px 0; margin-bottom: 1.5rem;
   color: #94a3b8; font-style: italic;
 }
+/* ===== Table 样式 ===== */
+.article-content :deep(.table-wrapper) {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border-radius: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.article-content :deep(.table-wrapper table) {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.article-content :deep(.table-wrapper thead) {
+  border-bottom: 2px solid rgba(148, 163, 184, 0.25);
+}
+.article-content :deep(.table-wrapper th) {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.article-content :deep(.table-wrapper td) {
+  padding: 0.65rem 1rem;
+  vertical-align: middle;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.article-content :deep(.table-wrapper tbody tr:nth-child(even)) {
+  background: rgba(148, 163, 184, 0.04);
+}
+.article-content :deep(.table-wrapper tbody tr:hover) {
+  background: rgba(59, 130, 246, 0.08);
+}
+.article-content :deep(.table-wrapper tbody tr:last-child td) {
+  border-bottom: none;
+}
+.article-content :deep(.table-wrapper td:first-child),
+.article-content :deep(.table-wrapper th:first-child) {
+  padding-left: 1.25rem;
+}
+.article-content :deep(.table-wrapper td:last-child),
+.article-content :deep(.table-wrapper th:last-child) {
+  padding-right: 1.25rem;
+}
+
 .article-content :deep(pre) {
   background: #0b0f19; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
   padding: 1.25rem; overflow-x: auto; margin-bottom: 1.5rem; margin-top: 1rem;
