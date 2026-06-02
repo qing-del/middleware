@@ -794,6 +794,42 @@ onUnmounted(() => {
 }
 .article-content :deep(h2::before) { content: '#'; color: #3b82f6; margin-right: 0.5rem; opacity: 0.6; font-size: 1.2rem; }
 .article-content :deep(h3) { font-size: 1.25rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: #e2e8f0; }
+.article-content :deep(h4),
+.article-content :deep(h5),
+.article-content :deep(h6) {
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 1.6rem;
+  margin-bottom: 0.75rem;
+}
+.article-content :deep(h4) {
+  font-size: 1.125rem;
+  color: #f1f5f9;
+  padding-left: 0.75rem;
+  border-left: 3px solid rgba(59, 130, 246, 0.65);
+}
+.article-content :deep(h5) {
+  font-size: 1rem;
+  color: #dbeafe;
+  display: flex;
+  align-items: center;
+}
+.article-content :deep(h5::before) {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.55rem;
+  border-radius: 9999px;
+  background: #60a5fa;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.45);
+  flex: 0 0 auto;
+}
+.article-content :deep(h6) {
+  font-size: 0.9375rem;
+  color: #bfdbfe;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed rgba(96, 165, 250, 0.35);
+}
 
 /* ── In-article TOC block (h1 + following ul) ── */
 .article-content :deep(h1 + ul),
