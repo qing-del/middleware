@@ -3,6 +3,7 @@ import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi, type AdminNoteItem } from '@/api/admin'
 import { getNoteStatusInfo, NoteStatusCode, type NoteBacklinkVO } from '@/api/notes'
+import { renderMermaidIn } from '@/utils/mermaid'
 import {
   ArrowLeft, Globe, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
@@ -24,6 +25,9 @@ const showTocPanel = ref(false)
 const tocWrapperRef = ref<HTMLElement | null>(null)
 const tocBallRef = ref<HTMLElement | null>(null)
 const tocPanelRef = ref<HTMLElement | null>(null)
+
+// 笔记正文容器 ref —— 用于在 v-html 更新后对其中的 .mermaid 节点局部渲染
+const articleContentRef = ref<HTMLElement | null>(null)
 
 // 动态管理悬浮面板的方向和定位
 const panelPosClasses = ref(['bottom-full', 'right-0', 'mb-4', 'origin-bottom-right'])
@@ -191,11 +195,25 @@ watch(() => route.params.noteId, async (newId, oldId) => {
   backlinksFetched.value = false
   backlinksError.value = null
   window.scrollTo(0, 0)
-  
+
   await fetchNote()
   await nextTick()
   await bindTocEvents()
 }, { immediate: true })
+
+// ── Mermaid 图表局部渲染 ─────────────────────────
+// 后端把 ```mermaid``` 代码块转成 <div class="mermaid">...</div>，
+// v-html 把它写入 DOM 后还是纯文本 —— watch bodyHtml 在 nextTick 后
+// 对 articleContentRef 范围内的 .mermaid 节点调用 mermaid.run。
+watch(
+  () => note.value?.converted?.bodyHtml,
+  async (html) => {
+    if (!html) return
+    await nextTick()
+    await renderMermaidIn(articleContentRef.value)
+  },
+  { immediate: true }
+)
 
 // ── Floating TOC Logic ────────────────────────────
 function onTocLinkClick(e: Event) {
@@ -463,7 +481,7 @@ onUnmounted(() => {
               </div>
             </header>
 
-            <div class="article-content" v-html="note.converted.bodyHtml" />
+            <div ref="articleContentRef" class="article-content" v-html="note.converted.bodyHtml" />
           </article>
         </div>
 
@@ -825,6 +843,21 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 .article-content :deep(pre code) { background: transparent; padding: 0; border: none; color: inherit; }
+/* Mermaid 图表容器 —— 后端把 ```mermaid``` 代码块转成 <div class="mermaid">..</div> */
+.article-content :deep(.mermaid) {
+  width: 100%;
+  overflow-x: auto;
+  text-align: center;
+  margin: 16px 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.article-content :deep(.mermaid svg) {
+  max-width: 100%;
+  height: auto;
+}
 .article-content :deep(img) {
   max-width: 100%; height: auto; border-radius: 12px; margin: 2rem auto; display: block;
   border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);

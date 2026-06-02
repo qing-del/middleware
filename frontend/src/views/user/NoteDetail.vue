@@ -8,6 +8,7 @@ import type { ImageItem } from '@/api/images'
 import { tagApi } from '@/api/tags'
 import type { TagItem } from '@/api/tags'
 import AudioTaskModal from '@/components/AudioTaskModal.vue'
+import { renderMermaidIn } from '@/utils/mermaid'
 import {
   ArrowLeft, Globe, FileEdit, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, ShieldCheck, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
@@ -60,6 +61,9 @@ const showTocPanel = ref(false)
 const tocWrapperRef = ref<HTMLElement | null>(null)
 const tocBallRef = ref<HTMLElement | null>(null)
 const tocPanelRef = ref<HTMLElement | null>(null)
+
+// 笔记正文容器 ref —— 用于在 v-html 更新后对其中的 .mermaid 节点局部渲染
+const articleContentRef = ref<HTMLElement | null>(null)
 
 type AudioTaskModalExpose = { open: () => void }
 const audioModalRef = ref<AudioTaskModalExpose | null>(null)
@@ -366,10 +370,24 @@ watch(
     const main = document.querySelector('main')
     if (main) main.scrollTop = 0
     window.scrollTo(0, 0)
-    
+
     await fetchNote()
     await nextTick()
     await bindTocEvents()
+  },
+  { immediate: true }
+)
+
+// ── Mermaid 图表局部渲染 ─────────────────────────
+// 后端把 ```mermaid``` 代码块转成 <div class="mermaid">...</div>，
+// v-html 把它写入 DOM 后还是纯文本 —— watch bodyHtml 在 nextTick 后
+// 对 articleContentRef 范围内的 .mermaid 节点调用 mermaid.run。
+watch(
+  () => note.value?.converted?.bodyHtml,
+  async (html) => {
+    if (!html) return
+    await nextTick()
+    await renderMermaidIn(articleContentRef.value)
   },
   { immediate: true }
 )
@@ -828,7 +846,7 @@ onUnmounted(() => {
               </header>
 
               <!-- Body content rendered via v-html -->
-              <div class="article-content" v-html="note.converted.bodyHtml" @click="handleInternalLinkClick" />
+              <div ref="articleContentRef" class="article-content" v-html="note.converted.bodyHtml" @click="handleInternalLinkClick" />
             </article>
           </template>
         </div>
@@ -1500,6 +1518,21 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 .article-content :deep(pre code) { background: transparent; padding: 0; border: none; color: inherit; }
+/* Mermaid 图表容器 —— 后端把 ```mermaid``` 代码块转成 <div class="mermaid">..</div> */
+.article-content :deep(.mermaid) {
+  width: 100%;
+  overflow-x: auto;
+  text-align: center;
+  margin: 16px 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.article-content :deep(.mermaid svg) {
+  max-width: 100%;
+  height: auto;
+}
 .article-content :deep(img) {
   max-width: 100%; height: auto; border-radius: 12px; margin: 2rem auto; display: block;
   border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
