@@ -3,8 +3,7 @@ import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi, type AdminNoteItem } from '@/api/admin'
 import { getNoteStatusInfo, NoteStatusCode, type NoteBacklinkVO } from '@/api/notes'
-import { renderMermaidIn } from '@/utils/mermaid'
-import { wrapTablesIn } from '@/utils/table'
+import { enhanceArticleContent } from '@/utils/enhanceArticle'
 import {
   ArrowLeft, Globe, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
@@ -27,7 +26,7 @@ const tocWrapperRef = ref<HTMLElement | null>(null)
 const tocBallRef = ref<HTMLElement | null>(null)
 const tocPanelRef = ref<HTMLElement | null>(null)
 
-// 笔记正文容器 ref —— 用于在 v-html 更新后对其中的 .mermaid 节点局部渲染
+// 笔记正文容器 ref —— 用于在 v-html 更新后局部增强文章内容
 const articleContentRef = ref<HTMLElement | null>(null)
 
 // 动态管理悬浮面板的方向和定位
@@ -202,17 +201,16 @@ watch(() => route.params.noteId, async (newId, oldId) => {
   await bindTocEvents()
 }, { immediate: true })
 
-// ── Mermaid 图表局部渲染 ─────────────────────────
-// 后端把 ```mermaid``` 代码块转成 <div class="mermaid">...</div>，
-// v-html 把它写入 DOM 后还是纯文本 —— watch bodyHtml 在 nextTick 后
-// 对 articleContentRef 范围内的 .mermaid 节点调用 mermaid.run。
+// ── 文章内容增强（表格、代码高亮、Mermaid） ──────
+// 后端把 Markdown 转成 HTML，v-html 写入 DOM 后还需要后续增强。
+// watch bodyHtml 在 nextTick 后对 articleContentRef 范围内执行：
+//   1. 表格包装  2. 代码语法高亮  3. Mermaid 渲染
 watch(
   () => note.value?.converted?.bodyHtml,
   async (html) => {
     if (!html) return
     await nextTick()
-    wrapTablesIn(articleContentRef.value)
-    await renderMermaidIn(articleContentRef.value)
+    await enhanceArticleContent(articleContentRef.value)
   },
   { immediate: true }
 )
@@ -888,15 +886,26 @@ onUnmounted(() => {
   background: #0b0f19; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
   padding: 1.25rem; overflow-x: auto; margin-bottom: 1.5rem; margin-top: 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem; color: #e2e8f0; position: relative;
+  font-size: 0.875rem; line-height: 1.75; color: #e2e8f0; position: relative;
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+  -webkit-overflow-scrolling: touch;
 }
 .article-content :deep(:not(pre) > code) {
   background: rgba(255, 255, 255, 0.1); padding: 0.2em 0.4em; border-radius: 6px;
-  font-size: 0.85em; color: #93c5fd; font-family: monospace;
+  font-size: 0.85em; line-height: 1.6; color: #93c5fd;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
-.article-content :deep(pre code) { background: transparent; padding: 0; border: none; color: inherit; }
+.article-content :deep(pre code) {
+  display: block;
+  min-width: max-content;
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: inherit;
+  line-height: inherit;
+  font-family: inherit;
+}
 
 /* ===== Obsidian Callout 样式 ===== */
 .article-content :deep(.callout) {

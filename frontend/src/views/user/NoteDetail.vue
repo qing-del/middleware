@@ -8,8 +8,7 @@ import type { ImageItem } from '@/api/images'
 import { tagApi } from '@/api/tags'
 import type { TagItem } from '@/api/tags'
 import AudioTaskModal from '@/components/AudioTaskModal.vue'
-import { renderMermaidIn } from '@/utils/mermaid'
-import { wrapTablesIn } from '@/utils/table'
+import { enhanceArticleContent } from '@/utils/enhanceArticle'
 import {
   ArrowLeft, Globe, FileEdit, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, ShieldCheck, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
@@ -379,17 +378,16 @@ watch(
   { immediate: true }
 )
 
-// ── Mermaid 图表局部渲染 ─────────────────────────
-// 后端把 ```mermaid``` 代码块转成 <div class="mermaid">...</div>，
-// v-html 把它写入 DOM 后还是纯文本 —— watch bodyHtml 在 nextTick 后
-// 对 articleContentRef 范围内的 .mermaid 节点调用 mermaid.run。
+// ── 文章内容增强（表格、代码高亮、Mermaid） ──────
+// 后端把 Markdown 转成 HTML，v-html 写入 DOM 后还需要后续增强。
+// watch bodyHtml 在 nextTick 后对 articleContentRef 范围内执行：
+//   1. 表格包装  2. 代码语法高亮  3. Mermaid 渲染
 watch(
   () => note.value?.converted?.bodyHtml,
   async (html) => {
     if (!html) return
     await nextTick()
-    wrapTablesIn(articleContentRef.value)
-    await renderMermaidIn(articleContentRef.value)
+    await enhanceArticleContent(articleContentRef.value)
   },
   { immediate: true }
 )
@@ -1563,15 +1561,26 @@ onUnmounted(() => {
   background: #0b0f19; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
   padding: 1.25rem; overflow-x: auto; margin-bottom: 1.5rem; margin-top: 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem; color: #e2e8f0; position: relative;
+  font-size: 0.875rem; line-height: 1.75; color: #e2e8f0; position: relative;
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+  -webkit-overflow-scrolling: touch;
 }
 .article-content :deep(:not(pre) > code) {
   background: rgba(255, 255, 255, 0.1); padding: 0.2em 0.4em; border-radius: 6px;
-  font-size: 0.85em; color: #93c5fd; font-family: monospace;
+  font-size: 0.85em; line-height: 1.6; color: #93c5fd;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
-.article-content :deep(pre code) { background: transparent; padding: 0; border: none; color: inherit; }
+.article-content :deep(pre code) {
+  display: block;
+  min-width: max-content;
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: inherit;
+  line-height: inherit;
+  font-family: inherit;
+}
 
 /* ===== Obsidian Callout 样式 ===== */
 .article-content :deep(.callout) {
