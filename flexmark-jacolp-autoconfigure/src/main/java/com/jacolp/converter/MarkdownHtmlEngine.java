@@ -638,12 +638,30 @@ public class MarkdownHtmlEngine {
         StringBuffer out = new StringBuffer();
         while (matcher.find()) {
             String type = matcher.group(1).toLowerCase(Locale.ROOT);
-            String title = matcher.group(2).trim();
-            String body = matcher.group(3).trim();
+            // 首段（含 [!type] 标记）的剩余内容 —— 可能仅有标题，也可能"标题行 + 正文若干行"被 Flexmark 合并进同一个 <p>
+            String firstParagraph = matcher.group(2).trim();
+            // 后续段落（已是完整的 <p>/<ul>/<pre> 等 HTML），属于正文
+            String trailingBody = matcher.group(3).trim();
+
+            // Obsidian 约定：[!type] 后同一行才是标题；如果作者在标题行之后未空行就接着写正文，
+            // Flexmark 会把"标题 + 后续行"合并进同一个 <p>，行之间用 '\n' 分隔。
+            // 这里在第一个换行处把标题与正文首段分离，避免正文被错误地塞进 callout-title。
+            String title;
+            String bodyHead;
+            int nl = indexOfFirstLineBreak(firstParagraph);
+            if (nl >= 0) {
+                title = firstParagraph.substring(0, nl).trim();
+                String rest = firstParagraph.substring(nl).trim();
+                bodyHead = rest.isEmpty() ? "" : "<p>" + rest + "</p>";
+            } else {
+                title = firstParagraph;
+                bodyHead = "";
+            }
             // 若作者未指定标题，使用 callout 类型首字母大写作为默认标题
             if (title.isEmpty()) {
                 title = Character.toUpperCase(type.charAt(0)) + type.substring(1);
             }
+            String body = (bodyHead + trailingBody).trim();
 
             String replacement = """
                     <div class=\"callout callout-%s\">
@@ -655,6 +673,18 @@ public class MarkdownHtmlEngine {
         }
         matcher.appendTail(out);
         return out.toString();
+    }
+
+    /**
+     * 返回字符串中第一个换行符（{@code \n} 或 {@code \r}）的索引；找不到返回 -1。
+     * 用于在 Flexmark 合并的首段 {@code <p>} 内分离标题行与正文起始行。
+     */
+    private static int indexOfFirstLineBreak(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\n' || c == '\r') return i;
+        }
+        return -1;
     }
 
     /**

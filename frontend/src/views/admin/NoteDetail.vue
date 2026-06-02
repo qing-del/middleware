@@ -843,6 +843,82 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 .article-content :deep(pre code) { background: transparent; padding: 0; border: none; color: inherit; }
+
+/* ===== Obsidian Callout 样式 ===== */
+.article-content :deep(.callout) {
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  border-left: 4px solid;
+  background: rgba(255, 255, 255, 0.03);
+  line-height: 1.75;
+}
+.article-content :deep(.callout .callout-title) {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.article-content :deep(.callout .callout-content) {
+  color: #cbd5e1;
+}
+.article-content :deep(.callout .callout-content p) {
+  margin-bottom: 0.5rem;
+}
+.article-content :deep(.callout .callout-content p:last-child) {
+  margin-bottom: 0;
+}
+/* callout-note —— 蓝色 */
+.article-content :deep(.callout.callout-note) {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+.article-content :deep(.callout.callout-note .callout-title) {
+  color: #93c5fd;
+}
+.article-content :deep(.callout.callout-note .callout-title::before) {
+  content: '📝';
+  font-size: 0.9rem;
+}
+/* callout-tip —— 绿色 */
+.article-content :deep(.callout.callout-tip) {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+.article-content :deep(.callout.callout-tip .callout-title) {
+  color: #86efac;
+}
+.article-content :deep(.callout.callout-tip .callout-title::before) {
+  content: '💡';
+  font-size: 0.9rem;
+}
+/* callout-warning —— 琥珀色 */
+.article-content :deep(.callout.callout-warning) {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+.article-content :deep(.callout.callout-warning .callout-title) {
+  color: #fcd34d;
+}
+.article-content :deep(.callout.callout-warning .callout-title::before) {
+  content: '⚠️';
+  font-size: 0.9rem;
+}
+/* callout-question —— 紫色 */
+.article-content :deep(.callout.callout-question) {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.08);
+}
+.article-content :deep(.callout.callout-question .callout-title) {
+  color: #c4b5fd;
+}
+.article-content :deep(.callout.callout-question .callout-title::before) {
+  content: '❓';
+  font-size: 0.9rem;
+}
+
 /* Mermaid 图表容器 —— 后端把 ```mermaid``` 代码块转成 <div class="mermaid">..</div> */
 .article-content :deep(.mermaid) {
   width: 100%;
