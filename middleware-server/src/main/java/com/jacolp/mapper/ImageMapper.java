@@ -89,11 +89,16 @@ public interface ImageMapper {
                                                            @Param("filenames") List<String> filenames);
 
     /**
-     * 用户端条件查询：当前用户自己的图片 + 别人已公开的图片。
+     * 用户端条件查询：根据 scope 控制查询范围。
+     * @param userId 用户 ID
+     * @param topicId 主题 ID
+     * @param filename 文件名
+     * @param globalScope true=全局模式（自己的+别人已公开），false=仅自己
      */
     List<ImageVO> listByUserCondition(@Param("userId") Long userId,
                                       @Param("topicId") Long topicId,
-                                      @Param("filename") String filename);
+                                      @Param("filename") String filename,
+                                      @Param("globalScope") boolean globalScope);
 
     /**
      * 统计指定用户的图片数量。

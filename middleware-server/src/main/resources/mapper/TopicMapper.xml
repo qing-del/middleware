@@ -85,7 +85,7 @@
         </foreach>
     </update>
 
-    <!-- 用户端列表查询：自己的主题 + 别人已通过审核的主题 -->
+    <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
     <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.topic.TopicListVO">
         SELECT
             t.id,
@@ -103,7 +103,14 @@
             GROUP BY topic_id
         ) n ON t.id = n.topic_id
         <where>
-            (t.user_id = #{userId} OR t.is_pass = 1)
+            <choose>
+                <when test="globalScope">
+                    (t.user_id = #{userId} OR t.is_pass = 1)
+                </when>
+                <otherwise>
+                    t.user_id = #{userId}
+                </otherwise>
+            </choose>
             <if test="keyword != null and keyword != ''">
                 AND t.topic_name LIKE CONCAT('%', #{keyword}, '%')
             </if>

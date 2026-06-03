@@ -66,6 +66,7 @@ async function fetchTopics() {
   try {
     const res = await topicApi.getList({
       keyword: searchKeyword.value || undefined,
+      scope: searchMode.value,
       pageNum: currentPage.value,
       pageSize: pageSize.value
     })
@@ -91,6 +92,9 @@ function handlePageChange(page: number) {
 
 function toggleGlobalSearch() {
   searchMode.value = searchMode.value === 'personal' ? 'global' : 'personal'
+  currentPage.value = 1
+  loading.value = true
+  fetchTopics()
 }
 
 function toggleSelectAll(checked: boolean) {

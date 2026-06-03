@@ -24,6 +24,7 @@ import com.aliyun.oss.AliyunOSSOperator;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
+import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
@@ -420,9 +421,10 @@ public class ImageServiceImpl implements ImageService {
 
         String filename = (dto.getFilename() != null && !dto.getFilename().trim().isEmpty()) ?
                 dto.getFilename().trim() : null;
+        boolean globalScope = ScopeConstant.SCOPE_GLOBAL.equals(dto.getScope());
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-        List<ImageVO> records = imageMapper.listByUserCondition(userId, dto.getTopicId(), filename);
+        List<ImageVO> records = imageMapper.listByUserCondition(userId, dto.getTopicId(), filename, globalScope);
         PageInfo<ImageVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }

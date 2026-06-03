@@ -126,6 +126,7 @@ export interface NoteQueryParams {
   topicId?: number
   tagId?: number
   title?: string
+  scope?: 'personal' | 'global'
   pageNum?: number
   pageSize?: number
 }

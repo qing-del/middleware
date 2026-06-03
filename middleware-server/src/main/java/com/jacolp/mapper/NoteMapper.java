@@ -129,14 +129,16 @@ public interface NoteMapper {
         long countApprovedByUserId(@Param("userId") Long userId);
 
     /**
-     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     * 用户端条件查询：根据 scope 控制查询范围。
      * @param userId 用户 ID
      * @param topicId 主题 ID
      * @param title 笔记标题的关键词
+     * @param globalScope true=全局模式（自己的+别人已发布），false=仅自己
      */
     List<NoteVO> listByUserCondition(@Param("userId") Long userId,
                                      @Param("topicId") Long topicId,
-                                     @Param("title") String title);
+                                     @Param("title") String title,
+                                     @Param("globalScope") boolean globalScope);
 
     /**
      * 访客分页查询已公开笔记。

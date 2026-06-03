@@ -147,7 +147,7 @@
                 </foreach>
         </update>
 
-        <!-- 用户端列表查询：自己的笔记 + 别人已发布的笔记 -->
+        <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
         <select id="listByUserCondition" resultMap="NoteVOMap">
                 SELECT
                     n.*,
@@ -156,7 +156,14 @@
                 LEFT JOIN biz_topic t ON t.id = n.topic_id
                 <where>
                         n.status != 8
-                        AND (n.user_id = #{userId} OR n.status = 6)
+                        <choose>
+                                <when test="globalScope">
+                                        AND (n.user_id = #{userId} OR n.status = 6)
+                                </when>
+                                <otherwise>
+                                        AND n.user_id = #{userId}
+                                </otherwise>
+                        </choose>
                         <if test="topicId != null">AND n.topic_id = #{topicId}</if>
                         <if test="title != null and title != ''">AND n.title LIKE CONCAT('%', #{title}, '%')</if>
                 </where>

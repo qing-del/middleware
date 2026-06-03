@@ -19,6 +19,7 @@ export interface ImagePageResult {
 export interface ImageQueryParams {
   topicId?: number
   filename?: string
+  scope?: 'personal' | 'global'
   pageNum?: number
   pageSize?: number
 }

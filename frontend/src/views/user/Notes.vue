@@ -261,15 +261,12 @@ async function fetchNotes() {
     const params: NoteQueryParams = {
       keyword: searchKeyword.value || undefined,
       topicId: filterTopicId.value ? Number(filterTopicId.value) : undefined,
+      scope: searchMode.value,
       pageNum: currentPage.value,
       pageSize: pageSize.value
     }
 
-    const apiMethod = searchMode.value === 'global'
-      ? noteApi.searchNotes(params)
-      : noteApi.getList(params)
-
-    const res = await apiMethod
+    const res = await noteApi.getList(params)
     let records = (res as unknown as PageResult<NoteItem>).records ?? []
     total.value = (res as unknown as PageResult<NoteItem>).total ?? 0
 
@@ -280,7 +277,7 @@ async function fetchNotes() {
     }
 
     noteList.value = records
-    
+
     // Auto-load relations for current page
     if (records.length > 0) {
       void preloadRelations(records)
@@ -560,6 +557,8 @@ async function handleBatchPublish() {
 
 function toggleGlobalSearch() {
   searchMode.value = searchMode.value === 'personal' ? 'global' : 'personal'
+  currentPage.value = 1
+  fetchNotes()
 }
 
 onMounted(() => {

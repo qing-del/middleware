@@ -15,6 +15,7 @@ export interface TagPageResult {
 
 export interface TagQueryParams {
   keyword?: string
+  scope?: 'personal' | 'global'
   pageNum?: number
   pageSize?: number
 }

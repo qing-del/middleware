@@ -63,9 +63,14 @@ public interface TopicMapper {
     int countById(Long topicId);
 
     /**
-     * 用户端条件查询：当前用户自己的主题 + 别人已通过审核的主题。
+     * 用户端条件查询：根据 scope 控制查询范围。
+     * @param userId 用户 ID
+     * @param keyword 关键词
+     * @param globalScope true=全局模式（自己的+别人已通过），false=仅自己
      */
-    List<TopicListVO> listByUserCondition(@Param("userId") Long userId, @Param("keyword") String keyword);
+    List<TopicListVO> listByUserCondition(@Param("userId") Long userId,
+                                          @Param("keyword") String keyword,
+                                          @Param("globalScope") boolean globalScope);
 
     /**
      * 统计指定用户的主题数量。
