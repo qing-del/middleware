@@ -35,12 +35,16 @@ instance.interceptors.response.use(
     return res
   },
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const requiresAuth = router.currentRoute.value.matched.some(record => record.meta.requiresAuth)
+    if (status === 401 && requiresAuth) {
       localStorage.removeItem('token')
-      // 只有不在登录页时才跳转
+      // 只有受保护路由才跳转登录页，访客公开页保持原地展示错误。
       if (!router.currentRoute.value.path.startsWith('/login')) {
         router.push('/login')
       }
+    } else if (status === 403) {
+      Message.error(error.response?.data?.msg || '无权访问')
     } else {
       Message.error(error.message || '网络错误')
     }

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   Zap, ChevronRight, Link, FileDiff, User, Mail, Lock,
-  ShieldCheck, Loader2, ArrowRight, CheckCircle2
+  ShieldCheck, Loader2, ArrowRight, CheckCircle2, BookOpen
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -273,6 +273,10 @@ function showToast(msg: string, _type: 'success' | 'error' = 'success') {
   }, 3000)
 }
 
+function enterGuestMode() {
+  router.push('/guest/notes')
+}
+
 async function handleSubmit() {
   if (isAnimating.value) return
 
@@ -500,9 +504,16 @@ onUnmounted(() => {
                   </button>
                 </template>
                 <template v-else>
-                  <button @click="setView('register')" type="button" class="text-xs text-indigo-400 font-bold hover:text-indigo-300 transition-all uppercase tracking-wider underline underline-offset-8 decoration-indigo-500/20 hover:decoration-indigo-500">
-                    创建账户
-                  </button>
+                  <div class="grid grid-cols-2 gap-3 w-full">
+                    <button @click="enterGuestMode" type="button" class="group flex h-11 items-center justify-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 text-xs font-black uppercase tracking-[0.14em] text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition-all hover:border-cyan-300/60 hover:bg-cyan-400/15 hover:text-white hover:shadow-[0_0_22px_rgba(34,211,238,0.18)]">
+                      <BookOpen class="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
+                      <span>访客模式</span>
+                    </button>
+                    <button @click="setView('register')" type="button" class="group flex h-11 items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-indigo-400/10 px-4 text-xs font-black uppercase tracking-[0.14em] text-indigo-200 shadow-[0_0_18px_rgba(99,102,241,0.08)] transition-all hover:border-indigo-300/60 hover:bg-indigo-400/15 hover:text-white hover:shadow-[0_0_22px_rgba(99,102,241,0.18)]">
+                      <User class="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
+                      <span>创建账户</span>
+                    </button>
+                  </div>
                   <button @click="setView('admin')" type="button" class="text-[10px] text-slate-600 hover:text-slate-300 transition-colors uppercase tracking-[0.2em]">
                     管理控制台授权
                   </button>

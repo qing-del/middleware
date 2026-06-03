@@ -187,6 +187,32 @@ export interface NoteConvertMetaVO {
   createTime: string
 }
 
+// ── Guest public notes ───────────────────────────
+export interface GuestNoteItem {
+  id: number
+  topicId?: number
+  topicName?: string
+  title: string
+  description?: string
+  tags: string[]
+  createTime: string
+  updateTime: string
+}
+
+export interface GuestNoteDetailVO {
+  id: number
+  topicId?: number
+  topicName?: string
+  title: string
+  description?: string
+  tags: string[]
+  images: NoteImageSimpleVO[]
+  eachNotes: NoteEachSimpleVO[]
+  converted: NoteConvertResultVO
+  createTime: string
+  updateTime: string
+}
+
 // ── Upload ────────────────────────────────────────
 export interface NoteUploadVO {
   noteId: number
@@ -472,5 +498,17 @@ export const noteApi = {
   /** 删除笔记转换缓存，状态回退为"待转换" */
   deleteConverted(noteId: number): Promise<string> {
     return request.delete('/user/note/convert', { params: { noteId } })
+  },
+}
+
+export const guestNoteApi = {
+  /** 分页查询公开笔记 */
+  getList(params: NoteQueryParams): Promise<PageResult<GuestNoteItem>> {
+    return request.get('/guest/note', { params })
+  },
+
+  /** 查看公开笔记详情 */
+  getDetail(noteId: number): Promise<GuestNoteDetailVO> {
+    return request.get(`/guest/note/${noteId}`)
   },
 }

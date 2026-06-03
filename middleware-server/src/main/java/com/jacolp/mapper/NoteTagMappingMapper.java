@@ -90,4 +90,9 @@ public interface NoteTagMappingMapper {
      */
     List<TagBacklinkVO> selectBacklinksByTagId(@Param("tagId") Long tagId,
                                                @Param("userId") Long userId);
+
+    /**
+     * 查询访客可见的公开笔记标签名。
+     */
+    List<String> selectPublicTagNamesByNoteId(@Param("noteId") Long noteId);
 }

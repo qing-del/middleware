@@ -60,4 +60,12 @@
             <if test="userId != null">AND (n.user_id = #{userId} OR n.status = 6)</if>
         </where>
     </select>
+
+    <select id="selectPublishedByNoteId" resultMap="NoteConvertedMap">
+        SELECT c.id, c.note_id, c.title, c.tags_json, c.create_time_str, c.toc_html, c.body_html, c.convert_time
+        FROM biz_note_converted c
+        INNER JOIN biz_note n ON n.id = c.note_id
+        WHERE c.note_id = #{noteId}
+          AND n.status = 6
+    </select>
 </mapper>

@@ -86,6 +86,14 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .build();
     }
 
+    @Bean
+    public GroupedOpenApi guestApi() {
+        return GroupedOpenApi.builder()
+                .group("guest 端接口")
+                .packagesToScan("com.jacolp.controller.guest")
+                .build();
+    }
+
 
     /**
      * 设置静态资源映射

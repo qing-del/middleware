@@ -163,6 +163,32 @@
                 ORDER BY n.create_time DESC
         </select>
 
+        <select id="listGuestPublished" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.note.GuestNoteQueryDTO">
+                SELECT
+                    n.id, n.topic_id, t.topic_name, n.title, n.description,
+                    n.storage_type, n.status, n.missing_info_mask, n.missing_count,
+                    n.md_file_size, n.create_time, n.update_time
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                <where>
+                        n.status = 6
+                        <if test="topicId != null">AND n.topic_id = #{topicId}</if>
+                        <if test="keyword != null and keyword != ''">AND n.title LIKE CONCAT('%', #{keyword}, '%')</if>
+                </where>
+                ORDER BY n.create_time DESC
+        </select>
+
+        <select id="selectGuestPublishedVoById" resultMap="NoteVOMap">
+                SELECT
+                    n.id, n.topic_id, t.topic_name, n.title, n.description,
+                    n.storage_type, n.status, n.missing_info_mask, n.missing_count,
+                    n.md_file_size, n.create_time, n.update_time
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                WHERE n.id = #{id}
+                  AND n.status = 6
+        </select>
+
         <update id="updateStatus">
                 UPDATE biz_note
                 SET status = #{status},

@@ -3,6 +3,7 @@ package com.jacolp.mapper;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import org.apache.ibatis.annotations.Mapper;
@@ -98,4 +99,9 @@ public interface NoteImageMappingMapper {
      */
     List<ImageBacklinkVO> selectBacklinksByImageId(@Param("imageId") Long imageId,
                                                    @Param("userId") Long userId);
+
+    /**
+     * 查询访客可见的公开笔记图片摘要。
+     */
+    List<ImageSimpleVO> selectPublicImagesByNoteId(@Param("noteId") Long noteId);
 }

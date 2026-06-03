@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import com.jacolp.pojo.dto.note.NoteQueryDTO;
+import com.jacolp.pojo.dto.note.GuestNoteQueryDTO;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.pojo.vo.note.NoteVO;
@@ -136,6 +137,16 @@ public interface NoteMapper {
     List<NoteVO> listByUserCondition(@Param("userId") Long userId,
                                      @Param("topicId") Long topicId,
                                      @Param("title") String title);
+
+    /**
+     * 访客分页查询已公开笔记。
+     */
+    List<NoteVO> listGuestPublished(GuestNoteQueryDTO dto);
+
+    /**
+     * 访客按 ID 查询已公开笔记详情基础信息。
+     */
+    NoteVO selectGuestPublishedVoById(@Param("id") Long id);
 
     /**
      * 查询指定笔记的笔记状态
