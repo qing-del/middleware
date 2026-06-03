@@ -78,6 +78,9 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .build();
     }
 
+    /**
+     * 创建 user 部分的接口文档
+     */
     @Bean
     public GroupedOpenApi userApi() {
         return GroupedOpenApi.builder()
@@ -86,6 +89,9 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .build();
     }
 
+    /**
+     * 创建 guest 部分的接口文档
+     */
     @Bean
     public GroupedOpenApi guestApi() {
         return GroupedOpenApi.builder()

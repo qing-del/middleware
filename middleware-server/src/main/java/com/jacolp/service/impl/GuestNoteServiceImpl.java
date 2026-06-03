@@ -32,6 +32,11 @@ public class GuestNoteServiceImpl implements GuestNoteService {
     @Autowired private NoteEachMappingMapper noteEachMappingMapper;
     @Autowired private NoteConvertService noteConvertService;
 
+    /**
+     * 列出公开笔记
+     * @param dto 查询参数
+     * @return 笔记列表
+     */
     @Override
     public PageResult listPublishedNotes(GuestNoteQueryDTO dto) {
         GuestNoteQueryDTO query = normalizeQuery(dto);
@@ -46,6 +51,11 @@ public class GuestNoteServiceImpl implements GuestNoteService {
         return new PageResult(pageInfo.getTotal(), list);
     }
 
+    /**
+     * 获取公开笔记详情
+     * @param noteId 笔记ID
+     * @return 笔记详情
+     */
     @Override
     public GuestNoteDetailVO getPublishedNoteDetail(Long noteId) {
         if (noteId == null || noteId <= 0) {
@@ -66,6 +76,11 @@ public class GuestNoteServiceImpl implements GuestNoteService {
         return vo;
     }
 
+    /**
+     * 转换为列表视图对象
+     * @param note
+     * @return 列表视图对
+     */
     private GuestNoteListVO toListVO(NoteVO note) {
         GuestNoteListVO vo = new GuestNoteListVO();
         BeanUtils.copyProperties(note, vo);
@@ -73,6 +88,11 @@ public class GuestNoteServiceImpl implements GuestNoteService {
         return vo;
     }
 
+    /**
+     * 正常化查询参数
+     * @param dto
+     * @return 非空的查询参数
+     */
     private GuestNoteQueryDTO normalizeQuery(GuestNoteQueryDTO dto) {
         GuestNoteQueryDTO query = dto == null ? new GuestNoteQueryDTO() : dto;
         if (!StringUtils.hasText(query.getKeyword())) {
