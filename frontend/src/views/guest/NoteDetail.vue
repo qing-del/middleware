@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { guestNoteApi, type GuestNoteDetailVO } from '@/api/notes'
 import { enhanceArticleContent } from '@/utils/enhanceArticle'
 import {
   ArrowLeft, ArrowUpToLine, Calendar, FileText, Hash, Image as ImageIcon,
-  Layers, Link, ListTree, Loader2, PanelRightClose, PanelRightOpen, Tags
+  Layers, LayoutPanelTop, Link, ListTree, Loader2, PanelRightClose, PanelRightOpen, Tags
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -16,7 +16,10 @@ const error = ref<string | null>(null)
 const note = ref<GuestNoteDetailVO | null>(null)
 const articleContentRef = ref<HTMLElement | null>(null)
 const showTocPanel = ref(false)
+const tocWrapperRef = ref<HTMLElement | null>(null)
+const tocBallRef = ref<HTMLElement | null>(null)
 const matrixCollapsed = ref(false)
+const panelPosClasses = ref(['bottom-full', 'right-0', 'mb-4', 'origin-bottom-right'])
 
 function formatDate(raw?: string) {
   if (!raw) return '-'
@@ -30,6 +33,12 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
   const main = document.querySelector('main')
   if (main) main.scrollTo({ top: 0, behavior: 'smooth' })
+  showTocPanel.value = false
+}
+
+function toggleMatrix() {
+  matrixCollapsed.value = !matrixCollapsed.value
+  showTocPanel.value = false
 }
 
 function scrollToHashAnchor() {
@@ -81,6 +90,155 @@ function onTocClick(e: Event) {
   }
 }
 
+function onTocLinkClick(e: Event) {
+  const link = (e.target as HTMLElement).closest('a[href^="#"]') as HTMLAnchorElement | null
+  if (!link) return
+  e.preventDefault()
+  const rawId = link.getAttribute('href')?.slice(1)
+  if (!rawId) {
+    showTocPanel.value = false
+    return
+  }
+  try {
+    const id = decodeURIComponent(rawId)
+    const el = document.getElementById(id) || document.getElementById(rawId)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' })
+      router.replace({ hash: `#${rawId}` })
+    }
+  } catch {
+    const el = document.getElementById(rawId)
+    if (el) el.scrollIntoView({ behavior: 'smooth' })
+  }
+  showTocPanel.value = false
+}
+
+let tocHasMoved = false
+let tocStartX = 0
+let tocStartY = 0
+let tocInitialLeft = 0
+let tocInitialTop = 0
+
+function updateTocPanelOrigin() {
+  const wrapper = tocWrapperRef.value
+  if (!wrapper) return
+  const rect = wrapper.getBoundingClientRect()
+  const isLeft = rect.left < window.innerWidth / 2
+  const isTop = rect.top < window.innerHeight / 2
+  const classes: string[] = []
+
+  if (isTop) classes.push('top-full', 'mt-4')
+  else classes.push('bottom-full', 'mb-4')
+
+  if (isLeft) classes.push('left-0')
+  else classes.push('right-0')
+
+  const originY = isTop ? 'top' : 'bottom'
+  const originX = isLeft ? 'left' : 'right'
+  classes.push(`origin-${originY}-${originX}`)
+
+  panelPosClasses.value = classes
+}
+
+function toggleTocPanel() {
+  if (showTocPanel.value) {
+    showTocPanel.value = false
+  } else {
+    updateTocPanelOrigin()
+    showTocPanel.value = true
+  }
+}
+
+function tocPointerDown(e: MouseEvent | TouchEvent) {
+  if ((e.target as HTMLElement).closest('#guest-toc-panel')) return
+  e.preventDefault()
+
+  tocHasMoved = false
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  tocStartX = clientX
+  tocStartY = clientY
+
+  const wrapper = tocWrapperRef.value
+  if (!wrapper) return
+  const rect = wrapper.getBoundingClientRect()
+  tocInitialLeft = rect.left
+  tocInitialTop = rect.top
+
+  wrapper.style.left = `${tocInitialLeft}px`
+  wrapper.style.top = `${tocInitialTop}px`
+  wrapper.style.right = 'auto'
+  wrapper.style.bottom = 'auto'
+
+  document.addEventListener('mousemove', tocPointerMove)
+  document.addEventListener('mouseup', tocPointerUp)
+  document.addEventListener('touchmove', tocPointerMove, { passive: false })
+  document.addEventListener('touchend', tocPointerUp)
+}
+
+function tocPointerMove(e: MouseEvent | TouchEvent) {
+  if ('touches' in e) e.preventDefault()
+
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  const dx = clientX - tocStartX
+  const dy = clientY - tocStartY
+
+  if (Math.abs(dx) <= 3 && Math.abs(dy) <= 3) return
+  tocHasMoved = true
+  if (showTocPanel.value) showTocPanel.value = false
+
+  const wrapper = tocWrapperRef.value
+  if (!wrapper) return
+  const maxLeft = window.innerWidth - wrapper.offsetWidth
+  const maxTop = window.innerHeight - wrapper.offsetHeight
+  const newLeft = Math.max(0, Math.min(tocInitialLeft + dx, maxLeft))
+  const newTop = Math.max(0, Math.min(tocInitialTop + dy, maxTop))
+
+  wrapper.style.left = `${newLeft}px`
+  wrapper.style.top = `${newTop}px`
+}
+
+function tocPointerUp() {
+  document.removeEventListener('mousemove', tocPointerMove)
+  document.removeEventListener('mouseup', tocPointerUp)
+  document.removeEventListener('touchmove', tocPointerMove)
+  document.removeEventListener('touchend', tocPointerUp)
+
+  if (!tocHasMoved) toggleTocPanel()
+}
+
+function onTocResize() {
+  const wrapper = tocWrapperRef.value
+  if (!wrapper || !(wrapper.style.left || wrapper.style.top)) return
+
+  let currentLeft = parseFloat(wrapper.style.left)
+  let currentTop = parseFloat(wrapper.style.top)
+  const maxLeft = window.innerWidth - wrapper.offsetWidth
+  const maxTop = window.innerHeight - wrapper.offsetHeight
+  let adjusted = false
+
+  if (currentLeft > maxLeft) { currentLeft = maxLeft; adjusted = true }
+  if (currentTop > maxTop) { currentTop = maxTop; adjusted = true }
+  if (currentLeft < 0) { currentLeft = 0; adjusted = true }
+  if (currentTop < 0) { currentTop = 0; adjusted = true }
+
+  if (adjusted) {
+    wrapper.style.left = `${currentLeft}px`
+    wrapper.style.top = `${currentTop}px`
+    if (showTocPanel.value) updateTocPanelOrigin()
+  }
+}
+
+async function bindTocEvents() {
+  await nextTick()
+  if (!tocBallRef.value) return
+  tocBallRef.value.removeEventListener('mousedown', tocPointerDown)
+  tocBallRef.value.removeEventListener('touchstart', tocPointerDown)
+  tocBallRef.value.addEventListener('mousedown', tocPointerDown)
+  tocBallRef.value.addEventListener('touchstart', tocPointerDown, { passive: false })
+}
+
 async function fetchNote() {
   const noteId = Number(route.params.noteId)
   if (!noteId || Number.isNaN(noteId)) {
@@ -98,6 +256,7 @@ async function fetchNote() {
     error.value = e?.message || '公开笔记不存在'
   } finally {
     loading.value = false
+    await bindTocEvents()
   }
 }
 
@@ -105,6 +264,11 @@ watch(
   () => route.params.noteId,
   async (newId, oldId) => {
     if (!newId || newId === oldId) return
+    showTocPanel.value = false
+    matrixCollapsed.value = false
+    const main = document.querySelector('main')
+    if (main) main.scrollTop = 0
+    window.scrollTo(0, 0)
     await fetchNote()
   }
 )
@@ -126,7 +290,22 @@ watch(
   { immediate: true }
 )
 
-onMounted(fetchNote)
+onMounted(async () => {
+  window.addEventListener('resize', onTocResize)
+  await fetchNote()
+})
+
+onUnmounted(() => {
+  if (tocBallRef.value) {
+    tocBallRef.value.removeEventListener('mousedown', tocPointerDown)
+    tocBallRef.value.removeEventListener('touchstart', tocPointerDown)
+  }
+  window.removeEventListener('resize', onTocResize)
+  document.removeEventListener('mousemove', tocPointerMove)
+  document.removeEventListener('mouseup', tocPointerUp)
+  document.removeEventListener('touchmove', tocPointerMove)
+  document.removeEventListener('touchend', tocPointerUp)
+})
 </script>
 
 <template>
@@ -236,24 +415,40 @@ onMounted(fetchNote)
         </aside>
       </div>
 
-      <div v-if="matrixCollapsed" class="fixed bottom-6 right-6 z-40 hidden xl:block">
-        <button class="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-400/30 bg-[#020617]/95 text-cyan-200 shadow-[0_12px_30px_rgba(8,47,73,0.35)] backdrop-blur-xl transition hover:bg-cyan-400/10" @click="matrixCollapsed = false">
-          <PanelRightOpen class="h-5 w-5" />
-        </button>
-      </div>
-
-      <div class="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-[#020617]/90 p-2 shadow-[0_12px_34px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-        <button class="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/5 hover:text-cyan-200" title="返回顶部" @click="scrollToTop">
-          <ArrowUpToLine class="h-4 w-4" />
-        </button>
-        <button v-if="note.converted?.tocHtml" class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/5 hover:text-cyan-200" title="目录" @click="showTocPanel = !showTocPanel">
-          <ListTree class="h-4 w-4" />
-        </button>
-      </div>
-
       <Teleport to="body">
-        <div v-if="showTocPanel && note.converted?.tocHtml" class="fixed bottom-20 left-1/2 z-50 max-h-[50vh] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto rounded-lg border border-cyan-400/30 bg-[#020617]/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-          <div class="toc-list" v-html="note.converted.tocHtml" @click="onTocClick" />
+        <div v-if="note" ref="tocWrapperRef" id="guest-toc-draggable" class="fixed bottom-12 right-8 z-50 touch-none">
+          <div
+            id="guest-toc-panel"
+            class="absolute max-h-[60vh] w-64 overflow-y-auto rounded-2xl border border-cyan-400/30 bg-[#020617]/95 p-5 shadow-[0_15px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all duration-300"
+            :class="[panelPosClasses, showTocPanel ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-0 opacity-0 pointer-events-none']"
+          >
+            <h4 class="mb-4 flex items-center border-b border-white/5 pb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+              <ListTree class="mr-2 h-4 w-4 text-cyan-300" />
+              文档快速导航
+            </h4>
+            <div class="mb-4 flex flex-wrap items-center gap-2 pb-3" :class="{ 'border-b border-white/5': note.converted?.tocHtml }">
+              <button class="flex flex-1 items-center justify-center rounded-lg bg-white/5 py-1.5 text-xs font-bold text-slate-400 transition hover:bg-cyan-500/15 hover:text-cyan-200" title="返回顶部" @click="scrollToTop">
+                <ArrowUpToLine class="mr-1 h-3.5 w-3.5" />
+                返回顶部
+              </button>
+              <button class="flex flex-1 items-center justify-center rounded-lg bg-white/5 py-1.5 text-xs font-bold text-slate-400 transition hover:bg-emerald-500/15 hover:text-emerald-200" title="资源矩阵" @click="toggleMatrix">
+                <LayoutPanelTop class="mr-1 h-3.5 w-3.5" />
+                资源矩阵
+              </button>
+            </div>
+            <div v-if="note.converted?.tocHtml" class="toc-list" v-html="note.converted.tocHtml" @click="onTocLinkClick" />
+            <p v-else class="py-2 text-center text-[10px] text-slate-500">暂无目录结构</p>
+          </div>
+
+          <div
+            ref="tocBallRef"
+            id="guest-toc-ball"
+            class="group flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-cyan-400/40 bg-[#020617]/90 text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)] backdrop-blur-xl transition-[box-shadow,transform] hover:shadow-[0_0_25px_rgba(34,211,238,0.4)] active:scale-95"
+            title="文档快速导航"
+          >
+            <ListTree class="h-5 w-5 transition-transform group-hover:scale-110" />
+            <div class="pointer-events-none absolute inset-0 rounded-full border border-cyan-300/40 opacity-20 animate-ping" />
+          </div>
         </div>
       </Teleport>
     </template>
