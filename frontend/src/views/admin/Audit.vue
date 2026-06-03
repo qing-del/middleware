@@ -13,6 +13,7 @@ type AuditType = 'note' | 'image' | 'meta'
 
 interface NormalizedAuditItem {
   id: number
+  resourceId: number
   title: string
   applicant: string
   applicantId: number
@@ -58,8 +59,9 @@ function normalizeData(data: any[], type: AuditType): NormalizedAuditItem[] {
       const note = item as AuditNoteItem
       return {
         id: note.id,
-        title: note.title,
-        applicant: note.nickname || `UID: ${note.applicantUserId}`,
+        resourceId: note.noteId || note.id,
+        title: note.noteTitle || note.title || `笔记 #${note.noteId || note.id}`,
+        applicant: note.applicantUsername || note.nickname || `UID: ${note.applicantUserId}`,
         applicantId: note.applicantUserId,
         submitTime: formatDate(note.updateTime),
         status: note.status,
@@ -70,8 +72,9 @@ function normalizeData(data: any[], type: AuditType): NormalizedAuditItem[] {
       const img = item as AuditImageItem
       return {
         id: img.id,
+        resourceId: img.imageId || img.id,
         title: img.filename,
-        applicant: img.nickname || `UID: ${img.applicantUserId}`,
+        applicant: img.applicantUsername || img.nickname || `UID: ${img.applicantUserId}`,
         applicantId: img.applicantUserId,
         submitTime: formatDate(img.updateTime),
         status: img.status,
@@ -82,8 +85,9 @@ function normalizeData(data: any[], type: AuditType): NormalizedAuditItem[] {
       const meta = item as AuditMetaItem
       return {
         id: meta.id,
+        resourceId: meta.targetId || meta.id,
         title: `${meta.applyType === 1 ? '[主题]' : '[标签]'} ${meta.targetName}`,
-        applicant: meta.nickname || `UID: ${meta.applicantUserId}`,
+        applicant: meta.applicantUsername || meta.nickname || `UID: ${meta.applicantUserId}`,
         applicantId: meta.applicantUserId,
         submitTime: formatDate(meta.updateTime),
         status: meta.status,
@@ -214,8 +218,8 @@ function openDetail(item: NormalizedAuditItem) {
   showModal.value = true
 }
 
-function viewNoteDetail(id: number) {
-  router.push(`/admin/notes/${id}`)
+function viewAuditNoteDetail(item: NormalizedAuditItem) {
+  router.push(`/admin/notes/${item.resourceId}`)
 }
 
 function closeModal() {
@@ -392,7 +396,7 @@ watch(applicantIdFilter, () => {
                   <td class="px-4 py-4 text-right">
                     <div class="flex items-center justify-end space-x-2 translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
                       <button v-if="item.type === 'note'"
-                        class="flex h-7 w-7 items-center justify-center rounded bg-white/5 text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400" title="查看笔记详情" @click.stop="viewNoteDetail(item.id)">
+                        class="flex h-7 w-7 items-center justify-center rounded bg-white/5 text-slate-400 transition-colors hover:bg-rose-500/20 hover:text-rose-400" title="查看笔记详情" @click.stop="viewAuditNoteDetail(item)">
                         <ExternalLink class="h-3.5 w-3.5" />
                       </button>
                       <button v-else
@@ -472,7 +476,7 @@ watch(applicantIdFilter, () => {
                       <span class="text-sm font-bold text-white">{{ currentRecord?.title }}</span>
                       <button
                         class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition-all text-xs font-bold border border-rose-500/20"
-                        @click="currentRecord && viewNoteDetail(currentRecord.id)"
+                        @click="currentRecord && viewAuditNoteDetail(currentRecord)"
                       >
                         <ExternalLink class="w-3.5 h-3.5" />
                         <span>查看完整笔记内容</span>
