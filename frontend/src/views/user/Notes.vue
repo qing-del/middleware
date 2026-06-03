@@ -260,6 +260,7 @@ async function fetchNotes() {
   try {
     const params: NoteQueryParams = {
       keyword: searchKeyword.value || undefined,
+      title: searchKeyword.value || undefined,
       topicId: filterTopicId.value ? Number(filterTopicId.value) : undefined,
       scope: searchMode.value,
       pageNum: currentPage.value,
@@ -558,6 +559,7 @@ async function handleBatchPublish() {
 function toggleGlobalSearch() {
   searchMode.value = searchMode.value === 'personal' ? 'global' : 'personal'
   currentPage.value = 1
+  selectedIds.value.clear()
   fetchNotes()
 }
 

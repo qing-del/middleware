@@ -93,6 +93,7 @@ function handlePageChange(page: number) {
 function toggleGlobalSearch() {
   searchMode.value = searchMode.value === 'personal' ? 'global' : 'personal'
   currentPage.value = 1
+  selectedIds.value.clear()
   loading.value = true
   fetchTopics()
 }

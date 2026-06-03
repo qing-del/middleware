@@ -98,6 +98,7 @@ async function fetchTags() {
   try {
     const res = await tagApi.getList({
       keyword: searchKeyword.value || undefined,
+      scope: searchMode.value,
       pageNum: currentPage.value,
       pageSize: pageSize.value
     })
@@ -123,6 +124,11 @@ function handlePageChange(page: number) {
 
 function toggleGlobalSearch() {
   searchMode.value = searchMode.value === 'personal' ? 'global' : 'personal'
+  currentPage.value = 1
+  selectedIds.value.clear()
+  expandedTagId.value = null
+  loading.value = true
+  fetchTags()
 }
 
 function toggleSelectAll(checked: boolean) {
