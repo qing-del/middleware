@@ -1,6 +1,5 @@
 package com.jacolp.controller.user;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import com.jacolp.annotation.RateLimit;
@@ -11,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
@@ -56,11 +54,28 @@ public class UserController {
 
     @PostMapping("/register")
     @Operation(summary = "用户注册",
-            description = "创建普通用户账号前会先校验入参合法性，并在服务层完成账号初始化、默认角色设置和密码落库，返回注册结果。")
+            description = "创建普通用户账号并发送邮箱激活邮件；账号激活前无法登录使用。")
     public Result<String> register(
             @Parameter(description = "用户注册请求，包含用户名、密码和基本信息") @RequestBody @Valid UserRegisterDTO userRegisterDTO) {
         log.info("User register: {}", userRegisterDTO.getUsername());
         return Result.success(userUserService.register(userRegisterDTO));
+    }
+
+    @PostMapping("/resend-activation")
+    @Operation(summary = "匿名重发激活邮件",
+            description = "未激活用户可通过用户名或邮箱重新发送激活邮件，无需登录")
+    @RateLimit(windowSeconds = 60, maxRequests = 1, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
+    @RateLimit(windowSeconds = 3600, maxRequests = 5, prefix = RateLimitConstant.EMAIL_RATE_LIMIT_KEY)
+    public Result<String> resendActivation(
+            @Parameter(description = "用户名或邮箱，key 为 account")
+            @RequestBody Map<String, String> body) {
+        String account = body.get("account");
+        if (account == null || account.isBlank()) {
+            return Result.error("用户名或邮箱不能为空");
+        }
+        log.info("User request anonymous activation email resend");
+        userUserService.sendActivationEmailByAccount(account);
+        return Result.success("激活邮件已重新发送，请查收邮箱");
     }
 
     @GetMapping("/me")
@@ -107,7 +122,7 @@ public class UserController {
     @Operation(summary = "用户激活",
             description = "用户注册成功后，会通过邮件发送激活链接，点击链接后调用该接口完成用户激活。")
     public Result<String> active(@PathVariable String token) {
-        log.info("User active: {}", token);
+        log.info("User active, userId: {}", BaseContext.getCurrentId());
         return Result.success(userUserService.activeAccount(BaseContext.getCurrentId()));
     }
 

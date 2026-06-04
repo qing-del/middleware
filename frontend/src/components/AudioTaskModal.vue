@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Mic, X, Send, Loader2, Volume2, Gauge, Waves } from 'lucide-vue-next'
 import { audioApi } from '@/api/audio'
+import { toastError, toastSuccess } from '@/utils/feedback'
 
 const props = withDefaults(defineProps<{ showTrigger?: boolean }>(), {
   showTrigger: true
@@ -37,13 +38,13 @@ async function handleSubmit() {
       noiseType: form.value.noiseType,
       noiseFactor: form.value.noiseFactor
     })
-    window.alert(`音频生成任务已提交，任务 ID: ${res.taskId}`)
+    toastSuccess(`音频生成任务已提交，任务 ID: ${res.taskId}`)
     isOpen.value = false
     // 重置表单
     form.value.text = ''
   } catch (error) {
     console.error('Submit audio task failed:', error)
-    window.alert('任务提交失败，请稍后重试。')
+    toastError('任务提交失败，请稍后重试。')
   } finally {
     submitting.value = false
   }

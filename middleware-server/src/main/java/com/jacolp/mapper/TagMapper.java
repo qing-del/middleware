@@ -57,9 +57,14 @@ public interface TagMapper {
     List<TagEntity> selectIdsByNamesAndUserId(List<String> tagNames, Long userId);
 
     /**
-     * 用户端条件查询：当前用户自己的标签 + 别人已通过审核的标签。
+     * 用户端条件查询：根据 scope 控制查询范围。
+     * @param userId 用户 ID
+     * @param keyword 关键词
+     * @param globalScope true=全局模式（自己的+别人已通过），false=仅自己
      */
-    List<TagVO> listByUserCondition(@Param("userId") Long userId, @Param("keyword") String keyword);
+    List<TagVO> listByUserCondition(@Param("userId") Long userId,
+                                    @Param("keyword") String keyword,
+                                    @Param("globalScope") boolean globalScope);
 
     /**
      * 根据标签id查询标签

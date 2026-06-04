@@ -32,6 +32,15 @@ public class KeyToolUtil {
     }
 
     /**
+     * 获取激活邮件发送冷却 key
+     * @param userId 用户ID
+     * @return 冷却 key
+     */
+    public static @NonNull String getActivationEmailCooldownKey(Long userId) {
+        return UserConstant.ACTIVE_EMAIL_SEND_COOLDOWN_PREFIX + userId;
+    }
+
+    /**
      * 获取邮箱更改验证码对应的 Redis key（6位数字 → userId|newEmail）
      * @param code 6位验证码
      * @return Redis key

@@ -3,11 +3,13 @@ import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminApi, type AdminNoteItem } from '@/api/admin'
 import { getNoteStatusInfo, NoteStatusCode, type NoteBacklinkVO } from '@/api/notes'
+import { enhanceArticleContent } from '@/utils/enhanceArticle'
 import {
   ArrowLeft, Globe, Calendar, HardDrive, Layers, Hash, ImageIcon, Link,
   Network, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
   LayoutPanelTop, Loader2, RefreshCw, X, ChevronRight, FileText, Trash2, Clock
 } from 'lucide-vue-next'
+import { confirmAction, toastSuccess, toastError } from '@/utils/feedback'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,6 +26,9 @@ const showTocPanel = ref(false)
 const tocWrapperRef = ref<HTMLElement | null>(null)
 const tocBallRef = ref<HTMLElement | null>(null)
 const tocPanelRef = ref<HTMLElement | null>(null)
+
+// 笔记正文容器 ref —— 用于在 v-html 更新后局部增强文章内容
+const articleContentRef = ref<HTMLElement | null>(null)
 
 // 动态管理悬浮面板的方向和定位
 const panelPosClasses = ref(['bottom-full', 'right-0', 'mb-4', 'origin-bottom-right'])
@@ -79,9 +84,6 @@ function resolveStatusIcon(iconName: string) {
 }
 
 // ── Helpers ───────────────────────────────────────
-function showAlert(msg: string) { window.alert(msg) }
-function showConfirm(msg: string): boolean { return window.confirm(msg) }
-
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
   const u = ['B', 'KB', 'MB', 'GB']
@@ -107,12 +109,12 @@ async function handleConvert() {
   converting.value = true
   try {
     await adminApi.convertNote(note.value.id)
-    showAlert('转换指令已下达')
+    toastSuccess('转换指令已下达')
     await fetchNote()
     await nextTick()
     await bindTocEvents()
   } catch {
-    showAlert('转换指令执行失败')
+    toastError('转换指令执行失败')
   } finally {
     converting.value = false
   }
@@ -120,12 +122,12 @@ async function handleConvert() {
 
 async function handleDelete() {
   if (!note.value) return
-  if (!showConfirm('确定删除该笔记吗？管理端删除操作不可撤回')) return
+  if (!await confirmAction({ content: '确定删除该笔记吗？管理端删除操作不可撤回', danger: true })) return
   try {
     await adminApi.deleteNotes([note.value.id])
-    showAlert('笔记已删除')
+    toastSuccess('笔记已删除')
     router.push('/admin/notes')
-  } catch { showAlert('删除失败') }
+  } catch { toastError('删除失败') }
 }
 
 // ── Data fetching ─────────────────────────────────
@@ -191,11 +193,25 @@ watch(() => route.params.noteId, async (newId, oldId) => {
   backlinksFetched.value = false
   backlinksError.value = null
   window.scrollTo(0, 0)
-  
+
   await fetchNote()
   await nextTick()
   await bindTocEvents()
 }, { immediate: true })
+
+// ── 文章内容增强（表格、代码高亮、Mermaid） ──────
+// 后端把 Markdown 转成 HTML，v-html 写入 DOM 后还需要后续增强。
+// watch bodyHtml 在 nextTick 后对 articleContentRef 范围内执行：
+//   1. 表格包装  2. 代码语法高亮  3. Mermaid 渲染
+watch(
+  () => note.value?.converted?.bodyHtml,
+  async (html) => {
+    if (!html) return
+    await nextTick()
+    await enhanceArticleContent(articleContentRef.value)
+  },
+  { immediate: true }
+)
 
 // ── Floating TOC Logic ────────────────────────────
 function onTocLinkClick(e: Event) {
@@ -463,7 +479,7 @@ onUnmounted(() => {
               </div>
             </header>
 
-            <div class="article-content" v-html="note.converted.bodyHtml" />
+            <div ref="articleContentRef" class="article-content" v-html="note.converted.bodyHtml" />
           </article>
         </div>
 
@@ -776,6 +792,42 @@ onUnmounted(() => {
 }
 .article-content :deep(h2::before) { content: '#'; color: #3b82f6; margin-right: 0.5rem; opacity: 0.6; font-size: 1.2rem; }
 .article-content :deep(h3) { font-size: 1.25rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: #e2e8f0; }
+.article-content :deep(h4),
+.article-content :deep(h5),
+.article-content :deep(h6) {
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 1.6rem;
+  margin-bottom: 0.75rem;
+}
+.article-content :deep(h4) {
+  font-size: 1.125rem;
+  color: #f1f5f9;
+  padding-left: 0.75rem;
+  border-left: 3px solid rgba(59, 130, 246, 0.65);
+}
+.article-content :deep(h5) {
+  font-size: 1rem;
+  color: #dbeafe;
+  display: flex;
+  align-items: center;
+}
+.article-content :deep(h5::before) {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.55rem;
+  border-radius: 9999px;
+  background: #60a5fa;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.45);
+  flex: 0 0 auto;
+}
+.article-content :deep(h6) {
+  font-size: 0.9375rem;
+  color: #bfdbfe;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed rgba(96, 165, 250, 0.35);
+}
 
 /* ── In-article TOC block (h1 + following ul) ── */
 .article-content :deep(h1 + ul),
@@ -812,19 +864,173 @@ onUnmounted(() => {
   padding: 1rem 1.5rem; border-radius: 0 12px 12px 0; margin-bottom: 1.5rem;
   color: #94a3b8; font-style: italic;
 }
+/* ===== Table 样式 ===== */
+.article-content :deep(.table-wrapper) {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border-radius: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.article-content :deep(.table-wrapper table) {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.article-content :deep(.table-wrapper thead) {
+  border-bottom: 2px solid rgba(148, 163, 184, 0.25);
+}
+.article-content :deep(.table-wrapper th) {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.article-content :deep(.table-wrapper td) {
+  padding: 0.65rem 1rem;
+  vertical-align: middle;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.article-content :deep(.table-wrapper tbody tr:nth-child(even)) {
+  background: rgba(148, 163, 184, 0.04);
+}
+.article-content :deep(.table-wrapper tbody tr:hover) {
+  background: rgba(59, 130, 246, 0.08);
+}
+.article-content :deep(.table-wrapper tbody tr:last-child td) {
+  border-bottom: none;
+}
+.article-content :deep(.table-wrapper td:first-child),
+.article-content :deep(.table-wrapper th:first-child) {
+  padding-left: 1.25rem;
+}
+.article-content :deep(.table-wrapper td:last-child),
+.article-content :deep(.table-wrapper th:last-child) {
+  padding-right: 1.25rem;
+}
+
 .article-content :deep(pre) {
   background: #0b0f19; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
   padding: 1.25rem; overflow-x: auto; margin-bottom: 1.5rem; margin-top: 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.875rem; color: #e2e8f0; position: relative;
+  font-size: 0.875rem; line-height: 1.75; color: #e2e8f0; position: relative;
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+  -webkit-overflow-scrolling: touch;
 }
 .article-content :deep(:not(pre) > code) {
   background: rgba(255, 255, 255, 0.1); padding: 0.2em 0.4em; border-radius: 6px;
-  font-size: 0.85em; color: #93c5fd; font-family: monospace;
+  font-size: 0.85em; line-height: 1.6; color: #93c5fd;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
-.article-content :deep(pre code) { background: transparent; padding: 0; border: none; color: inherit; }
+.article-content :deep(pre code) {
+  display: block;
+  min-width: max-content;
+  background: transparent;
+  padding: 0;
+  border: none;
+  color: inherit;
+  line-height: inherit;
+  font-family: inherit;
+}
+
+/* ===== Obsidian Callout 样式 ===== */
+.article-content :deep(.callout) {
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  border-left: 4px solid;
+  background: rgba(255, 255, 255, 0.03);
+  line-height: 1.75;
+}
+.article-content :deep(.callout .callout-title) {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.article-content :deep(.callout .callout-content) {
+  color: #cbd5e1;
+}
+.article-content :deep(.callout .callout-content p) {
+  margin-bottom: 0.5rem;
+}
+.article-content :deep(.callout .callout-content p:last-child) {
+  margin-bottom: 0;
+}
+/* callout-note —— 蓝色 */
+.article-content :deep(.callout.callout-note) {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+.article-content :deep(.callout.callout-note .callout-title) {
+  color: #93c5fd;
+}
+.article-content :deep(.callout.callout-note .callout-title::before) {
+  content: '📝';
+  font-size: 0.9rem;
+}
+/* callout-tip —— 绿色 */
+.article-content :deep(.callout.callout-tip) {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+.article-content :deep(.callout.callout-tip .callout-title) {
+  color: #86efac;
+}
+.article-content :deep(.callout.callout-tip .callout-title::before) {
+  content: '💡';
+  font-size: 0.9rem;
+}
+/* callout-warning —— 琥珀色 */
+.article-content :deep(.callout.callout-warning) {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+.article-content :deep(.callout.callout-warning .callout-title) {
+  color: #fcd34d;
+}
+.article-content :deep(.callout.callout-warning .callout-title::before) {
+  content: '⚠️';
+  font-size: 0.9rem;
+}
+/* callout-question —— 紫色 */
+.article-content :deep(.callout.callout-question) {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.08);
+}
+.article-content :deep(.callout.callout-question .callout-title) {
+  color: #c4b5fd;
+}
+.article-content :deep(.callout.callout-question .callout-title::before) {
+  content: '❓';
+  font-size: 0.9rem;
+}
+
+/* Mermaid 图表容器 —— 后端把 ```mermaid``` 代码块转成 <div class="mermaid">..</div> */
+.article-content :deep(.mermaid) {
+  width: 100%;
+  overflow-x: auto;
+  text-align: center;
+  margin: 16px 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.article-content :deep(.mermaid svg) {
+  max-width: 100%;
+  height: auto;
+}
 .article-content :deep(img) {
   max-width: 100%; height: auto; border-radius: 12px; margin: 2rem auto; display: block;
   border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);

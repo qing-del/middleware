@@ -18,6 +18,7 @@ export interface TopicPageResult {
 
 export interface TopicQueryParams {
   keyword?: string
+  scope?: 'personal' | 'global'
   pageNum?: number
   pageSize?: number
 }

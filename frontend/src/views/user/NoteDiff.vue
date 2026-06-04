@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { noteApi } from '@/api/notes'
 import type { NoteModifyDiffDetailVO, NoteDiffVO } from '@/api/notes'
 import { ArrowLeft, FileDiff, FileText, Loader2, CheckCircle2, XCircle } from 'lucide-vue-next'
+import { confirmAction, toastSuccess, toastError } from '@/utils/feedback'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,9 +26,6 @@ interface DiffLine {
   text: string
   type: DiffLineType
 }
-
-function showAlert(msg: string) { window.alert(msg) }
-function showConfirm(msg: string): boolean { return window.confirm(msg) }
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
@@ -195,14 +193,14 @@ async function handleConfirmChange(confirm: boolean) {
   if (!diffDetail.value || confirming.value) return
   const noteId = diffDetail.value.noteId
   const tip = confirm ? '确认应用本次变更吗？' : '确认取消变更并回滚吗？'
-  if (!showConfirm(tip)) return
+  if (!await confirmAction({ content: tip, danger: !confirm })) return
   confirming.value = true
   try {
     await noteApi.confirmChange(noteId, confirm)
-    showAlert(confirm ? '变更已确认并生效。' : '变更已取消并回滚。')
+    toastSuccess(confirm ? '变更已确认并生效' : '变更已取消并回滚')
     router.push('/user/notes')
   } catch {
-    showAlert(confirm ? '确认变更失败，请重试。' : '取消变更失败，请重试。')
+    toastError(confirm ? '确认变更失败，请重试' : '取消变更失败，请重试')
   } finally {
     confirming.value = false
   }

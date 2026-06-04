@@ -184,4 +184,24 @@
         ORDER BY m.create_time DESC
     </select>
 
+    <select id="selectPublicEachNotesBySourceNoteId" resultType="com.jacolp.pojo.vo.note.NoteEachSimpleVO">
+        SELECT
+            m.target_note_id   AS targetNoteId,
+            target.title       AS targetNoteTitle,
+            m.parsed_note_name AS parsedNoteName,
+            m.anchor           AS anchor,
+            m.nickname         AS nickname,
+            0                  AS isMissing
+        FROM biz_note_each_mapping m
+        INNER JOIN biz_note source ON source.id = m.source_note_id
+        INNER JOIN biz_note target ON target.id = m.target_note_id
+        WHERE m.source_note_id = #{sourceNoteId}
+          AND m.target_note_id IS NOT NULL
+          AND m.is_deleted = 0
+          AND m.is_pass = 1
+          AND source.status = 6
+          AND target.status = 6
+        ORDER BY m.create_time ASC
+    </select>
+
 </mapper>

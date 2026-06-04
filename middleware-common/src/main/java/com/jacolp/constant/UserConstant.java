@@ -26,6 +26,7 @@ public class UserConstant {
     public static final String JWT_NOT_VALID = "无效的激活链接";
     public static final String ACTIVE_SIGN_KEY = "active";
     public static final String ACTIVE_CODE_PREFIX = "active:code:";
+    public static final String ACTIVE_EMAIL_SEND_COOLDOWN_PREFIX = "active:send-cooldown:";
 
     public static final String USER_LOGIN_FAILED = "用户登录失败";
     public static final String NOT_FOUND_USER = "用户不存在";
@@ -54,4 +55,6 @@ public class UserConstant {
     public static final String OLD_EMAIL_NOT_MATCH = "原邮箱地址与当前绑定邮箱不匹配";
     public static final String EMAIL_CHANGE_DIRECT_NOT_ALLOWED = "已激活账号请通过邮箱验证流程修改邮箱";
     public static final String ACCOUNT_NOT_ACTIVATED = "账号未激活，请先激活账号";
+    public static final String ACTIVATION_EMAIL_SEND_FAILED = "激活邮件发送失败，请稍后重试或使用重发激活邮件";
+    public static final String ACTIVATION_EMAIL_SEND_TOO_FREQUENT = "请求过于频繁，请稍后再试";
 }

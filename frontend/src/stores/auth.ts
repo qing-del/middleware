@@ -44,6 +44,14 @@ export const useAuthStore = defineStore('auth', () => {
     return authApi.register(data)
   }
 
+  async function resendActivation(account: string) {
+    return authApi.resendActivation({ account })
+  }
+
+  async function verifyActivationCode(code: string) {
+    return authApi.verifyActivationCode({ code })
+  }
+
   async function fetchUserInfo() {
     if (!token.value) return null
     try {
@@ -117,6 +125,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     adminLogin,
     register,
+    resendActivation,
+    verifyActivationCode,
     fetchUserInfo,
     fetchAdminUserInfo,
     updateProfile,

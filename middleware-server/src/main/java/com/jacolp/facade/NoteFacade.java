@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import com.jacolp.annotation.GuestCacheEvict;
+import com.jacolp.constant.GuestCacheConstant;
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.context.StorageUpdateContext;
@@ -105,6 +107,10 @@ public interface NoteFacade {
      *     <li>- 已通过 -> 发布</li>
      * </ol>
      */
+    @GuestCacheEvict(cacheNames = {
+            GuestCacheConstant.GUEST_NOTE_LIST_CACHE,
+            GuestCacheConstant.GUEST_NOTE_DETAIL_CACHE
+    })
     void updateNoteStatus(Long noteId, Short status);
 
     /**

@@ -18,6 +18,7 @@ import org.springframework.util.StringUtils;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
+import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.UserConstant;
@@ -211,10 +212,11 @@ public class TagServiceImpl implements TagService {
             dto = new UserTagQueryDTO();
         }
         Long userId = BaseContext.getCurrentId();
+        boolean globalScope = ScopeConstant.SCOPE_GLOBAL.equals(dto.getScope());
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
-        List<TagVO> records = tagMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()));
+        List<TagVO> records = tagMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()), globalScope);
         PageInfo<TagVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }

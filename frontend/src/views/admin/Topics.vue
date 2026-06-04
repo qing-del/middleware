@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '@/api/admin'
 import type { AdminTopicItem, PageResult } from '@/api/admin'
 import { Layers, Search, Trash2, Loader2, ChevronLeft, ChevronRight, Info } from 'lucide-vue-next'
+import { confirmAction } from '@/utils/feedback'
 
 const loading = ref(true)
 const topicList = ref<AdminTopicItem[]>([])
@@ -109,14 +110,14 @@ function toggleSelect(id: number) {
 }
 
 async function handleDelete(id: number) {
-  if (!confirm('确定删除该主题吗？')) return
+  if (!await confirmAction({ content: '确定删除该主题吗？', danger: true })) return
   await adminApi.deleteTopics([id])
   await fetchTopics()
 }
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确定删除已选择的 ${selectedIds.value.size} 个主题吗？`)) return
+  if (!await confirmAction({ content: `确定删除已选择的 ${selectedIds.value.size} 个主题吗？`, danger: true })) return
   await adminApi.deleteTopics([...selectedIds.value])
   selectedIds.value.clear()
   await fetchTopics()

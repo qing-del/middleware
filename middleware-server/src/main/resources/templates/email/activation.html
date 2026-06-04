@@ -23,7 +23,7 @@
               <!-- Text -->
               <p style="color:#94a3b8; margin:0 0 16px; text-align: left;" th:text="'你好，' + ${username}">你好，</p>
               <p style="color:#cbd5e1; line-height:1.7; margin:0 0 8px; text-align: left;">感谢注册 CoreNode。请点击下方按钮激活你的账号：</p>
-              <p style="color:#64748b; font-size:13px; margin:0 0 24px; text-align: left;">（链接 <span th:text="${expiryMinutes}"></span> 分钟内有效）</p>
+              <p style="color:#64748b; font-size:13px; margin:0 0 24px; text-align: left;">（链接 <span th:text="${linkExpiryMinutes}"></span> 分钟内有效）</p>
 
               <!-- Action Button -->
               <div style="margin-bottom:24px;">
@@ -32,7 +32,7 @@
 
               <!-- Activation Code -->
               <div style="margin:24px 0; padding:20px; background-color:#1e1b4b; border:1px solid #3730a3; border-radius:12px;">
-                <p style="color:#94a3b8; font-size:13px; margin:0 0 12px;">或直接输入激活码：</p>
+                <p style="color:#94a3b8; font-size:13px; margin:0 0 12px;">或直接输入激活码（<span th:text="${codeExpiryMinutes}"></span> 分钟内有效）：</p>
                 <span th:text="${activationCode}" style="font-size:34px; font-weight:900; letter-spacing:10px; color:#e2e8f0; font-family:'Courier New', Courier, monospace;"></span>
               </div>
 

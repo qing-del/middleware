@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.AuditConstant;
+import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.TopicConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
@@ -211,9 +212,10 @@ public class TopicServiceImpl implements TopicService {
             dto = new UserTopicQueryDTO();
         }
         Long userId = BaseContext.getCurrentId();
+        boolean globalScope = ScopeConstant.SCOPE_GLOBAL.equals(dto.getScope());
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-        List<TopicListVO> records = topicMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()));
+        List<TopicListVO> records = topicMapper.listByUserCondition(userId, normalizeKeyword(dto.getKeyword()), globalScope);
         PageInfo<TopicListVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }
