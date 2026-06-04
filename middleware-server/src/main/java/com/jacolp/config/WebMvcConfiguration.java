@@ -47,6 +47,8 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .addPathPatterns("/user/**")
                 .excludePathPatterns("/user/user/login")
                 .excludePathPatterns("/user/user/register")
+                .excludePathPatterns("/user/user/active-code")      // 放行使用激活码的接口
+                .excludePathPatterns("/user/user/resend-activation")    // 放行重发重发验证码的端口
                 .excludePathPatterns("/user/user/active/**");   // 将激活接口放行
 
 

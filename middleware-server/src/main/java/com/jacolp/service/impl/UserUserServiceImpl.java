@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -60,7 +61,11 @@ public class UserUserServiceImpl implements UserUserService {
             throw new UserIsBanException(UserConstant.USER_IS_BANNED);
         }
 
-        // TODO 加入用户账号是否激活检测
+        // 2.2 账号未激活则拒绝登录
+        if (user.getStatus() == UserConstant.UNACTIVE_STATUS) {
+            log.error("User account is not activated, userId: {}", user.getId());
+            throw new BaseException(UserConstant.ACCOUNT_NOT_ACTIVATED);
+        }
 
         // 3. 校验密码是否一致
         boolean valid = passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword());
@@ -98,6 +103,7 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
         }
 
+        // 构建用户实体类（注册用户）
         UserEntity user = new UserEntity();
         user.setUsername(userRegisterDTO.getUsername());
         user.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
@@ -107,11 +113,19 @@ public class UserUserServiceImpl implements UserUserService {
         user.setStatus(UserConstant.UNACTIVE_STATUS);   // 默认用户状态为未激活
         user.setMaxStorageBytes(RoleConstant.USER_MAX_STORAGE_BYTES);   // 默认用户存储空间为 100MB
 
+        // 插入用户
         int count = userMapper.insertUser(user);
         if (count <= 0) {
             throw new BaseException("注册失败");
         }
-        return "注册成功";
+
+        try {
+            sendActivationEmail(user.getId());
+        } catch (Exception e) {
+            log.error("Failed to send activation email, userId: {}, email: {}", user.getId(), user.getEmail(), e);
+            return "注册成功，账号待邮箱激活；" + UserConstant.ACTIVATION_EMAIL_SEND_FAILED;
+        }
+        return "注册成功，请查收邮箱激活账号";
     }
 
     /**
@@ -217,7 +231,7 @@ public class UserUserServiceImpl implements UserUserService {
 
     /**
      * 用户激活
-     * @param userId 激活码
+     * @param userId 用户ID
      * @return 激活结果
      */
     @Override
@@ -247,15 +261,44 @@ public class UserUserServiceImpl implements UserUserService {
 
     /**
      * 发送激活邮件
+     * <p>- 底层调用的方法带有{@code userId}的每分钟限制</p>
      * @param userId 用户ID
      */
     @Override
     public void sendActivationEmail(Long userId) {
         UserEntity user = userMapper.selectById(userId);
+        sendActivationEmail(user);
+    }
+
+    @Override
+    public void sendActivationEmailByAccount(String account) {
+        if (!StringUtils.hasText(account)) {
+            throw new BaseException("用户名或邮箱不能为空");
+        }
+
+        String trimmedAccount = account.trim();
+        UserEntity user = EmailUtil.isValidEmail(trimmedAccount)
+                ? userMapper.selectByEmail(trimmedAccount)
+                : userMapper.selectByUsername(trimmedAccount);
+
+        if (user == null) {
+            log.error("User not found by account: {}", trimmedAccount);
+            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
+        }
+
+        sendActivationEmail(user);
+    }
+
+    /**
+     * 发送激活邮件
+     * <p>- 会通过 {@code Redis} 限制每分钟内单个用户只能收到一次验证码</p>
+     * @param user 用户信息
+     */
+    private void sendActivationEmail(UserEntity user) {
 
         // 检查用户是否存在
         if (user == null) {
-            log.error("User not found, userId: {}", userId);
+            log.error("User not found when sending activation email");
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
@@ -266,16 +309,24 @@ public class UserUserServiceImpl implements UserUserService {
 
         // 检查是否存在邮箱
         if (user.getEmail() == null || user.getEmail().isEmpty()) {
-            log.error("User email is empty, userId: {}", userId);
+            log.error("User email is empty, userId: {}", user.getId());
             throw new BaseException(UserConstant.USER_EMAIL_IS_EMPTY);
         }
 
         // 校验邮箱格式
         if (!EmailUtil.isValidEmail(user.getEmail())) {
-            log.error("Invalid email format, userId: {}, email: {}", userId, user.getEmail());
+            log.error("Invalid email format, userId: {}, email: {}", user.getId(), user.getEmail());
             throw new BaseException(UserConstant.INVALID_EMAIL_FORMAT);
         }
 
+        // 尝试使用 Redis 做用户速率限制
+        String cooldownKey = KeyToolUtil.getActivationEmailCooldownKey(user.getId());
+        Boolean acquired = redis.opsForValue().setIfAbsent(cooldownKey, "1", Duration.ofSeconds(60));
+        if (!Boolean.TRUE.equals(acquired)) {
+            throw new BaseException(UserConstant.ACTIVATION_EMAIL_SEND_TOO_FREQUENT);
+        }
+
+        // 发送邮件
         emailSenderService.sendActivationEmail(user);
         log.info("Activation email sent to: {}", user.getEmail());
     }
@@ -283,6 +334,8 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public String verifyActivationCode(String code) {
         String redisKey = KeyToolUtil.getActiveCodeKey(code);
+
+        // 获取用户ID
         String userIdStr = redis.opsForValue().get(redisKey);
         if (userIdStr == null) {
             throw new BaseException("激活码无效或已过期");
@@ -297,18 +350,23 @@ public class UserUserServiceImpl implements UserUserService {
     public void initiateEmailChange(@NotNull @Valid EmailChangeRequestDTO dto) {
         Long userId = BaseContext.getCurrentId();
         UserEntity user = userMapper.selectById(userId);
+
+        // 检查用户是否存在
         if (user == null) {
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
+        // 检查账号是否处于激活状态（激活了才可以修改邮箱）
         if (user.getStatus() != UserConstant.ACTIVE_STATUS) {
             throw new BaseException(UserConstant.ACCOUNT_NOT_ACTIVATED);
         }
 
+        // 检查旧邮箱
         if (!dto.getOldEmail().equals(user.getEmail())) {
             throw new BaseException(UserConstant.OLD_EMAIL_NOT_MATCH);
         }
 
+        // 检查邮箱是否合法 & 是否被支持
         if (!EmailUtil.isValidEmail(dto.getNewEmail())) {
             throw new BaseException(UserConstant.EMAIL_CHANGE_SEND_FAILED);
         }
@@ -317,6 +375,7 @@ public class UserUserServiceImpl implements UserUserService {
         }
 
         try {
+            // 发送修改邮箱的 6 位验证码邮件
             emailSenderService.sendEmailChangeCode(user, dto.getNewEmail());
         } catch (Exception e) {
             log.error("Failed to send email change code to {}: {}", dto.getNewEmail(), e.getMessage());

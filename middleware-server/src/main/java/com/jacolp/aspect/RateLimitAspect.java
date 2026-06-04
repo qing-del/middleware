@@ -1,7 +1,6 @@
 package com.jacolp.aspect;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.UUID;
 
 import com.jacolp.exception.RateLimitExceededException;
@@ -14,11 +13,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.jacolp.annotation.RateLimit;
 import com.jacolp.annotation.RateLimits;
 import com.jacolp.context.BaseContext;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -103,9 +105,68 @@ public class RateLimitAspect {
         redis.expire(key, Duration.ofSeconds(windowSeconds + 10));
     }
 
+    /**
+     * 如果是没有登录信息上下文就通过 ip 来进行限流
+     * @param limit
+     * @param signature
+     * @return
+     */
     private String buildKey(RateLimit limit, MethodSignature signature) {
-        Long userId = BaseContext.getCurrentId();
+        Long userId = BaseContext.getCurrentIdWithoutValid();
         String methodKey = signature.getDeclaringType().getSimpleName() + "." + signature.getName();
-        return limit.prefix() + ":" + methodKey + ":" + userId + ":" + limit.windowSeconds();
+        String identity = userId != null ? "user:" + userId : "ip:" + getClientIp();
+        return limit.prefix() + ":" + methodKey + ":" + identity + ":" + limit.windowSeconds();
+    }
+
+    private String getClientIp() {
+        ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            return "anonymous";
+        }
+        HttpServletRequest request = attributes.getRequest();
+        // 尝试从 CloudFlare 获取真实 IP
+        String cfConnectingIp = firstValidHeaderValue(request.getHeader("CF-Connecting-IP"));
+        if (cfConnectingIp != null) {
+            return cfConnectingIp;
+        }
+
+        // 尝试从 Nginx 获取真实 IP
+        String realIp = firstValidHeaderValue(request.getHeader("X-Real-IP"));
+        if (realIp != null) {
+            return realIp;
+        }
+
+        // 尝试从 X-Forwarded-For 获取真实 IP
+        String forwardedFor = firstValidForwardedFor(request.getHeader("X-Forwarded-For"));
+        if (forwardedFor != null) {
+            return forwardedFor;
+        }
+        return request.getRemoteAddr();
+    }
+
+    private String firstValidForwardedFor(String forwardedFor) {
+        if (forwardedFor == null || forwardedFor.isBlank()) {
+            return null;
+        }
+        String[] candidates = forwardedFor.split(",");
+        for (String candidate : candidates) {
+            String valid = firstValidHeaderValue(candidate);
+            if (valid != null) {
+                return valid;
+            }
+        }
+        return null;
+    }
+
+    private String firstValidHeaderValue(String headerValue) {
+        if (headerValue == null || headerValue.isBlank()) {
+            return null;
+        }
+        String value = headerValue.trim();
+        if ("unknown".equalsIgnoreCase(value)) {
+            return null;
+        }
+        return value;
     }
 }

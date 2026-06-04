@@ -22,4 +22,8 @@ public class BaseContext {
     public static void remove(){
         threadLocal.remove();
     }
+
+    public static Long getCurrentIdWithoutValid() {
+        return threadLocal.get();
+    }
 }
