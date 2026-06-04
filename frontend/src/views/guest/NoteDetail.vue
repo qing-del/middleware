@@ -15,11 +15,21 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const note = ref<GuestNoteDetailVO | null>(null)
 const articleContentRef = ref<HTMLElement | null>(null)
+const sidebarTocRef = ref<HTMLElement | null>(null)
+const floatingTocRef = ref<HTMLElement | null>(null)
 const showTocPanel = ref(false)
 const tocWrapperRef = ref<HTMLElement | null>(null)
 const tocBallRef = ref<HTMLElement | null>(null)
 const matrixCollapsed = ref(false)
 const panelPosClasses = ref(['bottom-full', 'right-0', 'mb-4', 'origin-bottom-right'])
+const activeAnchor = ref<string>('')
+
+// 固定头部偏移 —— GuestLayout 的 header 是 h-16 (4rem)，加点呼吸距离
+const HEADER_OFFSET = 88
+
+// 媒体查询：尊重用户的减少动态效果偏好
+const prefersReducedMotion = typeof window !== 'undefined'
+  && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 function formatDate(raw?: string) {
   if (!raw) return '-'
@@ -29,33 +39,122 @@ function formatDate(raw?: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-  const main = document.querySelector('main')
-  if (main) main.scrollTo({ top: 0, behavior: 'smooth' })
-  showTocPanel.value = false
+// ── 锚点查找 / 滚动 ─────────────────────────────────
+
+/** CSS.escape 的安全 polyfill —— 老浏览器或 SSR 兜底 */
+function safeCssEscape(value: string): string {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    try { return CSS.escape(value) } catch { /* fall through */ }
+  }
+  return value.replace(/["\\\]\[\(\)\{\}\.#:~>+*^$|?!,;@%&=`'/]/g, '\\$&')
 }
 
-function toggleMatrix() {
-  matrixCollapsed.value = !matrixCollapsed.value
-  showTocPanel.value = false
+/** 在指定根节点内按多种选择器查找锚点目标 */
+function findInRoot(root: ParentNode | Document, key: string): HTMLElement | null {
+  const escaped = safeCssEscape(key)
+  const selectors = [
+    `[id="${escaped}"]`,
+    `[name="${escaped}"]`,
+    `a[id="${escaped}"]`,
+    `a[name="${escaped}"]`,
+    `[data-anchor="${escaped}"]`,
+  ]
+  for (const sel of selectors) {
+    try {
+      const el = root.querySelector<HTMLElement>(sel)
+      if (el) return el
+    } catch { /* invalid selector, skip */ }
+  }
+  return null
+}
+
+/** 解码 + 在正文内优先查、document 兜底 */
+function findAnchorTarget(rawId: string): HTMLElement | null {
+  if (!rawId) return null
+  let decoded = rawId
+  try { decoded = decodeURIComponent(rawId) } catch { /* keep raw */ }
+
+  const container = articleContentRef.value
+  if (container) {
+    const el = findInRoot(container, decoded) || (decoded !== rawId ? findInRoot(container, rawId) : null)
+    if (el) return el
+  }
+  return findInRoot(document, decoded) || (decoded !== rawId ? findInRoot(document, rawId) : null)
+}
+
+/**
+ * 滚动到指定锚点，window 滚动，扣除固定头部偏移。
+ * 返回是否成功定位到元素。
+ */
+function scrollToAnchor(rawId: string, options?: { highlight?: boolean }): boolean {
+  const el = findAnchorTarget(rawId)
+  if (!el) return false
+
+  const rect = el.getBoundingClientRect()
+  const top = rect.top + window.scrollY - HEADER_OFFSET
+  const behavior: ScrollBehavior = prefersReducedMotion ? 'auto' : 'smooth'
+  window.scrollTo({ top: Math.max(0, top), behavior })
+
+  // 兼容 main 内部可能有滚动容器（当前 GuestLayout 是 window 滚动，这里只是防御）
+  const mainEl = document.querySelector('main')
+  if (mainEl && mainEl.scrollHeight > mainEl.clientHeight) {
+    const mainRect = mainEl.getBoundingClientRect()
+    const offsetWithinMain = rect.top - mainRect.top + mainEl.scrollTop - HEADER_OFFSET
+    try { mainEl.scrollTo({ top: Math.max(0, offsetWithinMain), behavior }) } catch { /* ignore */ }
+  }
+
+  setActiveAnchor(rawId)
+
+  if (options?.highlight !== false && !prefersReducedMotion) {
+    el.classList.remove('anchor-flash')
+    void el.offsetWidth
+    el.classList.add('anchor-flash')
+    window.setTimeout(() => el.classList.remove('anchor-flash'), 1600)
+  }
+  return true
+}
+
+/** 给目录容器内当前 href 的链接打 active class */
+function highlightTocLink(root: HTMLElement | null, rawId: string) {
+  if (!root || !rawId) return
+  root.querySelectorAll<HTMLElement>('.toc-link--active').forEach(n => n.classList.remove('toc-link--active'))
+  const escaped = safeCssEscape(rawId)
+  let target: HTMLElement | null = null
+  try { target = root.querySelector<HTMLElement>(`a[href="#${escaped}"]`) } catch { target = null }
+  if (target) target.classList.add('toc-link--active')
+}
+
+function setActiveAnchor(rawId: string) {
+  activeAnchor.value = rawId
+  highlightTocLink(sidebarTocRef.value, rawId)
+  highlightTocLink(floatingTocRef.value, rawId)
 }
 
 function scrollToHashAnchor() {
   const hash = route.hash
   if (!hash) return
-  try {
-    const rawId = hash.replace('#', '')
-    const id = decodeURIComponent(rawId)
-    nextTick(() => {
-      setTimeout(() => {
-        const el = document.getElementById(id) || document.getElementById(rawId)
-        if (el) el.scrollIntoView({ behavior: 'smooth' })
-      }, 120)
-    })
-  } catch {
-    // ignore malformed hash
+  const rawId = hash.replace('#', '')
+  nextTick(() => {
+    // v-html + enhanceArticleContent 后给浏览器一帧布局时间
+    setTimeout(() => { scrollToAnchor(rawId) }, 120)
+  })
+}
+
+/** 统一的 hash 链接点击处理 —— 正文/侧栏/浮动面板共用 */
+function handleHashLinkClick(e: Event, opts?: { closePanel?: boolean }) {
+  const link = (e.target as HTMLElement).closest('a[href^="#"]') as HTMLAnchorElement | null
+  if (!link) return
+  const href = link.getAttribute('href')
+  if (!href || href === '#') return
+  e.preventDefault()
+
+  const rawId = href.slice(1)
+  // 即时滚动，不依赖 hash watcher（同 hash 重复点击也能再次滚动）
+  scrollToAnchor(rawId)
+  if (route.hash !== href) {
+    router.replace({ hash: href }).catch(() => { /* duplicate/aborted, ignore */ })
   }
+  if (opts?.closePanel) showTocPanel.value = false
 }
 
 function onArticleClick(e: Event) {
@@ -69,47 +168,20 @@ function onArticleClick(e: Event) {
     router.push(anchor ? `/guest/notes/${noteId}#${anchor}` : `/guest/notes/${noteId}`)
     return
   }
-
-  const hashLink = target.closest('a[href^="#"]') as HTMLAnchorElement | null
-  if (hashLink) {
-    const href = hashLink.getAttribute('href')
-    if (!href || href === '#') return
-    e.preventDefault()
-    router.replace({ hash: href })
-  }
+  handleHashLinkClick(e)
 }
 
-function onTocClick(e: Event) {
-  const link = (e.target as HTMLElement).closest('a[href^="#"]') as HTMLAnchorElement | null
-  if (!link) return
-  e.preventDefault()
-  const href = link.getAttribute('href')
-  if (href) {
-    router.replace({ hash: href })
-    showTocPanel.value = false
-  }
+function onSidebarTocClick(e: Event) { handleHashLinkClick(e, { closePanel: true }) }
+function onFloatingTocClick(e: Event) { handleHashLinkClick(e, { closePanel: true }) }
+
+function scrollToTop() {
+  const behavior: ScrollBehavior = prefersReducedMotion ? 'auto' : 'smooth'
+  window.scrollTo({ top: 0, behavior })
+  showTocPanel.value = false
 }
 
-function onTocLinkClick(e: Event) {
-  const link = (e.target as HTMLElement).closest('a[href^="#"]') as HTMLAnchorElement | null
-  if (!link) return
-  e.preventDefault()
-  const rawId = link.getAttribute('href')?.slice(1)
-  if (!rawId) {
-    showTocPanel.value = false
-    return
-  }
-  try {
-    const id = decodeURIComponent(rawId)
-    const el = document.getElementById(id) || document.getElementById(rawId)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' })
-      router.replace({ hash: `#${rawId}` })
-    }
-  } catch {
-    const el = document.getElementById(rawId)
-    if (el) el.scrollIntoView({ behavior: 'smooth' })
-  }
+function toggleMatrix() {
+  matrixCollapsed.value = !matrixCollapsed.value
   showTocPanel.value = false
 }
 
@@ -286,8 +358,25 @@ watch(
     if (!html) return
     await nextTick()
     await enhanceArticleContent(articleContentRef.value)
+    // 增强完成后，正文里的 id 锚点才稳定 —— 此时再按当前 hash 定位一次
+    if (route.hash) {
+      scrollToHashAnchor()
+    } else {
+      activeAnchor.value = ''
+    }
   },
   { immediate: true }
+)
+
+watch(
+  () => note.value?.converted?.tocHtml,
+  async () => {
+    // 目录 v-html 更新后，若当前已有 activeAnchor，重新打高亮
+    if (!activeAnchor.value) return
+    await nextTick()
+    highlightTocLink(sidebarTocRef.value, activeAnchor.value)
+    highlightTocLink(floatingTocRef.value, activeAnchor.value)
+  }
 )
 
 onMounted(async () => {
@@ -365,7 +454,7 @@ onUnmounted(() => {
         </article>
 
         <aside class="guest-matrix min-w-0" :class="matrixCollapsed ? 'guest-matrix--collapsed' : 'guest-matrix--expanded'">
-          <div class="sticky top-24 space-y-4">
+          <div class="guest-matrix__sticky space-y-4">
             <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <div class="mb-3 flex items-center justify-between">
                 <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">资源矩阵</h2>
@@ -397,7 +486,7 @@ onUnmounted(() => {
                 <ListTree class="mr-2 h-4 w-4 text-cyan-300" />
                 目录
               </h2>
-              <div class="toc-list max-h-[36vh] overflow-y-auto pr-1" v-html="note.converted.tocHtml" @click="onTocClick" />
+              <div ref="sidebarTocRef" class="toc-list max-h-[36vh] overflow-y-auto pr-1" v-html="note.converted.tocHtml" @click="onSidebarTocClick" />
             </section>
 
             <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
@@ -436,7 +525,7 @@ onUnmounted(() => {
                 资源矩阵
               </button>
             </div>
-            <div v-if="note.converted?.tocHtml" class="toc-list" v-html="note.converted.tocHtml" @click="onTocLinkClick" />
+            <div v-if="note.converted?.tocHtml" ref="floatingTocRef" class="toc-list" v-html="note.converted.tocHtml" @click="onFloatingTocClick" />
             <p v-else class="py-2 text-center text-[10px] text-slate-500">暂无目录结构</p>
           </div>
 
@@ -458,6 +547,15 @@ onUnmounted(() => {
 <style scoped>
 .guest-detail-grid {
   grid-template-columns: minmax(0, 1fr);
+  /* 默认 stretch：aside 高度跟随正文，sticky 才能在滚动时持续粘附 */
+}
+
+/* aside 默认让 grid stretch（不显式设置 align-self），
+   这样 aside 高度等于正文高度，position:sticky 才能在长文中持续粘住。
+   注意：不能给 .guest-matrix 设置 overflow:hidden —— 否则 sticky 失效 */
+.guest-matrix {
+  transition: opacity 0.24s ease;
+  /* min-width:0 已在模板的 utility class 中 */
 }
 
 @media (min-width: 1280px) {
@@ -469,15 +567,40 @@ onUnmounted(() => {
     grid-template-columns: minmax(0, 1fr) 0fr;
   }
 
-  .guest-matrix {
-    overflow: hidden;
-    transition: opacity 0.24s ease;
-  }
-
+  /* 折叠态才隐藏溢出；展开态保持可见，sticky 不被破坏 */
   .guest-matrix--collapsed {
     opacity: 0;
     pointer-events: none;
+    overflow: hidden;
   }
+}
+
+/* 右侧矩阵：随屏幕滚动悬浮。
+   GuestLayout 是 window 滚动，aside 不设 align-self:start，让 grid stretch 把它撑满，
+   于是 sticky 的有效范围 = 正文高度，在长文中能持续贴顶。
+   max-height + overflow-y 防止内容超出视口被截掉。 */
+.guest-matrix__sticky {
+  position: sticky;
+  top: 5.5rem;
+  max-height: calc(100vh - 6.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 弱化滚动条 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.18) transparent;
+}
+.guest-matrix__sticky::-webkit-scrollbar {
+  width: 6px;
+}
+.guest-matrix__sticky::-webkit-scrollbar-track {
+  background: transparent;
+}
+.guest-matrix__sticky::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.18);
+  border-radius: 3px;
+}
+.guest-matrix__sticky::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.35);
 }
 
 .toc-list :deep(.toc-sidebar) { display: contents; }
@@ -489,6 +612,7 @@ onUnmounted(() => {
   gap: 0.125rem;
 }
 .toc-list :deep(.toc-link) {
+  position: relative;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -497,11 +621,23 @@ onUnmounted(() => {
   padding: 0.25rem 0.5rem;
   color: #94a3b8;
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+  border-left: 2px solid transparent;
 }
 .toc-list :deep(.toc-link:hover) {
   background: rgba(34, 211, 238, 0.08);
   color: #cffafe;
+  transform: translateX(2px);
+}
+.toc-list :deep(.toc-link:active) {
+  transform: translateX(1px) scale(0.98);
+}
+/* 当前激活的 TOC 项：左侧 cyan 竖条 + 高亮背景 */
+.toc-list :deep(.toc-link--active) {
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.12);
+  border-left-color: #22d3ee;
+  font-weight: 800;
 }
 .toc-list :deep(.toc-level-1) { font-size: 0.9rem; font-weight: 800; color: #e2e8f0; }
 .toc-list :deep(.toc-level-2) { font-size: 0.82rem; font-weight: 700; padding-left: 0.75rem; }
@@ -512,6 +648,22 @@ onUnmounted(() => {
   color: #cbd5e1;
   font-size: 1rem;
   line-height: 1.8;
+  scroll-behavior: smooth;
+}
+/* 锚点跳转后短暂高亮被定位的标题/段落 */
+.article-content :deep(.anchor-flash) {
+  animation: anchorFlash 1.6s ease-out;
+  border-radius: 0.4rem;
+}
+@keyframes anchorFlash {
+  0%   { background-color: rgba(34, 211, 238, 0.28); box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.18); }
+  60%  { background-color: rgba(34, 211, 238, 0.12); box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.08); }
+  100% { background-color: transparent;              box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-content :deep(.anchor-flash) { animation: none; }
+  .toc-list :deep(.toc-link) { transition: none; }
+  .toc-list :deep(.toc-link:hover) { transform: none; }
 }
 .article-content :deep(h1) {
   margin: 0 0 1.25rem;
