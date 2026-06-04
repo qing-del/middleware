@@ -9,6 +9,8 @@ import org.springframework.util.StringUtils;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.jacolp.annotation.GuestCacheable;
+import com.jacolp.constant.GuestCacheConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteEachMappingMapper;
@@ -38,6 +40,9 @@ public class GuestNoteServiceImpl implements GuestNoteService {
      * @return 笔记列表
      */
     @Override
+    @GuestCacheable(
+            cacheName = GuestCacheConstant.GUEST_NOTE_LIST_CACHE,
+            ttlSeconds = GuestCacheConstant.GUEST_NOTE_LIST_TTL_SECONDS)
     public PageResult listPublishedNotes(GuestNoteQueryDTO dto) {
         GuestNoteQueryDTO query = normalizeQuery(dto);
 
@@ -57,6 +62,9 @@ public class GuestNoteServiceImpl implements GuestNoteService {
      * @return 笔记详情
      */
     @Override
+    @GuestCacheable(
+            cacheName = GuestCacheConstant.GUEST_NOTE_DETAIL_CACHE,
+            ttlSeconds = GuestCacheConstant.GUEST_NOTE_DETAIL_TTL_SECONDS)
     public GuestNoteDetailVO getPublishedNoteDetail(Long noteId) {
         if (noteId == null || noteId <= 0) {
             throw new BaseException(NoteConstant.NOTE_ID_INVALID);
