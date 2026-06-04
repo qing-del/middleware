@@ -227,15 +227,6 @@ async function handleCancelAudit() {
   } catch { toastError('撤销审核失败') }
 }
 
-async function handleCancelAudit() {
-  if (!note.value) return
-  if (!showConfirm('确认撤销审核申请吗？撤销后笔记状态会回退到已转换。')) return
-  try {
-    await noteApi.cancelAudit(note.value.id)
-    await fetchNote()
-  } catch { showAlert('撤销审核失败') }
-}
-
 // ── Anchor scrolling ──────────────────────────────
 function scrollToHashAnchor() {
   const hash = route.hash
