@@ -6,6 +6,7 @@ import type { AdminImageItem, PageResult } from '@/api/admin'
 import type { ImageBacklinkVO } from '@/api/notes'
 import { getNoteStatusInfo } from '@/api/notes'
 import { Image, Search, Trash2, Loader2, X, ChevronLeft, ChevronRight, Globe, Eye, Upload, Info, FileText } from 'lucide-vue-next'
+import { confirmAction } from '@/utils/feedback'
 
 const loading = ref(true)
 const imageList = ref<AdminImageItem[]>([])
@@ -123,14 +124,14 @@ function toggleSelect(id: number) {
 }
 
 async function handleDelete(id: number) {
-  if (!confirm('确定删除该图片吗？')) return
+  if (!await confirmAction({ content: '确定删除该图片吗？', danger: true })) return
   await adminApi.deleteImages([id])
   await fetchImages()
 }
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确定删除 ${selectedIds.value.size} 张图片吗？`)) return
+  if (!await confirmAction({ content: `确定删除 ${selectedIds.value.size} 张图片吗？`, danger: true })) return
   await adminApi.deleteImages([...selectedIds.value])
   selectedIds.value.clear()
   await fetchImages()

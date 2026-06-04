@@ -8,6 +8,7 @@ import {
   Send, Info, Loader2, X, ChevronLeft, ChevronRight,
   ArrowUpDown, CornerUpLeft
 } from 'lucide-vue-next'
+import { confirmAction, toastWarning } from '@/utils/feedback'
 
 const authStore = useAuthStore()
 const loading = ref(true)
@@ -142,7 +143,7 @@ async function handleSubmit() {
   const name = formTopicName.value.trim()
   if (!name) return
   if (name.length > 25) {
-    alert('主题名称不能超过 25 个字符')
+    toastWarning('主题名称不能超过 25 个字符')
     return
   }
 
@@ -161,7 +162,7 @@ async function handleSubmit() {
 }
 
 async function handleDelete(id: number) {
-  if (!confirm('确定删除该主题吗？')) return
+  if (!await confirmAction({ content: '确定删除该主题吗？', danger: true })) return
   await topicApi.deleteTopics([id])
   selectedIds.value.delete(id)
   await fetchTopics()
@@ -169,20 +170,20 @@ async function handleDelete(id: number) {
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确定要删除已选择的 ${selectedIds.value.size} 个主题吗？`)) return
+  if (!await confirmAction({ content: `确定要删除已选择的 ${selectedIds.value.size} 个主题吗？`, danger: true })) return
   await topicApi.deleteTopics([...selectedIds.value])
   selectedIds.value.clear()
   await fetchTopics()
 }
 
 async function handleSubmitAudit(id: number) {
-  if (!confirm('确认提交该主题进行审核吗？')) return
+  if (!await confirmAction({ content: '确认提交该主题进行审核吗？' })) return
   await topicApi.submitAudit(id)
   await fetchTopics()
 }
 
 async function handleCancelAudit(id: number) {
-  if (!confirm('确认撤销该主题的审核申请吗？')) return
+  if (!await confirmAction({ content: '确认撤销该主题的审核申请吗？' })) return
   try {
     await topicApi.cancelAudit(id)
     await fetchTopics()

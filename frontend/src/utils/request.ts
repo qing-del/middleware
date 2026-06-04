@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
-import { Message } from '@arco-design/web-vue'
 import router from '@/router'
+import { toastError } from '@/utils/feedback'
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -28,7 +28,7 @@ instance.interceptors.response.use(
       if (res.code === 1) {
         return res.data
       }
-      Message.error(res.msg || '请求失败')
+      toastError(res.msg || '请求失败')
       return Promise.reject(new Error(res.msg || '请求失败'))
     }
     // 直接返回数据（没有 code 字段包装的情况）
@@ -44,9 +44,9 @@ instance.interceptors.response.use(
         router.push('/login')
       }
     } else if (status === 403) {
-      Message.error(error.response?.data?.msg || '无权访问')
+      toastError(error.response?.data?.msg || '无权访问')
     } else {
-      Message.error(error.message || '网络错误')
+      toastError(error.message || '网络错误')
     }
     return Promise.reject(error)
   }

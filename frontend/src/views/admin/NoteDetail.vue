@@ -9,6 +9,7 @@ import {
   Network, CheckCircle2, AlertTriangle, ListTree, ArrowUpToLine,
   LayoutPanelTop, Loader2, RefreshCw, X, ChevronRight, FileText, Trash2, Clock
 } from 'lucide-vue-next'
+import { confirmAction, toastSuccess, toastError } from '@/utils/feedback'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,9 +84,6 @@ function resolveStatusIcon(iconName: string) {
 }
 
 // ── Helpers ───────────────────────────────────────
-function showAlert(msg: string) { window.alert(msg) }
-function showConfirm(msg: string): boolean { return window.confirm(msg) }
-
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
   const u = ['B', 'KB', 'MB', 'GB']
@@ -111,12 +109,12 @@ async function handleConvert() {
   converting.value = true
   try {
     await adminApi.convertNote(note.value.id)
-    showAlert('转换指令已下达')
+    toastSuccess('转换指令已下达')
     await fetchNote()
     await nextTick()
     await bindTocEvents()
   } catch {
-    showAlert('转换指令执行失败')
+    toastError('转换指令执行失败')
   } finally {
     converting.value = false
   }
@@ -124,12 +122,12 @@ async function handleConvert() {
 
 async function handleDelete() {
   if (!note.value) return
-  if (!showConfirm('确定删除该笔记吗？管理端删除操作不可撤回')) return
+  if (!await confirmAction({ content: '确定删除该笔记吗？管理端删除操作不可撤回', danger: true })) return
   try {
     await adminApi.deleteNotes([note.value.id])
-    showAlert('笔记已删除')
+    toastSuccess('笔记已删除')
     router.push('/admin/notes')
-  } catch { showAlert('删除失败') }
+  } catch { toastError('删除失败') }
 }
 
 // ── Data fetching ─────────────────────────────────

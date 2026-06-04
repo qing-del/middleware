@@ -6,6 +6,7 @@ import {
   Users, Search, Trash2, Loader2, X, ChevronLeft, ChevronRight,
   Plus, Pencil, ShieldBan, ShieldCheck
 } from 'lucide-vue-next'
+import { confirmAction } from '@/utils/feedback'
 
 const loading = ref(true)
 const userList = ref<AdminUserItem[]>([])
@@ -192,14 +193,14 @@ async function handleSubmit() {
 }
 
 async function handleDelete(id: number) {
-  if (!confirm('确定删除该用户吗？')) return
+  if (!await confirmAction({ content: '确定删除该用户吗？', danger: true })) return
   await adminApi.deleteUsers([id])
   await fetchUsers()
 }
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确定删除 ${selectedIds.value.size} 个用户吗？`)) return
+  if (!await confirmAction({ content: `确定删除 ${selectedIds.value.size} 个用户吗？`, danger: true })) return
   await adminApi.deleteUsers([...selectedIds.value])
   selectedIds.value.clear()
   await fetchUsers()

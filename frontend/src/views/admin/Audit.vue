@@ -7,6 +7,7 @@ import {
   Loader2, ChevronLeft, ChevronRight, Eye, X, ExternalLink,
   User, Clock, AlertCircle, CheckCircle2
 } from 'lucide-vue-next'
+import { confirmAction, toastWarning } from '@/utils/feedback'
 
 // ── Types & Constants ───────────────────────────
 type AuditType = 'note' | 'image' | 'meta'
@@ -192,7 +193,7 @@ function toggleSelect(id: number) {
 
 async function handleBatchApprove() {
   if (selectedIds.value.size === 0) return
-  if (!window.confirm(`确定通过选中的 ${selectedIds.value.size} 项审核吗？`)) return
+  if (!await confirmAction({ content: `确定通过选中的 ${selectedIds.value.size} 项审核吗？` })) return
 
   loading.value = true
   try {
@@ -229,7 +230,7 @@ function closeModal() {
 async function handleSingleReview(status: number) {
   if (!currentRecord.value) return
   if (status === 2 && !rejectReason.value) {
-    window.alert('请填写驳回原因')
+    toastWarning('请填写驳回原因')
     return
   }
 

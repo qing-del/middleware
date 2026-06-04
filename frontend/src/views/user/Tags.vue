@@ -10,6 +10,7 @@ import {
   Tags, Plus, Search, Globe, Hash, Send, Info, Loader2,
   X, ChevronLeft, ChevronRight, Trash2, Link, FileText, CornerUpLeft
 } from 'lucide-vue-next'
+import { confirmAction, toastWarning } from '@/utils/feedback'
 
 const authStore = useAuthStore()
 const loading = ref(true)
@@ -164,7 +165,7 @@ async function handleSubmit() {
   const name = formTagName.value.trim()
   if (!name) return
   if (name.length > 20) {
-    alert('标签名称不能超过 20 个字符')
+    toastWarning('标签名称不能超过 20 个字符')
     return
   }
 
@@ -179,7 +180,7 @@ async function handleSubmit() {
 }
 
 async function handleDelete(id: number) {
-  if (!confirm('确定删除该标签吗？')) return
+  if (!await confirmAction({ content: '确定删除该标签吗？', danger: true })) return
   await tagApi.deleteTags([id])
   selectedIds.value.delete(id)
   await fetchTags()
@@ -187,20 +188,20 @@ async function handleDelete(id: number) {
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确定要删除已选择的 ${selectedIds.value.size} 个标签吗？`)) return
+  if (!await confirmAction({ content: `确定要删除已选择的 ${selectedIds.value.size} 个标签吗？`, danger: true })) return
   await tagApi.deleteTags([...selectedIds.value])
   selectedIds.value.clear()
   await fetchTags()
 }
 
 async function handleSubmitAudit(id: number) {
-  if (!confirm('确认提交该标签进行审核吗？')) return
+  if (!await confirmAction({ content: '确认提交该标签进行审核吗？' })) return
   await tagApi.submitAudit(id)
   await fetchTags()
 }
 
 async function handleCancelAudit(id: number) {
-  if (!confirm('确认撤销该标签的审核申请吗？')) return
+  if (!await confirmAction({ content: '确认撤销该标签的审核申请吗？' })) return
   try {
     await tagApi.cancelAudit(id)
     await fetchTags()

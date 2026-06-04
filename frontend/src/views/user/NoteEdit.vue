@@ -14,6 +14,7 @@ import { markdownContentToFile, formatCharCount, estimateByteSize, formatBytes, 
 import { markdownLinter, markdownLintGutter } from '@/utils/markdownLint'
 import { createBracketLinkCompletion, type NoteOption } from '@/utils/noteCompletion'
 import { ArrowLeft, Save, Loader2, AlertTriangle, FilePlus, FileEdit, Layers, Upload, FileUp, PenLine } from 'lucide-vue-next'
+import { alertInfo, confirmAction, toastError, toastWarning } from '@/utils/feedback'
 
 const route = useRoute()
 const router = useRouter()
@@ -268,16 +269,19 @@ async function handleImportFile(e: Event) {
   input.value = '' // allow re-import of the same file
   if (!file) return
   if (!/\.md$/i.test(file.name)) {
-    showAlert('请选择 .md 文件')
+    toastWarning('请选择 .md 文件')
     return
   }
   if (file.size > MAX_NOTE_FILE_SIZE) {
-    showAlert(`文件大小超过 300KB 限制（${formatBytes(file.size)}）`)
+    toastWarning(`文件大小超过 300KB 限制（${formatBytes(file.size)}）`)
     return
   }
   const currentContent = getEditorContent()
   if (isDirty.value && currentContent.trim()) {
-    const ok = window.confirm('编辑器中有未保存的内容，导入将覆盖。继续吗？')
+    const ok = await confirmAction({
+      title: '覆盖导入',
+      content: '编辑器中有未保存的内容，导入将覆盖。继续吗？'
+    })
     if (!ok) return
   }
   try {
@@ -287,7 +291,7 @@ async function handleImportFile(e: Event) {
     originalContent.value = '' // mark as dirty
     isDirty.value = true
   } catch (err: any) {
-    showAlert(err?.message || '读取文件失败')
+    toastError(err?.message || '读取文件失败')
   }
 }
 
@@ -299,7 +303,7 @@ function pickUploadFile() {
 function setUploadFile(file: File | null) {
   if (!file) { uploadFile.value = null; return }
   if (!/\.md$/i.test(file.name)) {
-    showAlert('请选择 .md 文件')
+    toastWarning('请选择 .md 文件')
     return
   }
   uploadFile.value = file
@@ -353,7 +357,6 @@ async function loadSource() {
 }
 
 // ── Save ─────────────────────────────────────────────
-function showAlert(msg: string) { window.alert(msg) }
 
 async function handleSave() {
   if (saving.value) return
@@ -364,13 +367,13 @@ async function handleSave() {
 
   // Validate title
   if (!title.value.trim()) {
-    showAlert('请先输入笔记标题')
+    toastWarning('请先输入笔记标题')
     return
   }
 
   // Validate size
   if (exceedsSizeLimit.value) {
-    showAlert(`文件大小超过 300KB 限制（当前 ${formatBytes(byteSize.value)}），请精简内容后重试。`)
+    toastWarning(`文件大小超过 300KB 限制（当前 ${formatBytes(byteSize.value)}），请精简内容后重试。`)
     return
   }
 
@@ -387,11 +390,11 @@ async function handleSave() {
       isDirty.value = false
       const missingTotal = (result.missingTags?.length ?? 0) + (result.missingImages?.length ?? 0) + (result.missingNoteNames?.length ?? 0)
       if (missingTotal > 0) {
-        showAlert(`笔记创建成功，但仍有 ${missingTotal} 项关联资源需要补全。`)
+        alertInfo(`笔记创建成功，但仍有 ${missingTotal} 项关联资源需要补全。`)
       }
       router.replace(`/user/notes/${result.noteId}`)
     } else {
-      if (noteId.value == null) { showAlert('笔记 ID 无效'); return }
+      if (noteId.value == null) { toastError('笔记 ID 无效'); return }
       await noteApi.modifyFile(noteId.value, file)
       saved.value = true
       isDirty.value = false
@@ -399,7 +402,7 @@ async function handleSave() {
     }
   } catch (e: any) {
     const message = e?.message || (isCreateMode.value ? '创建笔记失败' : '保存失败')
-    showAlert(message)
+    toastError(message)
   } finally {
     saving.value = false
   }
@@ -407,11 +410,11 @@ async function handleSave() {
 
 async function handleFileUploadSave() {
   if (!uploadFile.value) {
-    showAlert('请先选择要上传的 .md 文件')
+    toastWarning('请先选择要上传的 .md 文件')
     return
   }
   if (uploadExceedsSize.value) {
-    showAlert(`文件大小超过 300KB 限制（${formatBytes(uploadFileSize.value)}）`)
+    toastWarning(`文件大小超过 300KB 限制（${formatBytes(uploadFileSize.value)}）`)
     return
   }
   saving.value = true
@@ -422,17 +425,17 @@ async function handleFileUploadSave() {
       saved.value = true
       const missingTotal = (result.missingTags?.length ?? 0) + (result.missingImages?.length ?? 0) + (result.missingNoteNames?.length ?? 0)
       if (missingTotal > 0) {
-        showAlert(`笔记创建成功，但仍有 ${missingTotal} 项关联资源需要补全。`)
+        alertInfo(`笔记创建成功，但仍有 ${missingTotal} 项关联资源需要补全。`)
       }
       router.replace(`/user/notes/${result.noteId}`)
     } else {
-      if (noteId.value == null) { showAlert('笔记 ID 无效'); return }
+      if (noteId.value == null) { toastError('笔记 ID 无效'); return }
       await noteApi.modifyFile(noteId.value, uploadFile.value)
       saved.value = true
       router.push(`/user/notes/${noteId.value}/diff`)
     }
   } catch (e: any) {
-    showAlert(e?.message || '上传失败')
+    toastError(e?.message || '上传失败')
   } finally {
     saving.value = false
   }
@@ -459,9 +462,12 @@ function beforeUnloadHandler(e: BeforeUnloadEvent) {
   }
 }
 
-onBeforeRouteLeave((_to, _from, next) => {
+onBeforeRouteLeave(async (_to, _from, next) => {
   if (isDirty.value && !saved.value) {
-    const confirmLeave = window.confirm('你有未保存的更改，确定离开吗？')
+    const confirmLeave = await confirmAction({
+      title: '未保存的更改',
+      content: '你有未保存的更改，确定离开吗？'
+    })
     if (!confirmLeave) {
       next(false)
       return

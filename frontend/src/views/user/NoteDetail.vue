@@ -15,6 +15,7 @@ import {
   LayoutPanelTop, Loader2, RefreshCw, X, ChevronRight, FileText, Clock,
   Search, Plug, Unlink2, Mic, CornerUpLeft
 } from 'lucide-vue-next'
+import { confirmAction, toastSuccess, toastError, toastWarning, alertInfo } from '@/utils/feedback'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,8 +86,6 @@ function resolveStatusIcon(iconName: string) {
 }
 
 // ── Helpers ───────────────────────────────────────
-function showAlert(msg: string) { window.alert(msg) }
-function showConfirm(msg: string): boolean { return window.confirm(msg) }
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
@@ -181,12 +180,12 @@ async function handleConvert() {
   converting.value = true
   try {
     await noteApi.convertNote(note.value.id)
-    showAlert('转换成功，正在刷新...')
+    toastSuccess('转换成功，正在刷新...')
     await fetchNote()
     await nextTick()
     await bindTocEvents()
   } catch {
-    showAlert('转换失败，请确认笔记关联完整')
+    toastError('转换失败，请确认笔记关联完整')
   } finally {
     converting.value = false
   }
@@ -196,36 +195,36 @@ async function handlePublish() {
   if (!note.value) return
   try {
     await noteApi.publish(note.value.id, 1)
-    showAlert('发布成功')
+    toastSuccess('发布成功')
     await fetchNote()
-  } catch { showAlert('发布失败') }
+  } catch { toastError('发布失败') }
 }
 
 async function handleUnpublish() {
   if (!note.value) return
-  if (!showConfirm('确定下架该笔记吗？公开链接将不可访问')) return
+  if (!await confirmAction({ content: '确定下架该笔记吗？公开链接将不可访问', danger: true })) return
   try {
     await noteApi.publish(note.value.id, 0)
     await fetchNote()
-  } catch { showAlert('下架失败') }
+  } catch { toastError('下架失败') }
 }
 
 async function handleSubmitAudit() {
   if (!note.value) return
-  if (!showConfirm('确认提交审核吗？提交后将无法编辑')) return
+  if (!await confirmAction({ content: '确认提交审核吗？提交后将无法编辑' })) return
   try {
     await noteApi.submitAudit(note.value.id)
     await fetchNote()
-  } catch { showAlert('提交审核失败') }
+  } catch { toastError('提交审核失败') }
 }
 
 async function handleCancelAudit() {
   if (!note.value) return
-  if (!showConfirm('确认撤销审核申请吗？撤销后笔记状态会回退到已转换。')) return
+  if (!await confirmAction({ content: '确认撤销审核申请吗？撤销后笔记状态会回退到已转换。' })) return
   try {
     await noteApi.cancelAudit(note.value.id)
     await fetchNote()
-  } catch { showAlert('撤销审核失败') }
+  } catch { toastError('撤销审核失败') }
 }
 
 // ── Anchor scrolling ──────────────────────────────
@@ -482,7 +481,7 @@ async function handleBindSearch() {
 
 async function handleBindConfirm() {
   if (!currentBind.value || selectedBindTargetId.value == null) {
-    showAlert('请选择一个目标资源')
+    toastWarning('请选择一个目标资源')
     return
   }
   try {
@@ -494,24 +493,24 @@ async function handleBindConfirm() {
     } else {
       await noteApi.bindEach(currentBind.value.mappingId, targetId)
     }
-    showAlert('关联绑定成功')
+    toastSuccess('关联绑定成功')
     closeBindModal()
     await refreshRelations()
   } catch {
-    showAlert('绑定失败，请重试')
+    toastError('绑定失败，请重试')
   }
 }
 
 async function handleUnbind(type: BindTargetType, mappingId: number) {
-  if (!showConfirm('确认解除该关联绑定吗？')) return
+  if (!await confirmAction({ content: '确认解除该关联绑定吗？', danger: true })) return
   try {
     if (type === 'image') await noteApi.unbindImage(mappingId)
     else if (type === 'tag') await noteApi.unbindTag(mappingId)
     else await noteApi.unbindEach(mappingId)
-    showAlert('绑定已解除')
+    toastSuccess('绑定已解除')
     await refreshRelations()
   } catch {
-    showAlert('解绑失败，请重试')
+    toastError('解绑失败，请重试')
   }
 }
 
@@ -521,17 +520,17 @@ async function handleRecheckRelations() {
   try {
     const result = await noteApi.checkRelations(noteId)
     if (result.complete) {
-      showAlert('关联完整性校验通过。')
+      toastSuccess('关联完整性校验通过')
     } else {
       const lines: string[] = [`仍有 ${result.missingCount} 项关联需要补全：`]
       if (result.missingTags?.length) lines.push(`\n标签缺失：${result.missingTags.join('、')}`)
       if (result.missingImages?.length) lines.push(`\n图片缺失：${result.missingImages.join('、')}`)
       if (result.missingNoteNames?.length) lines.push(`\n双链缺失：${result.missingNoteNames.join('、')}`)
-      showAlert(lines.join(''))
+      alertInfo(lines.join(''), '关联完整性检查')
     }
     await refreshRelations()
   } catch {
-    showAlert('关联校验失败，请重试')
+    toastError('关联校验失败，请重试')
   }
 }
 

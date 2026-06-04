@@ -12,6 +12,7 @@ import {
   AlertTriangle, UploadCloud, ArrowRight, X, FolderTree, ChevronDown,
   Send, FilePlus, FileCode, HelpCircle, Ban, PenLine
 } from 'lucide-vue-next'
+import { alertInfo, confirmAction, toastError, toastSuccess } from '@/utils/feedback'
 
 const router = useRouter()
 const loading = ref(true)
@@ -149,8 +150,10 @@ function hideTooltip() {
   tooltipVisible.value = false
 }
 
-function showAlert(msg: string) { window.alert(msg) }
-function showConfirm(msg: string): boolean { return window.confirm(msg) }
+function showAlert(msg: string) { alertInfo(msg) }
+function showConfirm(msg: string, danger = false): Promise<boolean> {
+  return confirmAction({ content: msg, danger })
+}
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
@@ -388,17 +391,17 @@ async function handleUpload() {
     if (modifying) {
       const noteId = uploadTargetNoteId.value
       if (noteId == null) {
-        showAlert('缺少目标笔记ID，无法执行修改。')
+        toastError('缺少目标笔记ID，无法执行修改。')
         return
       }
       const diff = await noteApi.modifyFile(noteId, uploadFile.value)
       closeUploadModal()
-      showAlert(buildModifyDiffSummary(diff))
-      if (showConfirm('已生成待确认变更，是否立即确认并应用到正式版本？')) {
+      alertInfo(buildModifyDiffSummary(diff), '关联变化')
+      if (await showConfirm('已生成待确认变更，是否立即确认并应用到正式版本？')) {
         await noteApi.confirmChange(noteId, true)
-        showAlert('变更已确认并生效。')
+        toastSuccess('变更已确认并生效。')
       } else {
-        showAlert('变更已保留为待确认状态，可稍后确认或回滚。')
+        alertInfo('变更已保留为待确认状态，可稍后确认或回滚。')
       }
       await fetchNotes()
       return
@@ -410,17 +413,17 @@ async function handleUpload() {
     const missing = (res as unknown as { missingImages?: string[]; missingTags?: string[]; missingNoteNames?: string[] })
     const totalMissing = (missing.missingImages?.length ?? 0) + (missing.missingTags?.length ?? 0) + (missing.missingNoteNames?.length ?? 0)
     if (totalMissing > 0) {
-      showAlert(`笔记上传成功，但仍有 ${totalMissing} 项关联资源需要补全。`)
+      alertInfo(`笔记上传成功，但仍有 ${totalMissing} 项关联资源需要补全。`)
     }
   } catch {
-    showAlert(modifying ? '源文件修改失败，请重试。' : '上传失败，请重试。')
+    toastError(modifying ? '源文件修改失败，请重试。' : '上传失败，请重试。')
   } finally {
     uploadSubmitting.value = false
   }
 }
 
 async function handleDelete(id: number) {
-  if (!showConfirm('确定删除这篇笔记吗？此操作不可恢复。')) return
+  if (!await showConfirm('确定删除这篇笔记吗？此操作不可恢复。', true)) return
   await noteApi.deleteNote(id)
   await fetchNotes()
 }
@@ -441,12 +444,12 @@ async function handleSubmitAudit(id: number) {
 }
 
 async function handleCancelAudit(id: number) {
-  if (!showConfirm('确认撤销审核申请吗？撤销后笔记状态会回退到已转换。')) return
+  if (!await showConfirm('确认撤销审核申请吗？撤销后笔记状态会回退到已转换。')) return
   try {
     await noteApi.cancelAudit(id)
     await fetchNotes()
   } catch {
-    showAlert('撤销审核失败')
+    toastError('撤销审核失败')
   }
 }
 
@@ -455,17 +458,17 @@ async function handleConvert(id: number) {
     await noteApi.convertNote(id)
     await fetchNotes()
   } catch {
-    showAlert('转换失败，请确认笔记没有关联异常。')
+    toastError('转换失败，请确认笔记没有关联异常。')
   }
 }
 
 async function handleDeleteConverted(id: number) {
-  if (!showConfirm('确定删除转换缓存吗？笔记将回退为"待转换"状态，需重新执行转换。')) return
+  if (!await showConfirm('确定删除转换缓存吗？笔记将回退为"待转换"状态，需重新执行转换。', true)) return
   try {
     await noteApi.deleteConverted(id)
     await fetchNotes()
   } catch {
-    showAlert('删除转换缓存失败，请重试。')
+    toastError('删除转换缓存失败，请重试。')
   }
 }
 
@@ -480,17 +483,17 @@ async function handleCheckRelations(id: number) {
       missingNoteNames: string[]
     }
     if (result.complete) {
-      showAlert('关联完整性校验通过。')
+      toastSuccess('关联完整性校验通过。')
     } else {
       const lines: string[] = [`仍有 ${result.missingCount} 项关联需要补全：`]
       if (result.missingTags?.length) lines.push(`\n标签缺失：${result.missingTags.join('、')}`)
       if (result.missingImages?.length) lines.push(`\n图片缺失：${result.missingImages.join('、')}`)
       if (result.missingNoteNames?.length) lines.push(`\n双链缺失：${result.missingNoteNames.join('、')}`)
-      showAlert(lines.join(''))
+      alertInfo(lines.join(''), '关联校验')
     }
     await fetchNotes()
   } catch {
-    showAlert('校验失败，请重试。')
+    toastError('校验失败，请重试。')
   }
 }
 
@@ -503,7 +506,7 @@ async function handleViewSource(id: number) {
     sourceContent.value = src as unknown as string
     showSourceModal.value = true
   } catch {
-    showAlert('无法获取源文件。')
+    toastError('无法获取源文件。')
   }
 }
 
@@ -528,7 +531,7 @@ function handleOpenRelations(id: number) {
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!showConfirm(`确定删除已选择的 ${selectedIds.value.size} 篇笔记吗？`)) return
+  if (!await showConfirm(`确定删除已选择的 ${selectedIds.value.size} 篇笔记吗？`, true)) return
   for (const id of selectedIds.value) {
     try {
       await noteApi.deleteNote(id)
@@ -553,7 +556,7 @@ async function handleBatchPublish() {
   }
   selectedIds.value.clear()
   await fetchNotes()
-  if (count > 0) showAlert(`成功发布了 ${count} 篇笔记。`)
+  if (count > 0) toastSuccess(`成功发布了 ${count} 篇笔记。`)
 }
 
 function toggleGlobalSearch() {
