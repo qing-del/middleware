@@ -31,12 +31,138 @@ const HEADER_OFFSET = 88
 const prefersReducedMotion = typeof window !== 'undefined'
   && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
+const CALLOUT_TYPE_ALIASES: Record<string, string> = {
+  note: 'note',
+  info: 'info',
+  tip: 'tip',
+  hint: 'tip',
+  important: 'tip',
+  success: 'success',
+  check: 'success',
+  done: 'success',
+  warning: 'warning',
+  caution: 'warning',
+  attention: 'warning',
+  question: 'question',
+  help: 'question',
+  faq: 'question',
+  failure: 'failure',
+  fail: 'failure',
+  error: 'failure',
+  danger: 'failure',
+  bug: 'bug',
+  example: 'example',
+  quote: 'quote',
+  cite: 'quote'
+}
+
+const CALLOUT_DEFAULT_TITLES: Record<string, string> = {
+  note: 'Note',
+  info: 'Info',
+  tip: 'Tip',
+  success: 'Success',
+  warning: 'Warning',
+  question: 'Question',
+  failure: 'Failure',
+  bug: 'Bug',
+  example: 'Example',
+  quote: 'Quote'
+}
+
 function formatDate(raw?: string) {
   if (!raw) return '-'
   const d = new Date(raw)
   if (Number.isNaN(d.getTime())) return raw
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function resolveCalloutType(rawType: string): string {
+  const normalized = rawType.toLowerCase().trim()
+  return CALLOUT_TYPE_ALIASES[normalized] ?? normalized.replace(/[^\w-]/g, '')
+}
+
+function stripCalloutMarker(html: string): string {
+  return html.replace(/^\s*\[![\w-]+]\s*/i, '').trim()
+}
+
+function splitCalloutTitleAndBody(html: string, type: string) {
+  const match = html.match(/(?:<br\s*\/?>|\r?\n)/i)
+  if (!match || match.index == null) {
+    return {
+      titleHtml: html.trim() || CALLOUT_DEFAULT_TITLES[type] || type,
+      bodyHtml: ''
+    }
+  }
+
+  const titleHtml = html.slice(0, match.index).trim()
+  const bodyHtml = html.slice(match.index + match[0].length).trim()
+  return {
+    titleHtml: titleHtml || CALLOUT_DEFAULT_TITLES[type] || type,
+    bodyHtml
+  }
+}
+
+function transformGuestCalloutBlockquote(blockquote: HTMLElement) {
+  if (blockquote.dataset.calloutEnhanced === 'true') return
+
+  const firstChild = blockquote.firstElementChild as HTMLElement | null
+  if (!firstChild || firstChild.tagName.toLowerCase() !== 'p') return
+
+  const marker = firstChild.textContent?.match(/^\s*\[!([\w-]+)]/i)
+  if (!marker) return
+
+  const type = resolveCalloutType(marker[1])
+  if (!type) return
+
+  const callout = document.createElement('div')
+  callout.className = `callout callout-${type}`
+  callout.dataset.calloutEnhanced = 'true'
+
+  const title = document.createElement('div')
+  title.className = 'callout-title'
+
+  const content = document.createElement('div')
+  content.className = 'callout-content'
+
+  const { titleHtml, bodyHtml } = splitCalloutTitleAndBody(stripCalloutMarker(firstChild.innerHTML), type)
+  title.innerHTML = titleHtml
+
+  if (bodyHtml) {
+    const leadingParagraph = document.createElement('p')
+    leadingParagraph.innerHTML = bodyHtml
+    content.appendChild(leadingParagraph)
+  }
+
+  let node = firstChild.nextSibling
+  while (node) {
+    const next = node.nextSibling
+    content.appendChild(node)
+    node = next
+  }
+
+  callout.append(title, content)
+  blockquote.replaceWith(callout)
+}
+
+function markNestedGuestCallouts(container: HTMLElement) {
+  container.querySelectorAll<HTMLElement>('.callout').forEach((callout) => {
+    const parentCallout = callout.parentElement?.closest('.callout')
+    callout.classList.toggle('callout--nested', Boolean(parentCallout))
+  })
+}
+
+function normalizeGuestCallouts(container: HTMLElement) {
+  const blockquotes = Array.from(container.querySelectorAll<HTMLElement>('blockquote')).reverse()
+  blockquotes.forEach(transformGuestCalloutBlockquote)
+  markNestedGuestCallouts(container)
+}
+
+async function enhanceGuestArticleContent() {
+  const container = articleContentRef.value
+  if (!container) return
+  normalizeGuestCallouts(container)
+  await enhanceArticleContent(container)
 }
 
 // ── 锚点查找 / 滚动 ─────────────────────────────────
@@ -357,7 +483,7 @@ watch(
   async (html) => {
     if (!html) return
     await nextTick()
-    await enhanceArticleContent(articleContentRef.value)
+    await enhanceGuestArticleContent()
     // 增强完成后，正文里的 id 锚点才稳定 —— 此时再按当前 hash 定位一次
     if (route.hash) {
       scrollToHashAnchor()
@@ -721,6 +847,130 @@ onUnmounted(() => {
   background: rgba(34, 211, 238, 0.07);
   padding: 1rem 1.25rem;
   color: #94a3b8;
+}
+.article-content :deep(.callout) {
+  --callout-accent: #22d3ee;
+  --callout-bg: rgba(34, 211, 238, 0.08);
+  --callout-border: rgba(34, 211, 238, 0.26);
+  --callout-title: #a5f3fc;
+
+  position: relative;
+  margin: 1.35rem 0;
+  border: 1px solid var(--callout-border);
+  border-left: 4px solid var(--callout-accent);
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(135deg, var(--callout-bg), rgba(15, 23, 42, 0.62)),
+    rgba(2, 6, 23, 0.5);
+  padding: 1rem 1.15rem;
+  color: #cbd5e1;
+  line-height: 1.75;
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.article-content :deep(.callout-title) {
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--callout-title);
+  font-size: 0.95rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+.article-content :deep(.callout-title::before) {
+  content: '';
+  width: 0.58rem;
+  height: 0.58rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: var(--callout-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--callout-accent) 58%, transparent);
+}
+.article-content :deep(.callout-content) {
+  color: #cbd5e1;
+}
+.article-content :deep(.callout-content > :first-child) {
+  margin-top: 0;
+}
+.article-content :deep(.callout-content > :last-child) {
+  margin-bottom: 0;
+}
+.article-content :deep(.callout-content p) {
+  margin-bottom: 0.65rem;
+}
+.article-content :deep(.callout-content ul),
+.article-content :deep(.callout-content ol) {
+  margin: 0.6rem 0 0.75rem;
+}
+.article-content :deep(.callout-content li) {
+  margin-bottom: 0.25rem;
+}
+.article-content :deep(.callout-content .table-wrapper),
+.article-content :deep(.callout-content pre),
+.article-content :deep(.callout-content .mermaid),
+.article-content :deep(.callout-content img) {
+  margin-top: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+.article-content :deep(.callout .callout) {
+  margin: 0.85rem 0;
+}
+.article-content :deep(.callout--nested) {
+  border-radius: 0.7rem;
+  padding: 0.82rem 0.95rem;
+  background:
+    linear-gradient(135deg, var(--callout-bg), rgba(15, 23, 42, 0.78)),
+    rgba(15, 23, 42, 0.56);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+.article-content :deep(.callout--nested .callout-title) {
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+}
+.article-content :deep(.callout-note),
+.article-content :deep(.callout-info) {
+  --callout-accent: #22d3ee;
+  --callout-bg: rgba(34, 211, 238, 0.09);
+  --callout-border: rgba(34, 211, 238, 0.28);
+  --callout-title: #a5f3fc;
+}
+.article-content :deep(.callout-tip) {
+  --callout-accent: #34d399;
+  --callout-bg: rgba(52, 211, 153, 0.1);
+  --callout-border: rgba(52, 211, 153, 0.28);
+  --callout-title: #bbf7d0;
+}
+.article-content :deep(.callout-success) {
+  --callout-accent: #22c55e;
+  --callout-bg: rgba(34, 197, 94, 0.1);
+  --callout-border: rgba(34, 197, 94, 0.28);
+  --callout-title: #86efac;
+}
+.article-content :deep(.callout-warning) {
+  --callout-accent: #f59e0b;
+  --callout-bg: rgba(245, 158, 11, 0.11);
+  --callout-border: rgba(245, 158, 11, 0.3);
+  --callout-title: #fde68a;
+}
+.article-content :deep(.callout-question),
+.article-content :deep(.callout-example) {
+  --callout-accent: #818cf8;
+  --callout-bg: rgba(129, 140, 248, 0.1);
+  --callout-border: rgba(129, 140, 248, 0.28);
+  --callout-title: #c7d2fe;
+}
+.article-content :deep(.callout-failure),
+.article-content :deep(.callout-bug) {
+  --callout-accent: #fb7185;
+  --callout-bg: rgba(251, 113, 133, 0.1);
+  --callout-border: rgba(251, 113, 133, 0.3);
+  --callout-title: #fecdd3;
+}
+.article-content :deep(.callout-quote) {
+  --callout-accent: #94a3b8;
+  --callout-bg: rgba(148, 163, 184, 0.09);
+  --callout-border: rgba(148, 163, 184, 0.24);
+  --callout-title: #e2e8f0;
 }
 .article-content :deep(pre) {
   margin: 1.4rem 0;
