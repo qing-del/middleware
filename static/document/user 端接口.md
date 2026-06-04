@@ -174,6 +174,7 @@
 ```javascript
 {
   "keyword": "",
+  "scope": "",
   "pageNum": 0,
   "pageSize": 0,
   "pageSizeOrDefault": 0,
@@ -189,6 +190,7 @@
 | -------- | -------- | ----- | -------- | -------- | ------ |
 |userTopicQueryDTO|主题查询条件（关键词、分页参数）|body|true|UserTopicQueryDTO|UserTopicQueryDTO|
 |&emsp;&emsp;keyword|||false|string||
+|&emsp;&emsp;scope|||false|string||
 |&emsp;&emsp;pageNum|||false|integer(int32)||
 |&emsp;&emsp;pageSize|||false|integer(int32)||
 |&emsp;&emsp;pageSizeOrDefault|||false|integer(int32)||
@@ -224,6 +226,61 @@
 		"total": 0,
 		"records": []
 	}
+}
+```
+
+
+## 撤销主题审核申请
+
+
+**接口地址**:`/user/topic/cancelAudit`
+
+
+**请求方式**:`POST`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>撤销当前用户的主题审核申请，仅删除待审核记录。</p>
+
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|id|主题ID|query|true|integer(int64)||
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultString|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||string||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": ""
 }
 ```
 
@@ -412,6 +469,59 @@
 # User-邮箱管理
 
 
+## 验证邮箱修改码
+
+
+**接口地址**:`/user/email/verify-change`
+
+
+**请求方式**:`POST`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded,application/json`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>使用新邮箱中收到的6位验证码完成邮箱修改</p>
+
+
+
+**请求参数**:
+
+
+暂无
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultString|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||string||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": ""
+}
+```
+
+
 ## 重新发送激活邮件
 
 
@@ -435,6 +545,74 @@
 
 
 暂无
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultString|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||string||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": ""
+}
+```
+
+
+## 发起邮箱修改
+
+
+**接口地址**:`/user/email/change-code`
+
+
+**请求方式**:`POST`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded,application/json`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>验证原邮箱后向新邮箱发送6位验证码</p>
+
+
+
+**请求示例**:
+
+
+```javascript
+{
+  "oldEmail": "",
+  "newEmail": ""
+}
+```
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|emailChangeRequestDTO|原邮箱和新邮箱地址|body|true|EmailChangeRequestDTO|EmailChangeRequestDTO|
+|&emsp;&emsp;oldEmail|||true|string||
+|&emsp;&emsp;newEmail|||true|string||
 
 
 **响应状态**:
@@ -1528,6 +1706,7 @@
 ```javascript
 {
   "keyword": "",
+  "scope": "",
   "pageNum": 0,
   "pageSize": 0,
   "pageSizeOrDefault": 0,
@@ -1543,6 +1722,7 @@
 | -------- | -------- | ----- | -------- | -------- | ------ |
 |userTagQueryDTO|标签查询条件（关键词、分页参数）|body|true|UserTagQueryDTO|UserTagQueryDTO|
 |&emsp;&emsp;keyword|||false|string||
+|&emsp;&emsp;scope|||false|string||
 |&emsp;&emsp;pageNum|||false|integer(int32)||
 |&emsp;&emsp;pageSize|||false|integer(int32)||
 |&emsp;&emsp;pageSizeOrDefault|||false|integer(int32)||
@@ -1578,6 +1758,61 @@
 		"total": 0,
 		"records": []
 	}
+}
+```
+
+
+## 撤销标签审核申请
+
+
+**接口地址**:`/user/tag/cancelAudit`
+
+
+**请求方式**:`POST`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>撤销当前用户的标签审核申请，仅删除待审核记录。</p>
+
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|id|标签ID|query|true|integer(int64)||
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultString|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||string||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": ""
 }
 ```
 
@@ -2373,6 +2608,7 @@
 {
   "topicId": 0,
   "title": "",
+  "scope": "",
   "pageNum": 0,
   "pageSize": 0,
   "pageSizeOrDefault": 0,
@@ -2389,6 +2625,7 @@
 |userNoteQueryDTO|笔记查询条件（主题ID、状态、分页参数）|body|true|UserNoteQueryDTO|UserNoteQueryDTO|
 |&emsp;&emsp;topicId|||false|integer(int64)||
 |&emsp;&emsp;title|||false|string||
+|&emsp;&emsp;scope|||false|string||
 |&emsp;&emsp;pageNum|||false|integer(int32)||
 |&emsp;&emsp;pageSize|||false|integer(int32)||
 |&emsp;&emsp;pageSizeOrDefault|||false|integer(int32)||
@@ -2538,6 +2775,61 @@
 ```
 
 
+## 撤销笔记审核申请
+
+
+**接口地址**:`/user/note/cancelAudit`
+
+
+**请求方式**:`POST`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>撤销当前用户的笔记审核申请。笔记状态从待审核回退到已转换，同时删除待审核记录。</p>
+
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|id|笔记ID|query|true|integer(int64)||
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultString|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||string||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": ""
+}
+```
+
+
 ## 查询当前用户笔记列表
 
 
@@ -2565,6 +2857,7 @@
 |&emsp;&emsp;keyword|搜索关键词（支持标题模糊搜索）||false|string||
 |&emsp;&emsp;topicId|主题ID||false|integer(int64)||
 |&emsp;&emsp;tagId|标签ID||false|integer(int64)||
+|&emsp;&emsp;scope|查询范围：global=全局，其他值=仅当前用户||false|string||
 |&emsp;&emsp;pageNum|页码（默认1）||false|integer(int32)||
 |&emsp;&emsp;pageSize|每页大小（默认10）||false|integer(int32)||
 |&emsp;&emsp;pageSizeOrDefault|||false|integer(int32)||
@@ -2916,6 +3209,7 @@
 |&emsp;&emsp;keyword|搜索关键词（支持标题模糊搜索）||false|string||
 |&emsp;&emsp;topicId|主题ID||false|integer(int64)||
 |&emsp;&emsp;tagId|标签ID||false|integer(int64)||
+|&emsp;&emsp;scope|查询范围：global=全局，其他值=仅当前用户||false|string||
 |&emsp;&emsp;pageNum|页码（默认1）||false|integer(int32)||
 |&emsp;&emsp;pageSize|每页大小（默认10）||false|integer(int32)||
 |&emsp;&emsp;pageSizeOrDefault|||false|integer(int32)||
@@ -3401,6 +3695,7 @@
 {
   "topicId": 0,
   "filename": "",
+  "scope": "",
   "pageNum": 0,
   "pageSize": 0,
   "pageSizeOrDefault": 0,
@@ -3417,6 +3712,7 @@
 |userImageQueryDTO|用户图片查询条件（主题ID、文件名、分页参数）|body|true|UserImageQueryDTO|UserImageQueryDTO|
 |&emsp;&emsp;topicId|||false|integer(int64)||
 |&emsp;&emsp;filename|||false|string||
+|&emsp;&emsp;scope|||false|string||
 |&emsp;&emsp;pageNum|||false|integer(int32)||
 |&emsp;&emsp;pageSize|||false|integer(int32)||
 |&emsp;&emsp;pageSizeOrDefault|||false|integer(int32)||
@@ -3452,6 +3748,61 @@
 		"total": 0,
 		"records": []
 	}
+}
+```
+
+
+## 撤销图片审核申请
+
+
+**接口地址**:`/user/image/cancelAudit`
+
+
+**请求方式**:`POST`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>撤销当前用户的图片审核申请，仅删除待审核记录。</p>
+
+
+
+**请求参数**:
+
+
+| 参数名称 | 参数说明 | 请求类型    | 是否必须 | 数据类型 | schema |
+| -------- | -------- | ----- | -------- | -------- | ------ |
+|id|图片ID|query|true|integer(int64)||
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultString|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||string||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": ""
 }
 ```
 
@@ -3839,6 +4190,59 @@
 ```
 
 
+## 匿名重发激活邮件
+
+
+**接口地址**:`/user/user/resend-activation`
+
+
+**请求方式**:`POST`
+
+
+**请求数据类型**:`application/x-www-form-urlencoded,application/json`
+
+
+**响应数据类型**:`*/*`
+
+
+**接口描述**:<p>未激活用户可通过用户名或邮箱重新发送激活邮件，无需登录</p>
+
+
+
+**请求参数**:
+
+
+暂无
+
+
+**响应状态**:
+
+
+| 状态码 | 说明 | schema |
+| -------- | -------- | ----- | 
+|200|OK|ResultString|
+
+
+**响应参数**:
+
+
+| 参数名称 | 参数说明 | 类型 | schema |
+| -------- | -------- | ----- |----- | 
+|code||integer(int32)|integer(int32)|
+|msg||string||
+|data||string||
+
+
+**响应示例**:
+```javascript
+{
+	"code": 0,
+	"msg": "",
+	"data": ""
+}
+```
+
+
 ## 用户注册
 
 
@@ -3854,7 +4258,7 @@
 **响应数据类型**:`*/*`
 
 
-**接口描述**:<p>创建普通用户账号前会先校验入参合法性，并在服务层完成账号初始化、默认角色设置和密码落库，返回注册结果。</p>
+**接口描述**:<p>创建普通用户账号并发送邮箱激活邮件；账号激活前无法登录使用。</p>
 
 
 
