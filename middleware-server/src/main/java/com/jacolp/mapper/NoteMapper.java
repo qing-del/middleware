@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import com.jacolp.pojo.dto.note.NoteQueryDTO;
+import com.jacolp.pojo.dto.note.GuestNoteQueryDTO;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.pojo.vo.note.NoteVO;
@@ -128,14 +129,26 @@ public interface NoteMapper {
         long countApprovedByUserId(@Param("userId") Long userId);
 
     /**
-     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     * 用户端条件查询：根据 scope 控制查询范围。
      * @param userId 用户 ID
      * @param topicId 主题 ID
      * @param title 笔记标题的关键词
+     * @param globalScope true=全局模式（自己的+别人已发布），false=仅自己
      */
     List<NoteVO> listByUserCondition(@Param("userId") Long userId,
                                      @Param("topicId") Long topicId,
-                                     @Param("title") String title);
+                                     @Param("title") String title,
+                                     @Param("globalScope") boolean globalScope);
+
+    /**
+     * 访客分页查询已公开笔记。
+     */
+    List<NoteVO> listGuestPublished(GuestNoteQueryDTO dto);
+
+    /**
+     * 访客按 ID 查询已公开笔记详情基础信息。
+     */
+    NoteVO selectGuestPublishedVoById(@Param("id") Long id);
 
     /**
      * 查询指定笔记的笔记状态

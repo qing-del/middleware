@@ -28,5 +28,6 @@ public class JwtProperties {
      */
     private String activeSecretKey;
     private long activeTtl;
+    private long activeCodeTtl;
     private String activeTokenName;
 }

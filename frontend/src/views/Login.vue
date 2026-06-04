@@ -4,14 +4,16 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   Zap, ChevronRight, Link, FileDiff, User, Mail, Lock,
-  ShieldCheck, Loader2, ArrowRight, CheckCircle2
+  ShieldCheck, Loader2, ArrowRight, CheckCircle2, BookOpen, Send, KeyRound
 } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-// 视图状态：login, register, admin
-const currentView = ref<'login' | 'register' | 'admin'>('login')
+type AuthView = 'login' | 'register' | 'admin' | 'activation'
+
+// 视图状态：login, register, admin, activation
+const currentView = ref<AuthView>('login')
 const showFeatures = ref(false)
 const isAnimating = ref(false)
 
@@ -20,8 +22,12 @@ const formData = reactive({
   username: '',
   email: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  activationCode: ''
 })
+const activationAccount = ref('')
+const isResendingActivation = ref(false)
+const isVerifyingActivationCode = ref(false)
 
 // DOM refs
 const cardRef = ref<HTMLElement | null>(null)
@@ -43,6 +49,8 @@ const viewConfig = computed(() => {
       return { title: 'PORTAL', bgClass: 'bg-rose-600', lineClass: 'h-1 w-8 bg-rose-500 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]' }
     case 'register':
       return { title: 'CREATE', bgClass: 'bg-purple-600', lineClass: 'h-1 w-12 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]' }
+    case 'activation':
+      return { title: 'VERIFY', bgClass: 'bg-amber-500', lineClass: 'h-1 w-12 bg-amber-400 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.5)]' }
     default:
       return { title: 'ACCESS', bgClass: 'bg-indigo-600', lineClass: 'h-1 w-8 bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]' }
   }
@@ -176,20 +184,30 @@ function animateCanvas() {
 }
 
 // 核心优化：重构的平滑伸缩动画
-async function setView(newView: 'login' | 'register' | 'admin') {
+async function setView(newView: AuthView) {
   if (currentView.value === newView || isAnimating.value) return
   isAnimating.value = true
+  const oldView = currentView.value
+  const isPortalSwitch = (oldView === 'login' && newView === 'admin') || (oldView === 'admin' && newView === 'login')
+  const contentDuration = isPortalSwitch ? 170 : 240
+  const cardDuration = isPortalSwitch ? 420 : 520
 
   const card = cardRef.value
   const formContent = formContentRef.value
-  if (!card || !formContent) return
+  if (!card || !formContent) {
+    isAnimating.value = false
+    return
+  }
 
   // 1. 先将内部表单内容优雅淡出（缩小且透明）
   formContent.style.opacity = '0'
-  formContent.style.transform = 'scale(0.96) translateY(10px)'
+  formContent.style.filter = isPortalSwitch ? 'blur(4px)' : 'blur(8px)'
+  formContent.style.transform = isPortalSwitch
+    ? 'translateY(8px) scale(0.98)'
+    : 'translateY(18px) scale(0.94) rotateX(6deg)'
 
-  // 等待内容完全消失 (与 form-transition 中定义的 200ms 同步)
-  await new Promise(resolve => setTimeout(resolve, 200))
+  // 等待内容完全消失
+  await new Promise(resolve => setTimeout(resolve, contentDuration))
 
   // 2. 锁定卡片当前尺寸，防止 Vue 更新 DOM 时发生闪烁
   const startHeight = card.offsetHeight
@@ -197,46 +215,53 @@ async function setView(newView: 'login' | 'register' | 'admin') {
   card.style.height = startHeight + 'px'
   card.style.width = startWidth + 'px'
   card.style.transition = 'none'
+  card.style.transform = 'translateZ(0)'
+  card.style.willChange = 'width, height'
 
   // 3. 切换视图状态，Vue 会根据 v-if 插入/移除节点
   currentView.value = newView
   await nextTick()
 
   // 4. 重置样式，让容器根据新内容自然撑开，以便我们测量目标尺寸
-  card.classList.remove('max-w-[380px]', 'max-w-[420px]', 'max-w-[460px]')
+  card.classList.remove('max-w-[380px]', 'max-w-[420px]', 'max-w-[440px]', 'max-w-[460px]')
   if (newView === 'admin') card.classList.add('max-w-[380px]')
   else if (newView === 'register') card.classList.add('max-w-[460px]')
+  else if (newView === 'activation') card.classList.add('max-w-[440px]')
   else card.classList.add('max-w-[420px]')
 
   card.style.height = 'auto'
-  card.style.width = '100%' // 必须设置，让它充满 max-w 限定
+  card.style.width = '100%'
   const targetHeight = card.offsetHeight
   const targetWidth = card.offsetWidth
 
-  // 5. 将卡片瞬间还原到原始尺寸，准备执行伸展动画
+  // 5. 将卡片瞬间还原到原始尺寸，准备执行真实的左右收缩动画
   card.style.height = startHeight + 'px'
   card.style.width = startWidth + 'px'
-  void card.offsetHeight // 强制触发浏览器重绘
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
 
-  // 6. 开启 CSS 平滑过渡，由原点同时缩放宽高（Flexbox 会让它自动居中定住）
-  card.style.transition = 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1), height 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+  // 6. 开启 CSS 平滑过渡。登录 ↔ 管理员重点优化横向收缩，保留真实宽度变化。
+  const cardEase = isPortalSwitch ? 'cubic-bezier(0.16, 1, 0.3, 1)' : 'cubic-bezier(0.22, 1, 0.36, 1)'
+  card.style.transition = `width ${cardDuration}ms ${cardEase}, height ${cardDuration}ms ${cardEase}`
   card.style.height = targetHeight + 'px'
   card.style.width = targetWidth + 'px'
 
-  // 等待卡片尺寸伸缩完成 (400ms)
-  await new Promise(resolve => setTimeout(resolve, 400))
+  // 等待卡片尺寸伸缩完成
+  await new Promise(resolve => setTimeout(resolve, cardDuration))
 
   // 7. 清理内联样式，交回给 Tailwind 的类名接管，保持响应式能力
   card.style.height = ''
   card.style.width = ''
   card.style.transition = ''
+  card.style.willChange = ''
+  card.style.transform = ''
 
   // 8. 卡片稳定后，淡入新表单内容
   formContent.style.opacity = '1'
-  formContent.style.transform = 'scale(1) translateY(0)'
+  formContent.style.filter = 'blur(0)'
+  formContent.style.transform = 'translateY(0) scale(1) rotateX(0)'
 
   // 等待内容完全浮现
-  await new Promise(resolve => setTimeout(resolve, 200))
+  await new Promise(resolve => setTimeout(resolve, contentDuration))
   isAnimating.value = false
 }
 
@@ -273,6 +298,68 @@ function showToast(msg: string, _type: 'success' | 'error' = 'success') {
   }, 3000)
 }
 
+function enterGuestMode() {
+  router.push('/guest/notes')
+}
+
+function fillActivationAccount() {
+  activationAccount.value = formData.email || formData.username || activationAccount.value
+}
+
+function openActivationView() {
+  fillActivationAccount()
+  setView('activation')
+}
+
+function isAccountNotActivatedMessage(message: string) {
+  return message.includes('未激活') || message.includes('激活账号')
+}
+
+async function handleResendActivation() {
+  if (isResendingActivation.value) return
+
+  fillActivationAccount()
+  const account = activationAccount.value.trim()
+  if (!account) {
+    showToast('请先输入用户名或邮箱', 'error')
+    return
+  }
+
+  isResendingActivation.value = true
+  try {
+    const message = await authStore.resendActivation(account)
+    showToast(message || '激活邮件已重新发送，请查收邮箱', 'success')
+  } catch (error: any) {
+    showToast(error.message || '激活邮件发送失败', 'error')
+  } finally {
+    isResendingActivation.value = false
+  }
+}
+
+async function handleVerifyActivationCode() {
+  if (isVerifyingActivationCode.value) return
+
+  const code = formData.activationCode.trim()
+  if (!/^\d{6}$/.test(code)) {
+    showToast('请输入 6 位数字激活码', 'error')
+    return
+  }
+
+  isVerifyingActivationCode.value = true
+  try {
+    const message = await authStore.verifyActivationCode(code)
+    showToast(message || '账号激活成功，请登录', 'success')
+    formData.activationCode = ''
+    setTimeout(() => {
+      setView('login')
+    }, 900)
+  } catch (error: any) {
+    showToast(error.message || '激活失败', 'error')
+  } finally {
+    isVerifyingActivationCode.value = false
+  }
+}
+
 async function handleSubmit() {
   if (isAnimating.value) return
 
@@ -292,15 +379,16 @@ async function handleSubmit() {
         router.push('/admin')
       }, 1000)
     } else if (currentView.value === 'register') {
-      await authStore.register({
+      const message = await authStore.register({
         username: formData.username,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
         email: formData.email
       })
-      showToast('账号创建成功，请登录', 'success')
+      activationAccount.value = formData.email || formData.username
+      showToast(message || '注册成功，请查收邮箱激活账号', 'success')
       setTimeout(() => {
-        setView('login')
+        setView('activation')
       }, 1200)
     } else {
       await authStore.login({ username: formData.username, password: formData.password })
@@ -310,7 +398,14 @@ async function handleSubmit() {
       }, 1000)
     }
   } catch (error: any) {
-    showToast(error.message || '操作失败', 'error')
+    const message = error.message || '操作失败'
+    if (currentView.value === 'login' && isAccountNotActivatedMessage(message)) {
+      activationAccount.value = formData.username
+      setTimeout(() => {
+        setView('activation')
+      }, 250)
+    }
+    showToast(message, 'error')
   } finally {
     btn.disabled = false
     if (submitTextRef.value) submitTextRef.value.classList.remove('opacity-0')
@@ -428,6 +523,7 @@ onUnmounted(() => {
               </div>
             </div>
 
+            <template v-if="currentView !== 'activation'">
             <form id="auth-form" @submit.prevent="handleSubmit" class="flex flex-col">
               <!-- 用户名 -->
               <div class="relative group transition-all duration-300">
@@ -477,6 +573,7 @@ onUnmounted(() => {
                   <ArrowRight ref="submitIconRef" id="submit-icon" class="w-[18px] h-[18px] group-hover/btn:translate-x-1 transition-transform" />
                 </div>
               </button>
+
             </form>
 
             <!-- 动态切换链接 -->
@@ -500,15 +597,107 @@ onUnmounted(() => {
                   </button>
                 </template>
                 <template v-else>
-                  <button @click="setView('register')" type="button" class="text-xs text-indigo-400 font-bold hover:text-indigo-300 transition-all uppercase tracking-wider underline underline-offset-8 decoration-indigo-500/20 hover:decoration-indigo-500">
-                    创建账户
-                  </button>
+                  <div class="grid grid-cols-2 gap-3 w-full">
+                    <button @click="enterGuestMode" type="button" class="group flex h-11 items-center justify-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 text-xs font-black uppercase tracking-[0.14em] text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition-all hover:border-cyan-300/60 hover:bg-cyan-400/15 hover:text-white hover:shadow-[0_0_22px_rgba(34,211,238,0.18)]">
+                      <BookOpen class="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
+                      <span>访客模式</span>
+                    </button>
+                    <button @click="setView('register')" type="button" class="group flex h-11 items-center justify-center gap-2 rounded-2xl border border-indigo-400/25 bg-indigo-400/10 px-4 text-xs font-black uppercase tracking-[0.14em] text-indigo-200 shadow-[0_0_18px_rgba(99,102,241,0.08)] transition-all hover:border-indigo-300/60 hover:bg-indigo-400/15 hover:text-white hover:shadow-[0_0_22px_rgba(99,102,241,0.18)]">
+                      <User class="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
+                      <span>创建账户</span>
+                    </button>
+                  </div>
                   <button @click="setView('admin')" type="button" class="text-[10px] text-slate-600 hover:text-slate-300 transition-colors uppercase tracking-[0.2em]">
                     管理控制台授权
+                  </button>
+                  <button @click="openActivationView" type="button" class="flex items-center gap-2 text-[10px] text-amber-500/70 hover:text-amber-300 transition-colors uppercase tracking-[0.2em]">
+                    <KeyRound class="h-3.5 w-3.5" />
+                    重新激活账号
                   </button>
                 </template>
               </div>
             </div>
+            </template>
+
+            <template v-else>
+              <div class="relative overflow-hidden rounded-3xl border border-amber-300/15 bg-amber-300/[0.03] p-5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]">
+                <div class="absolute -right-14 -top-14 h-32 w-32 rounded-full bg-amber-400/15 blur-3xl"></div>
+                <div class="absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-emerald-400/10 blur-3xl"></div>
+
+                <div class="relative flex items-start gap-4">
+                  <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.12)]">
+                    <KeyRound class="h-5 w-5" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-black text-white">重新激活账号</p>
+                    <p class="mt-1 text-xs leading-relaxed text-slate-500">输入用户名或邮箱重发激活邮件，也可以直接使用邮件中的 6 位激活码完成激活。</p>
+                  </div>
+                </div>
+              </div>
+
+              <form class="mt-6 flex flex-col" @submit.prevent="handleResendActivation">
+                <div class="relative group">
+                  <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-amber-300 transition-colors">
+                    <User class="w-[18px] h-[18px]" />
+                  </div>
+                  <input
+                    type="text"
+                    v-model="activationAccount"
+                    name="activationAccount"
+                    placeholder="用户名或邮箱"
+                    class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10 transition-all text-sm text-white placeholder:text-slate-600"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  :disabled="isResendingActivation"
+                  class="group/activate relative mt-4 flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-[1.25rem] bg-amber-500 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition-all hover:scale-[1.015] hover:bg-amber-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <div class="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent opacity-60"></div>
+                  <Loader2 v-if="isResendingActivation" class="relative h-4 w-4 animate-spin" />
+                  <Send v-else class="relative h-4 w-4 transition-transform group-hover/activate:translate-x-0.5" />
+                  <span class="relative">重发激活邮件</span>
+                </button>
+              </form>
+
+              <div class="my-6 flex items-center gap-3">
+                <div class="h-px flex-1 bg-white/10"></div>
+                <span class="text-[9px] font-black uppercase tracking-[0.22em] text-slate-600">OR CODE</span>
+                <div class="h-px flex-1 bg-white/10"></div>
+              </div>
+
+              <form class="grid grid-cols-[1fr_auto] gap-3" @submit.prevent="handleVerifyActivationCode">
+                <input
+                  type="text"
+                  v-model="formData.activationCode"
+                  name="activationCode"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="6 位激活码"
+                  class="min-w-0 bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 px-4 outline-none focus:bg-black/40 focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-300/10 transition-all text-sm text-white placeholder:text-slate-600"
+                />
+                <button
+                  type="submit"
+                  :disabled="isVerifyingActivationCode"
+                  class="flex h-14 w-24 items-center justify-center rounded-2xl bg-emerald-500 text-xs font-black uppercase tracking-[0.12em] text-slate-950 transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Loader2 v-if="isVerifyingActivationCode" class="h-4 w-4 animate-spin" />
+                  <span v-else>激活</span>
+                </button>
+              </form>
+
+              <div class="mt-10 flex flex-col items-center space-y-6">
+                <div class="flex items-center space-x-3 w-full opacity-20">
+                  <div class="h-px flex-1 bg-white"></div>
+                  <span class="text-[10px] text-white">SYSTEM</span>
+                  <div class="h-px flex-1 bg-white"></div>
+                </div>
+                <button @click="setView('login')" type="button" class="text-xs text-slate-400 font-bold hover:text-white transition-all uppercase tracking-wider underline underline-offset-8 decoration-slate-500/20 hover:decoration-slate-500">
+                  返回身份认证
+                </button>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -570,7 +759,10 @@ onUnmounted(() => {
 /* 优化后的表单内容淡入淡出速度 (更快更顺畅) */
 .form-transition {
   transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+              filter 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center top;
+  transform-style: preserve-3d;
 }
 
 /* 卡片容器：移除过渡样式，由 JS 接管保证平滑 */

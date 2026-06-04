@@ -16,9 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.jacolp.annotation.GuestCacheEvict;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.annotation.StorageHandler;
 import com.jacolp.component.JsonOperator;
+import com.jacolp.constant.GuestCacheConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.TopicConstant;
@@ -423,6 +425,10 @@ public class NoteFacadeImpl implements NoteFacade {
      * </ol>
      */
     @Override
+    @GuestCacheEvict(cacheNames = {
+            GuestCacheConstant.GUEST_NOTE_LIST_CACHE,
+            GuestCacheConstant.GUEST_NOTE_DETAIL_CACHE
+    })
     public void updateNoteStatus(Long noteId, Short status) {
         // 先获取笔记
         NoteEntity note = noteCoreService.getById(noteId);

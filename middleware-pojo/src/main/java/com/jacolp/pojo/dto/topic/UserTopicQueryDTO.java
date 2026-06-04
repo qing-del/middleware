@@ -21,6 +21,11 @@ public class UserTopicQueryDTO implements Serializable, PageParamProvider {
 
     private String keyword;
 
+    /**
+     * 查询范围：{@code "global"} 时包含他人已通过审核主题，其他值仅查当前用户主题。
+     */
+    private String scope;
+
     @Positive(message = "页码必须为正数")
     private Integer pageNum;
 

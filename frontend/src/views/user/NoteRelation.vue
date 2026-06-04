@@ -12,6 +12,7 @@ import {
   ImageIcon, Hash, Link, Search, Plug, X, FileText, Unlink2,
   Loader2, Network
 } from 'lucide-vue-next'
+import { confirmAction, toastSuccess, toastError, toastWarning, alertInfo } from '@/utils/feedback'
 
 const route = useRoute()
 
@@ -41,9 +42,6 @@ const bindSearchError = ref<string | null>(null)
 const bindResults = ref<BindResultItem[]>([])
 const selectedBindTargetId = ref<number | null>(null)
 const currentBind = ref<{ type: BindTargetType; mappingId: number; parsedName: string } | null>(null)
-
-function showAlert(msg: string) { window.alert(msg) }
-function showConfirm(msg: string): boolean { return window.confirm(msg) }
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
@@ -152,17 +150,17 @@ async function handleRecheckRelations() {
   try {
     const result = await noteApi.checkRelations(noteId)
     if (result.complete) {
-      showAlert('关联完整性校验通过。')
+      toastSuccess('关联完整性校验通过')
     } else {
       const lines: string[] = [`仍有 ${result.missingCount} 项关联需要补全：`]
       if (result.missingTags?.length) lines.push(`\n标签缺失：${result.missingTags.join('、')}`)
       if (result.missingImages?.length) lines.push(`\n图片缺失：${result.missingImages.join('、')}`)
       if (result.missingNoteNames?.length) lines.push(`\n双链缺失：${result.missingNoteNames.join('、')}`)
-      showAlert(lines.join(''))
+      alertInfo(lines.join(''), '关联完整性检查')
     }
     await refreshRelations()
   } catch {
-    showAlert('关联校验失败，请重试')
+    toastError('关联校验失败，请重试')
   }
 }
 
@@ -234,7 +232,7 @@ async function handleBindSearch() {
 
 async function handleBindConfirm() {
   if (!currentBind.value || selectedBindTargetId.value == null) {
-    showAlert('请选择一个目标资源')
+    toastWarning('请选择一个目标资源')
     return
   }
   try {
@@ -246,24 +244,24 @@ async function handleBindConfirm() {
     } else {
       await noteApi.bindEach(currentBind.value.mappingId, targetId)
     }
-    showAlert('关联绑定成功')
+    toastSuccess('关联绑定成功')
     closeBindModal()
     await refreshRelations()
   } catch {
-    showAlert('绑定失败，请重试')
+    toastError('绑定失败，请重试')
   }
 }
 
 async function handleUnbind(type: BindTargetType, mappingId: number) {
-  if (!showConfirm('确认解除该关联绑定吗？')) return
+  if (!await confirmAction({ content: '确认解除该关联绑定吗？', danger: true })) return
   try {
     if (type === 'image') await noteApi.unbindImage(mappingId)
     else if (type === 'tag') await noteApi.unbindTag(mappingId)
     else await noteApi.unbindEach(mappingId)
-    showAlert('绑定已解除')
+    toastSuccess('绑定已解除')
     await refreshRelations()
   } catch {
-    showAlert('解绑失败，请重试')
+    toastError('解绑失败，请重试')
   }
 }
 

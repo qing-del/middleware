@@ -16,6 +16,27 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/guest',
+      component: () => import('@/layouts/GuestLayout.vue'),
+      meta: { requiresAuth: false },
+      children: [
+        {
+          path: '',
+          redirect: '/guest/notes'
+        },
+        {
+          path: 'notes',
+          name: 'GuestNotes',
+          component: () => import('@/views/guest/Notes.vue')
+        },
+        {
+          path: 'notes/:noteId',
+          name: 'GuestNoteDetail',
+          component: () => import('@/views/guest/NoteDetail.vue')
+        }
+      ]
+    },
+    {
       path: '/dashboard',
       redirect: '/user/dashboard'
     },

@@ -31,16 +31,24 @@ public interface UserUserService {
 
     /**
      * 激活账户
-     * @param token 激活码
+     * @param userId 用户ID
      * @return 激活结果
      */
-    String activeAccount(Long token);
+    String activeAccount(Long userId);
 
     /**
      * 发送激活邮件
+     * <p>- 底层调用的方法带有{@code userId}的每分钟限制</p>
      * @param userId 用户ID
      */
     void sendActivationEmail(Long userId);
+
+    /**
+     * 匿名重发激活邮件
+     * <p>- 底层调用的方法带有{@code userId}的每分钟限制</p>
+     * @param account 用户名或邮箱
+     */
+    void sendActivationEmailByAccount(String account);
 
     /**
      * 通过 6 位激活码激活账号

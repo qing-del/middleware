@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.constant.NoteConstant;
+import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
@@ -78,9 +79,10 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             dto = new UserNoteQueryDTO();
         }
         String title = (dto.getTitle() != null && !dto.getTitle().trim().isEmpty()) ? dto.getTitle().trim() : null;
+        boolean globalScope = ScopeConstant.SCOPE_GLOBAL.equals(dto.getScope());
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-        List<NoteVO> records = noteMapper.listByUserCondition(BaseContext.getCurrentId(), dto.getTopicId(), title);
+        List<NoteVO> records = noteMapper.listByUserCondition(BaseContext.getCurrentId(), dto.getTopicId(), title, globalScope);
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }
@@ -266,9 +268,10 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     @Override
     public PageResult listUserNotesBySearch(UserNoteSearchDTO dto) {
         Long userId = BaseContext.getCurrentId();
+        boolean globalScope = ScopeConstant.SCOPE_GLOBAL.equals(dto.getScope());
 
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), dto.getKeyword());
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), dto.getKeyword(), globalScope);
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }
@@ -284,8 +287,9 @@ public class NoteCoreServiceImpl implements NoteCoreService {
         }
 
         String keyword = dto.getKeyword().trim();
+        boolean globalScope = ScopeConstant.SCOPE_GLOBAL.equals(dto.getScope());
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
-        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), keyword);
+        List<NoteVO> records = noteMapper.listByUserCondition(userId, dto.getTopicId(), keyword, globalScope);
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }

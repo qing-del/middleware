@@ -23,6 +23,11 @@ public class UserImageQueryDTO implements Serializable, PageParamProvider {
 
     private String filename;
 
+    /**
+     * 查询范围：{@code "global"} 时包含他人已公开图片，其他值仅查当前用户图片。
+     */
+    private String scope;
+
     private Integer pageNum;
 
     private Integer pageSize;

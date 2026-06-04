@@ -11,6 +11,7 @@ import {
   Image, Upload, Search, Globe, Trash2, Send, Info,
   Loader2, X, ChevronLeft, ChevronRight, Link, Maximize2, FileText, CornerUpLeft
 } from 'lucide-vue-next'
+import { confirmAction, toastWarning } from '@/utils/feedback'
 
 const loading = ref(true)
 const imageList = ref<ImageItem[]>([])
@@ -102,6 +103,7 @@ async function fetchImages() {
   try {
     const res = await imageApi.getList({
       filename: searchFilename.value || undefined,
+      scope: searchMode.value,
       pageNum: currentPage.value,
       pageSize: pageSize.value
     })
@@ -134,6 +136,10 @@ function handlePageChange(page: number) {
 
 function toggleGlobalSearch() {
   searchMode.value = searchMode.value === 'personal' ? 'global' : 'personal'
+  currentPage.value = 1
+  selectedIds.value.clear()
+  loading.value = true
+  fetchImages()
 }
 
 function toggleSelectAll(checked: boolean) {
@@ -154,11 +160,11 @@ function handleFileChange(e: Event) {
   const file = input.files?.[0]
   if (!file) return
   if (file.size > 5 * 1024 * 1024) {
-    alert('图片大小不能超过 5MB')
+    toastWarning('图片大小不能超过 5MB')
     return
   }
   if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/svg+xml'].includes(file.type)) {
-    alert('仅支持 JPG / PNG / WEBP / GIF / BMP / SVG')
+    toastWarning('仅支持 JPG / PNG / WEBP / GIF / BMP / SVG')
     return
   }
   uploadFile.value = file
@@ -192,7 +198,7 @@ async function handleUpload() {
 }
 
 async function handleDelete(id: number) {
-  if (!confirm('确定删除该图片吗？删除后不可恢复。')) return
+  if (!await confirmAction({ content: '确定删除该图片吗？删除后不可恢复。', danger: true })) return
   await imageApi.deleteImage(id)
   selectedIds.value.delete(id)
   await fetchImages()
@@ -200,7 +206,7 @@ async function handleDelete(id: number) {
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确定删除已选择的 ${selectedIds.value.size} 张图片吗？删除后不可恢复。`)) return
+  if (!await confirmAction({ content: `确定删除已选择的 ${selectedIds.value.size} 张图片吗？删除后不可恢复。`, danger: true })) return
   await Promise.all([...selectedIds.value].map(id => imageApi.deleteImage(id)))
   selectedIds.value.clear()
   await fetchImages()
@@ -208,20 +214,20 @@ async function handleBatchDelete() {
 
 async function handleBatchSubmitAudit() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确认提交已选择的 ${selectedIds.value.size} 张图片进行审核吗？`)) return
+  if (!await confirmAction({ content: `确认提交已选择的 ${selectedIds.value.size} 张图片进行审核吗？` })) return
   await Promise.all([...selectedIds.value].map(id => imageApi.submitAudit(id)))
   selectedIds.value.clear()
   await fetchImages()
 }
 
 async function handleSubmitAudit(id: number) {
-  if (!confirm('确认提交该图片进行审核吗？')) return
+  if (!await confirmAction({ content: '确认提交该图片进行审核吗？' })) return
   await imageApi.submitAudit(id)
   await fetchImages()
 }
 
 async function handleCancelAudit(id: number) {
-  if (!confirm('确认撤销该图片的审核申请吗？')) return
+  if (!await confirmAction({ content: '确认撤销该图片的审核申请吗？' })) return
   try {
     await imageApi.cancelAudit(id)
     await fetchImages()

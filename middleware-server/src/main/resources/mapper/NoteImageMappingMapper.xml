@@ -239,4 +239,29 @@
         ORDER BY m.create_time DESC
     </select>
 
+    <select id="selectPublicImagesByNoteId" resultType="com.jacolp.pojo.vo.image.ImageSimpleVO">
+        SELECT
+            m.image_id          AS imageId,
+            m.note_id           AS noteId,
+            m.parsed_image_name AS parsedImageName,
+            i.filename          AS filename,
+            i.oss_url           AS ossUrl,
+            i.is_public         AS isPublic,
+            i.is_pass           AS isPass,
+            m.is_cross_user     AS isCrossUser,
+            0                   AS isMissing,
+            m.create_time       AS createTime
+        FROM biz_note_image_mapping m
+        INNER JOIN biz_note n ON n.id = m.note_id
+        INNER JOIN biz_image i ON i.id = m.image_id
+        WHERE m.note_id = #{noteId}
+          AND m.image_id IS NOT NULL
+          AND m.is_deleted = 0
+          AND m.is_pass = 1
+          AND i.is_public = 1
+          AND i.is_pass = 1
+          AND n.status = 6
+        ORDER BY m.create_time ASC
+    </select>
+
 </mapper>

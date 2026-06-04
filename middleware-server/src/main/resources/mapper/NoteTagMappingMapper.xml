@@ -194,4 +194,18 @@
         </if>
         ORDER BY m.create_time DESC
     </select>
+
+    <select id="selectPublicTagNamesByNoteId" resultType="java.lang.String">
+        SELECT t.tag_name
+        FROM biz_note_tag_mapping m
+        INNER JOIN biz_tag t ON t.id = m.tag_id
+        INNER JOIN biz_note n ON n.id = m.note_id
+        WHERE m.note_id = #{noteId}
+          AND m.tag_id IS NOT NULL
+          AND m.is_deleted = 0
+          AND m.is_pass = 1
+          AND t.is_pass = 1
+          AND n.status = 6
+        ORDER BY m.create_time ASC
+    </select>
 </mapper>

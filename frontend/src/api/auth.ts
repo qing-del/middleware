@@ -2,13 +2,19 @@ import request from '@/utils/request'
 import type { User } from '@/types'
 
 export const authApi = {
-  login(data: { username: string; password: string }) {
+  login(data: { username: string; password: string }): Promise<string> {
     return request.post('/user/user/login', data)
   },
-  register(data: { username: string; password: string; confirmPassword: string; email: string }) {
+  register(data: { username: string; password: string; confirmPassword: string; email: string }): Promise<string> {
     return request.post('/user/user/register', data)
   },
-  adminLogin(data: { username: string; password: string }) {
+  resendActivation(data: { account: string }): Promise<string> {
+    return request.post('/user/user/resend-activation', data)
+  },
+  verifyActivationCode(data: { code: string }): Promise<string> {
+    return request.post('/user/user/active-code', data)
+  },
+  adminLogin(data: { username: string; password: string }): Promise<string> {
     return request.post('/admin/user/login', data)
   },
   adminLogout() {

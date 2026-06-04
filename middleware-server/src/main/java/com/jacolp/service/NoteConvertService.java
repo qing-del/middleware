@@ -38,4 +38,13 @@ public interface NoteConvertService {
      * @throws BaseException 笔记转换 结果不存在 / 无权限访问 的时候会抛出此异常
      */
     NoteConvertResultVO getNoteConvert(Long noteId);
+
+    /**
+     * 获取已公开笔记的转换结果。
+     * <p>仅当笔记处于 PUBLISHED(status=6) 时返回，不依赖登录上下文。</p>
+     * @param noteId 笔记 ID
+     * @return 笔记转换结果
+     * @throws BaseException 笔记未公开或未转换时抛出异常
+     */
+    NoteConvertResultVO getPublishedNoteConvert(Long noteId);
 }

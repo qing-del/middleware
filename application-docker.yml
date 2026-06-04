@@ -37,7 +37,9 @@ jacolp:
     user-token-name: ${jwt.user-token-name:userToken}
     active-secret-key: ${jacolp.jwt.active-secret-key}
     active-ttl: 900000
+    active-code-ttl: 300000
     active-token-name: ${jacolp.jwt.active-token-name:activeToken}
+  base-url: ${jacolp.app.base-url:http://localhost}
   markdown:
     # Docker 中 markdown 输入输出目录（容器内路径）
     root: /app/data/markdown

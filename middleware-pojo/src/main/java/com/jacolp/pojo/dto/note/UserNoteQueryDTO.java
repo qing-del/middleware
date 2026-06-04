@@ -23,6 +23,11 @@ public class UserNoteQueryDTO implements Serializable, PageParamProvider {
 
     private String title;
 
+    /**
+     * 查询范围：{@code "global"} 时包含他人公开/已通过资源，其他值（包括 {@code null}、{@code "personal"}）仅查当前用户资源。
+     */
+    private String scope;
+
     private Integer pageNum;
 
     private Integer pageSize;

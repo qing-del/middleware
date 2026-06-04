@@ -20,6 +20,11 @@ public class UserTagQueryDTO implements Serializable, PageParamProvider {
 
     private String keyword;
 
+    /**
+     * 查询范围：{@code "global"} 时包含他人已通过审核标签，其他值仅查当前用户标签。
+     */
+    private String scope;
+
     private Integer pageNum;
 
     private Integer pageSize;

@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
-import { Message } from '@arco-design/web-vue'
 import router from '@/router'
+import { toastError } from '@/utils/feedback'
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -28,21 +28,25 @@ instance.interceptors.response.use(
       if (res.code === 1) {
         return res.data
       }
-      Message.error(res.msg || '请求失败')
+      toastError(res.msg || '请求失败')
       return Promise.reject(new Error(res.msg || '请求失败'))
     }
     // 直接返回数据（没有 code 字段包装的情况）
     return res
   },
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const requiresAuth = router.currentRoute.value.matched.some(record => record.meta.requiresAuth)
+    if (status === 401 && requiresAuth) {
       localStorage.removeItem('token')
-      // 只有不在登录页时才跳转
+      // 只有受保护路由才跳转登录页，访客公开页保持原地展示错误。
       if (!router.currentRoute.value.path.startsWith('/login')) {
         router.push('/login')
       }
+    } else if (status === 403) {
+      toastError(error.response?.data?.msg || '无权访问')
     } else {
-      Message.error(error.message || '网络错误')
+      toastError(error.message || '网络错误')
     }
     return Promise.reject(error)
   }

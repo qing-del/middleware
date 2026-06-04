@@ -58,6 +58,7 @@ jacolp:
     user-token-name: ${jwt.user-token-name}
     active-secret-key: ${jacolp.jwt.active-secret-key}
     active-ttl: 900000  # 15 分钟
+    active-code-ttl: 300000  # 5 分钟
     active-token-name: ${jacolp.jwt.active-token-name}
   markdown:
     root: ${jacolp.markdown.root}

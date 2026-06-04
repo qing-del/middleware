@@ -33,4 +33,9 @@ public interface NoteConvertMapper {
      * @return 如果不存在 / 笔记不属于用户 -> null
      */
     NoteConvertedEntity selectByNoteIdWithValidUserId(@Param("noteId") Long noteId, @Param("userId") Long userId);
+
+    /**
+     * 查询已公开笔记的转换结果。
+     */
+    NoteConvertedEntity selectPublishedByNoteId(@Param("noteId") Long noteId);
 }

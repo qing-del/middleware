@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.vo.note.NoteBacklinkVO;
+import com.jacolp.pojo.vo.note.NoteEachSimpleVO;
 
 @Mapper
 public interface NoteEachMappingMapper {
@@ -69,4 +70,9 @@ public interface NoteEachMappingMapper {
      */
     List<NoteBacklinkVO> selectBacklinksByTargetNoteId(@Param("targetNoteId") Long targetNoteId,
                                                        @Param("userId") Long userId);
+
+    /**
+     * 查询访客可见的公开笔记双链摘要。
+     */
+    List<NoteEachSimpleVO> selectPublicEachNotesBySourceNoteId(@Param("sourceNoteId") Long sourceNoteId);
 }

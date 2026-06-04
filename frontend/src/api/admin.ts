@@ -121,30 +121,42 @@ export interface UserStatusParams {
 
 // ── Audit types ──────────────────────────────────
 export interface AuditNoteItem {
+  /** Audit record ID */
   id: number
-  title: string
+  /** Reviewed note ID */
+  noteId: number
+  noteTitle: string
+  applicantUsername?: string
+  title?: string
   applicantUserId: number
-  nickname: string
+  nickname?: string
   status: number
   updateTime: string
 }
 
 export interface AuditMetaItem {
+  /** Audit record ID */
   id: number
   applyType: number // 1: Topic, 2: Tag
+  targetId?: number
   targetName: string
   applicantUserId: number
-  nickname: string
+  applicantUsername?: string
+  nickname?: string
   status: number
   updateTime: string
 }
 
 export interface AuditImageItem {
+  /** Audit record ID */
   id: number
+  /** Reviewed image ID */
+  imageId?: number
   filename: string
   ossUrl: string
   applicantUserId: number
-  nickname: string
+  applicantUsername?: string
+  nickname?: string
   status: number
   updateTime: string
 }

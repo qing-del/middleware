@@ -9,6 +9,7 @@ import {
   RefreshCw, FileCode, Globe, X, Layers, Clock,
   CheckCircle2, AlertTriangle, XCircle
 } from 'lucide-vue-next'
+import { confirmAction, alertWarning } from '@/utils/feedback'
 
 // ── State ─────────────────────────────────────────
 const router = useRouter()
@@ -40,9 +41,6 @@ const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
 // ── Helpers ───────────────────────────────────────
-function showAlert(msg: string) { window.alert(msg) }
-function showConfirm(msg: string): boolean { return window.confirm(msg) }
-
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return '0 B'
   const u = ['B', 'KB', 'MB', 'GB']
@@ -143,14 +141,14 @@ function toggleSelect(id: number) {
 
 // ── Actions ───────────────────────────────────────
 async function handleDelete(id: number) {
-  if (!showConfirm('确定删除该笔记吗？')) return
+  if (!await confirmAction({ content: '确定删除该笔记吗？', danger: true })) return
   await adminApi.deleteNotes([id])
   await fetchNotes()
 }
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!showConfirm(`确定删除已选择的 ${selectedIds.value.size} 篇笔记吗？`)) return
+  if (!await confirmAction({ content: `确定删除已选择的 ${selectedIds.value.size} 篇笔记吗？`, danger: true })) return
   await adminApi.deleteNotes([...selectedIds.value])
   selectedIds.value.clear()
   await fetchNotes()
@@ -161,7 +159,7 @@ async function handleConvert(id: number) {
     await adminApi.convertNote(id)
     await fetchNotes()
   } catch {
-    showAlert('转换失败，请确认笔记关联完整')
+    alertWarning('转换失败，请确认笔记关联完整')
   }
 }
 
@@ -173,7 +171,7 @@ async function handleViewSource(id: number) {
     sourceContent.value = src as unknown as string
     showSourceModal.value = true
   } catch {
-    showAlert('无法获取源文件')
+    alertWarning('无法获取源文件')
   }
 }
 

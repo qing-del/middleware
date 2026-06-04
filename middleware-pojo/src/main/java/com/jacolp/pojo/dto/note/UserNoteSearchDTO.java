@@ -24,6 +24,9 @@ public class UserNoteSearchDTO implements Serializable, PageParamProvider {
     @Schema(description = "标签ID", example = "1")
     private Long tagId;
 
+    @Schema(description = "查询范围：global=全局，其他值=仅当前用户", example = "personal")
+    private String scope;
+
     @Schema(description = "页码（默认1）", example = "1")
     private Integer pageNum;
 

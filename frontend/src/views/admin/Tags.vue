@@ -6,6 +6,7 @@ import type { AdminTagItem, PageResult } from '@/api/admin'
 import type { TagBacklinkVO } from '@/api/notes'
 import { getNoteStatusInfo } from '@/api/notes'
 import { Hash, Search, Trash2, Loader2, ChevronLeft, ChevronRight, Pencil, Info, Link, FileText } from 'lucide-vue-next'
+import { confirmAction } from '@/utils/feedback'
 
 const loading = ref(true)
 const tagList = ref<AdminTagItem[]>([])
@@ -163,14 +164,14 @@ function cancelEdit() {
 }
 
 async function handleDelete(id: number) {
-  if (!confirm('确定删除该标签吗？')) return
+  if (!await confirmAction({ content: '确定删除该标签吗？', danger: true })) return
   await adminApi.deleteTags([id])
   await fetchTags()
 }
 
 async function handleBatchDelete() {
   if (selectedIds.value.size === 0) return
-  if (!confirm(`确定删除已选择的 ${selectedIds.value.size} 个标签吗？`)) return
+  if (!await confirmAction({ content: `确定删除已选择的 ${selectedIds.value.size} 个标签吗？`, danger: true })) return
   await adminApi.deleteTags([...selectedIds.value])
   selectedIds.value.clear()
   await fetchTags()

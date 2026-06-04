@@ -47,6 +47,8 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .addPathPatterns("/user/**")
                 .excludePathPatterns("/user/user/login")
                 .excludePathPatterns("/user/user/register")
+                .excludePathPatterns("/user/user/active-code")      // 放行使用激活码的接口
+                .excludePathPatterns("/user/user/resend-activation")    // 放行重发重发验证码的端口
                 .excludePathPatterns("/user/user/active/**");   // 将激活接口放行
 
 
@@ -78,11 +80,25 @@ public class WebMvcConfiguration implements WebMvcConfigurer  {
                 .build();
     }
 
+    /**
+     * 创建 user 部分的接口文档
+     */
     @Bean
     public GroupedOpenApi userApi() {
         return GroupedOpenApi.builder()
                 .group("user 端接口")
                 .packagesToScan("com.jacolp.controller.user")
+                .build();
+    }
+
+    /**
+     * 创建 guest 部分的接口文档
+     */
+    @Bean
+    public GroupedOpenApi guestApi() {
+        return GroupedOpenApi.builder()
+                .group("guest 端接口")
+                .packagesToScan("com.jacolp.controller.guest")
                 .build();
     }
 

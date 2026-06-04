@@ -115,6 +115,15 @@ public class NoteConvertServiceImpl implements NoteConvertService {
         return toConvertResultVO(converted);
     }
 
+    @Override
+    public NoteConvertResultVO getPublishedNoteConvert(Long noteId) {
+        NoteConvertedEntity converted = noteConvertMapper.selectPublishedByNoteId(noteId);
+        if (converted == null) {
+            throw new BaseException(NoteConstant.NOTE_NOT_CONVERTED);
+        }
+        return toConvertResultVO(converted);
+    }
+
     /**
      * 将库表实体映射为 VO。
      */
