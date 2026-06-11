@@ -854,11 +854,11 @@ onUnmounted(() => {
         <aside class="detail-matrix xl:sticky xl:top-8" :class="matrixCollapsed ? 'detail-matrix--collapsed' : 'detail-matrix--expanded'" :aria-hidden="matrixCollapsed">
           <Transition name="matrix-panel">
             <div v-show="!matrixCollapsed" class="detail-matrix-inner">
-          <div v-if="hasAnyRelations()" class="glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col" :class="note.converted ? 'h-[calc(100vh-10rem)]' : ''">
+          <div v-if="hasAnyRelations()" class="relation-soft-panel user-relation-panel glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col" :class="note.converted ? 'h-[calc(100vh-10rem)]' : ''">
             <!-- Title bar -->
-            <div class="flex items-center justify-between p-4 border-b border-white/5 bg-black/40">
-              <span class="text-sm font-bold text-white flex items-center">
-                <Network class="w-4 h-4 mr-2 text-indigo-400" />
+            <div class="relation-panel-header flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
+              <span class="relation-panel-title text-sm font-bold text-white flex items-center">
+                <Network class="relation-panel-icon w-4 h-4 mr-2 text-indigo-400" />
                 资产关联矩阵
               </span>
               <span class="flex h-2 w-2 relative">
@@ -903,7 +903,7 @@ onUnmounted(() => {
                   <ImageIcon class="w-3.5 h-3.5 mr-1.5 text-sky-400" />图床引用 ({{ note.images.length }})
                 </h4>
                 <div class="space-y-2">
-                  <div v-for="img in note.images" :key="img.imageId" class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border group transition-colors cursor-pointer" :class="isMissingImg(img) ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-white/5 hover:border-sky-500/30'">
+                  <div v-for="img in note.images" :key="img.imageId" class="flex items-center justify-between bg-white/[0.03] p-2.5 rounded-xl border group transition-colors cursor-pointer" :class="isMissingImg(img) ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-white/5 hover:border-sky-500/30'">
                     <div class="flex items-center space-x-2 overflow-hidden">
                       <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" :class="isMissingImg(img) ? 'bg-amber-500/10 text-amber-400' : 'bg-sky-500/10 text-sky-400'">
                         <ImageIcon class="w-4 h-4" />
@@ -926,7 +926,7 @@ onUnmounted(() => {
                   <Link class="w-3.5 h-3.5 mr-1.5 text-emerald-400" />数字双链 ({{ note.eachNotes.length }})
                 </h4>
                 <div class="space-y-2">
-                  <div v-for="each in note.eachNotes" :key="each.targetNoteId" class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border group transition-colors cursor-pointer" :class="isMissingLink(each) ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-white/5 hover:border-emerald-500/30'" @click="handleEachNoteClick(each)">
+                  <div v-for="each in note.eachNotes" :key="each.targetNoteId" class="flex items-center justify-between bg-white/[0.03] p-2.5 rounded-xl border group transition-colors cursor-pointer" :class="isMissingLink(each) ? 'border-amber-500/30 hover:border-amber-500/50' : 'border-white/5 hover:border-emerald-500/30'" @click="handleEachNoteClick(each)">
                     <div class="flex items-center space-x-2 overflow-hidden">
                       <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" :class="isMissingLink(each) ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'">
                         <FileText class="w-4 h-4" />
@@ -956,16 +956,16 @@ onUnmounted(() => {
           </div>
 
           <!-- Backlinks (反向引用) — lazy fetched on click -->
-          <div class="mt-4 glass-panel rounded-2xl border border-white/10 overflow-hidden">
+          <div class="relation-soft-panel relation-backlinks-panel mt-4 glass-panel rounded-2xl border border-white/10 overflow-hidden">
             <button
-              class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-cyan-500/5 transition-colors group"
+              class="relation-panel-toggle w-full flex items-center justify-between px-4 py-3 text-left hover:bg-cyan-500/5 transition-colors group"
               :class="backlinksExpanded ? 'border-b border-white/5 bg-cyan-500/5' : ''"
               @click="toggleBacklinks"
             >
-              <span class="flex items-center gap-2 text-sm font-bold text-white">
-                <Link class="w-4 h-4 text-cyan-400" />
+              <span class="relation-panel-title flex items-center gap-2 text-sm font-bold text-white">
+                <Link class="relation-panel-icon w-4 h-4 text-cyan-400" />
                 反向引用
-                <span v-if="backlinksFetched" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">{{ backlinks.length }}</span>
+                <span v-if="backlinksFetched" class="relation-count-badge px-1.5 py-0.5 rounded text-[10px] font-black bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">{{ backlinks.length }}</span>
                 <span v-else class="text-[10px] text-slate-500 font-normal">点击加载</span>
               </span>
               <ChevronRight class="w-4 h-4 text-slate-400 transition-transform" :class="backlinksExpanded ? 'rotate-90 text-cyan-300' : 'group-hover:text-cyan-400'" />
@@ -981,11 +981,11 @@ onUnmounted(() => {
                   <div
                     v-for="b in backlinks"
                     :key="b.sourceNoteId"
-                    class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/5 hover:border-cyan-500/30 group transition-colors cursor-pointer mb-2 last:mb-0"
+                    class="relation-list-item flex items-center justify-between bg-white/[0.03] p-2.5 rounded-xl border border-white/5 hover:border-cyan-500/30 group transition-colors cursor-pointer mb-2 last:mb-0"
                     @click="handleBacklinkClick(b)"
                   >
                     <div class="flex items-center space-x-2 overflow-hidden">
-                      <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-cyan-500/10 text-cyan-400">
+                      <div class="relation-list-icon w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-cyan-500/10 text-cyan-400">
                         <FileText class="w-4 h-4" />
                       </div>
                       <div class="flex flex-col min-w-0">
@@ -1011,7 +1011,7 @@ onUnmounted(() => {
 
       <!-- ═══ Relation Binding Console ═══ -->
       <section class="space-y-6">
-        <div class="glass-panel rounded-2xl p-6 border border-white/10 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-br from-[#0f172a]/80 to-transparent">
+        <div class="relation-soft-panel relation-health-panel glass-panel rounded-2xl p-6 border border-white/10 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div class="flex items-start gap-4 relative z-10">
             <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 mt-1" :class="relationStats.missingTotal > 0 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'">
               <AlertTriangle v-if="relationStats.missingTotal > 0" class="w-6 h-6" />
@@ -1029,11 +1029,11 @@ onUnmounted(() => {
           </div>
 
           <div class="flex gap-4 relative z-10 shrink-0">
-            <div class="flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-emerald-500/30 relative">
+            <div class="relation-stat-orb relation-stat-orb--success flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-emerald-500/30 relative">
               <span class="text-lg font-black text-emerald-400">{{ relationStats.boundTotal }}</span>
               <span class="text-[9px] text-slate-500 uppercase font-bold">已绑定</span>
             </div>
-            <div class="flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-rose-500/20 relative">
+            <div class="relation-stat-orb relation-stat-orb--danger flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-rose-500/20 relative">
               <span class="text-lg font-black text-rose-400">{{ relationStats.missingTotal }}</span>
               <span class="text-[9px] text-slate-500 uppercase font-bold">待修复</span>
             </div>
@@ -1081,7 +1081,7 @@ onUnmounted(() => {
                 暂无图片映射记录
               </div>
               <div v-else class="space-y-3">
-                <div v-for="row in relationDetail.images" :key="row.mappingId" class="glass-panel rounded-xl p-4 border transition-colors flex items-center justify-between" :class="row.isMissing === 1 ? 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' : 'border-white/5 bg-black/20 hover:bg-white/5'">
+                <div v-for="row in relationDetail.images" :key="row.mappingId" class="glass-panel rounded-xl p-4 border transition-colors flex items-center justify-between" :class="row.isMissing === 1 ? 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' : 'border-white/5 bg-white/[0.03] hover:bg-white/5'">
                   <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" :class="row.isMissing === 1 ? 'bg-rose-500/10 text-rose-400' : 'bg-sky-500/10 text-sky-400'">
                       <ImageIcon class="w-5 h-5" />
@@ -1120,7 +1120,7 @@ onUnmounted(() => {
                 暂无标签映射记录
               </div>
               <div v-else class="space-y-3">
-                <div v-for="row in relationDetail.tags" :key="row.mappingId" class="glass-panel rounded-xl p-4 border transition-colors flex items-center justify-between" :class="row.isMissing === 1 ? 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' : 'border-white/5 bg-black/20 hover:bg-white/5'">
+                <div v-for="row in relationDetail.tags" :key="row.mappingId" class="glass-panel rounded-xl p-4 border transition-colors flex items-center justify-between" :class="row.isMissing === 1 ? 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' : 'border-white/5 bg-white/[0.03] hover:bg-white/5'">
                   <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" :class="row.isMissing === 1 ? 'bg-rose-500/10 text-rose-400' : 'bg-purple-500/10 text-purple-400'">
                       <Hash class="w-5 h-5" />
@@ -1158,7 +1158,7 @@ onUnmounted(() => {
                 暂无双链映射记录
               </div>
               <div v-else class="space-y-3">
-                <div v-for="row in relationDetail.eachNotes" :key="row.mappingId" class="glass-panel rounded-xl p-4 border transition-colors flex items-center justify-between" :class="row.isMissing === 1 ? 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' : 'border-white/5 bg-black/20 hover:bg-white/5'">
+                <div v-for="row in relationDetail.eachNotes" :key="row.mappingId" class="glass-panel rounded-xl p-4 border transition-colors flex items-center justify-between" :class="row.isMissing === 1 ? 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10' : 'border-white/5 bg-white/[0.03] hover:bg-white/5'">
                   <div class="flex items-center gap-4">
                     <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" :class="row.isMissing === 1 ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'">
                       <Link class="w-5 h-5" />
@@ -1326,6 +1326,112 @@ onUnmounted(() => {
 .mini-tag {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.relation-soft-panel {
+  background: var(--cn-surface) !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-xs) !important;
+}
+
+.relation-panel-header,
+.relation-panel-toggle {
+  background: transparent !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text);
+}
+
+.relation-panel-toggle:hover,
+.relation-panel-toggle[class*="bg-cyan"] {
+  background: var(--cn-surface-muted) !important;
+}
+
+.relation-panel-title,
+.relation-health-panel h2 {
+  color: var(--cn-text) !important;
+}
+
+.relation-panel-icon {
+  color: var(--cn-link) !important;
+}
+
+.relation-count-badge {
+  border-color: rgba(37, 99, 235, 0.18) !important;
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: var(--cn-link) !important;
+}
+
+.relation-soft-panel .text-white,
+.relation-soft-panel .text-slate-300,
+.relation-soft-panel .text-slate-400 {
+  color: var(--cn-text-soft) !important;
+}
+
+.relation-soft-panel .text-slate-500 {
+  color: var(--cn-text-muted) !important;
+}
+
+.relation-list-item,
+.user-relation-panel .bg-white\/\[0\.03\] {
+  background: var(--cn-bg-subtle) !important;
+  border-color: var(--cn-border) !important;
+}
+
+.relation-list-item:hover,
+.user-relation-panel .bg-white\/\[0\.03\]:hover {
+  background: var(--cn-surface-muted) !important;
+  border-color: var(--cn-border-strong) !important;
+}
+
+.relation-list-item:hover .text-slate-300 {
+  color: var(--cn-link-hover) !important;
+}
+
+.relation-list-icon {
+  background: var(--cn-surface) !important;
+  border: 1px solid var(--cn-border);
+  color: var(--cn-link) !important;
+}
+
+.user-relation-panel .border-white\/5,
+.user-relation-panel .border-white\/10 {
+  border-color: var(--cn-border) !important;
+}
+
+.user-relation-panel h4 {
+  color: var(--cn-text-muted) !important;
+}
+
+.relation-health-panel {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(247, 247, 245, 0.72)),
+    var(--cn-surface) !important;
+}
+
+.relation-health-panel p {
+  color: var(--cn-text-soft) !important;
+}
+
+.relation-stat-orb {
+  background: var(--cn-bg-subtle);
+  border-width: 1px !important;
+}
+
+.relation-stat-orb--success {
+  border-color: rgba(21, 128, 61, 0.2) !important;
+}
+
+.relation-stat-orb--danger {
+  border-color: rgba(185, 28, 28, 0.18) !important;
+}
+
+.relation-stat-orb span:first-child {
+  color: var(--cn-text) !important;
+}
+
+.relation-stat-orb span:last-child {
+  color: var(--cn-text-muted) !important;
 }
 
 .detail-grid,
@@ -1524,11 +1630,11 @@ onUnmounted(() => {
   margin-bottom: 0.3rem;
 }
 .article-content :deep(h1 + ul a) {
-  color: #60a5fa;
+  color: var(--cn-link);
   text-decoration: none;
   transition: color 0.15s;
 }
-.article-content :deep(h1 + ul a:hover) { color: #93c5fd; }
+.article-content :deep(h1 + ul a:hover) { color: var(--cn-link-hover); }
 .article-content :deep(p) { margin-bottom: 1.25rem; }
 .article-content :deep(strong) {
   color: #f8fafc; font-weight: 600;
@@ -1747,12 +1853,244 @@ onUnmounted(() => {
 /* ── Internal note link ── */
 .article-content :deep(.internal-note-link),
 .article-content :deep(.hash-link) {
-  color: #60a5fa; text-decoration: underline;
-  text-underline-offset: 4px; text-decoration-color: rgba(59, 130, 246, 0.3);
+  color: var(--cn-link); text-decoration: underline;
+  text-underline-offset: 4px; text-decoration-color: var(--cn-link-underline);
   cursor: pointer; transition: color 0.2s;
 }
 .article-content :deep(.internal-note-link:hover),
-.article-content :deep(.hash-link) { color: #93c5fd; }
+.article-content :deep(.hash-link:hover) { color: var(--cn-link-hover); }
+
+/* ── Minimal light readability overrides ── */
+.detail-main {
+  background: var(--cn-surface) !important;
+  border-color: var(--cn-border) !important;
+  box-shadow: var(--cn-shadow-xs) !important;
+}
+
+.article-content {
+  color: var(--cn-text-soft);
+}
+
+.article-content :deep(a),
+.article-content :deep(.internal-note-link),
+.article-content :deep(.hash-link),
+.article-content :deep(h1 + ul a) {
+  color: var(--cn-link) !important;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--cn-link-underline);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition:
+    color var(--cn-fast) var(--cn-ease),
+    text-decoration-color var(--cn-fast) var(--cn-ease),
+    background-color var(--cn-fast) var(--cn-ease);
+}
+
+.article-content :deep(a:hover),
+.article-content :deep(.internal-note-link:hover),
+.article-content :deep(.hash-link:hover),
+.article-content :deep(h1 + ul a:hover) {
+  color: var(--cn-link-hover) !important;
+  text-decoration-color: currentColor;
+}
+
+.article-content :deep(a:visited) {
+  color: var(--cn-link-visited) !important;
+}
+
+.article-content :deep(a:focus-visible),
+.article-content :deep(.internal-note-link:focus-visible),
+.article-content :deep(.hash-link:focus-visible) {
+  border-radius: var(--cn-radius-xs);
+  outline: 2px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 3px;
+}
+
+.article-content :deep(.internal-note-link.unresolved) {
+  color: var(--cn-text-muted) !important;
+  cursor: default;
+  text-decoration-color: rgba(120, 120, 116, 0.36);
+}
+
+.article-content :deep(h1),
+.article-content :deep(h2),
+.article-content :deep(h3),
+.article-content :deep(h4),
+.article-content :deep(h5),
+.article-content :deep(h6) {
+  color: var(--cn-text);
+}
+
+.article-content :deep(h1) {
+  border-bottom-color: var(--cn-border);
+}
+
+.article-content :deep(h2::before),
+.article-content :deep(h5::before) {
+  color: var(--cn-text-muted);
+  background: var(--cn-text-muted);
+  box-shadow: none;
+}
+
+.article-content :deep(p),
+.article-content :deep(li),
+.article-content :deep(blockquote),
+.article-content :deep(.callout .callout-content) {
+  color: var(--cn-text-soft);
+}
+
+.article-content :deep(strong) {
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.article-content :deep(blockquote) {
+  border-left-color: var(--cn-border-strong);
+  background: var(--cn-bg-subtle);
+}
+
+.article-content :deep(.table-wrapper) {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-surface);
+}
+
+.article-content :deep(.table-wrapper thead) {
+  border-bottom-color: var(--cn-border);
+  background: var(--cn-bg-subtle);
+}
+
+.article-content :deep(.table-wrapper th) {
+  color: var(--cn-text-muted);
+}
+
+.article-content :deep(.table-wrapper td) {
+  color: var(--cn-text-soft);
+  border-bottom-color: var(--cn-border);
+}
+
+.article-content :deep(.table-wrapper tbody tr:nth-child(even)),
+.article-content :deep(.table-wrapper tbody tr:hover) {
+  background: var(--cn-bg-subtle);
+}
+
+.article-content :deep(pre) {
+  background: #f4f4f2 !important;
+  border: 1px solid var(--cn-border) !important;
+  color: var(--cn-text) !important;
+  box-shadow: none !important;
+}
+
+.article-content :deep(pre code),
+.article-content :deep(pre code.hljs),
+.article-content :deep(.hljs) {
+  background: transparent !important;
+  color: var(--cn-text) !important;
+}
+
+.article-content :deep(.hljs-comment),
+.article-content :deep(.hljs-quote) {
+  color: #6f6f68 !important;
+}
+
+.article-content :deep(.hljs-keyword),
+.article-content :deep(.hljs-selector-tag),
+.article-content :deep(.hljs-built_in),
+.article-content :deep(.hljs-type) {
+  color: #7f1d1d !important;
+}
+
+.article-content :deep(.hljs-string),
+.article-content :deep(.hljs-attr),
+.article-content :deep(.hljs-symbol),
+.article-content :deep(.hljs-bullet) {
+  color: #116329 !important;
+}
+
+.article-content :deep(.hljs-title),
+.article-content :deep(.hljs-section),
+.article-content :deep(.hljs-function),
+.article-content :deep(.hljs-name) {
+  color: #0550ae !important;
+}
+
+.article-content :deep(.hljs-number),
+.article-content :deep(.hljs-literal),
+.article-content :deep(.hljs-variable),
+.article-content :deep(.hljs-template-variable) {
+  color: #953800 !important;
+}
+
+.article-content :deep(:not(pre) > code) {
+  background: #eeeeec !important;
+  border: 1px solid var(--cn-border) !important;
+  color: var(--cn-text) !important;
+}
+
+.article-content :deep(.callout) {
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-soft);
+}
+
+.article-content :deep(.callout .callout-title) {
+  color: var(--cn-text) !important;
+}
+
+.article-content :deep(.mermaid) {
+  border-color: var(--cn-border);
+  background: var(--cn-surface);
+}
+
+:global(#toc-panel) {
+  border: 1px solid var(--cn-border) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--cn-text) !important;
+  box-shadow: var(--cn-shadow-md) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+:global(#toc-panel h4) {
+  border-bottom-color: var(--cn-border) !important;
+  color: var(--cn-text-muted) !important;
+}
+
+:global(#toc-panel button) {
+  border: 1px solid var(--cn-border) !important;
+  background: var(--cn-surface) !important;
+  color: var(--cn-text-soft) !important;
+}
+
+:global(#toc-panel button:hover) {
+  border-color: var(--cn-border-strong) !important;
+  background: var(--cn-surface-muted) !important;
+  color: var(--cn-text) !important;
+}
+
+:global(#toc-panel .toc-list .toc-link),
+:global(#toc-panel p) {
+  color: var(--cn-text-soft) !important;
+}
+
+:global(#toc-panel .toc-list .toc-link:hover) {
+  background: var(--cn-surface-muted) !important;
+  color: var(--cn-text) !important;
+}
+
+:global(#toc-ball) {
+  border: 1px solid var(--cn-border-strong) !important;
+  background: var(--cn-surface) !important;
+  color: var(--cn-text) !important;
+  box-shadow: var(--cn-shadow-sm) !important;
+}
+
+:global(#toc-ball:hover) {
+  box-shadow: var(--cn-shadow-md) !important;
+}
+
+:global(#toc-ball .animate-ping) {
+  display: none !important;
+}
 
 /* ── Animate ping── */
 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }

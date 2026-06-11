@@ -62,21 +62,21 @@ function makeDarkLineOpt(seriesData: object[], yMax?: number, yFormatter?: strin
     grid: { top: 40, right: 20, bottom: 30, left: 50 },
     legend: {
       top: 8,
-      textStyle: { color: '#94a3b8', fontSize: 11, fontFamily: 'Inter, sans-serif' }
+      textStyle: { color: '#777771', fontSize: 11, fontFamily: 'Inter, sans-serif' }
     },
     xAxis: {
       type: 'category',
       show: true,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+      axisLine: { lineStyle: { color: '#dededb' } },
       axisTick: { show: false },
       axisLabel: { show: false },
     },
     yAxis: {
       type: 'value',
       max: yMax,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+      splitLine: { lineStyle: { color: '#eeeeec' } },
       axisLabel: {
-        color: '#64748b',
+        color: '#777771',
         fontSize: 10,
         fontFamily: 'Inter, sans-serif',
         formatter: yFormatter || '{value}'
@@ -94,7 +94,7 @@ function initCharts() {
       type: 'line',
       smooth: true,
       symbol: 'none',
-      lineStyle: { color: '#22d3ee', width: 2 },
+      lineStyle: { color: '#111111', width: 2 },
       data: [],
     }], 100, '{value}%'))
   }
@@ -106,11 +106,11 @@ function initCharts() {
       type: 'line',
       smooth: true,
       symbol: 'none',
-      lineStyle: { color: '#34d399', width: 2 },
+      lineStyle: { color: '#15803d', width: 2 },
       areaStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: 'rgba(52,211,153,0.35)' },
-          { offset: 1, color: 'rgba(52,211,153,0.02)' }
+          { offset: 0, color: 'rgba(21,128,61,0.18)' },
+          { offset: 1, color: 'rgba(21,128,61,0.02)' }
         ])
       },
       data: [],
@@ -125,7 +125,7 @@ function initCharts() {
         type: 'line',
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: '#818cf8', width: 1.5 },
+        lineStyle: { color: '#2563eb', width: 1.5 },
         data: [],
       },
       {
@@ -133,7 +133,7 @@ function initCharts() {
         type: 'line',
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: '#f43f5e', width: 2.5 },
+        lineStyle: { color: '#b91c1c', width: 2.5 },
         data: [],
       },
       {
@@ -141,7 +141,7 @@ function initCharts() {
         type: 'line',
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: '#94a3b8', width: 1 },
+        lineStyle: { color: '#777771', width: 1 },
         data: [],
       },
     ]))
@@ -252,224 +252,487 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto space-y-8">
-    <!-- Ambient Glow Orbs -->
-    <div class="fixed top-[-12%] right-[-6%] z-0 h-[520px] w-[520px] rounded-full bg-rose-500/10 blur-[160px] pointer-events-none"></div>
-    <div class="fixed bottom-[-14%] left-[-6%] z-0 h-[460px] w-[460px] rounded-full bg-indigo-500/10 blur-[150px] pointer-events-none"></div>
+  <div class="admin-dashboard">
+    <section class="admin-hero">
+      <p class="admin-eyebrow">
+        <ShieldCheck class="h-3.5 w-3.5" />
+        Admin console
+      </p>
+      <h2>欢迎回来，{{ authStore.user?.nickname || 'System Admin' }}</h2>
+      <p>全站资源监控、内容审核与用户资产都集中在这里。页面保持安静，异常状态会自己浮上来。</p>
+    </section>
 
-    <!-- 管理员欢迎卡片 -->
-    <div class="glass-panel rounded-3xl p-8 relative overflow-hidden group">
-      <div class="absolute -top-24 -right-24 w-64 h-64 bg-rose-500/10 blur-[60px] rounded-full group-hover:bg-rose-500/20 transition-all duration-700 pointer-events-none"></div>
-
-      <div class="relative z-10">
-        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-4">
-          <ShieldCheck class="text-rose-400 w-3 h-3" />
-          <span class="text-[10px] text-rose-300 font-bold uppercase tracking-[0.2em]">Highest Privilege</span>
+    <section class="metric-grid" aria-label="管理概览">
+      <article class="metric-card">
+        <div class="metric-head">
+          <span class="metric-icon"><Users class="h-5 w-5" /></span>
+          <span class="metric-badge">+12</span>
         </div>
-        <h2 class="text-3xl font-black text-white tracking-tight mb-2">
-          欢迎回来，<span class="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-orange-400">{{ authStore.user?.nickname || 'System Admin' }}</span>
-        </h2>
-        <p class="text-slate-400 text-sm max-w-xl leading-relaxed">
-          全站资源监控与审批通道已开启。您可以管理用户资产、批量审核笔记申请，并维护内容生态的健康运转。
-        </p>
-      </div>
-    </div>
+        <p class="metric-label">Total Users</p>
+        <strong class="metric-value">4,281</strong>
+      </article>
 
-    <!-- Admin 专属数据大盘 -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <!-- 统计卡片 1: 总用户 -->
-      <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors border-t border-white/10 border-l-0 border-r-0 border-b-0">
-        <div class="flex justify-between items-start mb-4">
-          <div class="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400">
-            <Users class="w-5 h-5" />
+      <article class="metric-card">
+        <div class="metric-head">
+          <span class="metric-icon"><FileText class="h-5 w-5" /></span>
+          <span class="metric-badge">+142</span>
+        </div>
+        <p class="metric-label">Global Notes</p>
+        <strong class="metric-value">128.5 <span>K</span></strong>
+      </article>
+
+      <article class="metric-card is-danger">
+        <div class="metric-head">
+          <span class="metric-icon"><ClipboardCheck class="h-5 w-5" /></span>
+          <span class="metric-badge metric-badge-danger">
+            <ShieldAlert class="h-3 w-3" />
+            Action Req
+          </span>
+        </div>
+        <p class="metric-label">Pending Audits</p>
+        <strong class="metric-value">24</strong>
+      </article>
+
+      <article class="metric-card">
+        <div class="metric-head">
+          <span class="metric-icon"><HardDrive class="h-5 w-5" /></span>
+          <span class="metric-badge">68% Used</span>
+        </div>
+        <p class="metric-label">OSS Storage</p>
+        <strong class="metric-value">6.8 <span>TB</span></strong>
+        <div class="storage-bar" aria-hidden="true"><div></div></div>
+      </article>
+    </section>
+
+    <section class="monitor-section">
+      <div class="monitor-bar">
+        <div class="monitor-title">
+          <span :class="['status-dot', monitorEnabled ? 'is-running' : '']"></span>
+          <div>
+            <h3>实时服务器监控</h3>
+            <p>{{ monitorEnabled ? 'WebSocket 已连接，正在采集运行指标' : '监控默认关闭，按需开启以减少页面负载' }}</p>
           </div>
-          <span class="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-lg">+12</span>
+          <span class="monitor-state">{{ monitorEnabled ? 'RUNNING' : 'IDLE' }}</span>
         </div>
-        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Users</h3>
-        <div class="text-3xl font-black text-white">4,281</div>
+        <button
+          type="button"
+          class="monitor-toggle"
+          :class="monitorEnabled ? 'is-danger' : 'is-start'"
+          :disabled="monitorLoading"
+          @click="toggleMonitor"
+        >
+          <Play v-if="!monitorEnabled && !monitorLoading" class="h-3.5 w-3.5" />
+          <Square v-else-if="monitorEnabled && !monitorLoading" class="h-3.5 w-3.5" />
+          <Activity v-else class="h-3.5 w-3.5 animate-spin" />
+          {{ monitorLoading ? 'CONNECTING...' : (monitorEnabled ? '关闭监控' : '开启监控') }}
+        </button>
       </div>
 
-      <!-- 统计卡片 2: 全站笔记 -->
-      <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors border-t border-white/10 border-l-0 border-r-0 border-b-0">
-        <div class="flex justify-between items-start mb-4">
-          <div class="p-2.5 bg-purple-500/10 rounded-xl text-purple-400">
-            <FileText class="w-5 h-5" />
-          </div>
-          <span class="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-lg">+142</span>
-        </div>
-        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Global Notes</h3>
-        <div class="text-3xl font-black text-white">128.5 <span class="text-lg text-slate-500">K</span></div>
-      </div>
-
-      <!-- 统计卡片 3: 待审核事项 -->
-      <div class="glass-panel rounded-2xl p-6 bg-rose-500/5 hover:bg-rose-500/10 transition-colors border border-rose-500/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_0_20px_rgba(244,63,94,0.05)] relative overflow-hidden group">
-        <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
-          <ShieldAlert class="w-32 h-32 text-rose-500" />
-        </div>
-        <div class="flex justify-between items-start mb-4 relative z-10">
-          <div class="p-2.5 bg-rose-500/20 rounded-xl text-rose-400">
-            <ClipboardCheck class="w-5 h-5" />
-          </div>
-          <span class="text-[10px] font-black text-rose-300 bg-rose-500/20 px-2 py-1 rounded-lg uppercase tracking-widest animate-pulse">Action Req</span>
-        </div>
-        <h3 class="text-rose-200/80 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">Pending Audits</h3>
-        <div class="text-3xl font-black text-rose-400 relative z-10">24</div>
-      </div>
-
-      <!-- 统计卡片 4: 系统存储 -->
-      <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors border-t border-white/10 border-l-0 border-r-0 border-b-0">
-        <div class="flex justify-between items-start mb-4">
-          <div class="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400">
-            <HardDrive class="w-5 h-5" />
-          </div>
-          <span class="text-[10px] font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg uppercase">68% Used</span>
-        </div>
-        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">OSS Storage</h3>
-        <div class="text-3xl font-black text-white">6.8 <span class="text-lg text-slate-500">TB</span></div>
-        <div class="w-full bg-black/40 h-1.5 rounded-full mt-4 overflow-hidden">
-          <div class="bg-gradient-to-r from-emerald-500 to-teal-400 w-[68%] h-full rounded-full"></div>
+      <div v-if="!monitorEnabled && !monitorLoading" class="monitor-empty">
+        <span class="empty-icon"><Cpu class="h-7 w-7" /></span>
+        <div>
+          <p>监控已关闭</p>
+          <span>点击「开启监控」建立 WebSocket 连接，实时采集 CPU、JVM 堆内存、线程状态等指标。</span>
         </div>
       </div>
-    </div>
 
-    <!-- ========== 服务器实时监控区域 ========== -->
-    <div class="flex items-center justify-between mb-2 mt-8">
-      <div class="flex items-center space-x-3">
-        <div :class="['w-2 h-2 rounded-full shadow-[0_0_8px_rgba(52,211,153,0.8)]', monitorEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600']"></div>
-        <h3 class="text-sm font-bold text-slate-300 uppercase tracking-widest">实时服务器监控</h3>
-        <span v-if="monitorEnabled" class="text-[9px] font-bold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded uppercase tracking-wider">RUNNING</span>
-        <span v-else class="text-[9px] font-bold text-slate-500 bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-wider">IDLE</span>
+      <div v-if="monitorLoading" class="monitor-empty">
+        <span class="empty-icon"><Activity class="h-7 w-7 animate-spin" /></span>
+        <div>
+          <p>正在连接 WebSocket...</p>
+          <span>连接成功后会显示最新服务器指标。</span>
+        </div>
       </div>
-      <button
-        @click="toggleMonitor"
-        :disabled="monitorLoading"
-        :class="['relative flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all duration-300 overflow-hidden group/toggle', monitorEnabled ? 'bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 hover:shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:shadow-[0_0_15px_rgba(52,211,153,0.3)] cursor-pointer']"
-      >
-        <div :class="['absolute inset-0 rounded-xl transition-opacity duration-300', monitorEnabled ? 'bg-gradient-to-r from-transparent via-rose-500/10 to-transparent -translate-x-full group-hover/toggle:translate-x-full' : 'bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover/toggle:translate-x-full']"></div>
-        <Play v-if="!monitorEnabled && !monitorLoading" class="w-3.5 h-3.5 relative z-10" />
-        <Square v-else-if="monitorEnabled && !monitorLoading" class="w-3.5 h-3.5 relative z-10" />
-        <span class="relative z-10">{{ monitorLoading ? 'CONNECTING...' : (monitorEnabled ? '关闭监控' : '开启监控') }}</span>
-      </button>
-    </div>
 
-    <!-- 关闭态：占位卡片 -->
-    <div v-if="!monitorEnabled && !monitorLoading" class="glass-panel rounded-2xl p-10 flex flex-col items-center justify-center text-center space-y-4">
-      <div class="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center">
-        <Cpu class="w-8 h-8 text-slate-600" />
-      </div>
-      <div>
-        <p class="text-sm font-bold text-slate-400">监控已关闭</p>
-        <p class="text-xs text-slate-600 mt-1 max-w-sm">点击上方「开启监控」按钮建立 WebSocket 连接，实时采集服务器 CPU、JVM 堆内存、线程状态等指标。</p>
-      </div>
-    </div>
-
-    <!-- 加载态 -->
-    <div v-if="monitorLoading" class="glass-panel rounded-2xl p-10 flex flex-col items-center justify-center text-center space-y-4">
-      <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center animate-pulse">
-        <Activity class="w-8 h-8 text-emerald-400 animate-spin" />
-      </div>
-      <p class="text-sm font-bold text-emerald-400">正在连接 WebSocket...</p>
-    </div>
-
-    <!-- 开启态：完整监控大盘 -->
-    <template v-if="monitorEnabled">
-      <!-- 4 个实时监控卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <!-- CPU -->
-        <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors relative overflow-hidden group">
-          <div class="absolute -top-6 -right-6 w-20 h-20 bg-cyan-500/10 blur-2xl rounded-full group-hover:bg-cyan-500/20 transition-all duration-700 pointer-events-none"></div>
-          <div class="flex justify-between items-start mb-4 relative z-10">
-            <div class="p-2.5 bg-cyan-500/10 rounded-xl text-cyan-400">
-              <Cpu class="w-5 h-5" />
+      <template v-if="monitorEnabled">
+        <div class="metric-grid monitor-grid">
+          <article class="metric-card">
+            <div class="metric-head">
+              <span class="metric-icon"><Cpu class="h-5 w-5" /></span>
+              <span class="status-dot is-running"></span>
             </div>
-            <div class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse"></div>
-          </div>
-          <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">CPU 占用率</h3>
-          <div class="text-3xl font-black text-white relative z-10">{{ cpuUsage.toFixed(1) }}<span class="text-lg text-slate-500">%</span></div>
-        </div>
+            <p class="metric-label">CPU 占用率</p>
+            <strong class="metric-value">{{ cpuUsage.toFixed(1) }}<span>%</span></strong>
+          </article>
 
-        <!-- Heap Memory -->
-        <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors relative overflow-hidden group">
-          <div class="absolute -top-6 -right-6 w-20 h-20 bg-emerald-500/10 blur-2xl rounded-full group-hover:bg-emerald-500/20 transition-all duration-700 pointer-events-none"></div>
-          <div class="flex justify-between items-start mb-4 relative z-10">
-            <div class="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400">
-              <MemoryStick class="w-5 h-5" />
+          <article class="metric-card">
+            <div class="metric-head">
+              <span class="metric-icon"><MemoryStick class="h-5 w-5" /></span>
+              <span class="status-dot is-running"></span>
             </div>
-            <div class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse"></div>
-          </div>
-          <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">JVM 堆内存</h3>
-          <div class="text-3xl font-black text-white relative z-10">{{ heapUsedMB }}<span class="text-lg text-slate-500"> / {{ heapMaxMB }} MB</span></div>
-        </div>
+            <p class="metric-label">JVM 堆内存</p>
+            <strong class="metric-value">{{ heapUsedMB }}<span> / {{ heapMaxMB }} MB</span></strong>
+          </article>
 
-        <!-- Blocked Threads -->
-        <div :class="['glass-panel rounded-2xl p-6 transition-colors relative overflow-hidden group', blockedThreads > 100 ? 'border border-rose-500/30 bg-rose-500/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_0_20px_rgba(244,63,94,0.15)]' : 'hover:bg-white/[0.04]']">
-          <div :class="['absolute -top-6 -right-6 w-20 h-20 blur-2xl rounded-full transition-all duration-700 pointer-events-none', blockedThreads > 100 ? 'bg-rose-500/30' : 'bg-rose-500/10 group-hover:bg-rose-500/20']"></div>
-          <div class="flex justify-between items-start mb-4 relative z-10">
-            <div :class="['p-2.5 rounded-xl', blockedThreads > 100 ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-500/10 text-rose-400']">
-              <AlertTriangle class="w-5 h-5" />
+          <article :class="['metric-card', blockedThreads > 100 ? 'is-danger' : '']">
+            <div class="metric-head">
+              <span class="metric-icon"><AlertTriangle class="h-5 w-5" /></span>
+              <span :class="['status-dot', blockedThreads > 100 ? 'is-danger' : '']"></span>
             </div>
-            <div :class="['w-2 h-2 rounded-full', blockedThreads > 100 ? 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,1)] animate-pulse' : 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.6)]']"></div>
-          </div>
-          <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">阻塞线程</h3>
-          <div :class="['text-3xl font-black relative z-10 transition-colors', blockedThreads > 100 ? 'text-rose-400 animate-pulse' : 'text-white']">{{ blockedThreads }}<span :class="['text-lg', blockedThreads > 100 ? 'text-rose-400/70' : 'text-slate-500']"> 个</span></div>
-        </div>
+            <p class="metric-label">阻塞线程</p>
+            <strong class="metric-value">{{ blockedThreads }}<span> 个</span></strong>
+          </article>
 
-        <!-- QPS -->
-        <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors relative overflow-hidden group">
-          <div class="absolute -top-6 -right-6 w-20 h-20 bg-amber-500/10 blur-2xl rounded-full group-hover:bg-amber-500/20 transition-all duration-700 pointer-events-none"></div>
-          <div class="flex justify-between items-start mb-4 relative z-10">
-            <div class="p-2.5 bg-amber-500/10 rounded-xl text-amber-400">
-              <Activity class="w-5 h-5" />
+          <article class="metric-card">
+            <div class="metric-head">
+              <span class="metric-icon"><Activity class="h-5 w-5" /></span>
+              <span class="status-dot is-running"></span>
             </div>
-            <div class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse"></div>
-          </div>
-          <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">业务吞吐量</h3>
-          <div class="text-3xl font-black text-white relative z-10">{{ currentQps }}<span class="text-lg text-slate-500"> QPS</span></div>
+            <p class="metric-label">业务吞吐量</p>
+            <strong class="metric-value">{{ currentQps }}<span> QPS</span></strong>
+          </article>
         </div>
-      </div>
 
-      <!-- 3 个 ECharts 实时折线图 -->
-      <div class="grid grid-cols-1 gap-6">
-        <div class="glass-panel rounded-2xl p-6">
-          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">CPU 使用率趋势</h3>
-          <div ref="chartCpuRef" class="w-full" style="height:320px"></div>
+        <div class="chart-grid">
+          <article class="chart-card">
+            <h3>CPU 使用率趋势</h3>
+            <div ref="chartCpuRef" class="chart-host"></div>
+          </article>
+          <article class="chart-card">
+            <h3>JVM Heap 内存 (GC 活动)</h3>
+            <div ref="chartHeapRef" class="chart-host"></div>
+          </article>
+          <article class="chart-card">
+            <h3>线程状态分布</h3>
+            <div ref="chartThreadRef" class="chart-host"></div>
+          </article>
         </div>
-        <div class="glass-panel rounded-2xl p-6">
-          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">JVM Heap 内存 (GC 活动)</h3>
-          <div ref="chartHeapRef" class="w-full" style="height:320px"></div>
-        </div>
-        <div class="glass-panel rounded-2xl p-6">
-          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">线程状态分布</h3>
-          <div ref="chartThreadRef" class="w-full" style="height:320px"></div>
-        </div>
-      </div>
-    </template>
-    <!-- ========== 监控区域结束 ========== -->
-
+      </template>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.glass-panel {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+.admin-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
 }
 
-.stat-card {
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, background-color 0.3s ease;
+.admin-hero,
+.metric-card,
+.monitor-section,
+.monitor-empty,
+.chart-card {
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-lg);
+  background: var(--cn-surface);
+  box-shadow: var(--cn-shadow-xs);
 }
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3);
+
+.admin-hero {
+  padding: 28px;
+}
+
+.admin-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.admin-hero h2 {
+  margin: 0;
+  color: var(--cn-text);
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.admin-hero p:last-child {
+  max-width: 720px;
+  margin: 10px 0 0;
+  color: var(--cn-text-soft);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  min-height: 166px;
+  padding: 22px;
+  transition:
+    border-color var(--cn-fast) var(--cn-ease),
+    box-shadow var(--cn-fast) var(--cn-ease),
+    transform var(--cn-fast) var(--cn-ease);
+}
+
+.metric-card:hover {
+  border-color: var(--cn-border-strong);
+  box-shadow: var(--cn-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.metric-card.is-danger {
+  border-color: rgba(185, 28, 28, 0.28);
+  background: color-mix(in srgb, var(--cn-surface) 94%, #b91c1c 6%);
+}
+
+.metric-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.metric-icon,
+.empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-sm);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.metric-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.metric-badge,
+.monitor-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--cn-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-soft);
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.metric-badge-danger {
+  border-color: rgba(185, 28, 28, 0.24);
+  color: var(--cn-danger);
+}
+
+.metric-label {
+  margin: 0 0 6px;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  display: block;
+  color: var(--cn-text);
+  font-size: 32px;
+  font-weight: 760;
+  line-height: 1.12;
+}
+
+.metric-value span {
+  color: var(--cn-text-muted);
+  font-size: 17px;
+  font-weight: 560;
+}
+
+.storage-bar {
+  height: 6px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cn-surface-muted);
+}
+
+.storage-bar > div {
+  width: 68%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cn-accent);
+}
+
+.monitor-section {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.monitor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.monitor-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.monitor-title h3 {
+  margin: 0;
+  color: var(--cn-text);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.monitor-title p {
+  margin: 3px 0 0;
+  color: var(--cn-text-muted);
+  font-size: 12px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--cn-border-strong);
+}
+
+.status-dot.is-running {
+  background: var(--cn-success);
+}
+
+.status-dot.is-danger {
+  background: var(--cn-danger);
+}
+
+.monitor-toggle {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--cn-accent);
+  border-radius: var(--cn-radius-sm);
+  padding: 0 14px;
+  background: var(--cn-accent);
+  color: var(--cn-text-inverse);
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+  transition:
+    background-color var(--cn-fast) var(--cn-ease),
+    border-color var(--cn-fast) var(--cn-ease),
+    color var(--cn-fast) var(--cn-ease);
+}
+
+.monitor-toggle:hover {
+  background: var(--cn-accent-hover);
+}
+
+.monitor-toggle.is-danger {
+  border-color: rgba(185, 28, 28, 0.24);
+  background: transparent;
+  color: var(--cn-danger);
+}
+
+.monitor-toggle.is-danger:hover {
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.monitor-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 180px;
+  padding: 28px;
+  text-align: left;
+}
+
+.empty-icon {
+  width: 56px;
+  height: 56px;
+  color: var(--cn-text-muted);
+}
+
+.monitor-empty p {
+  margin: 0 0 4px;
+  color: var(--cn-text);
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.monitor-empty span {
+  display: block;
+  max-width: 460px;
+  color: var(--cn-text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.monitor-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.chart-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.chart-card {
+  padding: 20px;
+}
+
+.chart-card h3 {
+  margin: 0 0 10px;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chart-host {
+  width: 100%;
+  height: 320px;
+}
+
+@media (max-width: 1080px) {
+  .metric-grid,
+  .monitor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .metric-grid,
+  .monitor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .monitor-bar,
+  .monitor-empty {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse,
-  .animate-spin { animation: none !important; }
-  .stat-card { transition-duration: 0.01s !important; }
-  .stat-card:hover { transform: none; }
+  .animate-spin {
+    animation: none !important;
+  }
+
+  .metric-card {
+    transition-duration: 0.01s;
+  }
+
+  .metric-card:hover {
+    transform: none;
+  }
 }
 </style>

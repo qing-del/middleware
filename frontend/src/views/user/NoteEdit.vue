@@ -61,11 +61,11 @@ const uploadExceedsSize = computed(() => uploadFileSize.value > MAX_NOTE_FILE_SI
 // ── Recent notes cache for [[ autocompletion ────────
 const recentNotesCache = ref<NoteOption[]>([])
 
-// ── Custom dark theme ────────────────────────────────
+// ── Custom minimal editor theme ──────────────────────
 const editorTheme = EditorView.theme({
   '&': {
-    backgroundColor: '#020617',
-    color: '#cbd5e1',
+    backgroundColor: 'var(--cn-surface)',
+    color: 'var(--cn-text)',
     height: '100%',
     fontSize: '0.9375rem',
     lineHeight: '1.8',
@@ -75,54 +75,54 @@ const editorTheme = EditorView.theme({
     overflow: 'auto',
   },
   '.cm-content': {
-    caretColor: '#818cf8',
+    caretColor: 'var(--cn-accent)',
     padding: '2rem 3rem',
   },
   '.cm-cursor, .cm-dropCursor': {
-    borderLeftColor: '#818cf8',
+    borderLeftColor: 'var(--cn-accent)',
   },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'rgba(129, 140, 248, 0.25)',
+    backgroundColor: 'rgba(17, 17, 17, 0.12)',
   },
   '.cm-activeLine': {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'var(--cn-bg-subtle)',
   },
   '.cm-gutters': {
-    backgroundColor: '#020617',
-    color: '#475569',
-    borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'var(--cn-bg-subtle)',
+    color: 'var(--cn-text-faint)',
+    borderRight: '1px solid var(--cn-border)',
   },
   '.cm-activeLineGutter': {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    color: '#818cf8',
+    backgroundColor: 'var(--cn-surface-muted)',
+    color: 'var(--cn-text)',
   },
   '.cm-foldPlaceholder': {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    color: '#60a5fa',
-    border: '1px solid rgba(59, 130, 246, 0.2)',
+    backgroundColor: 'var(--cn-surface-muted)',
+    color: 'var(--cn-text-soft)',
+    border: '1px solid var(--cn-border)',
     borderRadius: '4px',
     padding: '0 6px',
   },
   '.cm-tooltip': {
-    backgroundColor: '#0f172a',
-    color: '#cbd5e1',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'var(--cn-surface)',
+    color: 'var(--cn-text)',
+    border: '1px solid var(--cn-border)',
     borderRadius: '12px',
-    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+    boxShadow: 'var(--cn-shadow-md)',
   },
   '.cm-searchMatch': {
-    backgroundColor: 'rgba(245, 158, 11, 0.3)',
-    outline: '1px solid rgba(245, 158, 11, 0.5)',
+    backgroundColor: 'rgba(180, 83, 9, 0.16)',
+    outline: '1px solid rgba(180, 83, 9, 0.28)',
   },
   '.cm-matchingBracket': {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    outline: '1px solid rgba(59, 130, 246, 0.4)',
+    backgroundColor: 'rgba(17, 17, 17, 0.08)',
+    outline: '1px solid rgba(17, 17, 17, 0.18)',
   },
   '.cm-hr-line': {
-    borderBottom: '1px dashed rgba(148, 163, 184, 0.45)',
+    borderBottom: '1px dashed var(--cn-border-strong)',
     paddingBottom: '0.25rem',
     marginBottom: '0.25rem',
-    color: '#94a3b8',
+    color: 'var(--cn-text-muted)',
   },
 })
 
@@ -524,92 +524,77 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative h-[calc(100vh-5rem)] flex flex-col max-w-[1600px] mx-auto">
-    <!-- ═══ Top Bar ═══ -->
-    <div class="flex items-center justify-between gap-4 px-6 py-3 glass-panel rounded-2xl mb-4 shrink-0 border border-white/10">
-      <div class="flex items-center gap-3">
-        <button
-          class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/5 text-sm font-bold"
-          @click="$router.back()"
-        >
-          <ArrowLeft class="w-4 h-4" />
+  <div class="note-edit-page">
+    <header class="editor-toolbar">
+      <div class="toolbar-main">
+        <button class="cn-btn toolbar-button" @click="$router.back()">
+          <ArrowLeft class="h-4 w-4" />
           <span class="hidden sm:inline">返回</span>
         </button>
 
-        <!-- Mode badge -->
-        <span
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border"
-          :class="isCreateMode ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'"
-        >
-          <FilePlus v-if="isCreateMode" class="w-3.5 h-3.5" />
-          <FileEdit v-else class="w-3.5 h-3.5" />
+        <span class="mode-badge" :class="isCreateMode ? 'is-create' : 'is-edit'">
+          <FilePlus v-if="isCreateMode" class="h-3.5 w-3.5" />
+          <FileEdit v-else class="h-3.5 w-3.5" />
           {{ isCreateMode ? '新建笔记' : '编辑笔记' }}
         </span>
 
-        <!-- Title -->
-        <div class="relative">
+        <div class="title-field">
           <input
             v-if="editingTitle"
             ref="titleInputRef"
             v-model="title"
             type="text"
-            class="bg-black/30 border border-indigo-500/50 rounded-lg px-3 py-1 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500/30 min-w-[200px]"
+            class="editor-title-input"
             placeholder="输入笔记标题..."
             @blur="finishEditTitle"
             @keyup.enter="finishEditTitle"
           />
           <button
             v-else
-            class="text-sm font-bold truncate max-w-[400px] px-2 py-1 rounded-lg hover:bg-white/5 transition-colors"
-            :class="title ? 'text-white' : 'text-slate-500 italic'"
+            class="editor-title-button"
+            :class="{ 'is-empty': !title }"
             @click="startEditTitle"
           >
             {{ title || '点击设置标题...' }}
           </button>
-          <span v-if="title" class="text-[10px] text-slate-500 ml-1 font-mono">.md</span>
+          <span v-if="title" class="file-suffix">.md</span>
         </div>
 
-        <!-- Topic selector (create mode only) -->
-        <div v-if="isCreateMode" class="relative group ml-3 hidden sm:block">
-          <select
-            v-model="topicId"
-            class="bg-black/20 border border-white/10 rounded-lg py-1.5 pl-8 pr-3 outline-none focus:border-indigo-500/50 transition-all text-xs font-bold text-slate-300 appearance-none cursor-pointer"
-          >
-            <option :value="undefined" class="bg-[#0b0d14]">无归属主题</option>
-            <option v-for="t in topicList" :key="t.id" :value="t.id" class="bg-[#0b0d14]">{{ t.topicName }}</option>
+        <div v-if="isCreateMode" class="topic-select">
+          <select v-model="topicId" class="editor-select">
+            <option :value="undefined">无归属主题</option>
+            <option v-for="t in topicList" :key="t.id" :value="t.id">{{ t.topicName }}</option>
           </select>
-          <Layers class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+          <Layers class="h-3.5 w-3.5" />
         </div>
 
-        <!-- Mode toggle: 编辑 / 文件上传 -->
-        <div class="ml-3 inline-flex items-center bg-black/30 border border-white/10 rounded-xl p-0.5">
+        <div class="mode-switch" role="group" aria-label="编辑模式">
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-all"
-            :class="editMode === 'text' ? 'bg-indigo-600/80 text-white shadow' : 'text-slate-400 hover:text-white'"
+            class="mode-button"
+            :class="{ 'is-active': editMode === 'text' }"
             @click="editMode = 'text'"
           >
-            <PenLine class="w-3.5 h-3.5" /> 文本编辑
+            <PenLine class="h-3.5 w-3.5" /> 文本编辑
           </button>
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-all"
-            :class="editMode === 'file' ? 'bg-emerald-600/80 text-white shadow' : 'text-slate-400 hover:text-white'"
+            class="mode-button"
+            :class="{ 'is-active': editMode === 'file' }"
             @click="editMode = 'file'"
           >
-            <FileUp class="w-3.5 h-3.5" /> 文件上传
+            <FileUp class="h-3.5 w-3.5" /> 文件上传
           </button>
         </div>
 
-        <!-- Import file button (text mode only) -->
         <button
           v-if="editMode === 'text'"
           type="button"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+          class="cn-btn toolbar-button"
           title="从本地导入 .md 文件覆盖编辑器内容"
           @click="triggerImportFile"
         >
-          <Upload class="w-3.5 h-3.5" /> 导入 .md
+          <Upload class="h-3.5 w-3.5" /> 导入 .md
         </button>
         <input
           ref="fileImportInputRef"
@@ -620,51 +605,38 @@ onUnmounted(() => {
         />
       </div>
 
-      <div class="flex items-center gap-3">
-        <!-- Dirty indicator -->
-        <span v-if="isDirty" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="有未保存的更改" />
-
-        <!-- Save button -->
+      <div class="toolbar-actions">
+        <span v-if="isDirty" class="dirty-dot" title="有未保存的更改" />
         <button
-          class="group relative px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.4)] transition-all overflow-hidden flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="cn-btn cn-btn-primary save-button"
           :disabled="saving || loading"
           @click="handleSave"
         >
-          <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out" />
-          <Loader2 v-if="saving" class="w-4 h-4 animate-spin" />
-          <Save v-else class="w-4 h-4" />
+          <Loader2 v-if="saving" class="h-4 w-4 animate-spin" />
+          <Save v-else class="h-4 w-4" />
           <span>{{ saving ? '保存中...' : '保存' }}</span>
-          <span class="hidden sm:inline text-[10px] text-indigo-300 opacity-70 ml-1">Ctrl+S</span>
+          <span class="shortcut">Ctrl+S</span>
         </button>
       </div>
-    </div>
+    </header>
 
-    <!-- ═══ Editor Body ═══ -->
-    <div class="flex-1 glass-panel rounded-2xl overflow-hidden border border-white/10 relative">
-      <!-- Editor container (text mode) -->
-      <div v-if="editMode === 'text'" ref="editorContainer" class="h-full w-full editor-host" />
+    <main class="editor-shell">
+      <div v-if="editMode === 'text'" ref="editorContainer" class="editor-host" />
 
-      <!-- File upload dropzone (file mode) -->
-      <div v-else class="h-full w-full flex items-center justify-center p-8">
+      <div v-else class="upload-panel">
         <div
-          class="w-full max-w-2xl border-2 border-dashed rounded-2xl px-8 py-10 transition-all"
-          :class="isDragging ? 'border-emerald-400 bg-emerald-500/10' : 'border-white/15 bg-black/20 hover:border-emerald-400/40'"
+          class="upload-dropzone"
+          :class="{ 'is-dragging': isDragging }"
           @dragover="onDragOver"
           @dragleave="onDragLeave"
           @drop="onDrop"
         >
-          <div v-if="!uploadFile" class="flex flex-col items-center text-center gap-3">
-            <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <FileUp class="w-6 h-6 text-emerald-400" />
-            </div>
-            <h3 class="text-base font-bold text-white">拖拽 .md 文件到此处</h3>
-            <p class="text-xs text-slate-400">或点击下方按钮选择文件（最大 300KB）</p>
-            <button
-              type="button"
-              class="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
-              @click="pickUploadFile"
-            >
-              <Upload class="w-4 h-4" /> 选择文件
+          <div v-if="!uploadFile" class="upload-content">
+            <span class="upload-icon"><FileUp class="h-6 w-6" /></span>
+            <h3>拖拽 .md 文件到此处</h3>
+            <p>或点击下方按钮选择文件，最大 300KB。</p>
+            <button type="button" class="cn-btn cn-btn-primary upload-button" @click="pickUploadFile">
+              <Upload class="h-4 w-4" /> 选择文件
             </button>
             <input
               ref="fileUploadInputRef"
@@ -674,78 +646,437 @@ onUnmounted(() => {
               @change="onUploadInputChange"
             />
           </div>
-          <div v-else class="flex flex-col items-center text-center gap-3">
-            <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <FileEdit class="w-6 h-6 text-emerald-400" />
-            </div>
-            <h3 class="text-base font-bold text-white truncate max-w-full">{{ uploadFile.name }}</h3>
-            <p class="text-xs" :class="uploadExceedsSize ? 'text-rose-400 font-bold' : 'text-slate-400'">
+
+          <div v-else class="upload-content">
+            <span class="upload-icon"><FileEdit class="h-6 w-6" /></span>
+            <h3 class="upload-file-name">{{ uploadFile.name }}</h3>
+            <p :class="{ 'is-danger': uploadExceedsSize }">
               {{ formatBytes(uploadFileSize) }}
               <span v-if="uploadExceedsSize"> · 超出 300KB 限制</span>
             </p>
-            <div class="flex items-center gap-2 mt-2">
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-bold transition-colors"
-                @click="clearUploadFile"
-              >
-                重新选择
-              </button>
-              <span class="text-[11px] text-slate-500">点击右上角"保存"完成上传</span>
+            <div class="upload-actions">
+              <button type="button" class="cn-btn toolbar-button" @click="clearUploadFile">重新选择</button>
+              <span>点击右上角“保存”完成上传</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Loading overlay -->
-      <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <Loader2 class="w-6 h-6 text-blue-400 animate-spin" />
-        <span class="ml-3 text-sm text-slate-300">加载笔记内容...</span>
+      <div v-if="loading" class="editor-overlay">
+        <Loader2 class="h-6 w-6 animate-spin" />
+        <span>加载笔记内容...</span>
       </div>
 
-      <!-- Error overlay -->
-      <div v-if="error" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm p-8 text-center">
-        <div class="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
-          <AlertTriangle class="w-6 h-6 text-rose-400" />
-        </div>
-        <h3 class="text-lg font-bold text-white mb-2">加载失败</h3>
-        <p class="text-sm text-slate-400 mb-4">{{ error }}</p>
-        <button
-          class="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-sm font-bold"
-          @click="$router.push('/user/notes')"
-        >
-          返回笔记列表
-        </button>
+      <div v-if="error" class="editor-overlay is-error">
+        <span class="error-icon"><AlertTriangle class="h-6 w-6" /></span>
+        <h3>加载失败</h3>
+        <p>{{ error }}</p>
+        <button class="cn-btn" @click="$router.push('/user/notes')">返回笔记列表</button>
       </div>
-    </div>
+    </main>
 
-    <!-- ═══ Bottom Status Bar ═══ -->
-    <div class="flex items-center justify-between px-4 py-2 mt-3 text-xs shrink-0">
-      <div class="flex items-center gap-4 text-slate-500">
+    <footer class="editor-status">
+      <div>
         <span>{{ formatCharCount(charCount) }}</span>
         <span>约 {{ formatBytes(byteSize) }}</span>
       </div>
-      <div class="flex items-center gap-3">
-        <span v-if="exceedsSizeLimit" class="text-rose-400 font-bold flex items-center gap-1">
-          <AlertTriangle class="w-3.5 h-3.5" /> 超过 300KB 限制
+      <div>
+        <span v-if="exceedsSizeLimit" class="status-danger">
+          <AlertTriangle class="h-3.5 w-3.5" /> 超过 300KB 限制
         </span>
-        <span v-if="isDirty" class="text-amber-400">未保存</span>
-        <span v-else-if="saved" class="text-emerald-400">已保存</span>
+        <span v-if="isDirty" class="status-warning">未保存</span>
+        <span v-else-if="saved" class="status-success">已保存</span>
       </div>
-    </div>
+    </footer>
   </div>
 </template>
 
 <style scoped>
-.glass-panel {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+.note-edit-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 5rem);
+  max-width: 1600px;
+  min-height: 620px;
+  margin: 0 auto;
+}
+
+.editor-toolbar,
+.editor-shell {
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-lg);
+  background: var(--cn-surface);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+}
+
+.toolbar-main,
+.toolbar-actions,
+.upload-actions,
+.editor-status > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toolbar-main {
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.toolbar-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-sm);
+  padding: 0 9px;
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-soft);
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.mode-badge.is-create {
+  color: var(--cn-success);
+}
+
+.mode-badge.is-edit {
+  color: var(--cn-info);
+}
+
+.title-field {
+  display: flex;
+  min-width: 180px;
+  max-width: min(420px, 100%);
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-title-input,
+.editor-title-button,
+.editor-select {
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-sm);
+  background: var(--cn-surface);
+  color: var(--cn-text);
+}
+
+.editor-title-input {
+  min-width: 220px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.editor-title-button {
+  max-width: 400px;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color var(--cn-fast) var(--cn-ease);
+}
+
+.editor-title-button:hover {
+  background: var(--cn-surface-muted);
+}
+
+.editor-title-button.is-empty {
+  color: var(--cn-text-muted);
+  font-style: italic;
+}
+
+.file-suffix {
+  color: var(--cn-text-muted);
+  font-family: var(--cn-font-mono);
+  font-size: 11px;
+}
+
+.topic-select {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.topic-select svg {
+  position: absolute;
+  left: 10px;
+  color: var(--cn-text-muted);
+  pointer-events: none;
+}
+
+.editor-select {
+  min-height: 32px;
+  padding: 0 10px 0 30px;
+  color: var(--cn-text-soft);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.mode-switch {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-sm);
+  background: var(--cn-surface-muted);
+  padding: 2px;
+}
+
+.mode-button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 720;
+  transition:
+    background-color var(--cn-fast) var(--cn-ease),
+    color var(--cn-fast) var(--cn-ease);
+}
+
+.mode-button:hover {
+  color: var(--cn-text);
+}
+
+.mode-button.is-active {
+  background: var(--cn-surface);
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--cn-warning);
+}
+
+.save-button {
+  min-height: 34px;
+  padding: 0 14px;
+}
+
+.shortcut {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.editor-shell {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .editor-host {
-  /* CodeMirror will fill this container completely */
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.cm-editor) {
+  height: 100%;
+}
+
+:deep(.cm-focused) {
+  outline: none;
+}
+
+.upload-panel {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+.upload-dropzone {
+  width: min(680px, 100%);
+  border: 1.5px dashed var(--cn-border-strong);
+  border-radius: var(--cn-radius-xl);
+  background: var(--cn-bg-subtle);
+  padding: 40px;
+  transition:
+    border-color var(--cn-fast) var(--cn-ease),
+    background-color var(--cn-fast) var(--cn-ease);
+}
+
+.upload-dropzone.is-dragging {
+  border-color: var(--cn-accent);
+  background: var(--cn-surface-muted);
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.upload-icon,
+.error-icon {
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-lg);
+  background: var(--cn-surface);
+  color: var(--cn-text);
+}
+
+.upload-content h3 {
+  max-width: 100%;
+  margin: 0;
+  color: var(--cn-text);
+  font-size: 16px;
+  font-weight: 740;
+}
+
+.upload-content p,
+.upload-actions span {
+  margin: 0;
+  color: var(--cn-text-muted);
+  font-size: 12px;
+}
+
+.upload-content p.is-danger {
+  color: var(--cn-danger);
+  font-weight: 700;
+}
+
+.upload-button {
+  margin-top: 6px;
+  padding: 0 14px;
+}
+
+.upload-file-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--cn-text-soft);
+  backdrop-filter: blur(10px);
+}
+
+.editor-overlay.is-error {
+  flex-direction: column;
+  padding: 32px;
+  text-align: center;
+}
+
+.editor-overlay.is-error h3 {
+  margin: 4px 0 0;
+  color: var(--cn-text);
+  font-size: 18px;
+  font-weight: 760;
+}
+
+.editor-overlay.is-error p {
+  max-width: 520px;
+  margin: 0 0 8px;
+  color: var(--cn-text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.error-icon {
+  color: var(--cn-danger);
+}
+
+.editor-status {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 4px 0;
+  color: var(--cn-text-muted);
+  font-size: 12px;
+}
+
+.status-danger,
+.status-warning,
+.status-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+}
+
+.status-danger {
+  color: var(--cn-danger);
+}
+
+.status-warning {
+  color: var(--cn-warning);
+}
+
+.status-success {
+  color: var(--cn-success);
+}
+
+@media (max-width: 900px) {
+  .note-edit-page {
+    height: auto;
+    min-height: calc(100vh - 5rem);
+  }
+
+  .editor-toolbar,
+  .editor-status {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-end;
+  }
+
+  .editor-shell {
+    min-height: 620px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-button,
+  .upload-dropzone,
+  .editor-title-button {
+    transition-duration: 0.01s;
+  }
 }
 </style>

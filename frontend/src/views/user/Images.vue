@@ -64,9 +64,9 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.v
 
 function getStatusInfo(isPass: number): { label: string; cls: string } {
   switch (isPass) {
-    case 1: return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
-    case 2: return { label: '已拒绝', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
-    default: return { label: '待审核', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
+    case 1: return { label: '已通过', cls: 'is-approved' }
+    case 2: return { label: '已拒绝', cls: 'is-rejected' }
+    default: return { label: '待审核', cls: 'is-pending' }
   }
 }
 
@@ -453,6 +453,24 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.is-approved {
+  border-color: rgba(21, 128, 61, 0.22);
+  background: rgba(21, 128, 61, 0.08);
+  color: var(--cn-success);
+}
+
+.is-rejected {
+  border-color: rgba(185, 28, 28, 0.24);
+  background: rgba(185, 28, 28, 0.08);
+  color: var(--cn-danger);
+}
+
+.is-pending {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: rgba(180, 83, 9, 0.08);
+  color: var(--cn-warning);
+}
+
 .glass-panel { background: rgba(255,255,255,0.02); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 1px 1px rgba(255,255,255,0.05); }
 .glass-card { transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
 .glass-card:hover { transform: translateY(-6px) scale(1.02); background: rgba(255,255,255,0.08); border-color: rgba(168,85,247,0.4); box-shadow: 0 20px 40px -15px rgba(168,85,247,0.25), 0 0 20px -2px rgba(236,72,153,0.15), inset 0 1px 1px rgba(255,255,255,0.1); }
@@ -476,6 +494,62 @@ onMounted(() => {
 .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.96) translateY(14px); }
 .modal-enter-to, .modal-leave-from { opacity: 1; transform: scale(1) translateY(0); }
 .modal-card { transform-origin: center center; box-shadow: 0 24px 80px rgba(15,23,42,0.45), inset 0 1px 1px rgba(255,255,255,0.05); }
+
+/* Minimal light readability layer for the legacy gallery template. */
+.glass-panel {
+  border-color: var(--cn-border) !important;
+  background: var(--cn-surface) !important;
+  color: var(--cn-text) !important;
+  box-shadow: var(--cn-shadow-xs) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface);
+  box-shadow: var(--cn-shadow-sm);
+}
+
+:where(h2, h3, .text-white, .text-slate-300) {
+  color: var(--cn-text) !important;
+}
+
+:where(.text-slate-400, .text-slate-500, .text-slate-600, .text-purple-300, .text-cyan-300) {
+  color: var(--cn-text-soft) !important;
+}
+
+.search-toggle,
+.modal-card,
+.modal-card :where(select, input) {
+  border-color: var(--cn-border) !important;
+  background: var(--cn-surface) !important;
+  color: var(--cn-text) !important;
+  box-shadow: none !important;
+}
+
+.modal-card :where(p, label, span:not(.is-approved):not(.is-rejected):not(.is-pending)) {
+  color: var(--cn-text-soft);
+}
+
+.modal-card :where(h3, .font-bold) {
+  color: var(--cn-text);
+}
+
+.modal-card option {
+  background: var(--cn-surface);
+  color: var(--cn-text);
+}
+
+.modal-card .bg-black\/20,
+.modal-card .bg-black\/50 {
+  background: var(--cn-bg-subtle) !important;
+}
+
+.modal-card button:not([class*="bg-purple-"]):not([class*="bg-rose-"]) {
+  color: var(--cn-text-soft) !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .fade-enter-active,

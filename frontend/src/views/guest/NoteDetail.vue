@@ -581,7 +581,7 @@ onUnmounted(() => {
 
         <aside class="guest-matrix min-w-0" :class="matrixCollapsed ? 'guest-matrix--collapsed' : 'guest-matrix--expanded'">
           <div class="guest-matrix__sticky space-y-4">
-            <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <section class="guest-soft-panel rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <div class="mb-3 flex items-center justify-between">
                 <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">资源矩阵</h2>
                 <button class="hidden h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-white/5 hover:text-white xl:flex" @click="matrixCollapsed = true">
@@ -589,17 +589,17 @@ onUnmounted(() => {
                 </button>
               </div>
               <div class="grid grid-cols-3 gap-2">
-                <div class="rounded-md border border-white/10 bg-black/20 p-3">
+                <div class="guest-stat-card rounded-md border border-white/10 bg-white/[0.03] p-3">
                   <Hash class="mb-2 h-4 w-4 text-cyan-300" />
                   <div class="text-lg font-black text-white">{{ note.tags?.length ?? 0 }}</div>
                   <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Tags</div>
                 </div>
-                <div class="rounded-md border border-white/10 bg-black/20 p-3">
+                <div class="guest-stat-card rounded-md border border-white/10 bg-white/[0.03] p-3">
                   <ImageIcon class="mb-2 h-4 w-4 text-amber-300" />
                   <div class="text-lg font-black text-white">{{ note.images?.length ?? 0 }}</div>
                   <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Images</div>
                 </div>
-                <div class="rounded-md border border-white/10 bg-black/20 p-3">
+                <div class="guest-stat-card rounded-md border border-white/10 bg-white/[0.03] p-3">
                   <Link class="mb-2 h-4 w-4 text-emerald-300" />
                   <div class="text-lg font-black text-white">{{ note.eachNotes?.length ?? 0 }}</div>
                   <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Links</div>
@@ -607,7 +607,7 @@ onUnmounted(() => {
               </div>
             </section>
 
-            <section v-if="note.converted?.tocHtml" class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <section v-if="note.converted?.tocHtml" class="guest-soft-panel rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <h2 class="mb-3 flex items-center text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                 <ListTree class="mr-2 h-4 w-4 text-cyan-300" />
                 目录
@@ -615,11 +615,11 @@ onUnmounted(() => {
               <div ref="sidebarTocRef" class="toc-list max-h-[36vh] overflow-y-auto pr-1" v-html="note.converted.tocHtml" @click="onSidebarTocClick" />
             </section>
 
-            <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <section class="guest-soft-panel rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <h2 class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">公开关联</h2>
               <div class="space-y-3 text-sm">
                 <div v-if="note.eachNotes?.length" class="space-y-2">
-                  <button v-for="link in note.eachNotes" :key="`${link.targetNoteId}-${link.anchor}`" class="block w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-left text-slate-300 transition hover:border-cyan-400/40 hover:text-cyan-100" @click="router.push(link.anchor ? `/guest/notes/${link.targetNoteId}#${link.anchor}` : `/guest/notes/${link.targetNoteId}`)">
+                  <button v-for="link in note.eachNotes" :key="`${link.targetNoteId}-${link.anchor}`" class="guest-link-card block w-full rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-slate-300 transition hover:border-cyan-400/40 hover:text-cyan-100" @click="router.push(link.anchor ? `/guest/notes/${link.targetNoteId}#${link.anchor}` : `/guest/notes/${link.targetNoteId}`)">
                     {{ link.nickname || link.targetNoteTitle || link.parsedNoteName }}
                   </button>
                 </div>
@@ -729,6 +729,70 @@ onUnmounted(() => {
   background-color: rgba(148, 163, 184, 0.35);
 }
 
+.guest-soft-panel {
+  background: var(--cn-surface) !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.guest-soft-panel h2 {
+  color: var(--cn-text-muted) !important;
+}
+
+.guest-soft-panel button:not(.guest-link-card) {
+  color: var(--cn-text-muted) !important;
+}
+
+.guest-soft-panel button:not(.guest-link-card):hover {
+  background: var(--cn-surface-muted) !important;
+  color: var(--cn-text) !important;
+}
+
+.guest-stat-card,
+.guest-link-card {
+  background: var(--cn-bg-subtle) !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text-soft) !important;
+}
+
+.guest-stat-card div:first-of-type {
+  color: var(--cn-text) !important;
+}
+
+.guest-stat-card div:last-of-type,
+.guest-soft-panel p {
+  color: var(--cn-text-muted) !important;
+}
+
+.guest-link-card:hover {
+  background: var(--cn-surface-muted) !important;
+  border-color: var(--cn-border-strong) !important;
+  color: var(--cn-link-hover) !important;
+}
+
+.guest-soft-panel .toc-list :deep(.toc-link) {
+  color: var(--cn-text-soft);
+}
+
+.guest-soft-panel .toc-list :deep(.toc-link:hover) {
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.guest-soft-panel .toc-list :deep(.toc-link--active) {
+  background: rgba(37, 99, 235, 0.08);
+  border-left-color: var(--cn-link);
+  color: var(--cn-link);
+}
+
+.guest-soft-panel .toc-list :deep(.toc-level-1),
+.guest-soft-panel .toc-list :deep(.toc-level-2),
+.guest-soft-panel .toc-list :deep(.toc-level-3),
+.guest-soft-panel .toc-list :deep(.toc-level-4) {
+  color: var(--cn-text-soft);
+}
+
 .toc-list :deep(.toc-sidebar) { display: contents; }
 .toc-list :deep(.toc-header),
 .toc-list :deep(.toc-fab) { display: none; }
@@ -821,16 +885,40 @@ onUnmounted(() => {
   font-weight: 750;
 }
 .article-content :deep(p) { margin-bottom: 1.15rem; }
-.article-content :deep(a) {
-  color: #67e8f9;
+.article-content :deep(a),
+.article-content :deep(.internal-note-link),
+.article-content :deep(.hash-link) {
+  color: var(--cn-link);
+  cursor: pointer;
   text-decoration: underline;
+  text-decoration-color: var(--cn-link-underline);
+  text-decoration-thickness: 1px;
   text-underline-offset: 4px;
-  text-decoration-color: rgba(103, 232, 249, 0.35);
+  transition:
+    color var(--cn-fast) var(--cn-ease),
+    text-decoration-color var(--cn-fast) var(--cn-ease),
+    background-color var(--cn-fast) var(--cn-ease);
+}
+.article-content :deep(a:hover),
+.article-content :deep(.internal-note-link:hover),
+.article-content :deep(.hash-link:hover) {
+  color: var(--cn-link-hover);
+  text-decoration-color: currentColor;
+}
+.article-content :deep(a:visited) {
+  color: var(--cn-link-visited);
+}
+.article-content :deep(a:focus-visible),
+.article-content :deep(.internal-note-link:focus-visible),
+.article-content :deep(.hash-link:focus-visible) {
+  border-radius: var(--cn-radius-xs);
+  outline: 2px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 3px;
 }
 .article-content :deep(.internal-note-link.unresolved) {
-  color: #64748b;
+  color: var(--cn-text-muted);
   cursor: default;
-  text-decoration-color: rgba(100, 116, 139, 0.3);
+  text-decoration-color: rgba(120, 120, 116, 0.36);
 }
 .article-content :deep(ul),
 .article-content :deep(ol) {
