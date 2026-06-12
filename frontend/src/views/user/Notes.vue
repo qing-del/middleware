@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import {
   AlertTriangle, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Clock,
   Eye, FileCode, FileText, FileUp, FolderTree, Globe, Hash, Home, Image,
-  Layers, Link, Loader2, Network, PenLine, Plus, RefreshCw, Search, Send,
+  Layers, Link, Loader2, Network, Pencil, PenLine, Plus, RefreshCw, Search, Send,
   Trash2, UploadCloud, X, XCircle
 } from 'lucide-vue-next'
 import { noteApi, getNoteStatusInfo, NoteStatusCode } from '@/api/notes'
@@ -40,6 +40,26 @@ const showSourceModal = ref(false)
 const sourceContent = ref('')
 const sourceTitle = ref('')
 const currentSourceId = ref<number | null>(null)
+
+// ── Edit info modal ──
+interface TopicTreeNode {
+  id: number
+  topicName: string
+  depth: number
+  parentId: number | null
+}
+const showEditInfoModal = ref(false)
+const editInfoNote = ref<NoteItem | null>(null)
+const editInfoDescription = ref('')
+const editInfoTopicId = ref<number | null>(null)
+const editInfoSubmitting = ref(false)
+const allTopicNodes = ref<TopicTreeNode[]>([])
+
+// ── Drag & drop ──
+const draggedNote = ref<NoteItem | null>(null)
+const dragOverDirId = ref<number | null>(null)
+const dragSubmitting = ref(false)
+const dragOverRoot = ref(false)
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const currentDirectoryName = computed(() => breadcrumbs.value[breadcrumbs.value.length - 1]?.topicName ?? '根目录')
@@ -306,6 +326,158 @@ function openRelations(note: NoteItem) {
   router.push(`/user/notes/${note.id}/relations`)
 }
 
+// ── Topic tree ──
+
+function buildTopicTree(topics: TopicItem[]): TopicTreeNode[] {
+  const childrenMap = new Map<number, TopicItem[]>()
+  const roots: TopicItem[] = []
+  for (const t of topics) {
+    if (t.parentId == null) {
+      roots.push(t)
+    } else {
+      const list = childrenMap.get(t.parentId)
+      if (list) list.push(t)
+      else childrenMap.set(t.parentId, [t])
+    }
+  }
+  const result: TopicTreeNode[] = []
+  function walk(items: TopicItem[], depth: number) {
+    for (const item of items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))) {
+      result.push({ id: item.id, topicName: item.topicName, depth, parentId: item.parentId ?? null })
+      const children = childrenMap.get(item.id)
+      if (children && children.length) walk(children, depth + 1)
+    }
+  }
+  walk(roots, 0)
+  return result
+}
+
+async function loadAllTopics() {
+  try {
+    const page = await topicApi.getList({ scope: 'personal', pageNum: 1, pageSize: 1000 })
+    allTopicNodes.value = buildTopicTree(page.records ?? [])
+  } catch {
+    allTopicNodes.value = []
+    toastError('加载目录列表失败。')
+  }
+}
+
+// ── Edit info modal ──
+
+function openEditInfoModal(note: NoteItem) {
+  editInfoNote.value = note
+  editInfoDescription.value = note.description ?? ''
+  editInfoTopicId.value = note.topicId ?? null
+  showEditInfoModal.value = true
+  void loadAllTopics()
+}
+
+function closeEditInfoModal() {
+  showEditInfoModal.value = false
+  editInfoNote.value = null
+}
+
+async function handleEditInfoSubmit() {
+  if (!editInfoNote.value || editInfoSubmitting.value) return
+  editInfoSubmitting.value = true
+  try {
+    await noteApi.modifyInfo(editInfoNote.value.id, {
+      description: editInfoDescription.value || undefined,
+      topicId: editInfoTopicId.value ?? undefined
+    })
+    closeEditInfoModal()
+    await fetchWorkspace()
+    toastSuccess('笔记信息已更新。')
+  } catch {
+    toastError('修改失败，请重试。')
+  } finally {
+    editInfoSubmitting.value = false
+  }
+}
+
+// ── Drag & drop ──
+
+function onNoteDragStart(note: NoteItem, e: DragEvent) {
+  if (dragSubmitting.value) { e.preventDefault(); return }
+  draggedNote.value = note
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(note.id))
+  }
+}
+
+function onNoteDragEnd() {
+  draggedNote.value = null
+  dragOverDirId.value = null
+  dragOverRoot.value = false
+}
+
+function onDirDragOver(dirId: number, e: DragEvent) {
+  if (!draggedNote.value || dragSubmitting.value) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  dragOverDirId.value = dirId
+}
+
+function onDirDragLeave(dirId: number) {
+  if (dragOverDirId.value === dirId) dragOverDirId.value = null
+}
+
+async function onDirDrop(dirId: number) {
+  const note = draggedNote.value
+  if (!note || dragSubmitting.value) return
+  dragOverDirId.value = null
+  if (note.topicId === dirId) {
+    toastWarning('笔记已经在该目录中。')
+    draggedNote.value = null
+    return
+  }
+  dragSubmitting.value = true
+  try {
+    await noteApi.modifyInfo(note.id, { topicId: dirId })
+    draggedNote.value = null
+    await fetchWorkspace()
+    toastSuccess('笔记已移动到目标目录。')
+  } catch {
+    toastError('移动失败，请重试。')
+  } finally {
+    dragSubmitting.value = false
+  }
+}
+
+function onRootDragOver(e: DragEvent) {
+  if (!draggedNote.value || dragSubmitting.value) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  dragOverRoot.value = true
+}
+
+function onRootDragLeave() {
+  dragOverRoot.value = false
+}
+
+async function onRootDrop() {
+  const note = draggedNote.value
+  if (!note || dragSubmitting.value) return
+  dragOverRoot.value = false
+  if (note.topicId == null) {
+    toastWarning('笔记已经在根目录中。')
+    draggedNote.value = null
+    return
+  }
+  dragSubmitting.value = true
+  try {
+    await noteApi.modifyInfo(note.id, { topicId: null })
+    draggedNote.value = null
+    await fetchWorkspace()
+    toastSuccess('笔记已移动到根目录。')
+  } catch {
+    toastError('移动失败，请重试。')
+  } finally {
+    dragSubmitting.value = false
+  }
+}
+
 onMounted(fetchWorkspace)
 </script>
 
@@ -326,6 +498,19 @@ onMounted(fetchWorkspace)
           </div>
           <h1 class="text-2xl font-black tracking-normal text-white sm:text-3xl">{{ currentDirectoryName }}</h1>
           <p class="mt-2 text-sm text-slate-300">目录和笔记都在这里展开，像文件夹一样逐层进入。</p>
+          <Transition name="fade">
+            <div
+              v-if="draggedNote"
+              class="root-drop-zone mt-3 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-sm font-bold transition"
+              :class="dragOverRoot ? 'border-blue-400 bg-blue-500/10 text-blue-300' : 'border-white/15 text-slate-400'"
+              @dragover="onRootDragOver"
+              @dragleave="onRootDragLeave"
+              @drop.prevent="onRootDrop"
+            >
+              <Home class="h-4 w-4" />
+              <span>拖到此处移回根目录（未分类）</span>
+            </div>
+          </Transition>
         </div>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -383,7 +568,15 @@ onMounted(fetchWorkspace)
 
     <template v-else>
       <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article v-for="dir in directories" :key="`dir-${dir.id}`" class="float-card directory-card group">
+        <article
+          v-for="dir in directories"
+          :key="`dir-${dir.id}`"
+          class="float-card directory-card group"
+          :class="{ 'drop-target': dragOverDirId === dir.id }"
+          @dragover="onDirDragOver(dir.id, $event)"
+          @dragleave="onDirDragLeave(dir.id)"
+          @drop.prevent="onDirDrop(dir.id)"
+        >
           <button class="absolute inset-0 z-0" title="进入目录" @click="enterDirectory(dir)" />
           <div class="relative z-10 flex h-full flex-col">
             <div class="mb-4 flex items-start justify-between">
@@ -416,7 +609,15 @@ onMounted(fetchWorkspace)
           </div>
         </article>
 
-        <article v-for="note in notes" :key="`note-${note.id}`" class="float-card note-card">
+        <article
+          v-for="note in notes"
+          :key="`note-${note.id}`"
+          class="float-card note-card"
+          :class="{ 'dragging': draggedNote?.id === note.id }"
+          draggable="true"
+          @dragstart="onNoteDragStart(note, $event)"
+          @dragend="onNoteDragEnd"
+        >
           <div class="mb-4 flex items-start justify-between gap-3">
             <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
               <FileText class="h-5 w-5" />
@@ -443,6 +644,7 @@ onMounted(fetchWorkspace)
               <span>#{{ note.id }}</span>
             </div>
             <div class="flex flex-wrap gap-2">
+              <button class="icon-button" title="修改信息" @click.stop="openEditInfoModal(note)"><Pencil class="h-3.5 w-3.5" /></button>
               <button class="icon-button" title="查看源文件" @click="handleViewSource(note)"><Eye class="h-3.5 w-3.5" /></button>
               <button class="icon-button" title="关联映射" @click="openRelations(note)"><Network class="h-3.5 w-3.5" /></button>
               <button v-if="note.status >= NoteStatusCode.CONVERTED" class="icon-button emerald" title="查看 HTML" @click="openNoteHtml(note)"><FileCode class="h-3.5 w-3.5" /></button>
@@ -569,6 +771,76 @@ onMounted(fetchWorkspace)
               <button class="action-button primary" @click="handleEditSource">
                 <PenLine class="h-4 w-4" />
                 <span>编辑源文件</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showEditInfoModal" class="fixed inset-0 z-[65] bg-black/80 backdrop-blur-md" @click="closeEditInfoModal" />
+      </Transition>
+      <Transition name="modal">
+        <div v-if="showEditInfoModal" class="fixed inset-0 z-[65] flex items-center justify-center px-4 pointer-events-none">
+          <div class="modal-card pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-white/10 bg-[#050816] shadow-2xl">
+            <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
+              <h3 class="text-lg font-black text-white">修改笔记信息</h3>
+              <button class="icon-button" @click="closeEditInfoModal"><X class="h-4 w-4" /></button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-5 space-y-5">
+              <!-- Title (readonly) -->
+              <label class="block">
+                <span class="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-300">笔记标题</span>
+                <input :value="editInfoNote?.title ?? ''" readonly class="form-input opacity-60 cursor-not-allowed" />
+              </label>
+
+              <!-- Description -->
+              <label class="block">
+                <span class="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-300">描述</span>
+                <textarea
+                  v-model="editInfoDescription"
+                  rows="4"
+                  class="form-input resize-none"
+                  placeholder="输入笔记描述..."
+                />
+              </label>
+
+              <!-- Topic directory selector -->
+              <label class="block">
+                <span class="mb-2 block text-xs font-black uppercase tracking-[0.16em] text-slate-300">所属目录</span>
+                <div class="topic-selector max-h-60 overflow-y-auto rounded-lg border border-white/10 bg-black/20">
+                  <!-- Root / unclassified -->
+                  <button
+                    class="topic-option flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
+                    :class="editInfoTopicId == null ? 'bg-blue-500/15 text-blue-300 font-bold' : 'text-slate-300 hover:bg-white/5'"
+                    @click="editInfoTopicId = null"
+                  >
+                    <Home class="h-4 w-4 shrink-0" />
+                    <span>根目录（未分类）</span>
+                  </button>
+                  <template v-for="node in allTopicNodes" :key="node.id">
+                    <button
+                      class="topic-option flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
+                      :class="editInfoTopicId === node.id ? 'bg-blue-500/15 text-blue-300 font-bold' : 'text-slate-300 hover:bg-white/5'"
+                      :style="{ paddingLeft: `${12 + node.depth * 20}px` }"
+                      @click="editInfoTopicId = node.id"
+                    >
+                      <FolderTree class="h-4 w-4 shrink-0" />
+                      <span>{{ node.topicName }}</span>
+                    </button>
+                  </template>
+                </div>
+              </label>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-white/10 px-5 py-4">
+              <button class="action-button secondary" @click="closeEditInfoModal">取消</button>
+              <button class="action-button primary" :disabled="editInfoSubmitting" @click="handleEditInfoSubmit">
+                <Loader2 v-if="editInfoSubmitting" class="h-4 w-4 animate-spin" />
+                <span>{{ editInfoSubmitting ? '保存中...' : '保存修改' }}</span>
               </button>
             </div>
           </div>
@@ -850,5 +1122,39 @@ onMounted(fetchWorkspace)
 .modal-leave-to {
   opacity: 0;
   transform: translateY(14px) scale(0.97);
+}
+
+/* ── Drag & drop ── */
+
+.float-card.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.float-card.drop-target {
+  border-color: rgba(59, 130, 246, 0.75) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22), 0 18px 42px rgba(15, 23, 42, 0.18) !important;
+  background: linear-gradient(145deg, rgba(239, 246, 255, 1), rgba(219, 234, 254, 0.98)), #f0f7ff !important;
+  transform: translateY(-3px);
+}
+
+/* ── Root drop zone ── */
+
+.root-drop-zone {
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+/* ── Topic selector ── */
+
+.topic-selector .topic-option {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.topic-selector .topic-option:last-child {
+  border-bottom: none;
+}
+
+.topic-option:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 </style>

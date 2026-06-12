@@ -399,8 +399,8 @@ export const noteApi = {
     return request.post(`/user/note/upload/${noteId}/confirm`, { id: noteId, confirm })
   },
 
-  /** 修改笔记元信息（描述、主题归属） */
-  modifyInfo(noteId: number, data: { topicId?: number; description?: string }): Promise<string> {
+  /** 修改笔记元信息（描述、主题归属），topicId 传 null 表示移至未分类 */
+  modifyInfo(noteId: number, data: { topicId?: number | null; description?: string }): Promise<string> {
     return request.put(`/user/note/${noteId}/info`, { ...data, id: noteId })
   },
 
