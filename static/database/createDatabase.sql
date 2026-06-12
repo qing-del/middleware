@@ -60,12 +60,14 @@ CREATE TABLE `biz_topic` (
                              `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主题ID',
                              `user_id` bigint NOT NULL COMMENT '创建者ID(隔离不同用户的主题)',
                              `topic_name` varchar(25) NOT NULL COMMENT '主题名称(如: MySQL, Redis, 架构设计)',
+                             `parent_id` bigint DEFAULT NULL COMMENT '父级主题ID(NULL=一级主题)',
                              `sort_order` int DEFAULT 0 COMMENT '排序字段(用于左侧菜单栏排序)',
                              `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
                              `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                              `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                              PRIMARY KEY (`id`),
                              KEY `idx_user_pass` (`user_id`, `is_pass`),
+                             KEY `idx_user_parent_sort_update` (`user_id`, `parent_id`, `sort_order`, `update_time`),
                              KEY `idx_user_sort_update` (`user_id`, `sort_order`, `update_time`),
                              UNIQUE KEY `uk_topic_user` (`topic_name`, `user_id`) -- 同一个用户不能创建同名的主题
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记主题/分类表';

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   ChevronLeft, Zap, LayoutDashboard, FileText, Layers, Hash,
-  Image as ImageIcon, LogOut, Search, Bell, Music
+  Image as ImageIcon, LogOut, Search, Bell, Music, Globe
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -17,6 +17,7 @@ const isLoading = ref(true)
 const menuItems = computed(() => [
   { id: 'dashboard', label: '工作台', icon: LayoutDashboard, to: '/user/dashboard' },
   { id: 'notes', label: '我的笔记', icon: FileText, to: '/user/notes' },
+  { id: 'public-notes', label: '公共笔记广场', icon: Globe, to: '/user/public-notes' },
   { id: 'topics', label: '主题管理', icon: Layers, to: '/user/topics' },
   { id: 'tags', label: '标签生态', icon: Hash, to: '/user/tags' },
   { id: 'images', label: '图床画廊', icon: ImageIcon, to: '/user/images' },

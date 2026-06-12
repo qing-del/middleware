@@ -19,13 +19,13 @@ public interface TopicMapper {
     /**
      * 按主题 ID + 用户 ID 查询，保证数据隔离。
      */
-    @Select("SELECT id, user_id, topic_name, sort_order, create_time, update_time FROM biz_topic WHERE id = #{id}")
+    @Select("SELECT id, user_id AS userId, topic_name AS topicName, parent_id AS parentId, sort_order AS sortOrder, is_pass AS isPass, create_time AS createTime, update_time AS updateTime FROM biz_topic WHERE id = #{id}")
     TopicEntity selectById(@Param("id") Long id);
 
     /**
      * 查询同用户下是否存在同名主题。
      */
-    @Select("SELECT id, user_id, topic_name, sort_order, create_time, update_time FROM biz_topic WHERE user_id = #{userId} AND topic_name = #{topicName}")
+    @Select("SELECT id, user_id AS userId, topic_name AS topicName, parent_id AS parentId, sort_order AS sortOrder, is_pass AS isPass, create_time AS createTime, update_time AS updateTime FROM biz_topic WHERE user_id = #{userId} AND topic_name = #{topicName}")
     TopicEntity selectByUserIdAndTopicName(@Param("userId") Long userId, @Param("topicName") String topicName);
 
     /**
@@ -71,6 +71,13 @@ public interface TopicMapper {
     List<TopicListVO> listByUserCondition(@Param("userId") Long userId,
                                           @Param("keyword") String keyword,
                                           @Param("globalScope") boolean globalScope);
+
+    /**
+     * 查询当前用户指定父级下的一层主题。
+     */
+    List<TopicListVO> listChildrenByParentId(@Param("userId") Long userId,
+                                             @Param("parentId") Long parentId,
+                                             @Param("rootOnly") boolean rootOnly);
 
     /**
      * 统计指定用户的主题数量。

@@ -68,6 +68,7 @@ public class TopicServiceImpl implements TopicService {
         BeanUtils.copyProperties(dto, topic);
         topic.setUserId(userId);
         topic.setIsPass(AuditConstant.WAIT);    // 默认处于待审核
+        topic.setParentId(validateParentId(userId, dto.getParentId()));
 
         // 未传排序时使用默认值，保证列表排序稳定
         Integer sortOrder = dto.getSortOrder();
@@ -100,7 +101,10 @@ public class TopicServiceImpl implements TopicService {
             throw new BaseException(TopicConstant.TOPIC_NOT_OWNER);
         }
 
-        // 设置排序等级
+        if (dto.getParentId() != null) {
+            existed.setParentId(validateParentId(userId, dto.getParentId(), existed.getId()));
+        }
+
         if (dto.getSortOrder() != null) {
             existed.setSortOrder(dto.getSortOrder());
         }
@@ -152,6 +156,15 @@ public class TopicServiceImpl implements TopicService {
         List<TopicListVO> records = topicMapper.listByCondition(dto.getUserId(), normalizeKeyword(dto.getKeyword()));
         PageInfo<TopicListVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
+    }
+
+    @Override
+    public List<TopicListVO> listChildren(Long parentId) {
+        Long userId = BaseContext.getCurrentId();
+        if (parentId != null) {
+            validateParentId(userId, parentId);
+        }
+        return topicMapper.listChildrenByParentId(userId, parentId, parentId == null);
     }
 
     /**
@@ -329,5 +342,45 @@ public class TopicServiceImpl implements TopicService {
         if (id == null || id <= 0) {
             throw new BaseException(TopicConstant.TOPIC_ID_INVALID);
         }
+    }
+
+    private Long validateParentId(Long userId, Long parentId) {
+        return validateParentId(userId, parentId, null);
+    }
+
+    private Long validateParentId(Long userId, Long parentId, Long currentTopicId) {
+        if (parentId == null) {
+            return null;
+        }
+        if (parentId <= 0) {
+            throw new BaseException(TopicConstant.TOPIC_ID_INVALID);
+        }
+        if (parentId.equals(currentTopicId)) {
+            throw new BaseException("父级目录不能是自己");
+        }
+
+        TopicEntity parent = topicMapper.selectById(parentId);
+        if (parent == null) {
+            throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
+        }
+        if (!parent.getUserId().equals(userId)) {
+            throw new BaseException(TopicConstant.TOPIC_NOT_OWNER);
+        }
+        if (currentTopicId != null && isDescendant(parentId, currentTopicId)) {
+            throw new BaseException("父级目录不能是当前目录的子目录");
+        }
+        return parentId;
+    }
+
+    private boolean isDescendant(Long candidateParentId, Long currentTopicId) {
+        Long cursor = candidateParentId;
+        while (cursor != null) {
+            if (cursor.equals(currentTopicId)) {
+                return true;
+            }
+            TopicEntity topic = topicMapper.selectById(cursor);
+            cursor = topic == null ? null : topic.getParentId();
+        }
+        return false;
     }
 }

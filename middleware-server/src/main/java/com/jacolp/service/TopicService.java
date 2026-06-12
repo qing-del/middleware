@@ -8,6 +8,7 @@ import com.jacolp.pojo.dto.topic.TopicListDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
 import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
 import com.jacolp.pojo.vo.topic.TopicDetailVO;
+import com.jacolp.pojo.vo.topic.TopicListVO;
 import com.jacolp.pojo.vo.topic.TopicStatsVO;
 import com.jacolp.result.PageResult;
 
@@ -39,6 +40,11 @@ public interface TopicService {
      * 用户端条件查询：当前用户自己的主题 + 别人已通过审核的主题。
      */
     PageResult listUserTopics(UserTopicQueryDTO dto);
+
+    /**
+     * 查询当前用户指定父目录下的一层主题。
+     */
+    List<TopicListVO> listChildren(Long parentId);
 
     /**
      * 用户端发起主题审核申请。

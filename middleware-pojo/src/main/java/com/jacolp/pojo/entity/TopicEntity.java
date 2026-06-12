@@ -23,6 +23,8 @@ public class TopicEntity implements Serializable {
 
     private String topicName;
 
+    private Long parentId;
+
     private Integer sortOrder;
 
     private Short isPass;

@@ -26,6 +26,9 @@ public class UserTopicQueryDTO implements Serializable, PageParamProvider {
      */
     private String scope;
 
+    @Positive(message = "父级主题 ID 必须为正数")
+    private Long parentId;
+
     @Positive(message = "页码必须为正数")
     private Integer pageNum;
 

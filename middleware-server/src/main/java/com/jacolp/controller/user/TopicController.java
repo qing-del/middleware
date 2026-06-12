@@ -2,6 +2,7 @@ package com.jacolp.controller.user;
 
 import com.jacolp.pojo.dto.topic.TopicAddDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
+import com.jacolp.pojo.vo.topic.TopicListVO;
 import com.jacolp.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,15 @@ public class TopicController {
             @Parameter(description = "主题查询条件（关键词、分页参数）") @RequestBody UserTopicQueryDTO dto) {
         log.info("User list topics, keyword: {}", dto.getKeyword());
         return Result.success(topicService.listUserTopics(dto));
+    }
+
+    @GetMapping("/children")
+    @Operation(summary = "查询当前用户指定父级下的主题目录",
+            description = "parentId 为空时查询一级主题目录；parentId 非空时查询该主题下的一层子目录。")
+    public Result<List<TopicListVO>> listChildren(
+            @Parameter(description = "父级主题ID，不传表示一级目录") @RequestParam(required = false) Long parentId) {
+        log.info("User list topic children, parentId: {}", parentId);
+        return Result.success(topicService.listChildren(parentId));
     }
 
     @GetMapping("/stats")

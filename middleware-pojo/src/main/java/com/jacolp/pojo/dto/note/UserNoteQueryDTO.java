@@ -21,6 +21,8 @@ public class UserNoteQueryDTO implements Serializable, PageParamProvider {
 
     private Long topicId;
 
+    private Boolean unclassified;
+
     private String title;
 
     /**

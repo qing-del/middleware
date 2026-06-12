@@ -1,4 +1,4 @@
-package com.jacolp.controller.guest;
+package com.jacolp.controller.user;
 
 import com.jacolp.pojo.dto.note.PublicNoteQueryDTO;
 import com.jacolp.pojo.vo.note.PublicNoteDetailVO;
@@ -19,28 +19,28 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController("Guest-NoteController")
-@RequestMapping("/guest/note")
+@RestController("User-PublicNoteController")
+@RequestMapping("/user/public-note")
 @Slf4j
 @CrossOrigin("*")
 @Validated
-@Schema(description = "Guest - 公开笔记")
-@Tag(name = "Guest-公开笔记", description = "访客公开笔记只读接口")
-public class NoteController {
+@Schema(description = "User - 公共笔记广场")
+@Tag(name = "User-公共笔记广场", description = "用户端公开笔记只读接口")
+public class PublicNoteController {
 
     @Autowired private PublicNoteService publicNoteService;
 
     @GetMapping
     @Operation(summary = "分页查询公开笔记")
     public Result<PageResult> list(@Parameter(description = "公开笔记查询条件") PublicNoteQueryDTO dto) {
-        log.info("Guest list published notes, topicId: {}, keyword: {}", dto.getTopicId(), dto.getKeyword());
+        log.info("User list public notes, topicId: {}, keyword: {}", dto.getTopicId(), dto.getKeyword());
         return Result.success(publicNoteService.listPublishedNotes(dto));
     }
 
     @GetMapping("/{noteId}")
     @Operation(summary = "查看公开笔记详情")
     public Result<PublicNoteDetailVO> detail(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
-        log.info("Guest get published note detail, noteId: {}", noteId);
+        log.info("User get public note detail, noteId: {}", noteId);
         return Result.success(publicNoteService.getPublishedNoteDetail(noteId));
     }
 }

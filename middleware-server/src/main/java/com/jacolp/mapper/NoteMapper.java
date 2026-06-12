@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import com.jacolp.pojo.dto.note.NoteQueryDTO;
-import com.jacolp.pojo.dto.note.GuestNoteQueryDTO;
+import com.jacolp.pojo.dto.note.PublicNoteQueryDTO;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.pojo.vo.note.NoteVO;
@@ -103,12 +103,9 @@ public interface NoteMapper {
      * @param originalFilename 原始文件名
      * @return 是否存在 1-存在 0-不存在
      */
-    @Select("select count(1) from biz_note where " +
-            "user_id = #{userId} and " +
-            "topic_id = #{topicId} and " +
-            "title = #{originalFilename} and " +
-            "status != 8")
-    int countByUserIdAndTopicIdAndTitle(Long userId, Long topicId, String originalFilename);
+    int countByUserIdAndTopicIdAndTitle(@Param("userId") Long userId,
+                                         @Param("topicId") Long topicId,
+                                         @Param("originalFilename") String originalFilename);
 
         /**
          * 统计指定用户的笔记总数（未删除）。
@@ -137,18 +134,19 @@ public interface NoteMapper {
      */
     List<NoteVO> listByUserCondition(@Param("userId") Long userId,
                                      @Param("topicId") Long topicId,
+                                     @Param("unclassified") Boolean unclassified,
                                      @Param("title") String title,
                                      @Param("globalScope") boolean globalScope);
 
     /**
      * 访客分页查询已公开笔记。
      */
-    List<NoteVO> listGuestPublished(GuestNoteQueryDTO dto);
+    List<NoteVO> listPublicPublished(PublicNoteQueryDTO dto);
 
     /**
      * 访客按 ID 查询已公开笔记详情基础信息。
      */
-    NoteVO selectGuestPublishedVoById(@Param("id") Long id);
+    NoteVO selectPublicPublishedVoById(@Param("id") Long id);
 
     /**
      * 查询指定笔记的笔记状态

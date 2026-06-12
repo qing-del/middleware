@@ -89,8 +89,8 @@ export function getNoteStatusInfo(code: number): NoteStatusInfo {
 export interface NoteItem {
   id: number
   userId: number
-  topicId: number
-  topicName: string
+  topicId: number | null
+  topicName: string | null
   title: string
   description: string
   storageType: number
@@ -124,6 +124,7 @@ export interface NoteItem {
 export interface NoteQueryParams {
   keyword?: string
   topicId?: number
+  unclassified?: boolean
   tagId?: number
   title?: string
   scope?: 'personal' | 'global'
@@ -135,8 +136,8 @@ export interface NoteQueryParams {
 export interface NoteDetailVO {
   id: number
   userId: number
-  topicId: number
-  topicName: string
+  topicId: number | null
+  topicName: string | null
   title: string
   description: string
   storageType: number
@@ -200,6 +201,8 @@ export interface GuestNoteItem {
   updateTime: string
 }
 
+export type PublicNoteItem = GuestNoteItem
+
 export interface GuestNoteDetailVO {
   id: number
   topicId?: number
@@ -213,6 +216,8 @@ export interface GuestNoteDetailVO {
   createTime: string
   updateTime: string
 }
+
+export type PublicNoteDetailVO = GuestNoteDetailVO
 
 // ── Upload ────────────────────────────────────────
 export interface NoteUploadVO {
@@ -511,5 +516,17 @@ export const guestNoteApi = {
   /** 查看公开笔记详情 */
   getDetail(noteId: number): Promise<GuestNoteDetailVO> {
     return request.get(`/guest/note/${noteId}`)
+  },
+}
+
+export const userPublicNoteApi = {
+  /** 分页查询公共笔记广场 */
+  getList(params: NoteQueryParams): Promise<PageResult<PublicNoteItem>> {
+    return request.get('/user/public-note', { params })
+  },
+
+  /** 查看公共笔记详情 */
+  getDetail(noteId: number): Promise<PublicNoteDetailVO> {
+    return request.get(`/user/public-note/${noteId}`)
   },
 }

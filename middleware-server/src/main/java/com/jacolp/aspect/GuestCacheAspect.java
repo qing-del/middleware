@@ -16,7 +16,7 @@ import com.jacolp.annotation.GuestCacheEvict;
 import com.jacolp.annotation.GuestCacheable;
 import com.jacolp.component.CacheOperator;
 import com.jacolp.constant.GuestCacheConstant;
-import com.jacolp.pojo.dto.note.GuestNoteQueryDTO;
+import com.jacolp.pojo.dto.note.PublicNoteQueryDTO;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -93,14 +93,14 @@ public class GuestCacheAspect {
      * {@code pageNum=null} 与业务实际默认页码使用同一个 key。</p>
      */
     private String buildGuestNoteListKey(String cacheName, Object[] args) {
-        GuestNoteQueryDTO dto = null;
+        PublicNoteQueryDTO dto = null;
         for (Object arg : args) {
-            if (arg instanceof GuestNoteQueryDTO queryDTO) {
+            if (arg instanceof PublicNoteQueryDTO queryDTO) {
                 dto = queryDTO;
                 break;
             }
         }
-        GuestNoteQueryDTO query = dto == null ? new GuestNoteQueryDTO() : dto;
+        PublicNoteQueryDTO query = dto == null ? new PublicNoteQueryDTO() : dto;
         String keyword = StringUtils.hasText(query.getKeyword()) ? query.getKeyword().trim() : "";
         String topicId = query.getTopicId() == null ? "" : query.getTopicId().toString();
         return cacheName

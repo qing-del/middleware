@@ -101,7 +101,14 @@
                            create_time, update_time
                 FROM biz_note
                 WHERE user_id = #{userId}
-                  AND topic_id = #{topicId}
+                  <choose>
+                          <when test="topicId == null">
+                                  AND topic_id IS NULL
+                          </when>
+                          <otherwise>
+                                  AND topic_id = #{topicId}
+                          </otherwise>
+                  </choose>
                   AND status != 8
                   AND title IN
                 <foreach collection="titles" item="title" open="(" separator="," close=")">
@@ -120,6 +127,22 @@
                 LEFT JOIN biz_note n ON n.id = m.note_id
                 WHERE m.image_id = #{imageId}
                   AND m.is_deleted = 0
+        </select>
+
+        <select id="countByUserIdAndTopicIdAndTitle" resultType="int">
+                SELECT COUNT(1)
+                FROM biz_note
+                WHERE user_id = #{userId}
+                  <choose>
+                          <when test="topicId == null">
+                                  AND topic_id IS NULL
+                          </when>
+                          <otherwise>
+                                  AND topic_id = #{topicId}
+                          </otherwise>
+                  </choose>
+                  AND title = #{originalFilename}
+                  AND status != 8
         </select>
 
         <select id="listByCondition" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.note.NoteQueryDTO">
@@ -164,13 +187,20 @@
                                         AND n.user_id = #{userId}
                                 </otherwise>
                         </choose>
-                        <if test="topicId != null">AND n.topic_id = #{topicId}</if>
+                        <choose>
+                                <when test="unclassified != null and unclassified">
+                                        AND n.topic_id IS NULL
+                                </when>
+                                <when test="topicId != null">
+                                        AND n.topic_id = #{topicId}
+                                </when>
+                        </choose>
                         <if test="title != null and title != ''">AND n.title LIKE CONCAT('%', #{title}, '%')</if>
                 </where>
                 ORDER BY n.create_time DESC
         </select>
 
-        <select id="listGuestPublished" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.note.GuestNoteQueryDTO">
+        <select id="listPublicPublished" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.note.PublicNoteQueryDTO">
                 SELECT
                     n.id, n.topic_id, t.topic_name, n.title, n.description,
                     n.storage_type, n.status, n.missing_info_mask, n.missing_count,
@@ -185,7 +215,7 @@
                 ORDER BY n.create_time DESC
         </select>
 
-        <select id="selectGuestPublishedVoById" resultMap="NoteVOMap">
+        <select id="selectPublicPublishedVoById" resultMap="NoteVOMap">
                 SELECT
                     n.id, n.topic_id, t.topic_name, n.title, n.description,
                     n.storage_type, n.status, n.missing_info_mask, n.missing_count,
