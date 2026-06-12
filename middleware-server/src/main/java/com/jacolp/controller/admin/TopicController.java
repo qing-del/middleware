@@ -2,6 +2,7 @@ package com.jacolp.controller.admin;
 
 import com.jacolp.pojo.dto.topic.TopicListDTO;
 import com.jacolp.pojo.vo.topic.TopicDetailVO;
+import com.jacolp.pojo.vo.topic.TopicListVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.TopicService;
@@ -48,6 +49,16 @@ public class TopicController {
     public Result<PageResult> list(
             @Parameter(description = "主题查询条件（用户ID、关键词、分页参数）") @RequestBody TopicListDTO dto) {
         return Result.success(topicService.listTopics(dto));
+    }
+
+    @GetMapping("/children")
+    @Operation(summary = "查询指定用户的一层子主题目录",
+            description = "parentId 不传时查询指定用户的一级目录；传入 parentId 时查询该父目录下的一层子目录。")
+    public Result<List<TopicListVO>> children(
+            @Parameter(description = "目标用户ID") @RequestParam Long userId,
+            @Parameter(description = "父级主题ID，不传表示根目录") @RequestParam(required = false) Long parentId) {
+        log.info("Admin list topic children, userId: {}, parentId: {}", userId, parentId);
+        return Result.success(topicService.listChildrenByUserId(userId, parentId));
     }
 
     @DeleteMapping("/delete")

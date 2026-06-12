@@ -154,7 +154,14 @@
                 <where>
                         n.status != 8
                         <if test="userId != null">AND n.user_id = #{userId}</if>
-                        <if test="topicId != null">AND n.topic_id = #{topicId}</if>
+                        <choose>
+                                <when test="unclassified != null and unclassified">
+                                        AND n.topic_id IS NULL
+                                </when>
+                                <when test="topicId != null">
+                                        AND n.topic_id = #{topicId}
+                                </when>
+                        </choose>
                         <if test="title != null and title != ''">AND n.title LIKE CONCAT('%', #{title}, '%')</if>
                         <if test="status != null">AND n.status = #{status}</if>
                 </where>

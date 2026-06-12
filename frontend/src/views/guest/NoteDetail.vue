@@ -552,7 +552,7 @@ onUnmounted(() => {
         <article class="min-w-0">
           <header class="mb-8">
             <div class="mb-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400">
-              <span class="inline-flex items-center rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-100">
+              <span class="guest-public-chip inline-flex items-center rounded-md px-2.5 py-1">
                 <Layers class="mr-1.5 h-3.5 w-3.5" />
                 {{ note.topicName || '未归属主题' }}
               </span>
@@ -564,7 +564,7 @@ onUnmounted(() => {
             <h1 class="max-w-4xl text-3xl font-black leading-tight tracking-normal text-white sm:text-5xl">{{ note.title }}</h1>
             <p v-if="note.description" class="mt-5 max-w-3xl text-base leading-7 text-slate-400">{{ note.description }}</p>
             <div v-if="note.tags?.length" class="mt-6 flex flex-wrap gap-2">
-              <span v-for="tag in note.tags" :key="tag" class="inline-flex items-center rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-bold text-cyan-100">
+              <span v-for="tag in note.tags" :key="tag" class="guest-public-chip inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold">
                 <Tags class="mr-1.5 h-3.5 w-3.5" />
                 {{ tag }}
               </span>
@@ -727,6 +727,13 @@ onUnmounted(() => {
 }
 .guest-matrix__sticky::-webkit-scrollbar-thumb:hover {
   background-color: rgba(148, 163, 184, 0.35);
+}
+
+.guest-public-chip {
+  border: 1px solid rgba(14, 116, 144, 0.22);
+  background: #ecfeff;
+  color: #155e75;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
 }
 
 .guest-soft-panel {

@@ -13,6 +13,7 @@ export interface AdminTopicItem {
   id: number
   userId?: number
   topicName: string
+  parentId?: number | null
   sortOrder: number
   noteCount: number
   isPass: number
@@ -79,6 +80,7 @@ export interface AdminUserItem {
   status: number
   maxStorageBytes: number
   usedStorageBytes: number
+  noteCount?: number
   createTime: string
 }
 
@@ -204,6 +206,11 @@ export const adminApi = {
   getTopicList(params: TopicQueryParams): Promise<PageResult<AdminTopicItem>> {
     return request.post('/admin/topic/list', params)
   },
+  getTopicChildren(params: { userId: number; parentId?: number | null }): Promise<AdminTopicItem[]> {
+    const query: Record<string, number> = { userId: params.userId }
+    if (params.parentId != null) query.parentId = params.parentId
+    return request.get('/admin/topic/children', { params: query })
+  },
   deleteTopics(ids: number[]): Promise<string> {
     return request.delete('/admin/topic/delete', {
       params: { ids: ids.join(',') }
@@ -316,8 +323,8 @@ export const adminApi = {
 export interface AdminNoteItem {
   id: number
   userId: number
-  topicId: number
-  topicName: string
+  topicId: number | null
+  topicName: string | null
   title: string
   description: string
   storageType: number
@@ -346,7 +353,8 @@ export interface AdminNoteEachVO {
 
 export interface AdminNoteQueryParams {
   userId?: number
-  topicId?: number
+  topicId?: number | null
+  unclassified?: boolean
   title?: string
   status?: number
   pageNum?: number

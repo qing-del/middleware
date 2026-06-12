@@ -167,6 +167,17 @@ public class TopicServiceImpl implements TopicService {
         return topicMapper.listChildrenByParentId(userId, parentId, parentId == null);
     }
 
+    @Override
+    public List<TopicListVO> listChildrenByUserId(Long userId, Long parentId) {
+        if (userId == null || userId <= 0) {
+            throw new BaseException("无效的用户ID");
+        }
+        if (parentId != null) {
+            validateParentId(userId, parentId);
+        }
+        return topicMapper.listChildrenByParentId(userId, parentId, parentId == null);
+    }
+
     /**
      * 批量删除主题。
      * <ol>

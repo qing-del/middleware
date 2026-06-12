@@ -47,6 +47,11 @@ public interface TopicService {
     List<TopicListVO> listChildren(Long parentId);
 
     /**
+     * 管理端查询指定用户指定父目录下的一层主题。
+     */
+    List<TopicListVO> listChildrenByUserId(Long userId, Long parentId);
+
+    /**
      * 用户端发起主题审核申请。
      */
     void submitTopicAudit(Long topicId);
