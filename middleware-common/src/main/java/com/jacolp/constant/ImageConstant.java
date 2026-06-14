@@ -30,8 +30,10 @@ public class ImageConstant {
 
     // ================ 审核状态常量 ================
     public static final short AUDIT_STATUS_PENDING = 0;   // 待审核
-    public static final short AUDIT_STATUS_APPROVED = 1;  // 已通过
-    public static final short AUDIT_STATUS_REJECTED = 2;  // 已拒绝
+    public static final short AUDIT_STATUS_AUDITING = 1;  // 审核中
+    public static final short AUDIT_STATUS_APPROVED = 2;  // 已通过
+    public static final short AUDIT_STATUS_REJECTED = 3;  // 已拒绝
+    public static final short AUDIT_STATUS_DELETED = 4;   // 已删除
 
     // ============= 图片删除死信队列常量 =============
     public static final short IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING = 0;    // 等待处理

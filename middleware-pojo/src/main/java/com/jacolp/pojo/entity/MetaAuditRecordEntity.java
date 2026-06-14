@@ -8,8 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 元数据审核记录表 biz_meta_audit_record 对应实体。
- * 用于审核主题和标签的申请记录。
+ * 标签审核记录表 biz_tag_audit_record 对应实体。
+ * applyType 保留为兼容字段，固定为 2。
  */
 @Data
 @NoArgsConstructor
@@ -22,13 +22,13 @@ public class MetaAuditRecordEntity implements Serializable {
 
     private Long applicantUserId;
 
-    private Short applyType;  // 申请类型：1-主题, 2-标签
+    private Short applyType;  // 兼容字段：2-标签
 
-    private Long targetId;  // 关联的主题ID或标签ID
+    private Long targetId;  // 关联的标签ID
 
     private String applyReason;
 
-    private Short status;  // 审核状态：0-待审核, 1-已通过, 2-已拒绝
+    private Short status;  // 审核状态：0-待审核, 1-审核中, 2-已通过, 3-已拒绝, 4-已删除
 
     private Long reviewerUserId;
 

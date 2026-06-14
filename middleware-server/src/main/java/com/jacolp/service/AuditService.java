@@ -16,7 +16,7 @@ import java.util.List;
 public interface AuditService {
 
     /**
-     * 分页查询主题/标签审核列表。
+     * 分页查询标签审核列表。
      *
      * @param dto 查询条件（申请类型、审核状态、申请人、分页参数）
      * @return 分页结果
@@ -40,8 +40,8 @@ public interface AuditService {
     PageResult listNoteAudits(NoteAuditListDTO dto);
 
     /**
-     * 批量审核主题/标签申请。
-     * <p>仅处理待审核记录，并同步回写主题/标签及标签映射状态。</p>
+     * 批量审核标签申请。
+     * <p>仅处理审核中记录，并同步回写标签及标签映射状态。</p>
      *
      * @param context 批量审核参数
      * @return 处理的元信息记录实体类列表
@@ -71,7 +71,7 @@ public interface AuditService {
     boolean hasPendingMetaAudit(Short applyType, Long targetId);
 
     /**
-     * 创建主题/标签审核记录。
+     * 创建标签审核记录。
      * @param record 审核记录
      * @throws RuntimeException 创建失败
      */
@@ -90,9 +90,9 @@ public interface AuditService {
     void createNoteAuditRecord(NoteAuditRecordEntity record);
 
     /**
-     * 撤销主题/标签的待审核申请（删除待审核记录）。
-     * @param applyType 申请类型（1=主题, 2=标签）
-     * @param targetId 主题/标签 ID
+     * 撤销标签的审核中申请。
+     * @param applyType 兼容字段（2=标签）
+     * @param targetId 标签 ID
      * @throws com.jacolp.exception.BaseException 未找到待审核记录
      */
     void cancelMetaAudit(Short applyType, Long targetId);

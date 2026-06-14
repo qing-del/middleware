@@ -57,24 +57,6 @@ public class TopicController {
         return Result.success(topicService.getUserTopicStats());
     }
 
-    @PostMapping("/submitAudit")
-    @Operation(summary = "发起主题审核申请",
-            description = "传入主题 ID，发起对该主题的审核申请。仅允许申请审核自己的主题，且该主题不能已通过审核或已有待审核申请。")
-    public Result<String> submitAudit(@Parameter(description = "主题ID") @RequestParam Long id) {
-        log.info("User submit topic audit, topicId: {}", id);
-        topicService.submitTopicAudit(id);
-        return Result.success();
-    }
-
-    @PostMapping("/cancelAudit")
-    @Operation(summary = "撤销主题审核申请",
-            description = "撤销当前用户的主题审核申请，仅删除待审核记录。")
-    public Result<String> cancelAudit(@Parameter(description = "主题ID") @RequestParam Long id) {
-        log.info("User cancel topic audit, topicId: {}", id);
-        topicService.cancelTopicAudit(id);
-        return Result.success("审核申请已撤销");
-    }
-
     @PostMapping("/add")
     @Operation(summary = "新增主题",
             description = "从当前登录用户上下文获取 userId 后创建主题；服务层会先清洗主题名、校验长度，再检查同一用户下主题名称唯一性。")

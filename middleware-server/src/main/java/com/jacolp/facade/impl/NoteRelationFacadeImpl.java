@@ -16,11 +16,11 @@ import org.springframework.util.StringUtils;
 
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
+import com.jacolp.enums.AuditStatus;
 import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.facade.NoteRelationFacade;
@@ -334,7 +334,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         }
 
         boolean isOwner = Objects.equals(tag.getUserId(), currentUserId);
-        boolean isApproved = Objects.equals(tag.getIsPass(), AuditConstant.PASS);
+        boolean isApproved = Objects.equals(tag.getAuditStatus(), AuditStatus.APPROVED.getCode());
         if (!isOwner && !isApproved) {
             throw new BaseException(UserConstant.PERMISSION_DENIED);
         }
@@ -427,7 +427,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                     vo.setFilename(image.getFilename());
                     vo.setOssUrl(image.getOssUrl());
                     vo.setIsPublic(image.getIsPublic());
-                    vo.setIsPass(image.getIsPass());
+                    vo.setIsPass(image.getAuditStatus());
                     vo.setCreateTime(image.getUploadTime());
                     vo.setIsMissing(NoteConstant.NOT_MISSED_INFO);
                 } else {

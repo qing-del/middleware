@@ -7,7 +7,6 @@ export interface TopicItem {
   parentId?: number | null
   sortOrder: number
   noteCount: number
-  isPass: number       // 0=待审核, 1=已通过, 2=已拒绝
   createTime: string
   updateTime: string
 }
@@ -69,20 +68,6 @@ export const topicApi = {
   deleteTopics(ids: number[]): Promise<string> {
     return request.delete('/user/topic/delete', {
       params: { ids: ids.join(',') }
-    })
-  },
-
-  /** 发起主题审核申请 */
-  submitAudit(id: number): Promise<string> {
-    return request.post('/user/topic/submitAudit', null, {
-      params: { id }
-    })
-  },
-
-  /** 撤销主题审核申请 */
-  cancelAudit(id: number): Promise<string> {
-    return request.post('/user/topic/cancelAudit', null, {
-      params: { id }
     })
   },
 

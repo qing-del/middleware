@@ -37,7 +37,7 @@ public interface TopicService {
     void deleteTopics(List<Long> ids);
 
     /**
-     * 用户端条件查询：当前用户自己的主题 + 别人已通过审核的主题。
+     * 用户端条件查询：仅查询当前用户自己的主题。
      */
     PageResult listUserTopics(UserTopicQueryDTO dto);
 
@@ -52,29 +52,16 @@ public interface TopicService {
     List<TopicListVO> listChildrenByUserId(Long userId, Long parentId);
 
     /**
-     * 用户端发起主题审核申请。
-     */
-    void submitTopicAudit(Long topicId);
-
-    /**
-     * 用户端撤销主题审核申请。
-     */
-    void cancelTopicAudit(Long topicId);
-
-    /**
      * 获取当前用户主题统计。
      */
     TopicStatsVO getUserTopicStats();
 
     /**
      * 校验主题是否存在
-     * <p>- 如果存在且主题为自己的通过</p>
-     * <p>- 如果存在，且主题不属于自己，但主题已通过审核则为通过</p>
-     * <p>- 如果存在，主题不属于自己，且主题未通过审核，则为不通过</p>
+     * <p>- 存在且属于当前用户则为通过</p>
      * @param topicId
      * @return 通过 true，不通过 false
      */
     boolean topicValid(Long topicId);
 
-    int updatePassStatusByIds(List<Long> ids, Short isPass);
 }

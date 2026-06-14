@@ -27,8 +27,6 @@ public class TopicEntity implements Serializable {
 
     private Integer sortOrder;
 
-    private Short isPass;
-
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

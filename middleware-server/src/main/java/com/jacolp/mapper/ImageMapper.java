@@ -20,13 +20,13 @@ public interface ImageMapper {
     /**
      * 按图片 ID 查询。
      */
-    @Select("SELECT id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time FROM biz_image WHERE id = #{id}")
+    @Select("SELECT id, user_id AS userId, topic_id AS topicId, filename, oss_url AS ossUrl, storage_type AS storageType, file_size AS fileSize, is_public AS isPublic, audit_status AS auditStatus, upload_time AS uploadTime FROM biz_image WHERE id = #{id} AND audit_status != 4")
     ImageEntity selectById(@Param("id") Long id);
 
     /**
      * 查询同用户同主题下是否存在同名图片。
      */
-    @Select("SELECT COUNT(*) FROM biz_image WHERE user_id = #{userId} AND topic_id = IFNULL(#{topicId}, 0) AND filename = #{filename}")
+    @Select("SELECT COUNT(*) FROM biz_image WHERE user_id = #{userId} AND topic_id = IFNULL(#{topicId}, 0) AND filename = #{filename} AND audit_status != 4")
     int countByUserIdTopicIdAndFilename(@Param("userId") Long userId, @Param("topicId") Long topicId, @Param("filename") String filename);
 
     /**
@@ -54,15 +54,15 @@ public interface ImageMapper {
      */
     int deleteByIds(@Param("ids") List<Long> ids);
 
-    int updatePassByIds(@Param("ids") List<Long> ids,
-                        @Param("isPass") Short isPass);
+    int updateAuditStatusByIds(@Param("ids") List<Long> ids,
+                               @Param("auditStatus") Short auditStatus);
 
     /**
      * 查询用户存储图片的总大小
      * @param userId 用户 ID
      * @return 如果查到了就返回对应的sum值，查不到就会返回 0
      */
-    @Select("SELECT IFNULL(SUM(file_size), 0) FROM biz_image WHERE user_id = #{userId}")
+    @Select("SELECT IFNULL(SUM(file_size), 0) FROM biz_image WHERE user_id = #{userId} AND audit_status != 4")
     Long sumImageFileSizeByUserId(@Param("userId") Long userId);
 
     /**
@@ -73,7 +73,7 @@ public interface ImageMapper {
     /**
      * 按用户和文件名查询图片。
      */
-    @Select("SELECT id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time FROM biz_image WHERE user_id = #{userId} AND filename = #{filename} LIMIT 1")
+    @Select("SELECT id, user_id AS userId, topic_id AS topicId, filename, oss_url AS ossUrl, storage_type AS storageType, file_size AS fileSize, is_public AS isPublic, audit_status AS auditStatus, upload_time AS uploadTime FROM biz_image WHERE user_id = #{userId} AND filename = #{filename} AND audit_status != 4 LIMIT 1")
     ImageEntity selectByUserIdAndFilename(@Param("userId") Long userId, @Param("filename") String filename);
 
     /**
@@ -103,12 +103,12 @@ public interface ImageMapper {
     /**
      * 统计指定用户的图片数量。
      */
-    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_image WHERE user_id = #{userId}")
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_image WHERE user_id = #{userId} AND audit_status != 4")
     long countByUserId(@Param("userId") Long userId);
 
     /**
      * 统计指定用户已通过审核的图片数量。
      */
-    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_image WHERE user_id = #{userId} AND is_pass = 1")
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_image WHERE user_id = #{userId} AND audit_status = 2")
     long countPassedByUserId(@Param("userId") Long userId);
 }

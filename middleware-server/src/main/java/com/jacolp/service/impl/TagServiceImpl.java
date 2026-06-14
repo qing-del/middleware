@@ -23,6 +23,7 @@ import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
+import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.TagMapper;
 import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
@@ -71,7 +72,7 @@ public class TagServiceImpl implements TagService {
         TagEntity tag = new TagEntity();
         tag.setUserId(userId);
         tag.setTagName(tagName);
-        tag.setIsPass(AuditConstant.WAIT);  // 默认处于待审核状态
+        tag.setAuditStatus(AuditStatus.WAIT.getCode());
         int count = tagMapper.insertTag(tag);
         if (count <= 0) {
             throw new BaseException(TagConstant.TAG_ADD_FAILED);
@@ -109,7 +110,7 @@ public class TagServiceImpl implements TagService {
                 TagEntity tag = new TagEntity();
                 tag.setUserId(userId);
                 tag.setTagName(tagName);
-                tag.setIsPass(AuditConstant.WAIT);  // 默认处于待审核状态
+                tag.setAuditStatus(AuditStatus.WAIT.getCode());
                 toInsert.add(tag);
             }
         }
@@ -179,6 +180,13 @@ public class TagServiceImpl implements TagService {
                         + TagConstant.TAG_DELETE_NOT_ALLOWED_SUFFIX);
             }
         }
+        List<TagEntity> tags = tagMapper.selectByIds(new ArrayList<>(ids));
+        for (TagEntity tag : tags) {
+            AuditStatus status = AuditStatus.fromCode(tag.getAuditStatus());
+            if (!status.canTransitionTo(AuditStatus.DELETED)) {
+                throw new BaseException("审核中的标签不能删除");
+            }
+        }
 
         int count = tagMapper.deleteByIds(userId, ids);
         if (count <= 0) {
@@ -233,7 +241,8 @@ public class TagServiceImpl implements TagService {
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
-        if (AuditConstant.PASS.equals(tag.getIsPass())) {
+        AuditStatus status = AuditStatus.fromCode(tag.getAuditStatus());
+        if (!status.canTransitionTo(AuditStatus.AUDITING)) {
             throw new BaseException("该标签已通过审核");
         }
         if (auditService.hasPendingMetaAudit(AuditConstant.TAG_APPLY_TYPE, tagId)) {
@@ -245,6 +254,8 @@ public class TagServiceImpl implements TagService {
         record.setApplyType(AuditConstant.TAG_APPLY_TYPE);
         record.setTargetId(tagId);
         auditService.createMetaAuditRecord(record);
+
+        tagMapper.updateAuditStatusByIds(List.of(tagId), AuditStatus.AUDITING.getCode());
     }
 
     /**
@@ -259,8 +270,13 @@ public class TagServiceImpl implements TagService {
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
+        AuditStatus status = AuditStatus.fromCode(tag.getAuditStatus());
+        if (!status.canTransitionTo(AuditStatus.WAIT)) {
+            throw new BaseException("该标签未处于审核中");
+        }
 
         auditService.cancelMetaAudit(AuditConstant.TAG_APPLY_TYPE, tagId);
+        tagMapper.updateAuditStatusByIds(List.of(tagId), AuditStatus.WAIT.getCode());
     }
 
     /**
@@ -364,6 +380,7 @@ public class TagServiceImpl implements TagService {
         NoteTagMappingEntity mapping = new NoteTagMappingEntity();
         mapping.setNoteId(noteId);
         BeanUtils.copyProperties(tag, mapping);
+        mapping.setIsPass(tag.getAuditStatus());
         mapping.setIsDeleted(NoteConstant.NOT_DELETED);
 
         int count = noteRelationService.batchInsertTagMappings(List.of(mapping));
@@ -415,8 +432,8 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    public int updatePassStatusByIds(List<Long> ids, Short isPass) {
-        return tagMapper.updatePassByIds(ids, isPass);
+    public int updateAuditStatusByIds(List<Long> ids, Short auditStatus) {
+        return tagMapper.updateAuditStatusByIds(ids, auditStatus);
     }
 
     private String normalizeTagName(String tagName) {

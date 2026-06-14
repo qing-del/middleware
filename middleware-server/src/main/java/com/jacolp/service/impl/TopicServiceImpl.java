@@ -13,7 +13,6 @@ import org.springframework.util.StringUtils;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.TopicConstant;
 import com.jacolp.constant.UserConstant;
@@ -25,7 +24,6 @@ import com.jacolp.pojo.dto.topic.TopicAddDTO;
 import com.jacolp.pojo.dto.topic.TopicListDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
 import com.jacolp.pojo.dto.topic.UserTopicQueryDTO;
-import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.TopicEntity;
 import com.jacolp.pojo.vo.topic.TopicDetailVO;
 import com.jacolp.pojo.vo.topic.TopicListVO;
@@ -48,7 +46,6 @@ import lombok.extern.slf4j.Slf4j;
 public class TopicServiceImpl implements TopicService {
 
     @Autowired private TopicMapper topicMapper;
-    @Autowired private AuditService auditService;
 
     /**
      * 新增主题。
@@ -67,7 +64,6 @@ public class TopicServiceImpl implements TopicService {
         TopicEntity topic = new TopicEntity();
         BeanUtils.copyProperties(dto, topic);
         topic.setUserId(userId);
-        topic.setIsPass(AuditConstant.WAIT);    // 默认处于待审核
         topic.setParentId(validateParentId(userId, dto.getParentId()));
 
         // 未传排序时使用默认值，保证列表排序稳定
@@ -131,8 +127,7 @@ public class TopicServiceImpl implements TopicService {
 
         // 如果不是管理员需要做权限检查
         if (!PermissionContext.isAdmin()
-        && !topic.getUserId().equals(BaseContext.getCurrentId())
-        && !AuditConstant.PASS.equals(topic.getIsPass())) {
+        && !topic.getUserId().equals(BaseContext.getCurrentId())) {
             throw new BaseException(TopicConstant.TOPIC_NOT_OWNER);
         }
 
@@ -228,7 +223,7 @@ public class TopicServiceImpl implements TopicService {
     }
 
     /**
-     * 用户端条件查询：当前用户自己的主题 + 别人已通过审核的主题。
+     * 用户端条件查询：当前用户自己的主题。
      */
     @Override
     public PageResult listUserTopics(UserTopicQueryDTO dto) {
@@ -245,62 +240,13 @@ public class TopicServiceImpl implements TopicService {
     }
 
     /**
-     * 用户端发起主题审核申请。
-     */
-    @Override
-    public void submitTopicAudit(Long topicId) {
-        Long userId = BaseContext.getCurrentId();
-        validateTopicId(topicId);
-
-        TopicEntity topic = topicMapper.selectById(topicId);
-        if (topic == null) {
-            throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
-        }
-        if (!topic.getUserId().equals(userId)) {
-            throw new BaseException("只能申请审核自己的主题");
-        }
-        if (AuditConstant.PASS.equals(topic.getIsPass())) {
-            throw new BaseException("该主题已通过审核");
-        }
-        // 检查是否已有待审核记录
-        if (auditService.hasPendingMetaAudit(AuditConstant.TOPIC_APPLY_TYPE, topicId)) {
-            throw new BaseException("该主题已有待审核的申请");
-        }
-
-        MetaAuditRecordEntity record = new MetaAuditRecordEntity();
-        record.setApplicantUserId(userId);
-        record.setApplyType(AuditConstant.TOPIC_APPLY_TYPE);
-        record.setTargetId(topicId);
-        auditService.createMetaAuditRecord(record);
-    }
-
-    /**
-     * 用户端撤销主题审核申请。
-     */
-    @Override
-    public void cancelTopicAudit(Long topicId) {
-        Long userId = BaseContext.getCurrentId();
-        validateTopicId(topicId);
-
-        TopicEntity topic = topicMapper.selectById(topicId);
-        if (topic == null) {
-            throw new BaseException(TopicConstant.TOPIC_NOT_FOUND);
-        }
-        if (!topic.getUserId().equals(userId)) {
-            throw new BaseException("只能撤销自己主题的审核申请");
-        }
-
-        auditService.cancelMetaAudit(AuditConstant.TOPIC_APPLY_TYPE, topicId);
-    }
-
-    /**
      * 获取当前用户主题统计。
      */
     @Override
     public TopicStatsVO getUserTopicStats() {
         Long userId = BaseContext.getCurrentId();
         long topicCount = topicMapper.countByUserId(userId);
-        long passedCount = topicMapper.countPassedByUserId(userId);
+        long passedCount = topicCount;
         return new TopicStatsVO(topicCount, passedCount);
     }
 
@@ -310,14 +256,7 @@ public class TopicServiceImpl implements TopicService {
             return false;
         }
         TopicEntity topic = topicMapper.selectById(topicId);
-        return topic != null &&     // 主题存在
-                (topic.getUserId().equals(BaseContext.getCurrentId()) ||    // 属于自己
-                        AuditConstant.PASS.equals(topic.getIsPass()));  // 或者是通过审核的
-    }
-
-    @Override
-    public int updatePassStatusByIds(List<Long> ids, Short isPass) {
-        return topicMapper.updatePassByIds(ids, isPass);
+        return topic != null && topic.getUserId().equals(BaseContext.getCurrentId());
     }
 
     /**

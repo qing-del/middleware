@@ -16,7 +16,6 @@ export interface AdminTopicItem {
   parentId?: number | null
   sortOrder: number
   noteCount: number
-  isPass: number
   createTime: string
   updateTime: string
 }
@@ -34,7 +33,7 @@ export interface AdminTagItem {
   id: number
   userId?: number
   tagName: string
-  isPass: number
+  auditStatus: number
   createTime: string
 }
 
@@ -53,7 +52,7 @@ export interface AdminImageItem {
   fileSize: number
   userId: number
   isPublic: number
-  isPass: number
+  auditStatus: number
   storageType: number
   uploadTime: string
   createTime: string
@@ -65,7 +64,7 @@ export interface ImageQueryParams {
   filename?: string
   storageType?: number
   isPublic?: number
-  isPass?: number
+  auditStatus?: number
   pageNum?: number
   pageSize?: number
 }
@@ -139,7 +138,7 @@ export interface AuditNoteItem {
 export interface AuditMetaItem {
   /** Audit record ID */
   id: number
-  applyType: number // 1: Topic, 2: Tag
+  applyType: number // 2: Tag
   targetId?: number
   targetName: string
   applicantUserId: number
@@ -171,6 +170,7 @@ export interface AuditQueryParams {
 }
 
 export interface MetaAuditQueryParams extends AuditQueryParams {
+  /** Kept for compatibility; backend treats meta audit as tag audit only. */
   applyType?: number
 }
 

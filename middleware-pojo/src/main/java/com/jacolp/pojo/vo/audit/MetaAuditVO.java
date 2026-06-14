@@ -8,7 +8,8 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 元数据审核列表展示对象。
+ * 标签审核列表展示对象。
+ * applyType 保留为兼容字段，固定为 2。
  */
 @Data
 @NoArgsConstructor

@@ -62,10 +62,11 @@ function handleImageBacklinkClick(b: ImageBacklinkVO) {
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-function getStatusInfo(isPass: number): { label: string; cls: string } {
-  switch (isPass) {
-    case 1: return { label: '已通过', cls: 'is-approved' }
-    case 2: return { label: '已拒绝', cls: 'is-rejected' }
+function getStatusInfo(auditStatus: number): { label: string; cls: string } {
+  switch (auditStatus) {
+    case 1: return { label: '审核中', cls: 'is-auditing' }
+    case 2: return { label: '已通过', cls: 'is-approved' }
+    case 3: return { label: '已拒绝', cls: 'is-rejected' }
     default: return { label: '待审核', cls: 'is-pending' }
   }
 }
@@ -300,18 +301,18 @@ onMounted(() => {
     <div v-if="loading" class="relative z-10 flex flex-col items-center justify-center space-y-3 py-24"><Loader2 class="h-8 w-8 animate-spin text-purple-400" /><span class="text-xs text-slate-500">加载图库中...</span></div>
     <div v-else-if="imageList.length === 0" class="relative z-10 flex flex-col items-center justify-center space-y-4 py-24"><Image class="h-12 w-12 text-slate-600" /><p class="text-sm text-slate-500">图库中暂无图片</p><button class="flex items-center space-x-1.5 text-sm font-bold text-purple-400 transition-colors hover:text-purple-300" @click="openUploadModal"><Upload class="h-4 w-4" /><span>上传第一张图片</span></button></div>
     <TransitionGroup v-else name="staggered-fade" tag="div" class="relative z-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <div v-for="(img, index) in imageList" :key="img.id" class="glass-panel glass-card image-gallery-card group relative overflow-hidden rounded-2xl" :class="{ 'border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.1)]': img.isPass === 2 }" :style="{ transitionDelay: `${index * 50}ms` }">
+      <div v-for="(img, index) in imageList" :key="img.id" class="glass-panel glass-card image-gallery-card group relative overflow-hidden rounded-2xl" :class="{ 'border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.1)]': img.auditStatus === 3 }" :style="{ transitionDelay: `${index * 50}ms` }">
         <div class="absolute left-3 top-3 z-10 opacity-0 transition-opacity group-hover:opacity-100"><input type="checkbox" class="glass-checkbox" :checked="selectedIds.has(img.id)" @change="toggleSelect(img.id)" /></div>
         <div class="image-media relative h-48 w-full overflow-hidden bg-black/50">
-          <img v-if="img.ossUrl" :src="img.ossUrl" :alt="img.filename" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" :class="{ 'grayscale-[30%]': img.isPass === 2 }" />
+          <img v-if="img.ossUrl" :src="img.ossUrl" :alt="img.filename" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" :class="{ 'grayscale-[30%]': img.auditStatus === 3 }" />
           <div v-else class="flex h-full w-full items-center justify-center text-slate-600"><Image class="h-10 w-10" /></div>
-          <div v-if="img.isPass === 2" class="pointer-events-none absolute inset-0 bg-rose-500/10 mix-blend-overlay"></div>
+          <div v-if="img.auditStatus === 3" class="pointer-events-none absolute inset-0 bg-rose-500/10 mix-blend-overlay"></div>
           <div class="image-hover-actions absolute inset-0 flex items-center justify-center gap-3 bg-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <button class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="复制外链" @click="copyImageUrl(img.ossUrl)"><Link class="h-4 w-4 text-white" /></button>
             <button v-if="img.ossUrl" class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="查看原图" @click="previewUrl = img.ossUrl; showPreview = true"><Maximize2 class="h-4 w-4 text-white" /></button>
             <button class="rounded-full border border-cyan-500/30 bg-cyan-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-cyan-500/40" title="查看引用笔记" @click="openImageBacklinks(img.id)"><FileText class="h-4 w-4 text-cyan-300" /></button>
-            <button v-if="img.isPass === 2" class="rounded-full border border-teal-500/30 bg-teal-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-teal-500/40" title="重新提交审核" @click="handleSubmitAudit(img.id)"><Send class="h-4 w-4 text-teal-300" /></button>
-            <button v-if="img.isPass === 0" class="rounded-full border border-orange-500/30 bg-orange-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-orange-500/40" title="撤销审核" @click="handleCancelAudit(img.id)"><CornerUpLeft class="h-4 w-4 text-orange-300" /></button>
+            <button v-if="img.auditStatus === 0 || img.auditStatus === 3" class="rounded-full border border-teal-500/30 bg-teal-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-teal-500/40" title="提交审核" @click="handleSubmitAudit(img.id)"><Send class="h-4 w-4 text-teal-300" /></button>
+            <button v-if="img.auditStatus === 1" class="rounded-full border border-orange-500/30 bg-orange-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-orange-500/40" title="撤销审核" @click="handleCancelAudit(img.id)"><CornerUpLeft class="h-4 w-4 text-orange-300" /></button>
             <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="删除" @click="handleDelete(img.id)"><Trash2 class="h-4 w-4 text-rose-300" /></button>
           </div>
           <span class="image-size-badge absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white backdrop-blur-md">{{ formatBytes(img.fileSize) }}</span>
@@ -321,10 +322,10 @@ onMounted(() => {
           <div class="mt-3 flex items-center justify-between">
             <span class="text-xs text-slate-500">{{ formatDate(img.uploadTime || img.createTime) }}</span>
             <div class="flex items-center space-x-2">
-              <span class="inline-flex items-center space-x-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" :class="getStatusInfo(img.isPass).cls">
-                <span>{{ getStatusInfo(img.isPass).label }}</span>
+              <span class="inline-flex items-center space-x-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" :class="getStatusInfo(img.auditStatus).cls">
+                <span>{{ getStatusInfo(img.auditStatus).label }}</span>
               </span>
-              <div v-if="img.isPass === 2" class="group/tooltip relative flex items-center">
+              <div v-if="img.auditStatus === 3" class="group/tooltip relative flex items-center">
                 <Info class="h-3.5 w-3.5 cursor-help text-rose-300" />
                 <div class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-40 -translate-x-1/2 scale-95 rounded-xl border border-rose-500/20 bg-slate-950/95 px-3 py-2 text-[11px] leading-5 text-rose-100 opacity-0 shadow-[0_14px_40px_rgba(15,23,42,0.45)] transition-all duration-200 ease-out group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100">审核未通过，可重新提交。</div>
               </div>
@@ -457,6 +458,12 @@ onMounted(() => {
   border-color: rgba(21, 128, 61, 0.22);
   background: rgba(21, 128, 61, 0.08);
   color: var(--cn-success);
+}
+
+.is-auditing {
+  border-color: rgba(14, 116, 144, 0.24);
+  background: rgba(14, 116, 144, 0.08);
+  color: #0e7490;
 }
 
 .is-rejected {

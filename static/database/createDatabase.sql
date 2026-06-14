@@ -62,11 +62,9 @@ CREATE TABLE `biz_topic` (
                              `topic_name` varchar(25) NOT NULL COMMENT '主题名称(如: MySQL, Redis, 架构设计)',
                              `parent_id` bigint DEFAULT NULL COMMENT '父级主题ID(NULL=一级主题)',
                              `sort_order` int DEFAULT 0 COMMENT '排序字段(用于左侧菜单栏排序)',
-                             `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
                              `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                              `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                              PRIMARY KEY (`id`),
-                             KEY `idx_user_pass` (`user_id`, `is_pass`),
                              KEY `idx_user_parent_sort_update` (`user_id`, `parent_id`, `sort_order`, `update_time`),
                              KEY `idx_user_sort_update` (`user_id`, `sort_order`, `update_time`),
                              UNIQUE KEY `uk_topic_user` (`topic_name`, `user_id`) -- 同一个用户不能创建同名的主题
@@ -81,10 +79,10 @@ CREATE TABLE `biz_tag` (
                            `id` bigint NOT NULL AUTO_INCREMENT COMMENT '标签ID',
                            `user_id` bigint NOT NULL COMMENT '创建者ID',
                            `tag_name` varchar(20) NOT NULL COMMENT '标签名称(如: 踩坑, 性能优化, 源码解析)',
-                           `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
+                           `audit_status` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
                            `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                            PRIMARY KEY (`id`),
-                           KEY `idx_user_pass` (`user_id`, `is_pass`),  -- 用于统计
+                           KEY `idx_user_audit_status` (`user_id`, `audit_status`),  -- 用于统计
                            UNIQUE KEY `uk_tag_user` (`tag_name`, `user_id`) -- 同一个用户不能创建同名的标签
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记标签表';
 
@@ -200,7 +198,7 @@ CREATE TABLE `biz_note_tag_mapping` (
                                         `note_id` bigint NOT NULL COMMENT '笔记ID',
                                         `tag_id` bigint DEFAULT NULL COMMENT '标签ID(NULL=未绑定)',
                                         `parsed_tag_name` varchar(20) NOT NULL COMMENT '从笔记中解析出的标签名',
-                                        `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)',
+                                        `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '标签审核快照(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
                                         `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
                                         `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
                                         `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -224,14 +222,14 @@ CREATE TABLE `biz_image` (
                              `storage_type` tinyint NOT NULL COMMENT '存储方式-1:阿里云OSS, 2:Cloudflare R2(预留)',
                              `file_size` int DEFAULT NULL COMMENT '文件大小(字节, 选填)',
                              `is_public` tinyint NOT NULL DEFAULT 0 COMMENT '是否公开(0:私有仅本人可引用, 1:公开可被其他用户搜索复用)',
-                             `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
+                             `audit_status` tinyint NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
                              `upload_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
                              PRIMARY KEY (`id`),
                              -- 对于 (uk_user_topic_filename) 采取 Java 层逻辑唯一索引
                              KEY `uk_user_topic_filename` (`user_id`, `topic_id`, filename(40)), -- 用户查询自己有哪些图片可以使用
                              KEY `idx_topic_public_filename` (`topic_id`, `is_public`, filename(40)), -- 用于查询某个主题下的所有图片(同时支持前缀模糊查询文件名)
                              KEY `idx_public_filename` (`is_public`, filename(40)), -- 用于公共图片库按文件名搜索
-                             KEY `idx_user_pass` (`user_id`, `is_pass`) -- 方便统计
+                             KEY `idx_user_audit_status` (`user_id`, `audit_status`) -- 方便统计
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片资源映射表';
 
 
@@ -248,7 +246,7 @@ CREATE TABLE `biz_note_image_mapping` (
     `parsed_image_name` varchar(255) NOT NULL COMMENT '笔记中解析出的原始图片名称(如: 架构图.png)，用于建立名称到URL的映射',
     `note_title`        varchar(100) NOT NULL COMMENT '笔记标题(冗余字段，用于后续按笔记标题搜索图片)',
     `is_cross_user`     tinyint      NOT NULL DEFAULT 0 COMMENT '是否跨用户引用(0:同一用户, 1:引用了其他用户的公开图片)',
-    `is_pass`           tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)',
+    `is_pass`           tinyint      NOT NULL DEFAULT 0 COMMENT '图片审核快照(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
     `is_deleted`        tinyint      NOT NULL DEFAULT 0 COMMENT '是否已删除(0:正常, 1:已删除，删除时软删)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '映射创建时间(首次解析时间)',
     `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -300,28 +298,26 @@ CREATE TABLE `audio_tasks` (
 
 
 -- ==========================================
--- 11. 元数据审核表 (biz_meta_audit_record)  —  主题 & 标签
--- 满足需求：主题和标签均属于轻量元数据，量级相近，合用一张审核表
--- apply_type: 1=主题, 2=标签
+-- 11. 标签审核表 (biz_tag_audit_record)
+-- status: 0=待审核, 1=审核中, 2=已通过, 3=已拒绝, 4=已删除
 -- ==========================================
-CREATE TABLE `biz_meta_audit_record` (
+CREATE TABLE `biz_tag_audit_record` (
     `id`                bigint       NOT NULL AUTO_INCREMENT COMMENT '审核记录ID',
     `applicant_user_id` bigint       NOT NULL COMMENT '申请者用户ID',
-    `apply_type`        tinyint      NOT NULL COMMENT '申请类型(1:主题, 2:标签)',
-    `target_id`         bigint       NOT NULL COMMENT '关联的主题ID或标签ID(由apply_type决定)',
+    `target_id`         bigint       NOT NULL COMMENT '关联的标签ID(biz_tag.id)',
     `apply_reason`      varchar(500) DEFAULT NULL COMMENT '申请说明(可选)',
-    `status`            tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
+    `status`            tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
     `reviewer_user_id`  bigint       DEFAULT NULL COMMENT '审核员用户ID(NULL=尚未审核)',
-    `reject_reason`     varchar(500) DEFAULT NULL COMMENT '拒绝原因(status=2时填写)',
+    `reject_reason`     varchar(500) DEFAULT NULL COMMENT '拒绝原因(status=3时填写)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请提交时间',
     `review_time`       datetime     DEFAULT NULL COMMENT '审核完成时间',
     `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_applicant_status` (`applicant_user_id`, `status`), -- 用户查自己的申请
-    KEY `idx_status_type`      (`status`, `apply_type`),        -- 管理员批量处理
-    KEY `idx_target`           (`apply_type`, `target_id`),      -- 按类型+目标ID反查审核记录
+    KEY `idx_status`           (`status`),                       -- 管理员批量处理
+    KEY `idx_target`           (`target_id`),                    -- 按标签ID反查审核记录
     KEY `idx_status_update`    (`status`, `update_time`)         -- 管理员按更新时间拉取
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='主题&标签元数据审核表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签审核表';
 
 -- ==========================================
 -- 12. 图片审核表 (biz_image_audit_record)
@@ -331,9 +327,9 @@ CREATE TABLE `biz_image_audit_record` (
     `applicant_user_id` bigint       NOT NULL COMMENT '申请者用户ID',
     `image_id`          bigint       NOT NULL COMMENT '关联的图片ID(biz_image.id)',
     `apply_reason`      varchar(500) DEFAULT NULL COMMENT '申请说明(可选)',
-    `status`            tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核, 1:已通过, 2:已拒绝)',
+    `status`            tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
     `reviewer_user_id`  bigint       DEFAULT NULL COMMENT '审核员用户ID(NULL=尚未审核)',
-    `reject_reason`     varchar(500) DEFAULT NULL COMMENT '拒绝原因(status=2时填写)',
+    `reject_reason`     varchar(500) DEFAULT NULL COMMENT '拒绝原因(status=3时填写)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请提交时间',
     `review_time`       datetime     DEFAULT NULL COMMENT '审核完成时间',
     `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',

@@ -58,8 +58,9 @@ function formatDate(raw: string): string {
 }
 
 function resolveAuditStatus(isPass?: number) {
-  if (isPass === 1) return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
-  if (isPass === 2) return { label: '未通过', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
+  if (isPass === 1) return { label: '审核中', cls: 'text-sky-400 bg-sky-500/10 border-sky-500/20' }
+  if (isPass === 2) return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
+  if (isPass === 3) return { label: '未通过', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
   return { label: '待审核', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
 }
 
@@ -203,7 +204,7 @@ async function handleBindSearch() {
         title: img.filename || '未命名图片',
         subtitle: formatBytes(img.fileSize),
         meta: formatDate(img.uploadTime || img.createTime),
-        status: resolveAuditStatus(img.isPass)
+        status: resolveAuditStatus(img.auditStatus)
       }))
     } else if (currentBind.value.type === 'tag') {
       const res = await tagApi.getList({ keyword, pageNum: 1, pageSize: 8 })
@@ -211,7 +212,7 @@ async function handleBindSearch() {
         id: tag.id,
         title: `#${tag.tagName}`,
         meta: formatDate(tag.createTime),
-        status: resolveAuditStatus(tag.isPass)
+        status: resolveAuditStatus(tag.auditStatus)
       }))
     } else {
       const res = await noteApi.searchNotes({ keyword, pageNum: 1, pageSize: 8 })

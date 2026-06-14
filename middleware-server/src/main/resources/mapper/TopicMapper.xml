@@ -34,7 +34,6 @@
             t.topic_name AS topicName,
             t.parent_id AS parentId,
             t.sort_order AS sortOrder,
-            t.is_pass AS isPass,
             t.create_time AS createTime,
             t.update_time AS updateTime,
             IFNULL(n.note_count, 0) AS noteCount
@@ -78,16 +77,6 @@
         </foreach>
     </delete>
 
-    <update id="updatePassByIds">
-        UPDATE biz_topic
-        SET is_pass = #{isPass},
-            update_time = NOW()
-        WHERE id IN
-        <foreach collection="ids" item="id" open="(" separator="," close=")">
-            #{id}
-        </foreach>
-    </update>
-
     <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
     <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.topic.TopicListVO">
         SELECT
@@ -96,7 +85,6 @@
             t.topic_name AS topicName,
             t.parent_id AS parentId,
             t.sort_order AS sortOrder,
-            t.is_pass AS isPass,
             t.create_time AS createTime,
             t.update_time AS updateTime,
             IFNULL(n.note_count, 0) AS noteCount
@@ -110,7 +98,7 @@
         <where>
             <choose>
                 <when test="globalScope">
-                    (t.user_id = #{userId} OR t.is_pass = 1)
+                    t.user_id = #{userId}
                 </when>
                 <otherwise>
                     t.user_id = #{userId}
@@ -130,7 +118,6 @@
             t.topic_name AS topicName,
             t.parent_id AS parentId,
             t.sort_order AS sortOrder,
-            t.is_pass AS isPass,
             t.create_time AS createTime,
             t.update_time AS updateTime,
             IFNULL(n.note_count, 0) AS noteCount

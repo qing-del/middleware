@@ -4,7 +4,7 @@ export interface TagItem {
   id: number
   userId?: number
   tagName: string
-  isPass: number       // 0=待审核, 1=已通过, 2=已拒绝
+  auditStatus: number  // 0=待审核, 1=审核中, 2=已通过, 3=已拒绝, 4=已删除
   createTime: string
 }
 

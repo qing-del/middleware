@@ -109,12 +109,6 @@ function userStatusClass(status?: number): string {
   return 'text-amber-700 bg-amber-50 border-amber-200'
 }
 
-function topicStatus(topic: AdminTopicItem) {
-  if (topic.isPass === 1) return { label: '已通过', cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
-  if (topic.isPass === 2) return { label: '已拒绝', cls: 'text-rose-700 bg-rose-50 border-rose-200' }
-  return { label: '待审核', cls: 'text-amber-700 bg-amber-50 border-amber-200' }
-}
-
 function noteQueryParams(): AdminNoteQueryParams {
   return {
     userId: selectedUser.value?.id,
@@ -447,8 +441,8 @@ onMounted(fetchUsers)
                 <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-rose-50 text-rose-700 ring-1 ring-rose-200">
                   <FolderTree class="h-5 w-5" />
                 </div>
-                <span class="rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em]" :class="topicStatus(dir).cls">
-                  {{ topicStatus(dir).label }}
+                <span class="rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-rose-700">
+                  Directory
                 </span>
               </div>
               <h2 class="line-clamp-2 text-lg font-black leading-snug text-slate-950">{{ dir.topicName }}</h2>

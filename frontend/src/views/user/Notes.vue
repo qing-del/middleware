@@ -109,12 +109,6 @@ function getStatusIcon(iconName: string) {
   return map[iconName] ?? FileText
 }
 
-function topicStatus(topic: TopicItem) {
-  if (topic.isPass === 1) return { label: '已通过', cls: 'text-emerald-400 border-emerald-500/25 bg-emerald-500/10' }
-  if (topic.isPass === 2) return { label: '已拒绝', cls: 'text-rose-400 border-rose-500/25 bg-rose-500/10' }
-  return { label: '待审核', cls: 'text-amber-400 border-amber-500/25 bg-amber-500/10' }
-}
-
 function noteQueryParams(): NoteQueryParams {
   return {
     title: keyword.value.trim() || undefined,
@@ -258,17 +252,6 @@ async function handleCreateDirectory() {
 async function handleDeleteDirectory(topic: TopicItem) {
   if (!await confirmAction({ content: `确定删除目录「${topic.topicName}」吗？目录下存在笔记时后端会拒绝删除。`, danger: true })) return
   await topicApi.deleteTopics([topic.id])
-  await fetchWorkspace()
-}
-
-async function handleSubmitTopicAudit(topic: TopicItem) {
-  await topicApi.submitAudit(topic.id)
-  await fetchWorkspace()
-}
-
-async function handleCancelTopicAudit(topic: TopicItem) {
-  if (!await confirmAction({ content: '确认撤销该目录的审核申请吗？' })) return
-  await topicApi.cancelAudit(topic.id)
   await fetchWorkspace()
 }
 
@@ -583,8 +566,8 @@ onMounted(fetchWorkspace)
               <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-blue-200">
                 <FolderTree class="h-5 w-5" />
               </div>
-              <span class="rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em]" :class="topicStatus(dir).cls">
-                {{ topicStatus(dir).label }}
+              <span class="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
+                Directory
               </span>
             </div>
             <h2 class="line-clamp-2 text-lg font-black leading-snug text-slate-950">{{ dir.topicName }}</h2>
@@ -595,12 +578,6 @@ onMounted(fetchWorkspace)
                 <ArrowRight class="h-3.5 w-3.5" />
               </button>
               <div class="relative z-20 flex gap-1">
-                <button v-if="dir.isPass === 0" class="icon-button amber" title="撤销审核" @click.stop="handleCancelTopicAudit(dir)">
-                  <ChevronLeft class="h-3.5 w-3.5" />
-                </button>
-                <button v-if="dir.isPass !== 1" class="icon-button emerald" title="提交审核" @click.stop="handleSubmitTopicAudit(dir)">
-                  <Send class="h-3.5 w-3.5" />
-                </button>
                 <button class="icon-button danger" title="删除目录" @click.stop="handleDeleteDirectory(dir)">
                   <Trash2 class="h-3.5 w-3.5" />
                 </button>
