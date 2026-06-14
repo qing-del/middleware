@@ -118,11 +118,14 @@ public class UserController {
      * @param token 激活码
      * @return 激活结果
      */
-    @GetMapping("/active/{token}")  // 直接点击只能是发送 GET 请求
+    @RequestMapping("/active/{token}")
     @Operation(summary = "用户激活",
             description = "用户注册成功后，会通过邮件发送激活链接，点击链接后调用该接口完成用户激活。")
     public Result<String> active(@PathVariable String token) {
-        log.info("User active, userId: {}", BaseContext.getCurrentId());
+        if (token == null || token.isBlank()) {
+            return Result.error("激活码不能为空");
+        }
+        log.info("User active, userId: {}, token: {}", BaseContext.getCurrentId(), token);
         return Result.success(userUserService.activeAccount(BaseContext.getCurrentId()));
     }
 

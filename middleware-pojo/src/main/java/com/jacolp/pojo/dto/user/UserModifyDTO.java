@@ -4,10 +4,7 @@ import com.jacolp.constant.UserConstant;
 import com.jacolp.pojo.provider.RoleIdProvider;
 import com.jacolp.pojo.provider.TargetUserProvider;
 import com.jacolp.pojo.provider.UsernameAndPasswordProvider;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -27,6 +24,10 @@ public class UserModifyDTO implements TargetUserProvider, RoleIdProvider, Userna
     private Long id;
 
     @Size(min = UserConstant.USERNAME_MIN_LENGTH, max = UserConstant.USERNAME_MAX_LENGTH, message = "用户名长度必须在 4 - 50 之间")
+    @Pattern(
+            regexp = "^[a-zA-Z0-9_]+$",
+            message = "用户名只能包含字母、数字和下划线"
+    )
     private String username;
 
     @Size(min = UserConstant.USERNAME_MIN_LENGTH, max = UserConstant.USERNAME_MAX_LENGTH, message = "用户名长度必须在 4 - 50 之间")
