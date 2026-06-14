@@ -676,15 +676,15 @@ onMounted(fetchWorkspace)
 
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="showUploadModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md" @click="closeUploadModal" />
+        <div v-if="showUploadModal" class="fixed inset-0 z-50 bg-black/25 backdrop-blur-sm" @click="closeUploadModal" />
       </Transition>
       <Transition name="modal">
         <div v-if="showUploadModal" class="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
-          <div class="modal-card pointer-events-auto w-full max-w-xl rounded-lg border border-white/10 bg-[#050816] p-7 shadow-2xl">
+          <div class="modal-card note-upload-modal pointer-events-auto w-full max-w-xl rounded-lg border border-slate-200 bg-white p-7 shadow-[0_18px_48px_rgba(15,15,15,0.08)]">
             <div class="mb-6 flex items-center justify-between">
               <div>
-                <h3 class="text-xl font-black text-white">上传 Markdown 笔记</h3>
-                <p class="mt-1 text-xs text-slate-300">目标目录：{{ currentDirectoryName }}</p>
+                <h3 class="text-xl font-black text-slate-950">上传 Markdown 笔记</h3>
+                <p class="mt-1 text-xs text-slate-600">目标目录：{{ currentDirectoryName }}</p>
               </div>
               <button class="icon-button" @click="closeUploadModal"><X class="h-4 w-4" /></button>
             </div>
@@ -697,14 +697,14 @@ onMounted(fetchWorkspace)
               @drop.prevent="handleFileDrop"
             >
               <template v-if="uploadFile">
-                <FileText class="mb-3 h-8 w-8 text-blue-300" />
-                <p class="font-bold text-white">{{ uploadFile.name }}</p>
-                <p class="mt-1 text-xs text-slate-300">{{ formatBytes(uploadFile.size) }}</p>
+                <FileText class="mb-3 h-8 w-8 text-blue-600" />
+                <p class="font-bold text-slate-950">{{ uploadFile.name }}</p>
+                <p class="mt-1 text-xs text-slate-600">{{ formatBytes(uploadFile.size) }}</p>
               </template>
               <template v-else>
-                <FileUp class="mb-3 h-8 w-8 text-blue-300" />
-                <p class="font-bold text-white">点击或拖拽 `.md` 文件到这里</p>
-                <p class="mt-1 text-xs text-slate-300">根目录上传会成为未归类笔记，目录内上传会直接挂到当前目录。</p>
+                <FileUp class="mb-3 h-8 w-8 text-blue-600" />
+                <p class="font-bold text-slate-950">点击或拖拽 `.md` 文件到这里</p>
+                <p class="mt-1 text-xs text-slate-600">根目录上传会成为未归类笔记，目录内上传会直接挂到当前目录。</p>
               </template>
             </div>
             <input ref="fileInput" type="file" accept=".md,.markdown" class="hidden" @change="handleFileSelect" />
@@ -722,11 +722,11 @@ onMounted(fetchWorkspace)
 
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="showDirectoryModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md" @click="closeDirectoryModal" />
+        <div v-if="showDirectoryModal" class="fixed inset-0 z-50 bg-black/25 backdrop-blur-sm" @click="closeDirectoryModal" />
       </Transition>
       <Transition name="modal">
         <div v-if="showDirectoryModal" class="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
-          <form class="modal-card pointer-events-auto w-full max-w-md rounded-lg border border-white/10 bg-[#050816] p-7 shadow-2xl" @submit.prevent="handleCreateDirectory">
+          <form class="modal-card pointer-events-auto w-full max-w-md rounded-lg border border-slate-200 bg-white p-7 shadow-[0_18px_48px_rgba(15,15,15,0.08)]" @submit.prevent="handleCreateDirectory">
             <div class="mb-6 flex items-center justify-between">
               <div>
                 <h3 class="text-xl font-black text-white">新建目录</h3>
@@ -756,11 +756,11 @@ onMounted(fetchWorkspace)
 
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="showSourceModal" class="fixed inset-0 z-[60] bg-black/85 backdrop-blur-md" @click="showSourceModal = false" />
+        <div v-if="showSourceModal" class="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm" @click="showSourceModal = false" />
       </Transition>
       <Transition name="modal">
         <div v-if="showSourceModal" class="fixed inset-0 z-[60] flex items-center justify-center px-4 pointer-events-none">
-          <div class="modal-card pointer-events-auto flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-white/10 bg-[#050816] shadow-2xl">
+          <div class="modal-card pointer-events-auto flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,15,15,0.08)]">
             <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
               <h3 class="truncate text-sm font-black text-white">{{ sourceTitle }}</h3>
               <button class="icon-button" @click="showSourceModal = false"><X class="h-4 w-4" /></button>
@@ -780,11 +780,11 @@ onMounted(fetchWorkspace)
 
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="showEditInfoModal" class="fixed inset-0 z-[65] bg-black/80 backdrop-blur-md" @click="closeEditInfoModal" />
+        <div v-if="showEditInfoModal" class="fixed inset-0 z-[65] bg-black/30 backdrop-blur-sm" @click="closeEditInfoModal" />
       </Transition>
       <Transition name="modal">
         <div v-if="showEditInfoModal" class="fixed inset-0 z-[65] flex items-center justify-center px-4 pointer-events-none">
-          <div class="modal-card pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-white/10 bg-[#050816] shadow-2xl">
+          <div class="modal-card pointer-events-auto flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,15,15,0.08)]">
             <div class="flex items-center justify-between border-b border-white/10 px-5 py-4">
               <h3 class="text-lg font-black text-white">修改笔记信息</h3>
               <button class="icon-button" @click="closeEditInfoModal"><X class="h-4 w-4" /></button>
@@ -888,28 +888,33 @@ onMounted(fetchWorkspace)
 }
 
 .action-button.primary {
-  background: #2563eb;
-  color: white;
+  border: 1px solid var(--cn-accent);
+  background: var(--cn-accent);
+  color: var(--cn-text-inverse);
 }
 
 .action-button.primary:hover {
-  background: #3b82f6;
+  background: var(--cn-accent-hover);
 }
 
 .action-button.secondary {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #cbd5e1;
+  border: 1px solid var(--cn-border);
+  background: var(--cn-surface);
+  color: var(--cn-text-soft);
 }
 
 .action-button.secondary:hover {
-  border-color: rgba(96, 165, 250, 0.4);
-  color: white;
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
 }
 
 .action-button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  border-color: var(--cn-border);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text-faint);
+  opacity: 1;
 }
 
 .metric-card,
@@ -1074,8 +1079,8 @@ onMounted(fetchWorkspace)
   align-items: center;
   justify-content: center;
   border-radius: 0.7rem;
-  border: 2px dashed rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.035);
+  border: 2px dashed var(--cn-border-strong);
+  background: var(--cn-bg-subtle);
   padding: 1.5rem;
   text-align: center;
   transition: all 0.18s ease;
@@ -1083,17 +1088,17 @@ onMounted(fetchWorkspace)
 
 .upload-zone:hover,
 .upload-zone.active {
-  border-color: rgba(96, 165, 250, 0.55);
-  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(37, 99, 235, 0.06);
 }
 
 .form-input {
   width: 100%;
   border-radius: 0.55rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.26);
+  border: 1px solid var(--cn-border);
+  background: var(--cn-bg-subtle);
   padding: 0.75rem 0.85rem;
-  color: white;
+  color: var(--cn-text);
   outline: none;
   transition: all 0.18s ease;
 }
@@ -1101,6 +1106,44 @@ onMounted(fetchWorkspace)
 .form-input:focus {
   border-color: rgba(96, 165, 250, 0.48);
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.modal-card {
+  border-color: var(--cn-border) !important;
+  background: var(--cn-surface) !important;
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-md) !important;
+}
+
+.modal-card :where(h3, .text-white) {
+  color: var(--cn-text) !important;
+}
+
+.modal-card :where(p, label, pre, .text-slate-300) {
+  color: var(--cn-text-soft);
+}
+
+.modal-card :where(.border-white\/10) {
+  border-color: var(--cn-border) !important;
+}
+
+.note-upload-modal {
+  border-radius: var(--cn-radius-xl) !important;
+}
+
+.topic-selector {
+  border-color: var(--cn-border) !important;
+  background: var(--cn-bg-subtle) !important;
+}
+
+.topic-selector .topic-option {
+  color: var(--cn-text-soft) !important;
+  border-bottom-color: var(--cn-border) !important;
+}
+
+.topic-selector .topic-option:hover {
+  background: var(--cn-surface-muted);
+  color: var(--cn-text) !important;
 }
 
 .fade-enter-active,
@@ -1147,7 +1190,7 @@ onMounted(fetchWorkspace)
 /* ── Topic selector ── */
 
 .topic-selector .topic-option {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--cn-border);
 }
 
 .topic-selector .topic-option:last-child {
@@ -1155,6 +1198,6 @@ onMounted(fetchWorkspace)
 }
 
 .topic-option:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--cn-surface-muted);
 }
 </style>

@@ -300,13 +300,13 @@ onMounted(() => {
     <div v-if="loading" class="relative z-10 flex flex-col items-center justify-center space-y-3 py-24"><Loader2 class="h-8 w-8 animate-spin text-purple-400" /><span class="text-xs text-slate-500">加载图库中...</span></div>
     <div v-else-if="imageList.length === 0" class="relative z-10 flex flex-col items-center justify-center space-y-4 py-24"><Image class="h-12 w-12 text-slate-600" /><p class="text-sm text-slate-500">图库中暂无图片</p><button class="flex items-center space-x-1.5 text-sm font-bold text-purple-400 transition-colors hover:text-purple-300" @click="openUploadModal"><Upload class="h-4 w-4" /><span>上传第一张图片</span></button></div>
     <TransitionGroup v-else name="staggered-fade" tag="div" class="relative z-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <div v-for="(img, index) in imageList" :key="img.id" class="glass-panel glass-card group relative overflow-hidden rounded-2xl" :class="{ 'border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.1)]': img.isPass === 2 }" :style="{ transitionDelay: `${index * 50}ms` }">
+      <div v-for="(img, index) in imageList" :key="img.id" class="glass-panel glass-card image-gallery-card group relative overflow-hidden rounded-2xl" :class="{ 'border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.1)]': img.isPass === 2 }" :style="{ transitionDelay: `${index * 50}ms` }">
         <div class="absolute left-3 top-3 z-10 opacity-0 transition-opacity group-hover:opacity-100"><input type="checkbox" class="glass-checkbox" :checked="selectedIds.has(img.id)" @change="toggleSelect(img.id)" /></div>
-        <div class="relative h-48 w-full overflow-hidden bg-black/50">
+        <div class="image-media relative h-48 w-full overflow-hidden bg-black/50">
           <img v-if="img.ossUrl" :src="img.ossUrl" :alt="img.filename" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" :class="{ 'grayscale-[30%]': img.isPass === 2 }" />
           <div v-else class="flex h-full w-full items-center justify-center text-slate-600"><Image class="h-10 w-10" /></div>
           <div v-if="img.isPass === 2" class="pointer-events-none absolute inset-0 bg-rose-500/10 mix-blend-overlay"></div>
-          <div class="absolute inset-0 flex items-center justify-center gap-3 bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <div class="image-hover-actions absolute inset-0 flex items-center justify-center gap-3 bg-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <button class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="复制外链" @click="copyImageUrl(img.ossUrl)"><Link class="h-4 w-4 text-white" /></button>
             <button v-if="img.ossUrl" class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="查看原图" @click="previewUrl = img.ossUrl; showPreview = true"><Maximize2 class="h-4 w-4 text-white" /></button>
             <button class="rounded-full border border-cyan-500/30 bg-cyan-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-cyan-500/40" title="查看引用笔记" @click="openImageBacklinks(img.id)"><FileText class="h-4 w-4 text-cyan-300" /></button>
@@ -314,7 +314,7 @@ onMounted(() => {
             <button v-if="img.isPass === 0" class="rounded-full border border-orange-500/30 bg-orange-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-orange-500/40" title="撤销审核" @click="handleCancelAudit(img.id)"><CornerUpLeft class="h-4 w-4 text-orange-300" /></button>
             <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="删除" @click="handleDelete(img.id)"><Trash2 class="h-4 w-4 text-rose-300" /></button>
           </div>
-          <span class="absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white backdrop-blur-md">{{ formatBytes(img.fileSize) }}</span>
+          <span class="image-size-badge absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/40 px-2 py-0.5 font-mono text-[10px] text-white backdrop-blur-md">{{ formatBytes(img.fileSize) }}</span>
         </div>
         <div class="p-4">
           <h3 class="truncate text-sm font-bold text-white" :title="img.filename">{{ img.filename || '未命名' }}</h3>
@@ -345,23 +345,23 @@ onMounted(() => {
 
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="modalVisible" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
+        <div v-if="modalVisible" class="fixed inset-0 z-50 bg-black/25 backdrop-blur-sm" @click="closeModal"></div>
       </Transition>
       <Transition name="modal">
         <div v-if="modalVisible" class="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div class="glass-panel modal-card relative z-10 w-full max-w-lg rounded-3xl p-8">
+          <div class="glass-panel modal-card image-upload-modal relative z-10 w-full max-w-lg rounded-3xl p-8">
             <div class="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-purple-500/20 blur-[40px]"></div>
             <div class="mb-6 flex items-center justify-between">
               <h3 class="text-xl font-bold text-white">上传新图片</h3>
               <button class="text-slate-500 transition-colors hover:text-white" :disabled="uploading" @click="closeModal"><X class="h-5 w-5" /></button>
             </div>
             <div class="space-y-5">
-              <div v-if="!uploadFile" class="group flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/20 bg-white/5 transition-colors hover:border-purple-500/50 hover:bg-white/10" @click="triggerFileInput">
+              <div v-if="!uploadFile" class="upload-drop-zone group flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/20 bg-white/5 transition-colors hover:border-purple-500/50 hover:bg-white/10" @click="triggerFileInput">
                 <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-purple-500/20 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.3)] transition-transform group-hover:-translate-y-1"><Upload class="h-6 w-6" /></div>
                 <p class="mb-1 text-sm font-bold text-white transition-colors group-hover:text-purple-300">点击或拖拽文件到此处</p>
                 <p class="text-xs text-slate-400">支持 JPG / PNG / WEBP / GIF，最大 5MB</p>
               </div>
-              <div v-else class="relative h-48 w-full overflow-hidden rounded-xl bg-black/50">
+              <div v-else class="upload-preview relative h-48 w-full overflow-hidden rounded-xl bg-black/50">
                 <img v-if="uploadPreview" :src="uploadPreview" class="h-full w-full object-contain" />
                 <button class="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-rose-500/60" @click="uploadFile = null; uploadPreview = ''"><X class="h-4 w-4" /></button>
               </div>
@@ -377,8 +377,8 @@ onMounted(() => {
                 </div>
               </div>
               <div class="flex justify-end space-x-3 pt-4">
-                <button type="button" class="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-white/5 hover:text-white" :disabled="uploading" @click="closeModal">取消</button>
-                <button type="button" class="flex items-center space-x-2 rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!uploadFile || uploading" @click="handleUpload">
+                <button type="button" class="upload-cancel-button rounded-xl px-5 py-2.5 text-sm font-bold text-slate-400 transition-colors hover:bg-white/5 hover:text-white" :disabled="uploading" @click="closeModal">取消</button>
+                <button type="button" class="upload-confirm-button flex items-center space-x-2 rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50" :disabled="!uploadFile || uploading" @click="handleUpload">
                   <Loader2 v-if="uploading" class="h-4 w-4 animate-spin" />
                   <span>{{ uploading ? '上传中...' : '确认上传' }}</span>
                 </button>
@@ -512,6 +512,69 @@ onMounted(() => {
   box-shadow: var(--cn-shadow-sm);
 }
 
+.image-gallery-card {
+  border-radius: var(--cn-radius-lg) !important;
+  overflow: hidden;
+}
+
+.image-media {
+  background: var(--cn-bg-subtle) !important;
+}
+
+.image-media img {
+  background: var(--cn-bg-subtle);
+}
+
+.image-hover-actions {
+  align-items: flex-end !important;
+  padding: 0 0.9rem 0.9rem;
+  background:
+    linear-gradient(to bottom, transparent 48%, rgba(255, 255, 255, 0.72)) !important;
+  pointer-events: none;
+}
+
+.image-hover-actions button {
+  pointer-events: auto;
+  border: 1px solid var(--cn-border) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: var(--cn-text) !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.image-hover-actions button:hover {
+  border-color: var(--cn-border-strong) !important;
+  background: var(--cn-surface) !important;
+}
+
+.image-hover-actions button svg {
+  color: currentColor !important;
+}
+
+.image-hover-actions button[class*="cyan"] {
+  color: var(--cn-info) !important;
+}
+
+.image-hover-actions button[class*="teal"] {
+  color: var(--cn-success) !important;
+}
+
+.image-hover-actions button[class*="orange"] {
+  color: var(--cn-warning) !important;
+}
+
+.image-hover-actions button[class*="rose"] {
+  color: var(--cn-danger) !important;
+}
+
+.image-size-badge {
+  border-color: rgba(31, 31, 29, 0.1) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  color: var(--cn-text) !important;
+  box-shadow: var(--cn-shadow-xs);
+}
+
 :where(h2, h3, .text-white, .text-slate-300) {
   color: var(--cn-text) !important;
 }
@@ -529,7 +592,7 @@ onMounted(() => {
   box-shadow: none !important;
 }
 
-.modal-card :where(p, label, span:not(.is-approved):not(.is-rejected):not(.is-pending)) {
+.modal-card :where(p, label) {
   color: var(--cn-text-soft);
 }
 
@@ -549,6 +612,72 @@ onMounted(() => {
 
 .modal-card button:not([class*="bg-purple-"]):not([class*="bg-rose-"]) {
   color: var(--cn-text-soft) !important;
+}
+
+.image-upload-modal {
+  border-radius: var(--cn-radius-xl) !important;
+  border-color: var(--cn-border) !important;
+  background: var(--cn-surface) !important;
+  box-shadow: var(--cn-shadow-md) !important;
+}
+
+.image-upload-modal > .pointer-events-none {
+  display: none;
+}
+
+.upload-drop-zone {
+  border-color: var(--cn-border-strong) !important;
+  background: var(--cn-bg-subtle) !important;
+}
+
+.upload-drop-zone:hover {
+  border-color: rgba(37, 99, 235, 0.42) !important;
+  background: rgba(37, 99, 235, 0.06) !important;
+}
+
+.upload-drop-zone .rounded-full {
+  background: var(--cn-surface) !important;
+  color: var(--cn-info) !important;
+  box-shadow: var(--cn-shadow-xs) !important;
+}
+
+.upload-preview {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-bg-subtle) !important;
+}
+
+.upload-cancel-button {
+  border: 1px solid transparent;
+  color: var(--cn-text-soft) !important;
+}
+
+.upload-cancel-button:hover {
+  border-color: var(--cn-border);
+  background: var(--cn-surface-muted) !important;
+  color: var(--cn-text) !important;
+}
+
+.upload-confirm-button {
+  border: 1px solid var(--cn-accent) !important;
+  background: var(--cn-accent) !important;
+  color: var(--cn-text-inverse) !important;
+  box-shadow: none !important;
+}
+
+.upload-confirm-button span,
+.upload-confirm-button svg {
+  color: inherit !important;
+}
+
+.upload-confirm-button:hover:not(:disabled) {
+  background: var(--cn-accent-hover) !important;
+}
+
+.upload-confirm-button:disabled {
+  border-color: var(--cn-border) !important;
+  background: var(--cn-surface-muted) !important;
+  color: var(--cn-text-faint) !important;
+  opacity: 1 !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
