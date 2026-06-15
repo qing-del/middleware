@@ -466,26 +466,26 @@ onMounted(fetchWorkspace)
 
 <template>
   <div class="directory-shell mx-auto max-w-[1400px] space-y-6 pb-28">
-    <section class="directory-hero relative overflow-hidden rounded-lg border border-white/10 p-6">
+    <section class="directory-hero relative overflow-hidden rounded-lg p-6">
       <div class="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div class="mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
+          <div class="directory-breadcrumbs mb-3 flex flex-wrap items-center gap-2 text-xs font-bold">
             <button class="crumb" @click="goRoot">
               <Home class="h-3.5 w-3.5" />
               <span>Root</span>
             </button>
             <template v-for="(crumbItem, index) in breadcrumbs" :key="crumbItem.id">
-              <ChevronRight class="h-3.5 w-3.5 text-slate-600" />
+              <ChevronRight class="h-3.5 w-3.5" />
               <button class="crumb" @click="goBreadcrumb(index)">{{ crumbItem.topicName }}</button>
             </template>
           </div>
-          <h1 class="text-2xl font-black tracking-normal text-white sm:text-3xl">{{ currentDirectoryName }}</h1>
-          <p class="mt-2 text-sm text-slate-300">目录和笔记都在这里展开，像文件夹一样逐层进入。</p>
+          <h1 class="directory-title text-2xl font-black tracking-normal sm:text-3xl">{{ currentDirectoryName }}</h1>
+          <p class="directory-subtitle mt-2 text-sm">目录和笔记都在这里展开，像文件夹一样逐层进入。</p>
           <Transition name="fade">
             <div
               v-if="draggedNote"
               class="root-drop-zone mt-3 flex items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-sm font-bold transition"
-              :class="dragOverRoot ? 'border-blue-400 bg-blue-500/10 text-blue-300' : 'border-white/15 text-slate-400'"
+              :class="{ active: dragOverRoot }"
               @dragover="onRootDragOver"
               @dragleave="onRootDragLeave"
               @drop.prevent="onRootDrop"
@@ -501,7 +501,7 @@ onMounted(fetchWorkspace)
             <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               v-model="keyword"
-              class="h-10 w-full rounded-lg border border-white/10 bg-black/20 pl-10 pr-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-blue-400/50 focus:bg-blue-500/5"
+              class="directory-search h-10 w-full rounded-lg pl-10 pr-3 text-sm outline-none transition"
               placeholder="搜索当前目录笔记"
               @keydown.enter="search"
             />
@@ -829,9 +829,39 @@ onMounted(fetchWorkspace)
 
 <style scoped>
 .directory-hero {
+  border: 1px solid var(--cn-border);
   background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34rem),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)),
+    var(--cn-surface);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.directory-breadcrumbs {
+  color: var(--cn-text-muted);
+}
+
+.directory-title {
+  color: var(--cn-text);
+}
+
+.directory-subtitle {
+  color: var(--cn-text-muted);
+}
+
+.directory-search {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-surface);
+  color: var(--cn-text);
+}
+
+.directory-search::placeholder {
+  color: var(--cn-text-faint);
+}
+
+.directory-search:focus {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-bg-subtle);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
 .crumb {
@@ -839,16 +869,17 @@ onMounted(fetchWorkspace)
   align-items: center;
   gap: 0.35rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--cn-border);
+  background: var(--cn-bg-subtle);
   padding: 0.35rem 0.65rem;
-  color: #cbd5e1;
+  color: var(--cn-text-soft);
   transition: all 0.18s ease;
 }
 
 .crumb:hover {
-  border-color: rgba(96, 165, 250, 0.42);
-  color: #bfdbfe;
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
 }
 
 .action-button {
@@ -1161,7 +1192,16 @@ onMounted(fetchWorkspace)
 /* ── Root drop zone ── */
 
 .root-drop-zone {
+  border-color: var(--cn-border);
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-muted);
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.root-drop-zone.active {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--cn-link);
 }
 
 /* ── Topic selector ── */

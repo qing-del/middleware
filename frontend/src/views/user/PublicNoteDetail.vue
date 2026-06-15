@@ -65,18 +65,18 @@ onMounted(fetchNote)
 <template>
   <section class="relative">
     <div v-if="loading" class="flex min-h-[50vh] items-center justify-center">
-      <Loader2 class="h-8 w-8 animate-spin text-cyan-300" />
+      <Loader2 class="h-8 w-8 animate-spin text-slate-500" />
     </div>
 
-    <div v-else-if="error" class="mx-auto max-w-2xl rounded-lg border border-white/10 bg-white/[0.03] p-10 text-center">
-      <FileText class="mx-auto mb-4 h-10 w-10 text-slate-600" />
-      <h1 class="mb-2 text-xl font-black text-white">无法打开笔记</h1>
-      <p class="text-sm text-slate-400">{{ error }}</p>
-      <button class="mt-6 rounded-lg bg-cyan-500 px-5 py-2 text-sm font-black text-slate-950 transition hover:bg-cyan-300" @click="router.push('/user/public-notes')">返回广场</button>
+    <div v-else-if="error" class="public-empty-panel mx-auto max-w-2xl rounded-xl p-10 text-center">
+      <FileText class="mx-auto mb-4 h-10 w-10 text-slate-400" />
+      <h1 class="mb-2 text-xl font-black">无法打开笔记</h1>
+      <p class="text-sm">{{ error }}</p>
+      <button class="public-primary-button mt-6 rounded-lg px-5 py-2 text-sm font-black transition" @click="router.push('/user/public-notes')">返回广场</button>
     </div>
 
     <template v-else-if="note">
-      <button class="mb-6 inline-flex items-center rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-bold text-slate-300 transition hover:border-cyan-400/40 hover:text-cyan-100" @click="router.push('/user/public-notes')">
+      <button class="public-ghost-button mb-6 inline-flex items-center rounded-lg px-3 py-2 text-sm font-bold transition" @click="router.push('/user/public-notes')">
         <ArrowLeft class="mr-2 h-4 w-4" />
         返回广场
       </button>
@@ -84,46 +84,46 @@ onMounted(fetchNote)
       <div class="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <article class="min-w-0">
           <header class="mb-8">
-            <div class="mb-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400">
-              <span class="inline-flex items-center rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-100">
+            <div class="public-meta mb-4 flex flex-wrap items-center gap-3 text-xs font-bold">
+              <span class="public-public-chip inline-flex items-center rounded-md px-2.5 py-1">
                 <Layers class="mr-1.5 h-3.5 w-3.5" />
                 {{ note.topicName || '未归属主题' }}
               </span>
               <span class="inline-flex items-center">
-                <Calendar class="mr-1.5 h-3.5 w-3.5 text-cyan-300" />
+                <Calendar class="mr-1.5 h-3.5 w-3.5" />
                 {{ formatDate(note.createTime) }}
               </span>
             </div>
-            <h1 class="max-w-4xl text-3xl font-black leading-tight tracking-normal text-white sm:text-5xl">{{ note.title }}</h1>
-            <p v-if="note.description" class="mt-5 max-w-3xl text-base leading-7 text-slate-400">{{ note.description }}</p>
+            <h1 class="public-title max-w-4xl text-3xl font-black leading-tight tracking-normal sm:text-5xl">{{ note.title }}</h1>
+            <p v-if="note.description" class="public-description mt-5 max-w-3xl text-base leading-7">{{ note.description }}</p>
             <div v-if="note.tags?.length" class="mt-5 flex flex-wrap gap-2">
-              <span v-for="tag in note.tags" :key="tag" class="inline-flex items-center rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-bold text-cyan-100">
+              <span v-for="tag in note.tags" :key="tag" class="public-tag-chip inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold">
                 <Tags class="mr-1.5 h-3.5 w-3.5" />
                 {{ tag }}
               </span>
             </div>
           </header>
 
-          <div ref="articleContentRef" class="article-content rounded-lg border border-white/10 bg-white/[0.025] p-5 sm:p-8" v-html="note.converted?.bodyHtml" @click="onArticleClick" />
+          <div ref="articleContentRef" class="article-content public-article-panel rounded-xl p-5 sm:p-8" v-html="note.converted?.bodyHtml" @click="onArticleClick" />
         </article>
 
         <aside class="space-y-4">
-          <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-            <h2 class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">资源矩阵</h2>
+          <section class="public-soft-panel rounded-xl p-4">
+            <h2 class="mb-3 text-xs font-black uppercase tracking-[0.18em]">资源矩阵</h2>
             <div class="grid grid-cols-3 gap-2">
-              <div class="stat-card"><Hash class="h-4 w-4 text-cyan-300" /><b>{{ note.tags?.length ?? 0 }}</b><span>Tags</span></div>
-              <div class="stat-card"><ImageIcon class="h-4 w-4 text-amber-300" /><b>{{ note.images?.length ?? 0 }}</b><span>Images</span></div>
-              <div class="stat-card"><Link class="h-4 w-4 text-emerald-300" /><b>{{ note.eachNotes?.length ?? 0 }}</b><span>Links</span></div>
+              <div class="stat-card"><Hash class="h-4 w-4 text-blue-600" /><b>{{ note.tags?.length ?? 0 }}</b><span>Tags</span></div>
+              <div class="stat-card"><ImageIcon class="h-4 w-4 text-amber-600" /><b>{{ note.images?.length ?? 0 }}</b><span>Images</span></div>
+              <div class="stat-card"><Link class="h-4 w-4 text-emerald-600" /><b>{{ note.eachNotes?.length ?? 0 }}</b><span>Links</span></div>
             </div>
           </section>
-          <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-            <h2 class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">公开双链</h2>
+          <section class="public-soft-panel rounded-xl p-4">
+            <h2 class="mb-3 text-xs font-black uppercase tracking-[0.18em]">公开双链</h2>
             <div v-if="note.eachNotes?.length" class="space-y-2">
-              <button v-for="link in note.eachNotes" :key="`${link.targetNoteId}-${link.anchor}`" class="block w-full rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-sm text-slate-300 transition hover:border-cyan-400/40 hover:text-cyan-100" @click="router.push(link.anchor ? `/user/public-notes/${link.targetNoteId}#${link.anchor}` : `/user/public-notes/${link.targetNoteId}`)">
+              <button v-for="link in note.eachNotes" :key="`${link.targetNoteId}-${link.anchor}`" class="public-link-card block w-full rounded-md px-3 py-2 text-left text-sm transition" @click="router.push(link.anchor ? `/user/public-notes/${link.targetNoteId}#${link.anchor}` : `/user/public-notes/${link.targetNoteId}`)">
                 {{ link.nickname || link.targetNoteTitle || link.parsedNoteName }}
               </button>
             </div>
-            <p v-else class="text-sm text-slate-500">暂无公开双链。</p>
+            <p v-else class="text-sm">暂无公开双链。</p>
           </section>
         </aside>
       </div>
@@ -132,23 +132,93 @@ onMounted(fetchNote)
 </template>
 
 <style scoped>
+.public-empty-panel,
+.public-soft-panel,
+.public-article-panel {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-surface);
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.public-empty-panel h1,
+.public-title {
+  color: var(--cn-text);
+}
+
+.public-empty-panel p,
+.public-description,
+.public-meta,
+.public-soft-panel h2,
+.public-soft-panel p {
+  color: var(--cn-text-muted);
+}
+
+.public-primary-button {
+  border: 1px solid var(--cn-accent);
+  background: var(--cn-accent);
+  color: var(--cn-text-inverse);
+}
+
+.public-primary-button:hover {
+  background: var(--cn-accent-hover);
+}
+
+.public-ghost-button {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-surface);
+  color: var(--cn-text-soft);
+}
+
+.public-ghost-button:hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.public-public-chip,
+.public-tag-chip {
+  border: 1px solid rgba(14, 116, 144, 0.22);
+  background: #ecfeff;
+  color: #155e75;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.public-tag-chip {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.public-link-card {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-soft);
+}
+
+.public-link-card:hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-link-hover);
+}
+
 .stat-card {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   border-radius: 0.45rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--cn-border);
+  background: var(--cn-bg-subtle);
   padding: 0.75rem;
 }
 
 .stat-card b {
-  color: white;
+  color: var(--cn-text);
   font-size: 1.1rem;
 }
 
 .stat-card span {
-  color: #64748b;
+  color: var(--cn-text-muted);
   font-size: 0.62rem;
   font-weight: 900;
   letter-spacing: 0.14em;
@@ -156,7 +226,7 @@ onMounted(fetchNote)
 }
 
 .article-content {
-  color: #cbd5e1;
+  color: var(--cn-text-soft);
   font-size: 1rem;
   line-height: 1.8;
 }
@@ -164,9 +234,17 @@ onMounted(fetchNote)
 .article-content :deep(h1),
 .article-content :deep(h2),
 .article-content :deep(h3) {
-  color: white;
+  color: var(--cn-text);
   font-weight: 900;
   margin: 1.5rem 0 1rem;
+}
+
+.article-content :deep(h4),
+.article-content :deep(h5),
+.article-content :deep(h6) {
+  color: var(--cn-text);
+  font-weight: 800;
+  margin: 1.25rem 0 0.75rem;
 }
 
 .article-content :deep(p) {
@@ -175,22 +253,106 @@ onMounted(fetchNote)
 
 .article-content :deep(a),
 .article-content :deep(.internal-note-link) {
-  color: #67e8f9;
+  color: var(--cn-link);
   cursor: pointer;
   text-decoration: underline;
+  text-decoration-color: var(--cn-link-underline);
   text-underline-offset: 4px;
 }
 
+.article-content :deep(a:hover),
+.article-content :deep(.internal-note-link:hover) {
+  color: var(--cn-link-hover);
+  text-decoration-color: currentColor;
+}
+
+.article-content :deep(blockquote) {
+  margin: 1.4rem 0;
+  border-left: 4px solid #2563eb;
+  border-radius: 0 0.6rem 0.6rem 0;
+  background: rgba(37, 99, 235, 0.06);
+  padding: 1rem 1.25rem;
+  color: var(--cn-text-soft);
+}
+
+.article-content :deep(ul),
+.article-content :deep(ol) {
+  margin-bottom: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.article-content :deep(ul) {
+  list-style-type: disc;
+}
+
+.article-content :deep(ol) {
+  list-style-type: decimal;
+}
+
+.article-content :deep(li) {
+  margin-bottom: 0.35rem;
+}
+
 .article-content :deep(pre) {
+  margin: 1.4rem 0;
   overflow-x: auto;
   border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #08111f;
+  border: 1px solid #1f2937;
+  background: #0f172a;
   padding: 1rem;
+  color: #e5e7eb;
+}
+
+.article-content :deep(:not(pre) > code) {
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 0.35rem;
+  background: rgba(37, 99, 235, 0.07);
+  padding: 0.15rem 0.35rem;
+  color: #1d4ed8;
+}
+
+.article-content :deep(.table-wrapper) {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cn-border);
+}
+
+.article-content :deep(table) {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+}
+
+.article-content :deep(th),
+.article-content :deep(td) {
+  border-bottom: 1px solid var(--cn-border);
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.article-content :deep(th) {
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
 }
 
 .article-content :deep(img) {
+  display: block;
   max-width: 100%;
+  height: auto;
+  margin: 1.5rem auto;
   border-radius: 0.75rem;
+  border: 1px solid var(--cn-border);
+}
+
+.article-content :deep(.mermaid) {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--cn-border);
+  background: #fff;
+  padding: 1rem;
 }
 </style>

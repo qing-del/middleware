@@ -45,7 +45,7 @@
                 UPDATE biz_note
                 <set>
                         <if test="userId != null">user_id = #{userId},</if>
-                        <if test="topicId != null">topic_id = #{topicId},</if>
+                        topic_id = #{topicId},
                         <if test="title != null">title = #{title},</if>
                         <if test="description != null">description = #{description},</if>
                         <if test="storageType != null">storage_type = #{storageType},</if>

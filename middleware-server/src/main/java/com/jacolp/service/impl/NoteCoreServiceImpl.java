@@ -178,9 +178,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
         if (StringUtils.hasText(dto.getDescription())) {
             note.setDescription(dto.getDescription().trim());
         }
-        if (dto.getTopicId() != null) {
-            note.setTopicId(dto.getTopicId());
-        }
+
+        note.setTopicId(dto.getTopicId());
         // title 不允许通过 modifyInfo 修改
 
         if (noteMapper.updateNote(note) < 1) {
