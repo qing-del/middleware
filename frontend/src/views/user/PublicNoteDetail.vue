@@ -3,7 +3,21 @@ import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { userPublicNoteApi, type PublicNoteDetailVO } from '@/api/notes'
 import { enhanceArticleContent } from '@/utils/enhanceArticle'
-import { ArrowLeft, Calendar, FileText, Hash, Image as ImageIcon, Layers, Link, Loader2, Tags } from 'lucide-vue-next'
+import AudioTaskModal from '@/components/AudioTaskModal.vue'
+import {
+  ArrowLeft,
+  ArrowUpToLine,
+  Calendar,
+  FileText,
+  Hash,
+  Image as ImageIcon,
+  Layers,
+  Link,
+  ListTree,
+  Loader2,
+  Mic,
+  Tags,
+} from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +26,9 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const note = ref<PublicNoteDetailVO | null>(null)
 const articleContentRef = ref<HTMLElement | null>(null)
+const showFloatingToc = ref(false)
+type AudioTaskModalExpose = { open: () => void }
+const audioModalRef = ref<AudioTaskModalExpose | null>(null)
 
 function formatDate(raw?: string) {
   if (!raw) return '-'
@@ -47,6 +64,32 @@ function onArticleClick(e: Event) {
   const anchor = internal.dataset.anchor
   if (!noteId || noteId === 'null') return
   router.push(anchor ? `/user/public-notes/${noteId}#${anchor}` : `/user/public-notes/${noteId}`)
+}
+
+function onFloatingTocClick(e: Event) {
+  const link = (e.target as HTMLElement).closest('a[href^="#"]') as HTMLAnchorElement | null
+  if (!link) return
+  e.preventDefault()
+  const rawId = link.getAttribute('href')?.slice(1)
+  if (!rawId) return
+
+  const id = decodeURIComponent(rawId)
+  const target = document.getElementById(id) || articleContentRef.value?.querySelector(`[id="${id.replace(/"/g, '\\"')}"]`)
+  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (history.replaceState) history.replaceState(null, '', `#${encodeURIComponent(id)}`)
+  showFloatingToc.value = false
+}
+
+function scrollToTop() {
+  const main = document.querySelector('main')
+  if (main) main.scrollTo({ top: 0, behavior: 'smooth' })
+  else window.scrollTo({ top: 0, behavior: 'smooth' })
+  showFloatingToc.value = false
+}
+
+function openAudioModal() {
+  audioModalRef.value?.open()
+  showFloatingToc.value = false
 }
 
 watch(
@@ -127,6 +170,37 @@ onMounted(fetchNote)
           </section>
         </aside>
       </div>
+
+      <Teleport to="body">
+        <div v-if="note.converted" class="public-floating-nav fixed bottom-8 right-6 z-50">
+          <Transition name="public-float-panel">
+            <div v-if="showFloatingToc" class="public-floating-panel absolute bottom-14 right-0 w-72 rounded-xl p-4">
+              <h2 class="mb-3 flex items-center border-b pb-3 text-xs font-black uppercase tracking-[0.18em]">
+                <ListTree class="mr-2 h-4 w-4" />
+                文档导航
+              </h2>
+              <div class="mb-3 grid grid-cols-2 gap-2">
+                <button class="public-floating-action flex items-center justify-center rounded-lg px-3 py-2 text-xs font-black transition" @click="scrollToTop">
+                  <ArrowUpToLine class="mr-1.5 h-3.5 w-3.5" />
+                  返回顶部
+                </button>
+                <button class="public-floating-action flex items-center justify-center rounded-lg px-3 py-2 text-xs font-black transition" @click="openAudioModal">
+                  <Mic class="mr-1.5 h-3.5 w-3.5" />
+                  音频助手
+                </button>
+              </div>
+              <div v-if="note.converted.tocHtml" class="public-floating-toc max-h-[50vh] overflow-y-auto pr-1" v-html="note.converted.tocHtml" @click="onFloatingTocClick" />
+              <p v-else class="py-3 text-center text-xs">暂无目录结构</p>
+            </div>
+          </Transition>
+
+          <button class="public-floating-ball flex h-12 w-12 items-center justify-center rounded-full transition active:scale-95" :aria-expanded="showFloatingToc" aria-label="打开文档导航" @click="showFloatingToc = !showFloatingToc">
+            <ListTree class="h-5 w-5" />
+          </button>
+        </div>
+      </Teleport>
+
+      <AudioTaskModal ref="audioModalRef" :showTrigger="false" />
     </template>
   </section>
 </template>
@@ -354,5 +428,182 @@ onMounted(fetchNote)
   border: 1px solid var(--cn-border);
   background: #fff;
   padding: 1rem;
+}
+
+.public-floating-panel,
+.public-floating-ball {
+  border: 1px solid var(--cn-border);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-md);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.public-floating-ball:hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface);
+}
+
+.public-floating-panel h2 {
+  border-color: var(--cn-border);
+  color: var(--cn-text-muted);
+}
+
+.public-floating-action {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-soft);
+}
+
+.public-floating-action:hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.public-floating-panel p {
+  color: var(--cn-text-muted);
+}
+
+.public-floating-toc :deep(.toc-sidebar),
+.public-floating-toc :deep(.toc-nav) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  counter-reset: toc-1 toc-2 toc-3 toc-4;
+}
+
+.public-floating-toc :deep(.toc-header),
+.public-floating-toc :deep(.toc-fab) {
+  display: none;
+}
+
+.public-floating-toc :deep(a),
+.public-floating-toc :deep(.toc-link) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.5rem;
+  border-radius: 0.45rem;
+  min-height: 2rem;
+  padding: 0.42rem 0.55rem;
+  color: var(--cn-text-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.public-floating-toc :deep(.toc-link) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-floating-toc :deep(.toc-level-1) {
+  counter-increment: toc-1;
+  counter-reset: toc-2 toc-3 toc-4;
+  margin-top: 0.1rem;
+  color: var(--cn-text);
+  font-weight: 900;
+}
+
+.public-floating-toc :deep(.toc-level-2) {
+  counter-increment: toc-2;
+  counter-reset: toc-3 toc-4;
+  margin-left: 0.45rem;
+  color: var(--cn-text-soft);
+}
+
+.public-floating-toc :deep(.toc-level-3) {
+  counter-increment: toc-3;
+  counter-reset: toc-4;
+  margin-left: 1rem;
+  border-left: 1px solid var(--cn-border);
+  border-radius: 0 0.45rem 0.45rem 0;
+  color: var(--cn-text-muted);
+  font-size: 0.74rem;
+}
+
+.public-floating-toc :deep(.toc-level-4),
+.public-floating-toc :deep(.toc-level-5),
+.public-floating-toc :deep(.toc-level-6) {
+  counter-increment: toc-4;
+  margin-left: 1.55rem;
+  border-left: 1px solid var(--cn-border);
+  border-radius: 0 0.45rem 0.45rem 0;
+  color: var(--cn-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.public-floating-toc :deep(.toc-level-1)::before,
+.public-floating-toc :deep(.toc-level-2)::before,
+.public-floating-toc :deep(.toc-level-3)::before,
+.public-floating-toc :deep(.toc-level-4)::before,
+.public-floating-toc :deep(.toc-level-5)::before,
+.public-floating-toc :deep(.toc-level-6)::before {
+  display: inline-flex;
+  min-width: 2rem;
+  justify-content: flex-end;
+  color: var(--cn-text-faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.public-floating-toc :deep(.toc-level-1)::before {
+  content: counter(toc-1, decimal-leading-zero);
+}
+
+.public-floating-toc :deep(.toc-level-2)::before {
+  content: counter(toc-1) "." counter(toc-2);
+}
+
+.public-floating-toc :deep(.toc-level-3)::before {
+  content: counter(toc-1) "." counter(toc-2) "." counter(toc-3);
+}
+
+.public-floating-toc :deep(.toc-level-4)::before,
+.public-floating-toc :deep(.toc-level-5)::before,
+.public-floating-toc :deep(.toc-level-6)::before {
+  content: counter(toc-1) "." counter(toc-2) "." counter(toc-3) "." counter(toc-4);
+}
+
+.public-floating-toc :deep(a:hover),
+.public-floating-toc :deep(.toc-link:hover) {
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.public-float-panel-enter-active,
+.public-float-panel-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.public-float-panel-enter-from,
+.public-float-panel-leave-to {
+  opacity: 0;
+  transform: translateY(0.35rem) scale(0.98);
+}
+
+@media (max-width: 640px) {
+  .public-floating-nav {
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  .public-floating-panel {
+    width: min(18rem, calc(100vw - 2rem));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-float-panel-enter-active,
+  .public-float-panel-leave-active,
+  .public-floating-ball {
+    transition: none;
+  }
 }
 </style>

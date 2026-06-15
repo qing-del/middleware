@@ -286,6 +286,17 @@ async function handleConvert(note: NoteItem) {
   }
 }
 
+async function handleDeleteConverted(note: NoteItem) {
+  if (!await confirmAction({ content: `确定删除「${note.title}」的 HTML 转换结果吗？笔记会回到待转换状态。`, danger: true })) return
+  try {
+    await noteApi.deleteConverted(note.id)
+    await fetchWorkspace()
+    toastSuccess('转换结果已删除。')
+  } catch {
+    toastError('删除转换结果失败，请重试。')
+  }
+}
+
 async function handleSubmitAudit(note: NoteItem) {
   await noteApi.submitAudit(note.id)
   await fetchWorkspace()
@@ -626,6 +637,7 @@ onMounted(fetchWorkspace)
               <button class="icon-button" title="关联映射" @click="openRelations(note)"><Network class="h-3.5 w-3.5" /></button>
               <button v-if="note.status >= NoteStatusCode.CONVERTED" class="icon-button emerald" title="查看 HTML" @click="openNoteHtml(note)"><FileCode class="h-3.5 w-3.5" /></button>
               <button v-if="note.status === NoteStatusCode.READY_TO_CONVERT" class="icon-button emerald" title="转换" @click="handleConvert(note)"><RefreshCw class="h-3.5 w-3.5" /></button>
+              <button v-if="note.status === NoteStatusCode.CONVERTED" class="icon-button danger" title="删除转换" @click="handleDeleteConverted(note)"><XCircle class="h-3.5 w-3.5" /></button>
               <button v-if="note.status === NoteStatusCode.CONVERTED" class="icon-button amber" title="提交审核" @click="handleSubmitAudit(note)"><Send class="h-3.5 w-3.5" /></button>
               <button v-if="note.status === NoteStatusCode.APPROVED" class="icon-button emerald" title="公开发布" @click="handlePublish(note)"><Globe class="h-3.5 w-3.5" /></button>
               <button v-if="note.status === NoteStatusCode.PUBLISHED" class="icon-button amber" title="取消公开" @click="handleUnpublish(note)"><XCircle class="h-3.5 w-3.5" /></button>
