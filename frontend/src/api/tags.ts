@@ -49,14 +49,14 @@ export const tagApi = {
 
   /** 发起标签审核申请 */
   submitAudit(id: number): Promise<string> {
-    return request.post('/user/tag/submitAudit', null, {
+    return request.post('/user/audit/tag/submitAudit', null, {
       params: { id }
     })
   },
 
   /** 撤销标签审核申请 */
   cancelAudit(id: number): Promise<string> {
-    return request.post('/user/tag/cancelAudit', null, {
+    return request.post('/user/audit/tag/cancelAudit', null, {
       params: { id }
     })
   },

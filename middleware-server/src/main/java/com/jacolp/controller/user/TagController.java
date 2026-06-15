@@ -66,31 +66,6 @@ public class TagController {
     }
 
     /**
-     * 发起标签审核申请
-     * <p>传入标签 ID，发起对该标签的审核申请。仅允许申请审核自己的标签，且该标签不能已通过审核或已有待审核申请。</p>
-     *
-     * @param id 标签ID
-     * @return 审核申请提交结果
-     */
-    @PostMapping("/submitAudit")
-    @Operation(summary = "发起标签审核申请",
-            description = "传入标签 ID，发起对该标签的审核申请。仅允许申请审核自己的标签，且该标签不能已通过审核或已有待审核申请。")
-    public Result<String> submitAudit(@Parameter(description = "标签ID") @RequestParam Long id) {
-        log.info("User submit tag audit, tagId: {}", id);
-        tagService.submitTagAudit(id);  // TODO 解耦审核逻辑部分的时候需要优化
-        return Result.success("审核申请已提交");
-    }
-
-    @PostMapping("/cancelAudit")
-    @Operation(summary = "撤销标签审核申请",
-            description = "撤销当前用户的标签审核申请，仅删除待审核记录。")
-    public Result<String> cancelAudit(@Parameter(description = "标签ID") @RequestParam Long id) {
-        log.info("User cancel tag audit, tagId: {}", id);
-        tagService.cancelTagAudit(id);
-        return Result.success("审核申请已撤销");
-    }
-
-    /**
      * 查询当前用户的标签列表
      * <p>查询当前登录用户创建的所有标签，返回标签的基本信息。</p>
      *

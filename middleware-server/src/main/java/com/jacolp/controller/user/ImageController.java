@@ -61,31 +61,6 @@ public class ImageController {
         return Result.success(imageService.getUserImageOverview());
     }
 
-    /**
-     * 发起图片审核申请
-     * <p>传入图片 ID，发起对该图片的审核申请。仅允许申请审核自己的图片，且该图片不能已通过审核或已有待审核申请。</p>
-     *
-     * @param id 图片ID
-     * @return 审核申请提交结果
-     */
-    @PostMapping("/submitAudit")
-    @Operation(summary = "发起图片审核申请",
-            description = "传入图片 ID，发起对该图片的审核申请。仅允许申请审核自己的图片，且该图片不能已通过审核或已有待审核申请。")
-    public Result<String> submitAudit(@Parameter(description = "图片ID") @RequestParam Long id) {
-        log.info("User submit image audit, imageId: {}", id);
-        imageService.submitImageAudit(id);  // TODO 审核模块拆分的时候，迁移这个接口
-        return Result.success("审核申请已提交");
-    }
-
-    @PostMapping("/cancelAudit")
-    @Operation(summary = "撤销图片审核申请",
-            description = "撤销当前用户的图片审核申请，仅删除待审核记录。")
-    public Result<String> cancelAudit(@Parameter(description = "图片ID") @RequestParam Long id) {
-        log.info("User cancel image audit, imageId: {}", id);
-        imageService.cancelImageAudit(id);
-        return Result.success("审核申请已撤销");
-    }
-
     @PostMapping("/upload")
     @ImageLimit
     @Operation(summary = "上传图片",

@@ -411,12 +411,12 @@ export const noteApi = {
 
   /** 发起笔记审核申请 */
   submitAudit(noteId: number): Promise<string> {
-    return request.post('/user/note/submitAudit', null, { params: { id: noteId } })
+    return request.post('/user/audit/note/submitAudit', null, { params: { id: noteId } })
   },
 
   /** 撤销笔记审核申请 */
   cancelAudit(noteId: number): Promise<string> {
-    return request.post('/user/note/cancelAudit', null, { params: { id: noteId } })
+    return request.post('/user/audit/note/cancelAudit', null, { params: { id: noteId } })
   },
 
   /** 转换笔记为HTML */

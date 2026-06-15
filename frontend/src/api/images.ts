@@ -45,14 +45,14 @@ export const imageApi = {
 
   /** 发起图片审核申请 */
   submitAudit(id: number): Promise<string> {
-    return request.post('/user/image/submitAudit', null, {
+    return request.post('/user/audit/image/submitAudit', null, {
       params: { id }
     })
   },
 
   /** 撤销图片审核申请 */
   cancelAudit(id: number): Promise<string> {
-    return request.post('/user/image/cancelAudit', null, {
+    return request.post('/user/audit/image/cancelAudit', null, {
       params: { id }
     })
   },

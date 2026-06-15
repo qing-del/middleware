@@ -204,7 +204,6 @@
           AND m.tag_id IS NOT NULL
           AND m.is_deleted = 0
           AND m.is_pass = 1
-          AND t.is_pass = 1
           AND n.status = 6
         ORDER BY m.create_time ASC
     </select>
