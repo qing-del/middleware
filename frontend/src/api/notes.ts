@@ -98,8 +98,6 @@ export interface NoteItem {
   status: number
   /** 是否存在待确认变更: 0=否, 1=是 */
   isChanging?: number
-  /** 审核状态位: 0=待审核, 1=已通过, 2=已拒绝 (legacy, prefer NoteStatus) */
-  isPass: number
   /** 缺漏信息掩码 */
   missingInfoMask: number
   /** 缺漏项数量 */
@@ -162,7 +160,7 @@ export interface NoteImageSimpleVO {
   filename: string
   ossUrl: string
   isPublic: number
-  isPass: number
+  status: number
   isCrossUser: number
   isMissing: number
   createTime: string
@@ -267,7 +265,7 @@ export interface NoteTagMappingRowVO {
   tagId: number
   parsedTagName: string
   tagName: string
-  isPass: number
+  status: number
   isMissing: number
 }
 
@@ -278,7 +276,7 @@ export interface NoteImageMappingRowVO {
   parsedImageName: string
   filename: string
   isCrossUser: number
-  isPass: number
+  status: number
   isMissing: number
 }
 
@@ -290,7 +288,7 @@ export interface NoteEachMappingRowVO {
   targetNoteTitle: string
   anchor: string
   nickname: string
-  isPass: number
+  status: number
   isMissing: number
 }
 

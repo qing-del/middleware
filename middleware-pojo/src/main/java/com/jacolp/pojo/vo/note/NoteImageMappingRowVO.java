@@ -21,7 +21,7 @@ public class NoteImageMappingRowVO implements Serializable {
 
     private Short isCrossUser;
 
-    private Short isPass;
+    private Short status;
 
     private Short isMissing;
 }

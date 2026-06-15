@@ -343,7 +343,7 @@ export interface AdminNoteItem {
 
 export interface AdminNoteImageVO {
   imageId: number; noteId: number; parsedImageName: string; filename: string
-  ossUrl: string; isPublic: number; isPass: number; isCrossUser: number; isMissing: number; createTime: string
+  ossUrl: string; isPublic: number; status: number; isCrossUser: number; isMissing: number; createTime: string
 }
 
 export interface AdminNoteEachVO {

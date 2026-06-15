@@ -380,7 +380,7 @@ public class TagServiceImpl implements TagService {
         NoteTagMappingEntity mapping = new NoteTagMappingEntity();
         mapping.setNoteId(noteId);
         BeanUtils.copyProperties(tag, mapping);
-        mapping.setIsPass(tag.getAuditStatus());
+        mapping.setStatus(tag.getAuditStatus());
         mapping.setIsDeleted(NoteConstant.NOT_DELETED);
 
         int count = noteRelationService.batchInsertTagMappings(List.of(mapping));
@@ -465,3 +465,4 @@ public class TagServiceImpl implements TagService {
         }
     }
 }
+

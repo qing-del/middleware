@@ -317,7 +317,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
     /**
      * 查询标签反向引用列表（哪些笔记引用了 tagId）
-     * <p>用户端要求目标标签可见性：拥有者 或 已通过审核(isPass=1)</p>
+     * <p>用户端要求目标标签可见性：拥有者 或 已通过审核(auditStatus=2)</p>
      * <p>管理端跳过可见性校验</p>
      */
     @Override
@@ -427,7 +427,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                     vo.setFilename(image.getFilename());
                     vo.setOssUrl(image.getOssUrl());
                     vo.setIsPublic(image.getIsPublic());
-                    vo.setIsPass(image.getAuditStatus());
+                    vo.setStatus(image.getAuditStatus());
                     vo.setCreateTime(image.getUploadTime());
                     vo.setIsMissing(NoteConstant.NOT_MISSED_INFO);
                 } else {
@@ -627,3 +627,4 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                 .collect(Collectors.toMap(NoteEntity::getId, note -> note, (left, right) -> left));
     }
 }
+

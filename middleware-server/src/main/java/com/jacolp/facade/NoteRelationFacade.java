@@ -85,7 +85,7 @@ public interface NoteRelationFacade {
 
     /**
      * 查询标签反向引用列表（哪些笔记引用了 tagId）
-     * <p>- 用户端：校验目标标签可见性（拥有者 或 isPass=1 已通过审核）</p>
+     * <p>- 用户端：校验目标标签可见性（拥有者 或 auditStatus=2 已通过审核）</p>
      * <p>- 管理端：跳过可见性校验</p>
      * @param tagId 被引用的标签 ID
      * @return 标签反向引用列表

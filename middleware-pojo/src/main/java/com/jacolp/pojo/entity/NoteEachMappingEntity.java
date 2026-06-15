@@ -39,7 +39,7 @@ public class NoteEachMappingEntity implements Serializable, NoteIdProvider {
      */
     private String nickname;
 
-    private Short isPass;
+    private Short status;
 
     private Short isDeleted;
 

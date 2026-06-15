@@ -31,7 +31,7 @@ public interface NoteImageMappingMapper {
                       @Param("imageId") Long imageId,
                       @Param("imageUserId") Long imageUserId,
                       @Param("isCrossUser") Short isCrossUser,
-                      @Param("isPass") Short isPass);
+                      @Param("status") Short status);
 
     int batchBindImageByIds(@Param("mappings") List<NoteImageMappingEntity> mappings);
 
@@ -60,11 +60,11 @@ public interface NoteImageMappingMapper {
     /**
      * 统计指定笔记的图片映射数量
      * @param noteId 笔记 id
-     * @param isPass 是否通过 （传入null代表全查）
+     * @param status 状态快照（传入null代表全查）
      * @return 笔记图片映射行数量
      */
-    int countByNoteIdAndPass(@Param("noteId") Long noteId,
-                             @Param("isPass") Short isPass);
+    int countByNoteIdAndStatus(@Param("noteId") Long noteId,
+                               @Param("status") Short status);
 
     int updateByImageIds(@Param("imageIds") List<Long> imageIds,
                          @Param("status") Short status);

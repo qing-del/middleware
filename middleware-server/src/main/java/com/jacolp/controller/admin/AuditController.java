@@ -87,7 +87,7 @@ public class AuditController {
 
     @PutMapping("/note/review/batch")
     @Operation(summary = "批量审核笔记",
-            description = "批量审核笔记申请，仅处理待审核记录并同步回写 biz_note 的 is_pass，返回实际处理数量。")
+            description = "批量审核笔记申请，仅处理待审核记录并同步回写 biz_note.status，返回实际处理数量。")
     public Result<Integer> batchReviewNote(
             @Parameter(description = "批量审核请求（审核记录ID列表及审核结果）") @RequestBody AuditBatchReviewDTO dto) {
         log.info("Admin batch review note audits, idsSize: {}, status: {}",

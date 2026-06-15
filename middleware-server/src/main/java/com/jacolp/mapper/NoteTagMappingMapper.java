@@ -28,7 +28,7 @@ public interface NoteTagMappingMapper {
 
     int bindTagById(@Param("id") Long id,
                     @Param("tagId") Long tagId,
-                    @Param("isPass") Short isPass);
+                    @Param("status") Short status);
 
     int batchBindTagByIds(@Param("mappings") List<NoteTagMappingEntity> mappings);
 
@@ -49,11 +49,11 @@ public interface NoteTagMappingMapper {
     /**
      * 统计指定笔记的标签数量
      * @param noteId 笔记 id
-     * @param isPass 是否通过 （传入null代表全查）
+     * @param status 状态快照（传入null代表全查）
      * @return 笔记标签映射行数量
      */
-    int countByNoteIdAndPass(@Param("noteId") Long noteId,
-                             @Param("isPass") Short isPass);
+    int countByNoteIdAndStatus(@Param("noteId") Long noteId,
+                               @Param("status") Short status);
 
 
     int updateByTagIds(@Param("tagIds") List<Long> tagIds, @Param("status") Short status);

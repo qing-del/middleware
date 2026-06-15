@@ -57,10 +57,10 @@ function formatDate(raw: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function resolveAuditStatus(isPass?: number) {
-  if (isPass === 1) return { label: '审核中', cls: 'text-sky-400 bg-sky-500/10 border-sky-500/20' }
-  if (isPass === 2) return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
-  if (isPass === 3) return { label: '未通过', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
+function resolveAuditStatus(status?: number) {
+  if (status === 1) return { label: '审核中', cls: 'text-sky-400 bg-sky-500/10 border-sky-500/20' }
+  if (status === 2) return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
+  if (status === 3) return { label: '未通过', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
   return { label: '待审核', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
 }
 
@@ -391,7 +391,7 @@ onMounted(() => {
                       <span v-if="row.isMissing === 1" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 flex items-center">未找到匹配资源</span>
                       <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center">绑定成功</span>
                       <span v-if="row.isMissing !== 1" class="text-xs text-slate-500">目标文件：<span class="text-blue-300 ml-1">{{ row.filename || '-' }}</span></span>
-                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.isPass).cls">{{ resolveAuditStatus(row.isPass).label }}</span>
+                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.status).cls">{{ resolveAuditStatus(row.status).label }}</span>
                     </div>
                   </div>
                 </div>
@@ -428,7 +428,7 @@ onMounted(() => {
                       <span v-if="row.isMissing === 1" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 flex items-center">未找到匹配资源</span>
                       <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center">绑定成功</span>
                       <span v-if="row.isMissing !== 1" class="text-xs text-slate-500">目标标签：<span class="text-blue-300 ml-1">{{ row.tagName || '-' }}</span></span>
-                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.isPass).cls">{{ resolveAuditStatus(row.isPass).label }}</span>
+                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.status).cls">{{ resolveAuditStatus(row.status).label }}</span>
                     </div>
                   </div>
                 </div>
@@ -465,7 +465,7 @@ onMounted(() => {
                       <span v-if="row.isMissing === 1" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 flex items-center">目标笔记不存在</span>
                       <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center">绑定成功</span>
                       <span v-if="row.isMissing !== 1" class="text-xs text-slate-500">目标笔记：<span class="text-blue-300 ml-1">{{ row.targetNoteTitle || '-' }}</span></span>
-                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.isPass).cls">{{ resolveAuditStatus(row.isPass).label }}</span>
+                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.status).cls">{{ resolveAuditStatus(row.status).label }}</span>
                     </div>
                     <span v-if="row.anchor" class="text-[10px] text-slate-500 mt-1">锚点：{{ row.anchor }}</span>
                   </div>

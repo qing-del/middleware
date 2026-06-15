@@ -176,7 +176,7 @@ CREATE TABLE `biz_note_each_mapping` (
     `parsed_note_name` varchar(255) NOT NULL COMMENT '从双链中解析出来的笔记名(对应内联笔记的title)',
     `anchor`           varchar(255) DEFAULT NULL COMMENT '笔记锚点(双链中 # 之后的片段, 如 [[note.md#标题]] 中的"标题")',
     `nickname`         varchar(255) DEFAULT NULL COMMENT '笔记别名(双链中 | 之后的自定义显示名, 如 [[note.md|别名]] 中的"别名")',
-    `is_pass`          tinyint      NOT NULL DEFAULT 0 COMMENT '审核状态(0:未通过, 1:已通过, 2:已拒绝)(代表target是否通过)',
+    `status`           tinyint      NOT NULL DEFAULT 0 COMMENT '目标笔记审核快照(0:待审核,1:已通过,2:已拒绝)',
     `is_deleted`       tinyint      NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
     `create_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -185,7 +185,7 @@ CREATE TABLE `biz_note_each_mapping` (
     KEY `idx_source_target` (`source_note_id`, `target_note_id`),
     KEY `idx_target` (`target_note_id`),
     KEY `idx_delete` (`is_deleted`),     -- 方便后续要做软删除
-    KEY `idx_note_deleted_pass` (`source_note_id`, `is_deleted`, `is_pass`) -- 方便发布前要做count(1)做优化
+    KEY `idx_note_deleted_status` (`source_note_id`, `is_deleted`, `status`) -- 方便发布前要做count(1)做优化
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记双链映射表';
 
 
@@ -198,7 +198,7 @@ CREATE TABLE `biz_note_tag_mapping` (
                                         `note_id` bigint NOT NULL COMMENT '笔记ID',
                                         `tag_id` bigint DEFAULT NULL COMMENT '标签ID(NULL=未绑定)',
                                         `parsed_tag_name` varchar(20) NOT NULL COMMENT '从笔记中解析出的标签名',
-                                        `is_pass` tinyint NOT NULL DEFAULT 0 COMMENT '标签审核快照(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
+                                        `status` tinyint NOT NULL DEFAULT 0 COMMENT '标签审核快照(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
                                         `is_deleted` tinyint NOT NULL DEFAULT 0 COMMENT '是否删除(1:删除, 0:正常)',
                                         `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
                                         `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -206,7 +206,7 @@ CREATE TABLE `biz_note_tag_mapping` (
                                         UNIQUE KEY `idx_note_tag` (`note_id`, `tag_id`),    -- 用于统计
                                         KEY `uk_note_tag_name` (`note_id`, parsed_tag_name),
                                         KEY `idx_tag_deleted` (`tag_id`, `is_deleted`), -- 方便通过 tag_id 反查所有 note_id
-                                        KEY `idx_note_deleted_pass` (`note_id`, `is_deleted`, `is_pass`) -- 方便发布前要做count(1)做优化
+                                        KEY `idx_note_deleted_status` (`note_id`, `is_deleted`, `status`) -- 方便发布前要做count(1)做优化
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记与标签多对多关联表';
 
 
@@ -246,7 +246,7 @@ CREATE TABLE `biz_note_image_mapping` (
     `parsed_image_name` varchar(255) NOT NULL COMMENT '笔记中解析出的原始图片名称(如: 架构图.png)，用于建立名称到URL的映射',
     `note_title`        varchar(100) NOT NULL COMMENT '笔记标题(冗余字段，用于后续按笔记标题搜索图片)',
     `is_cross_user`     tinyint      NOT NULL DEFAULT 0 COMMENT '是否跨用户引用(0:同一用户, 1:引用了其他用户的公开图片)',
-    `is_pass`           tinyint      NOT NULL DEFAULT 0 COMMENT '图片审核快照(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
+    `status`            tinyint      NOT NULL DEFAULT 0 COMMENT '图片审核快照(0:待审核,1:审核中,2:已通过,3:已拒绝,4:已删除)',
     `is_deleted`        tinyint      NOT NULL DEFAULT 0 COMMENT '是否已删除(0:正常, 1:已删除，删除时软删)',
     `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '映射创建时间(首次解析时间)',
     `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -254,7 +254,7 @@ CREATE TABLE `biz_note_image_mapping` (
     UNIQUE KEY `uk_note_image` (`note_id`, `image_id`),                          -- 同一笔记不重复绑定同一张图片
     KEY `idx_image_id` (`image_id`),                                             -- 按图片反查所有引用笔记(删图前检查用)
     KEY `idx_note_user_name` (`note_user_id`, `parsed_image_name`, `is_deleted`),-- 解析时按用户+文件名快速定位已有映射
-    KEY `idx_note_deleted_pass` (`note_id`, `is_deleted`, `is_pass`),            -- 用于发布时统计数据行count(1)优化
+    KEY `idx_note_deleted_status` (`note_id`, `is_deleted`, `status`),           -- 用于发布时统计数据行count(1)优化
     KEY `idx_is_deleted` (`is_deleted`)                                          -- 方便懒删除时查找笔记
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='笔记-图片引用映射表';
 
