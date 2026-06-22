@@ -24,7 +24,7 @@ async function activate() {
       headers: { activeToken: token }
     })
     state.value = 'success'
-    message.value = '账号激活成功！3 秒后跳转到登录页...'
+    message.value = '账号激活成功，3 秒后跳转到登录页...'
     setTimeout(() => {
       router.push('/login')
     }, 3000)
@@ -40,45 +40,42 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#020617] flex items-center justify-center p-8 selection:bg-indigo-500/30">
-    <!-- 环境光晕 -->
-    <div class="fixed top-[-10%] left-[-5%] w-[500px] h-[500px] bg-indigo-600/10 blur-[150px] rounded-full pointer-events-none"></div>
-    <div class="fixed bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+  <div class="activation-page flex min-h-screen items-center justify-center overflow-hidden bg-[var(--cn-bg)] p-8 text-[var(--cn-text)] selection:bg-black/10">
+    <div class="activation-grid" aria-hidden="true"></div>
 
-    <div class="glass-panel rounded-3xl p-10 max-w-md w-full text-center space-y-6 relative z-10">
+    <div class="activation-card cn-fade-up">
       <div class="flex justify-center">
         <div :class="[
-          'w-20 h-20 rounded-3xl flex items-center justify-center',
+          'status-icon',
           state === 'loading'
-            ? 'bg-indigo-500/10 border border-indigo-500/20'
+            ? 'status-icon-loading'
             : state === 'success'
-              ? 'bg-emerald-500/10 border border-emerald-500/20'
-              : 'bg-rose-500/10 border border-rose-500/20'
+              ? 'status-icon-success'
+              : 'status-icon-error'
         ]">
-          <Loader2 v-if="state === 'loading'" class="w-10 h-10 text-indigo-400 animate-spin" />
-          <CheckCircle2 v-else-if="state === 'success'" class="w-10 h-10 text-emerald-400" />
-          <XCircle v-else class="w-10 h-10 text-rose-400" />
+          <Loader2 v-if="state === 'loading'" class="h-9 w-9 animate-spin" />
+          <CheckCircle2 v-else-if="state === 'success'" class="h-9 w-9" />
+          <XCircle v-else class="h-9 w-9" />
         </div>
       </div>
 
-      <div>
-        <h1 class="text-xl font-black text-slate-100 tracking-tighter">
-          <span class="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">CORE</span><span class="font-light">NODE</span>
-        </h1>
-        <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest mt-1">Account Activation</p>
+      <div class="text-center">
+        <h1 class="text-xl font-bold tracking-[0.12em] text-[var(--cn-text)]">CORE<span class="font-normal"> NODE</span></h1>
+        <p class="mt-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--cn-text-muted)]">Account Activation</p>
       </div>
 
       <p :class="[
-        'text-sm font-medium',
-        state === 'loading' ? 'text-slate-400' : state === 'success' ? 'text-emerald-300' : 'text-rose-300'
+        'text-center text-sm leading-7',
+        state === 'loading' ? 'text-[var(--cn-text-soft)]' : state === 'success' ? 'text-[var(--cn-success)]' : 'text-[var(--cn-danger)]'
       ]">
         {{ message }}
       </p>
 
       <button
         v-if="state === 'error'"
+        type="button"
+        class="cn-btn cn-btn-primary mx-auto px-5"
         @click="router.push('/login')"
-        class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-white/[0.03] border border-white/[0.08] text-slate-300 hover:bg-white/[0.08] transition-all"
       >
         前往登录页
       </button>
@@ -87,11 +84,60 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.glass-panel {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+.activation-page {
+  position: relative;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.95), transparent 30%),
+    linear-gradient(135deg, #fbfbfa 0%, #f2f2ef 100%);
+}
+
+.activation-grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(17, 17, 17, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, black, transparent 76%);
+  pointer-events: none;
+}
+
+.activation-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 420px);
+  flex-direction: column;
+  gap: 24px;
+  border: 1px solid var(--cn-border);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 40px;
+  box-shadow: var(--cn-shadow-sm);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.status-icon {
+  display: flex;
+  height: 72px;
+  width: 72px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-border);
+  border-radius: 18px;
+  background: var(--cn-surface);
+}
+
+.status-icon-loading {
+  color: var(--cn-text);
+}
+
+.status-icon-success {
+  color: var(--cn-success);
+}
+
+.status-icon-error {
+  color: var(--cn-danger);
 }
 </style>

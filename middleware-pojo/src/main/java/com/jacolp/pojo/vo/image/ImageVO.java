@@ -33,7 +33,7 @@ public class ImageVO implements Serializable {
 
     private Short isPublic;
 
-    private Short isPass;
+    private Short auditStatus;
 
     private LocalDateTime uploadTime;
 }

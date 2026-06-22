@@ -1,0 +1,82 @@
+body input,
+body textarea,
+body select,
+.cn-input {
+  border-color: var(--cn-border) !important;
+  background-color: var(--cn-surface) !important;
+  color: var(--cn-text) !important;
+  box-shadow: none !important;
+}
+
+body input::placeholder,
+body textarea::placeholder {
+  color: var(--cn-text-faint) !important;
+}
+
+body input:focus,
+body textarea:focus,
+body select:focus,
+.cn-input:focus {
+  border-color: var(--cn-accent) !important;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08) !important;
+  outline: none !important;
+}
+
+body button[class*="bg-indigo-"],
+body button[class*="bg-blue-"],
+body button[class*="bg-purple-"],
+body button[class*="bg-cyan-"],
+body button[class*="bg-emerald-"],
+body button[class*="bg-rose-"],
+body button[class*="bg-amber-"],
+body a[class*="bg-indigo-"],
+body a[class*="bg-blue-"],
+body a[class*="bg-purple-"],
+body a[class*="bg-cyan-"],
+body a[class*="bg-emerald-"],
+body a[class*="bg-rose-"],
+body a[class*="bg-amber-"] {
+  border-color: var(--cn-accent) !important;
+  background: var(--cn-accent) !important;
+  color: var(--cn-text-inverse) !important;
+  box-shadow: none !important;
+}
+
+body button[class*="bg-indigo-"]:hover,
+body button[class*="bg-blue-"]:hover,
+body button[class*="bg-purple-"]:hover,
+body button[class*="bg-cyan-"]:hover,
+body button[class*="bg-emerald-"]:hover,
+body button[class*="bg-rose-"]:hover,
+body button[class*="bg-amber-"]:hover {
+  background: var(--cn-accent-hover) !important;
+}
+
+body .glass-checkbox {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  appearance: none;
+  border: 1px solid var(--cn-border-strong) !important;
+  border-radius: 4px !important;
+  background: var(--cn-surface) !important;
+  cursor: pointer;
+}
+
+body .glass-checkbox:checked {
+  border-color: var(--cn-accent) !important;
+  background: var(--cn-accent) !important;
+  box-shadow: none !important;
+}
+
+body .glass-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}

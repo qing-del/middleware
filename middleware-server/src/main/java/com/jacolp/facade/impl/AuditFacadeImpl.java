@@ -3,6 +3,7 @@ package com.jacolp.facade.impl;
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.context.BaseContext;
+import com.jacolp.enums.AuditStatus;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.facade.AuditFacade;
@@ -29,7 +30,6 @@ public class AuditFacadeImpl implements AuditFacade {
 
     @Autowired private AuditService auditService;
 
-    @Autowired private TopicService topicService;
     @Autowired private TagService tagService;
     @Autowired private ImageService imageService;
     @Autowired private NoteCoreService noteCoreService;
@@ -39,26 +39,14 @@ public class AuditFacadeImpl implements AuditFacade {
     @Transactional(rollbackFor = Exception.class)
     public int batchReviewMeta(AuditBatchReviewDTO dto) {
         // 1) 校验请求参数并过滤无效 ID。
-        AuditReviewContext context = validateReviewRequest(dto);
+        AuditReviewContext context = validateReviewRequest(dto, false);
 
         List<MetaAuditRecordEntity> pendingRecords = auditService.batchReviewMeta(context);
 
-        List<Long> topicIds = new ArrayList<>();
-        List<Long> tagIds = new ArrayList<>();
-        for (MetaAuditRecordEntity record : pendingRecords) {
-            if (record.getApplyType() == null || record.getTargetId() == null) {
-                continue;
-            }
-            if (record.getApplyType().equals(AuditConstant.TOPIC_APPLY_TYPE)) {
-                topicIds.add(record.getTargetId());
-            } else if (record.getApplyType().equals(AuditConstant.TAG_APPLY_TYPE)) {
-                tagIds.add(record.getTargetId());
-            }
-        }
-
-        if (!topicIds.isEmpty()) {
-            topicService.updatePassStatusByIds(topicIds, context.getStatus());
-        }
+        List<Long> tagIds = pendingRecords.stream()
+                .map(MetaAuditRecordEntity::getTargetId)
+                .filter(id -> id != null)
+                .toList();
         if (!tagIds.isEmpty()) {
             updateTagsAndTagMappingsPass(tagIds, context.getStatus(), pendingRecords.size());
         }
@@ -70,7 +58,7 @@ public class AuditFacadeImpl implements AuditFacade {
     @Transactional(rollbackFor = Exception.class)
     public int batchReviewImage(AuditBatchReviewDTO dto) {
         // 1) 校验请求参数并过滤无效 ID。
-        AuditReviewContext context = validateReviewRequest(dto);
+        AuditReviewContext context = validateReviewRequest(dto, false);
 
         List<ImageAuditRecordEntity> pendingRecords = auditService.batchReviewImage(context);
 
@@ -89,7 +77,7 @@ public class AuditFacadeImpl implements AuditFacade {
     @Transactional(rollbackFor = Exception.class)
     public int batchReviewNote(AuditBatchReviewDTO dto) {
         // 1) 校验请求参数并过滤无效 ID。
-        AuditReviewContext context = validateReviewRequest(dto);
+        AuditReviewContext context = validateReviewRequest(dto, true);
 
         List<NoteAuditRecordEntity> pendingRecords = auditService.batchReviewNote(context);
 
@@ -113,15 +101,16 @@ public class AuditFacadeImpl implements AuditFacade {
      * @param dto 批量审核参数
      * @return 审核上下文(一定是非空集合)
      */
-    private AuditReviewContext validateReviewRequest(AuditBatchReviewDTO dto) {
+    private AuditReviewContext validateReviewRequest(AuditBatchReviewDTO dto, boolean noteLegacy) {
         // 检查审核记录ID列表
         if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) {
             throw new BaseException("审核记录ID列表不能为空");
         }
 
-        // 检查审核状态是否有效
-        if (!AuditConstant.PASS.equals(dto.getStatus())
-                && !AuditConstant.REJECT.equals(dto.getStatus())) {
+        boolean validStatus = noteLegacy
+                ? AuditConstant.PASS.equals(dto.getStatus()) || AuditConstant.REJECT.equals(dto.getStatus())
+                : AuditStatus.APPROVED.getCode().equals(dto.getStatus()) || AuditStatus.REJECTED.getCode().equals(dto.getStatus());
+        if (!validStatus) {
             throw new BaseException("无效的审核状态");
         }
 
@@ -140,7 +129,8 @@ public class AuditFacadeImpl implements AuditFacade {
 
         // 填充默认拒绝原因
         String rejectReason = null;
-        if (AuditConstant.REJECT.equals(dto.getStatus())) {
+        Short rejectCode = noteLegacy ? AuditConstant.REJECT : AuditStatus.REJECTED.getCode();
+        if (rejectCode.equals(dto.getStatus())) {
             rejectReason = StringUtils.hasText(dto.getRejectReason())
                     ? dto.getRejectReason().trim()
                     : AuditConstant.DEFAULT_REJECT_REASON;
@@ -164,7 +154,7 @@ public class AuditFacadeImpl implements AuditFacade {
      */
     private void updateTagsAndTagMappingsPass(List<Long> tagIds, Short status, int affected) {
         // 批量更新标签状态。
-        int count = tagService.updatePassStatusByIds(tagIds, status);
+        int count = tagService.updateAuditStatusByIds(tagIds, status);
         noteRelationService.updateTagMappingPassByTagIds(tagIds, status);
         // 保守校验：如果业务表更新行数不足，直接回滚。
         if (count < affected) {
@@ -183,7 +173,7 @@ public class AuditFacadeImpl implements AuditFacade {
      */
     private void updateImagesAndImageMappingsPass(List<Long> imageIds, Short status, int affected) {
         // 批量更新图片状态。
-        int count = imageService.updatePassStatusByIds(imageIds, status);
+        int count = imageService.updateAuditStatusByIds(imageIds, status);
         noteRelationService.updateImageMappingPassByImageIds(imageIds, status);
         // 保守校验：业务表更新必须跟审核表影响行数一致。
         if (count < affected) {

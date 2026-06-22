@@ -14,7 +14,7 @@ const total = ref(0)
 const filterUserId = ref('')
 const filterTopicId = ref('')
 const searchFilename = ref('')
-const filterIsPass = ref('')
+const filterAuditStatus = ref('')
 const filterIsPublic = ref('')
 const currentPage = ref(1)
 const pageSize = ref(12)
@@ -51,10 +51,11 @@ function handleImageBacklinkClick(b: ImageBacklinkVO) {
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-function getStatusInfo(isPass: number) {
-  switch (isPass) {
-    case 1: return { label: '已通过', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' }
-    case 2: return { label: '已拒绝', cls: 'text-rose-300 bg-rose-500/10 border-rose-500/20' }
+function getStatusInfo(auditStatus: number) {
+  switch (auditStatus) {
+    case 1: return { label: '审核中', cls: 'text-sky-300 bg-sky-500/10 border-sky-500/20' }
+    case 2: return { label: '已通过', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' }
+    case 3: return { label: '已拒绝', cls: 'text-rose-300 bg-rose-500/10 border-rose-500/20' }
     default: return { label: '待审核', cls: 'text-amber-300 bg-amber-500/10 border-amber-500/20' }
   }
 }
@@ -94,7 +95,7 @@ async function fetchImages() {
       userId: filterUserId.value ? Number(filterUserId.value) : undefined,
       topicId: filterTopicId.value ? Number(filterTopicId.value) : undefined,
       filename: searchFilename.value || undefined,
-      isPass: filterIsPass.value ? Number(filterIsPass.value) : undefined,
+      auditStatus: filterAuditStatus.value ? Number(filterAuditStatus.value) : undefined,
       isPublic: filterIsPublic.value ? Number(filterIsPublic.value) : undefined,
       pageNum: currentPage.value,
       pageSize: pageSize.value
@@ -164,8 +165,8 @@ onMounted(() => {
       <div class="flex flex-wrap items-center gap-2">
         <input v-model="filterUserId" type="number" placeholder="UID..." class="admin-input w-20" @keyup.enter="handleSearch" />
         <input v-model="filterTopicId" type="number" placeholder="主题 ID..." class="admin-input w-24" @keyup.enter="handleSearch" />
-        <select v-model="filterIsPass" class="admin-input w-28" @change="handleSearch">
-          <option value="">审核: 全部</option><option value="0">待审核</option><option value="1">已通过</option><option value="2">已拒绝</option>
+        <select v-model="filterAuditStatus" class="admin-input w-28" @change="handleSearch">
+          <option value="">审核: 全部</option><option value="0">待审核</option><option value="1">审核中</option><option value="2">已通过</option><option value="3">已拒绝</option>
         </select>
         <select v-model="filterIsPublic" class="admin-input w-28" @change="handleSearch">
           <option value="">可见: 全部</option><option value="0">私有</option><option value="1">公开</option>
@@ -195,7 +196,7 @@ onMounted(() => {
         <div class="relative h-40 w-full overflow-hidden bg-black/50">
           <img v-if="img.ossUrl" :src="img.ossUrl" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
           <div v-else class="flex h-full w-full items-center justify-center text-slate-600"><Image class="h-10 w-10" /></div>
-          <div v-if="img.isPass === 2" class="pointer-events-none absolute inset-0 bg-rose-500/10 mix-blend-overlay"></div>
+          <div v-if="img.auditStatus === 3" class="pointer-events-none absolute inset-0 bg-rose-500/10 mix-blend-overlay"></div>
           <div class="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
             <button v-if="img.ossUrl" class="rounded-full bg-white/10 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-white/20" title="预览" @click="previewUrl = img.ossUrl; showPreview = true"><Eye class="h-4 w-4 text-white" /></button>
             <button class="rounded-full border border-rose-500/30 bg-rose-500/20 p-2 backdrop-blur-md transition-all hover:scale-110 hover:bg-rose-500/40" title="查看引用笔记" @click="openImageBacklinks(img.id)"><FileText class="h-4 w-4 text-rose-200" /></button>
@@ -210,8 +211,8 @@ onMounted(() => {
           </div>
           <div class="mt-2 flex items-center justify-between">
             <div class="flex items-center space-x-2">
-              <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" :class="getStatusInfo(img.isPass).cls">{{ getStatusInfo(img.isPass).label }}</span>
-              <div v-if="img.isPass === 2" class="group/tooltip relative flex items-center">
+              <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider" :class="getStatusInfo(img.auditStatus).cls">{{ getStatusInfo(img.auditStatus).label }}</span>
+              <div v-if="img.auditStatus === 3" class="group/tooltip relative flex items-center">
                 <Info class="h-3.5 w-3.5 cursor-help text-rose-300" />
                 <div class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-40 -translate-x-1/2 scale-95 rounded-xl border border-rose-500/20 bg-slate-950/95 px-3 py-2 text-[11px] leading-5 text-rose-100 opacity-0 shadow-[0_14px_40px_rgba(15,23,42,0.45)] transition-all duration-200 ease-out group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100">该图片审核未通过。</div>
               </div>

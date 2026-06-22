@@ -6,7 +6,7 @@ export interface ImageItem {
   ossUrl: string
   fileSize: number
   isPublic: number
-  isPass: number       // 0=待审核, 1=已通过, 2=已拒绝
+  auditStatus: number  // 0=待审核, 1=审核中, 2=已通过, 3=已拒绝, 4=已删除
   uploadTime: string
   createTime: string
 }
@@ -45,14 +45,14 @@ export const imageApi = {
 
   /** 发起图片审核申请 */
   submitAudit(id: number): Promise<string> {
-    return request.post('/user/image/submitAudit', null, {
+    return request.post('/user/audit/image/submitAudit', null, {
       params: { id }
     })
   },
 
   /** 撤销图片审核申请 */
   cancelAudit(id: number): Promise<string> {
-    return request.post('/user/image/cancelAudit', null, {
+    return request.post('/user/audit/image/cancelAudit', null, {
       params: { id }
     })
   },

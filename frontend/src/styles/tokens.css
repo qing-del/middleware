@@ -1,0 +1,45 @@
+:root {
+  color-scheme: light;
+
+  --cn-bg: #f7f7f5;
+  --cn-bg-subtle: #fbfbfa;
+  --cn-surface: #ffffff;
+  --cn-surface-muted: #f3f3f1;
+  --cn-surface-hover: #eeeeec;
+  --cn-border: #dededb;
+  --cn-border-strong: #c9c9c5;
+
+  --cn-text: #1f1f1d;
+  --cn-text-soft: #4f4f4a;
+  --cn-text-muted: #777771;
+  --cn-text-faint: #aaa9a3;
+  --cn-text-inverse: #ffffff;
+
+  --cn-accent: #111111;
+  --cn-accent-hover: #2d2d2a;
+  --cn-info: #2563eb;
+  --cn-link: #2563eb;
+  --cn-link-hover: #1d4ed8;
+  --cn-link-visited: #1e40af;
+  --cn-link-underline: rgba(37, 99, 235, 0.34);
+  --cn-success: #15803d;
+  --cn-warning: #b45309;
+  --cn-danger: #b91c1c;
+
+  --cn-radius-xs: 6px;
+  --cn-radius-sm: 8px;
+  --cn-radius-md: 10px;
+  --cn-radius-lg: 12px;
+  --cn-radius-xl: 16px;
+
+  --cn-shadow-xs: 0 1px 2px rgba(15, 15, 15, 0.05);
+  --cn-shadow-sm: 0 8px 24px rgba(15, 15, 15, 0.06);
+  --cn-shadow-md: 0 18px 48px rgba(15, 15, 15, 0.08);
+
+  --cn-font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --cn-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  --cn-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --cn-fast: 160ms;
+  --cn-normal: 240ms;
+}

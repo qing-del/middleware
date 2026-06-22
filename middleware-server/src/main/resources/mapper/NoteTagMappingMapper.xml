@@ -8,14 +8,14 @@
         <result column="note_id" property="noteId"/>
         <result column="tag_id" property="tagId"/>
         <result column="parsed_tag_name" property="parsedTagName"/>
-        <result column="is_pass" property="isPass"/>
+        <result column="status" property="status"/>
         <result column="is_deleted" property="isDeleted"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="selectByNoteId" resultMap="NoteTagMappingMap">
-        SELECT id, note_id, tag_id, parsed_tag_name, is_pass, is_deleted, create_time, update_time
+        SELECT id, note_id, tag_id, parsed_tag_name, status, is_deleted, create_time, update_time
         FROM biz_note_tag_mapping
         WHERE note_id = #{noteId}
           AND is_deleted = 0
@@ -23,7 +23,7 @@
     </select>
 
     <select id="selectById" resultMap="NoteTagMappingMap">
-        SELECT id, note_id, tag_id, parsed_tag_name, is_pass, is_deleted, create_time, update_time
+        SELECT id, note_id, tag_id, parsed_tag_name, status, is_deleted, create_time, update_time
         FROM biz_note_tag_mapping
         WHERE id = #{id}
           AND is_deleted = 0
@@ -31,7 +31,7 @@
     </select>
 
     <select id="selectByIdWithValidUserId" resultType="com.jacolp.pojo.entity.NoteTagMappingEntity">
-        SELECT t.id, t.note_id, t.tag_id, t.parsed_tag_name, t.is_pass, t.is_deleted, t.create_time, t.update_time
+        SELECT t.id, t.note_id, t.tag_id, t.parsed_tag_name, t.status, t.is_deleted, t.create_time, t.update_time
         FROM biz_note_tag_mapping t
         JOIN biz_note n ON t.note_id = n.id
         WHERE t.id = #{id}
@@ -53,21 +53,21 @@
 
     <insert id="batchInsertMappings">
         INSERT INTO biz_note_tag_mapping
-            (note_id, tag_id, parsed_tag_name, is_pass, is_deleted)
+            (note_id, tag_id, parsed_tag_name, status, is_deleted)
         VALUES
         <foreach collection="mappings" item="mapping" separator=",">
-            (#{mapping.noteId}, #{mapping.tagId}, #{mapping.parsedTagName}, #{mapping.isPass}, 0)
+            (#{mapping.noteId}, #{mapping.tagId}, #{mapping.parsedTagName}, #{mapping.status}, 0)
         </foreach>
         ON DUPLICATE KEY UPDATE
             is_deleted = 0,
             tag_id = VALUES(tag_id),
-            is_pass = VALUES(is_pass)
+            status = VALUES(status)
     </insert>
 
     <update id="bindTagById">
         UPDATE biz_note_tag_mapping
         SET tag_id = #{tagId},
-            is_pass = #{isPass},
+            status = #{status},
             update_time = NOW()
         WHERE id = #{id}
           AND is_deleted = 0
@@ -80,9 +80,9 @@
                 WHEN #{mapping.id} THEN #{mapping.tagId}
             </foreach>
         END,
-            is_pass = CASE id
+            status = CASE id
             <foreach collection="mappings" item="mapping">
-                WHEN #{mapping.id} THEN #{mapping.isPass}
+                WHEN #{mapping.id} THEN #{mapping.status}
             </foreach>
         END,
             update_time = NOW()
@@ -96,7 +96,7 @@
     <update id="unbindTagById">
         UPDATE biz_note_tag_mapping
         SET tag_id = NULL,
-            is_pass = 0,
+            status = 0,
             update_time = NOW()
         WHERE id = #{id}
           AND is_deleted = 0
@@ -140,20 +140,20 @@
         WHERE is_deleted = 1
     </delete>
 
-    <select id="countByNoteIdAndPass" resultType="java.lang.Integer">
+    <select id="countByNoteIdAndStatus" resultType="java.lang.Integer">
         SELECT
             COUNT(1)
         FROM biz_note_tag_mapping
         WHERE note_id = #{noteId}
           AND is_deleted = 0
-          <if test="isPass != null">
-              AND is_pass = #{isPass}
+          <if test="status != null">
+              AND status = #{status}
           </if>
     </select>
 
     <update id="updateByTagIds">
         UPDATE biz_note_tag_mapping
-        SET is_pass = #{status},
+        SET status = #{status},
             update_time = NOW()
         WHERE tag_id IN
         <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
@@ -203,9 +203,9 @@
         WHERE m.note_id = #{noteId}
           AND m.tag_id IS NOT NULL
           AND m.is_deleted = 0
-          AND m.is_pass = 1
-          AND t.is_pass = 1
+          AND m.status = 2
           AND n.status = 6
         ORDER BY m.create_time ASC
     </select>
 </mapper>
+

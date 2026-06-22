@@ -16,11 +16,11 @@ import org.springframework.util.StringUtils;
 
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
+import com.jacolp.enums.AuditStatus;
 import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.facade.NoteRelationFacade;
@@ -317,7 +317,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
     /**
      * 查询标签反向引用列表（哪些笔记引用了 tagId）
-     * <p>用户端要求目标标签可见性：拥有者 或 已通过审核(isPass=1)</p>
+     * <p>用户端要求目标标签可见性：拥有者 或 已通过审核(auditStatus=2)</p>
      * <p>管理端跳过可见性校验</p>
      */
     @Override
@@ -334,7 +334,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         }
 
         boolean isOwner = Objects.equals(tag.getUserId(), currentUserId);
-        boolean isApproved = Objects.equals(tag.getIsPass(), AuditConstant.PASS);
+        boolean isApproved = Objects.equals(tag.getAuditStatus(), AuditStatus.APPROVED.getCode());
         if (!isOwner && !isApproved) {
             throw new BaseException(UserConstant.PERMISSION_DENIED);
         }
@@ -427,7 +427,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                     vo.setFilename(image.getFilename());
                     vo.setOssUrl(image.getOssUrl());
                     vo.setIsPublic(image.getIsPublic());
-                    vo.setIsPass(image.getIsPass());
+                    vo.setStatus(image.getAuditStatus());
                     vo.setCreateTime(image.getUploadTime());
                     vo.setIsMissing(NoteConstant.NOT_MISSED_INFO);
                 } else {
@@ -627,3 +627,4 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                 .collect(Collectors.toMap(NoteEntity::getId, note -> note, (left, right) -> left));
     }
 }
+

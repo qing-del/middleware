@@ -5,6 +5,14 @@ import ArcoVue from '@arco-design/web-vue'
 import '@arco-design/web-vue/dist/arco.css'
 
 import './style.css'
+import './styles/tokens.css'
+import './styles/base.css'
+import './styles/components.css'
+import './styles/forms.css'
+import './styles/tables.css'
+import './styles/article.css'
+import './styles/arco-overrides.css'
+import './styles/motion.css'
 import App from './App.vue'
 
 const app = createApp(App)

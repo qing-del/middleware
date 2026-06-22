@@ -237,7 +237,7 @@ public interface NoteRelationService {
      * @param noteId 笔记 ID
      * @return 如果笔记关系全部通过 返回 true 否则返回 false
      */
-    boolean countByNoteIdAndPass(Long noteId);
+    boolean allMappingsPassed(Long noteId);
 
     /**
      * 获取图片简要列表

@@ -28,7 +28,7 @@ public class ImageQueryDTO implements Serializable, PageParamProvider {
 
     private Short isPublic;  // 是否公开（0:私有, 1:公开），可选
 
-    private Short isPass;  // 审核状态（0:待审核, 1:已通过, 2:已拒绝），可选
+    private Short auditStatus;  // 审核状态（0:待审核, 1:审核中, 2:已通过, 3:已拒绝, 4:已删除），可选
 
     private Integer pageNum;  // 页码
 

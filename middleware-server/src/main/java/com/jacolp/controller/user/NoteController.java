@@ -56,23 +56,6 @@ public class NoteController {
         return Result.success(noteCoreService.getUserNoteOverview());
     }
 
-    @PostMapping("/submitAudit")
-    @Operation(summary = "发起笔记审核申请")
-    public Result<String> submitAudit(@Parameter(description = "笔记ID") @RequestParam Long id) {
-        log.info("User submit note audit, noteId: {}", id);
-        noteCoreService.submitNoteAudit(id);    // TODO 解耦审核逻辑部分的时候需要优化
-        return Result.success("审核申请已提交");
-    }
-
-    @PostMapping("/cancelAudit")
-    @Operation(summary = "撤销笔记审核申请",
-            description = "撤销当前用户的笔记审核申请。笔记状态从待审核回退到已转换，同时删除待审核记录。")
-    public Result<String> cancelAudit(@Parameter(description = "笔记ID") @RequestParam Long id) {
-        log.info("User cancel note audit, noteId: {}", id);
-        noteCoreService.cancelNoteAudit(id);
-        return Result.success("审核申请已撤销");
-    }
-
     @PostMapping("/upload")
     @NoteFileLimit
     @Operation(summary = "上传笔记",

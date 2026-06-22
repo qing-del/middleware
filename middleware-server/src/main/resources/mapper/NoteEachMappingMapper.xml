@@ -10,14 +10,14 @@
         <result column="parsed_note_name" property="parsedNoteName"/>
         <result column="anchor" property="anchor"/>
         <result column="nickname" property="nickname"/>
-        <result column="is_pass" property="isPass"/>
+        <result column="status" property="status"/>
         <result column="is_deleted" property="isDeleted"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="selectBySourceNoteId" resultMap="NoteEachMappingMap">
-        SELECT id, source_note_id, target_note_id, parsed_note_name, anchor, nickname, is_pass, is_deleted, create_time, update_time
+        SELECT id, source_note_id, target_note_id, parsed_note_name, anchor, nickname, status, is_deleted, create_time, update_time
         FROM biz_note_each_mapping
         WHERE source_note_id = #{sourceNoteId}
           AND is_deleted = 0
@@ -25,7 +25,7 @@
     </select>
 
     <select id="selectById" resultMap="NoteEachMappingMap">
-        SELECT id, source_note_id, target_note_id, parsed_note_name, anchor, nickname, is_pass, is_deleted, create_time, update_time
+        SELECT id, source_note_id, target_note_id, parsed_note_name, anchor, nickname, status, is_deleted, create_time, update_time
         FROM biz_note_each_mapping
         WHERE id = #{id}
           AND is_deleted = 0
@@ -34,7 +34,7 @@
 
     <select id="selectByIdWithValidUserId" resultMap="NoteEachMappingMap">
         SELECT e.id, e.source_note_id, e.target_note_id, e.parsed_note_name,
-               e.anchor, e.nickname, e.is_pass, e.is_deleted, e.create_time, e.update_time
+               e.anchor, e.nickname, e.status, e.is_deleted, e.create_time, e.update_time
         FROM biz_note_each_mapping e
         JOIN biz_note n ON e.source_note_id = n.id
         WHERE e.id = #{id}
@@ -48,18 +48,18 @@
     <insert id="batchInsertMappings" parameterType="java.util.List">
         INSERT INTO biz_note_each_mapping
             (source_note_id, target_note_id, parsed_note_name,
-             anchor, nickname, is_pass, is_deleted, create_time, update_time)
+             anchor, nickname, status, is_deleted, create_time, update_time)
         VALUES
         <foreach collection="mappings" item="mapping" separator=",">
             (#{mapping.sourceNoteId}, #{mapping.targetNoteId}, #{mapping.parsedNoteName},
-             #{mapping.anchor}, #{mapping.nickname}, #{mapping.isPass}, #{mapping.isDeleted}, NOW(), NOW())
+             #{mapping.anchor}, #{mapping.nickname}, #{mapping.status}, #{mapping.isDeleted}, NOW(), NOW())
         </foreach>
     </insert>
 
     <update id="bindNoteBySourceIdAndParseName">
         UPDATE biz_note_each_mapping
         SET target_note_id = #{targetNoteId},
-            is_pass = #{isPass},
+            status = #{status},
             update_time = NOW()
         WHERE source_note_id = #{sourceNoteId}
           AND parsed_note_name = #{parsedNoteName}
@@ -73,9 +73,9 @@
                 WHEN #{mapping.id} THEN #{mapping.targetNoteId}
             </foreach>
         END,
-            is_pass = CASE id
+            status = CASE id
             <foreach collection="mappings" item="mapping">
-                WHEN #{mapping.id} THEN #{mapping.isPass}
+                WHEN #{mapping.id} THEN #{mapping.status}
             </foreach>
         END,
             update_time = NOW()
@@ -126,20 +126,20 @@
         WHERE is_deleted = 1
     </delete>
 
-    <select id="countByNoteIdAndPass" resultType="java.lang.Integer">
+    <select id="countByNoteIdAndStatus" resultType="java.lang.Integer">
         SELECT
             COUNT(1)
         FROM biz_note_each_mapping
         WHERE source_note_id = #{noteId}
           AND is_deleted = 0
-          <if test="isPass != null">
-              AND is_pass = #{isPass}
+          <if test="status != null">
+              AND status = #{status}
           </if>
     </select>
 
     <update id="updateBySourceNoteIds">
         UPDATE biz_note_each_mapping
-        SET is_pass = #{status},
+        SET status = #{status},
             update_time = NOW()
         WHERE target_note_id IN
         <foreach collection="sourceNoteIds" item="sourceNoteId" open="(" separator="," close=")">
@@ -198,10 +198,11 @@
         WHERE m.source_note_id = #{sourceNoteId}
           AND m.target_note_id IS NOT NULL
           AND m.is_deleted = 0
-          AND m.is_pass = 1
+          AND m.status = 1
           AND source.status = 6
           AND target.status = 6
         ORDER BY m.create_time ASC
     </select>
 
 </mapper>
+

@@ -26,7 +26,7 @@ public class ImageSimpleVO implements Serializable {
 
     private Short isPublic;
 
-    private Short isPass;
+    private Short status;
 
     private Short isCrossUser;
 

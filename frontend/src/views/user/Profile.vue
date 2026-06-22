@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { emailApi } from '@/api/email'
 import { adminApi } from '@/api/admin'
@@ -11,6 +12,27 @@ import {
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
+const route = useRoute()
+
+const isAdminProfile = computed(() => route.path.startsWith('/admin'))
+const supportsUserEmailWorkflow = computed(() => !isAdminProfile.value)
+const canDirectlyEditEmail = computed(() => isAdminProfile.value || !emailStatus.value?.isActive)
+
+async function refreshProfileUserInfo() {
+  if (isAdminProfile.value) {
+    await authStore.fetchAdminUserInfo()
+  } else {
+    await authStore.fetchUserInfo()
+  }
+}
+
+function syncEmailStatusFromCurrentUser() {
+  emailStatus.value = {
+    email: authStore.user?.email || null,
+    username: authStore.user?.username || '',
+    isActive: authStore.user?.status === 1
+  }
+}
 
 // --- Email / activation state ---
 const emailLoading = ref(true)
@@ -47,7 +69,11 @@ const emailChangeStep = ref<'request' | 'verify'>('request')
 async function fetchEmailStatus() {
   emailLoading.value = true
   try {
-    emailStatus.value = await emailApi.getEmailStatus()
+    if (isAdminProfile.value) {
+      syncEmailStatusFromCurrentUser()
+    } else {
+      emailStatus.value = await emailApi.getEmailStatus()
+    }
   } catch {
     emailStatus.value = null
   } finally {
@@ -76,7 +102,7 @@ async function handleVerifyCode() {
     const msg = await emailApi.verifyCode(activationCode.value.trim())
     emailMessage.value = (msg as unknown as string) || '激活成功'
     activationCode.value = ''
-    await authStore.refreshCurrentUserInfo()
+    await refreshProfileUserInfo()
     await fetchEmailStatus()
   } catch {
     emailMessage.value = '激活码无效或已过期'
@@ -89,22 +115,21 @@ async function handleSaveProfile() {
   profileSaving.value = true
   profileMsg.value = ''
   try {
-    const isActive = emailStatus.value?.isActive
-    if (authStore.isAdmin && authStore.user) {
+    if (isAdminProfile.value && authStore.user) {
       const payload: UserModifyParams = {
         id: authStore.user.id!,
         nickname: editNickname.value || undefined,
       }
-      if (!isActive) payload.email = editEmail.value || undefined
+      payload.email = editEmail.value || undefined
       await adminApi.modifyUser(payload)
     } else {
       await authStore.updateProfile({
         nickname: editNickname.value || undefined,
-        email: isActive ? undefined : (editEmail.value || undefined)
+        email: canDirectlyEditEmail.value ? (editEmail.value || undefined) : undefined
       })
     }
     profileMsg.value = '保存成功'
-    await authStore.refreshCurrentUserInfo()
+    await refreshProfileUserInfo()
     await fetchEmailStatus()
   } catch {
     profileMsg.value = '保存失败'
@@ -125,7 +150,7 @@ async function handleChangePassword() {
   passwordSaving.value = true
   passwordMsg.value = ''
   try {
-    if (authStore.isAdmin && authStore.user) {
+    if (isAdminProfile.value && authStore.user) {
       const payload: UserModifyParams = {
         id: authStore.user.id!,
         password: currentPassword.value,
@@ -144,7 +169,7 @@ async function handleChangePassword() {
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
-    await authStore.refreshCurrentUserInfo()
+    await refreshProfileUserInfo()
   } catch {
     passwordMsg.value = '密码修改失败，请检查当前密码是否正确'
   } finally {
@@ -174,7 +199,7 @@ async function handleVerifyEmailChange() {
   try {
     await emailApi.verifyEmailChangeCode(emailChangeCode.value.trim())
     emailChangeMsg.value = '邮箱修改成功'
-    await authStore.refreshCurrentUserInfo()
+    await refreshProfileUserInfo()
     await fetchEmailStatus()
     resetEmailChange()
   } catch (e: any) {
@@ -225,7 +250,7 @@ onMounted(() => {
     <div class="flex items-center gap-4">
       <div :class="[
         'w-12 h-12 rounded-2xl flex items-center justify-center',
-        authStore.isAdmin
+        isAdminProfile
           ? 'bg-gradient-to-br from-rose-500 to-indigo-600 shadow-[0_0_20px_rgba(244,63,94,0.4)]'
           : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_20px_rgba(99,102,241,0.4)]'
       ]">
@@ -268,7 +293,7 @@ onMounted(() => {
           </div>
           <div>
             <label class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-1 block">邮箱</label>
-            <template v-if="emailStatus?.isActive">
+            <template v-if="supportsUserEmailWorkflow && emailStatus?.isActive">
               <div class="flex items-center gap-3">
                 <p class="text-sm text-slate-300 font-medium bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 flex-1">
                   {{ authStore.user?.email || '-' }}
@@ -292,7 +317,7 @@ onMounted(() => {
           </div>
 
           <!-- 邮箱修改流程（已激活用户） -->
-          <div v-if="showEmailChange && emailStatus?.isActive" class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 space-y-3">
+          <div v-if="supportsUserEmailWorkflow && showEmailChange && emailStatus?.isActive" class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 space-y-3">
             <p class="text-xs font-bold text-slate-300 flex items-center gap-2">
               <Mail class="w-3.5 h-3.5 text-indigo-400" />
               修改绑定邮箱
@@ -499,7 +524,7 @@ onMounted(() => {
           </div>
 
           <!-- 6-digit code verification (if not active) -->
-          <div v-if="!emailStatus.isActive" class="space-y-3">
+          <div v-if="supportsUserEmailWorkflow && !emailStatus.isActive" class="space-y-3">
             <div class="flex items-center gap-3">
               <input
                 v-model="activationCode"
@@ -521,7 +546,7 @@ onMounted(() => {
           </div>
 
           <!-- Action buttons -->
-          <div v-if="!emailStatus.isActive" class="flex flex-wrap items-center gap-3">
+          <div v-if="supportsUserEmailWorkflow && !emailStatus.isActive" class="flex flex-wrap items-center gap-3">
             <button
               v-if="emailStatus.email"
               @click="handleResend"
@@ -542,7 +567,11 @@ onMounted(() => {
               : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
           ]">{{ emailMessage }}</p>
 
-          <p v-if="!emailStatus.email" class="text-xs text-slate-500 bg-black/20 border border-white/[0.05] rounded-xl p-4">
+          <p v-if="isAdminProfile" class="text-xs text-slate-500 bg-black/20 border border-white/[0.05] rounded-xl p-4">
+            管理端资料页使用管理端凭证，邮箱验证码与激活流程请在用户端入口完成。
+          </p>
+
+          <p v-if="supportsUserEmailWorkflow && !emailStatus.email" class="text-xs text-slate-500 bg-black/20 border border-white/[0.05] rounded-xl p-4">
             请先在基本资料中绑定邮箱地址，邮箱将用于账号激活和重要通知。
           </p>
         </template>

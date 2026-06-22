@@ -4,7 +4,7 @@ export interface TagItem {
   id: number
   userId?: number
   tagName: string
-  isPass: number       // 0=待审核, 1=已通过, 2=已拒绝
+  auditStatus: number  // 0=待审核, 1=审核中, 2=已通过, 3=已拒绝, 4=已删除
   createTime: string
 }
 
@@ -49,14 +49,14 @@ export const tagApi = {
 
   /** 发起标签审核申请 */
   submitAudit(id: number): Promise<string> {
-    return request.post('/user/tag/submitAudit', null, {
+    return request.post('/user/audit/tag/submitAudit', null, {
       params: { id }
     })
   },
 
   /** 撤销标签审核申请 */
   cancelAudit(id: number): Promise<string> {
-    return request.post('/user/tag/cancelAudit', null, {
+    return request.post('/user/audit/tag/cancelAudit', null, {
       params: { id }
     })
   },

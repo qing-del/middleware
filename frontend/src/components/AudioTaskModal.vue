@@ -40,7 +40,6 @@ async function handleSubmit() {
     })
     toastSuccess(`音频生成任务已提交，任务 ID: ${res.taskId}`)
     isOpen.value = false
-    // 重置表单
     form.value.text = ''
   } catch (error) {
     console.error('Submit audio task failed:', error)
@@ -62,151 +61,126 @@ defineExpose({ open: openModal })
 </script>
 
 <template>
-  <!-- 悬浮球 -->
   <button
     v-if="props.showTrigger"
-    class="fixed bottom-24 right-8 z-[100] w-14 h-14 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group"
+    class="audio-trigger"
+    type="button"
+    aria-label="Open audio generation"
     @click="toggleModal"
   >
-    <Mic class="w-6 h-6 transition-transform group-hover:rotate-12" />
-    <span class="absolute -top-1 -right-1 flex h-3 w-3" v-if="submitting">
-      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-      <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-    </span>
+    <Mic class="h-5 w-5" />
+    <span v-if="submitting" class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[var(--cn-accent)]"></span>
   </button>
 
-  <!-- 弹窗 -->
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="isOpen" class="fixed inset-0 z-[110] flex items-center justify-center px-4">
-        <!-- 背景遮罩 -->
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="toggleModal" />
-        
-        <!-- 窗口内容 -->
-        <div class="relative w-full max-w-lg glass-panel rounded-3xl overflow-hidden shadow-2xl border border-white/10">
-          <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500" />
-          
-          <!-- 头部 -->
-          <div class="px-6 py-5 flex items-center justify-between border-b border-white/5">
+        <div class="absolute inset-0 bg-black/25 backdrop-blur-[2px]" @click="toggleModal" />
+
+        <div class="audio-modal">
+          <div class="flex items-center justify-between border-b border-[var(--cn-border)] px-6 py-5">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                <Mic class="w-5 h-5" />
+              <div class="modal-icon">
+                <Mic class="h-5 w-5" />
               </div>
               <div>
-                <h3 class="text-lg font-bold text-white tracking-tight">音频生成助手</h3>
-                <p class="text-[11px] text-slate-500 font-medium tracking-wide uppercase">AI Audio Generation</p>
+                <h3 class="text-lg font-semibold tracking-tight text-[var(--cn-text)]">音频生成助手</h3>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cn-text-muted)]">AI Audio Generation</p>
               </div>
             </div>
-            <button @click="toggleModal" class="p-2 rounded-full hover:bg-white/5 text-slate-500 hover:text-white transition-colors">
-              <X class="w-5 h-5" />
+            <button class="icon-button" type="button" @click="toggleModal">
+              <X class="h-5 w-5" />
             </button>
           </div>
 
-          <!-- 表单区 -->
-          <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-            <!-- 文本输入 -->
+          <div class="custom-scrollbar max-h-[70vh] space-y-6 overflow-y-auto p-6">
             <div class="space-y-2">
-              <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Volume2 class="w-3.5 h-3.5 text-indigo-400" />
+              <label class="field-label">
+                <Volume2 class="h-3.5 w-3.5" />
                 待生成的纯文本内容
               </label>
               <textarea
                 v-model="form.text"
                 rows="5"
                 placeholder="请输入需要转换为语音的文字..."
-                class="w-full bg-black/30 border border-white/[0.05] rounded-2xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none"
+                class="cn-input w-full resize-none rounded-lg px-4 py-3 text-sm"
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-2 gap-6">
-              <!-- 播放倍速 -->
+            <div class="grid gap-6 sm:grid-cols-2">
               <div class="space-y-3">
-                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <Gauge class="w-3.5 h-3.5 text-amber-400" />
+                <label class="field-label">
+                  <Gauge class="h-3.5 w-3.5" />
                   语速倍率 ({{ form.speed.toFixed(1) }}x)
                 </label>
-                <div class="px-2">
-                  <input
-                    type="range"
-                    v-model.number="form.speed"
-                    min="0.5"
-                    max="3.0"
-                    step="0.1"
-                    class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                  />
-                  <div class="flex justify-between mt-2">
-                    <span class="text-[10px] text-slate-600 font-bold">0.5x</span>
-                    <span class="text-[10px] text-slate-600 font-bold">3.0x</span>
-                  </div>
+                <input
+                  v-model.number="form.speed"
+                  type="range"
+                  min="0.5"
+                  max="3.0"
+                  step="0.1"
+                  class="range-input"
+                />
+                <div class="flex justify-between text-[10px] font-semibold text-[var(--cn-text-muted)]">
+                  <span>0.5x</span>
+                  <span>3.0x</span>
                 </div>
               </div>
 
-              <!-- 背景音量 -->
               <div class="space-y-3">
-                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <Waves class="w-3.5 h-3.5 text-blue-400" />
+                <label class="field-label">
+                  <Waves class="h-3.5 w-3.5" />
                   背景音因子 ({{ form.noiseFactor.toFixed(1) }})
                 </label>
-                <div class="px-2">
-                  <input
-                    type="range"
-                    v-model.number="form.noiseFactor"
-                    min="0.0"
-                    max="2.0"
-                    step="0.1"
-                    class="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                  />
-                  <div class="flex justify-between mt-2">
-                    <span class="text-[10px] text-slate-600 font-bold">0.0</span>
-                    <span class="text-[10px] text-slate-600 font-bold">2.0</span>
-                  </div>
+                <input
+                  v-model.number="form.noiseFactor"
+                  type="range"
+                  min="0.0"
+                  max="2.0"
+                  step="0.1"
+                  class="range-input"
+                />
+                <div class="flex justify-between text-[10px] font-semibold text-[var(--cn-text-muted)]">
+                  <span>0.0</span>
+                  <span>2.0</span>
                 </div>
               </div>
             </div>
 
-            <!-- 背景音类型 -->
             <div class="space-y-2">
-              <label class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Waves class="w-3.5 h-3.5 text-indigo-400" />
+              <label class="field-label">
+                <Waves class="h-3.5 w-3.5" />
                 背景音类型 (Noise Type)
               </label>
               <div class="grid grid-cols-1 gap-2">
-                <div 
-                  v-for="noise in noiseTypes" 
+                <button
+                  v-for="noise in noiseTypes"
                   :key="noise.value"
-                  class="flex items-center px-4 py-3 rounded-xl border cursor-pointer transition-all"
-                  :class="form.noiseType === noise.value 
-                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' 
-                    : 'bg-white/[0.02] border-white/5 text-slate-400 hover:bg-white/[0.05]'"
+                  type="button"
+                  :class="['noise-option', form.noiseType === noise.value ? 'noise-option-active' : '']"
                   @click="form.noiseType = noise.value"
                 >
-                  <div class="flex-1 text-xs font-bold">{{ noise.label }}</div>
-                  <div 
-                    class="w-4 h-4 rounded-full border-2 flex items-center justify-center"
-                    :class="form.noiseType === noise.value ? 'border-indigo-500' : 'border-slate-700'"
-                  >
-                    <div v-if="form.noiseType === noise.value" class="w-2 h-2 rounded-full bg-indigo-500" />
-                  </div>
-                </div>
+                  <span class="flex-1 text-left text-xs font-semibold">{{ noise.label }}</span>
+                  <span class="radio-dot">
+                    <span v-if="form.noiseType === noise.value"></span>
+                  </span>
+                </button>
               </div>
             </div>
           </div>
 
-          <!-- 底部按钮 -->
-          <div class="p-6 bg-white/[0.01] border-t border-white/5 flex gap-3">
-            <button
-              class="flex-1 py-3 px-4 rounded-2xl text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all"
-              @click="toggleModal"
-            >
+          <div class="flex gap-3 border-t border-[var(--cn-border)] bg-[var(--cn-bg-subtle)] p-6">
+            <button class="cn-btn flex-1" type="button" @click="toggleModal">
               取消
             </button>
             <button
-              class="flex-[2] py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-[0_4px_15px_rgba(79,70,229,0.3)] flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              class="cn-btn cn-btn-primary flex-[2]"
+              type="button"
               :disabled="submitting || !form.text.trim()"
               @click="handleSubmit"
             >
-              <Loader2 v-if="submitting" class="w-4 h-4 animate-spin" />
-              <Send v-else class="w-4 h-4" />
+              <Loader2 v-if="submitting" class="h-4 w-4 animate-spin" />
+              <Send v-else class="h-4 w-4" />
               <span>{{ submitting ? '提交任务中...' : '开始合成音频' }}</span>
             </button>
           </div>
@@ -217,32 +191,146 @@ defineExpose({ open: openModal })
 </template>
 
 <style scoped>
-.glass-panel {
-  background: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+.audio-trigger {
+  position: fixed;
+  right: 32px;
+  bottom: 96px;
+  z-index: 100;
+  display: flex;
+  height: 52px;
+  width: 52px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-accent);
+  border-radius: 999px;
+  background: var(--cn-accent);
+  color: var(--cn-text-inverse);
+  box-shadow: var(--cn-shadow-sm);
+  transition:
+    transform var(--cn-fast) var(--cn-ease),
+    background-color var(--cn-fast) var(--cn-ease);
 }
 
-.modal-enter-active, .modal-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.audio-trigger:hover {
+  background: var(--cn-accent-hover);
+  transform: translateY(-1px);
 }
 
-.modal-enter-from, .modal-leave-to {
+.audio-modal {
+  position: relative;
+  display: flex;
+  width: min(100%, 540px);
+  max-height: 88vh;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-xl);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--cn-shadow-md);
+}
+
+.modal-icon,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-sm);
+  background: var(--cn-surface);
+  color: var(--cn-text);
+}
+
+.modal-icon {
+  height: 40px;
+  width: 40px;
+}
+
+.icon-button {
+  height: 34px;
+  width: 34px;
+  color: var(--cn-text-muted);
+  transition: all var(--cn-fast) var(--cn-ease);
+}
+
+.icon-button:hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.range-input {
+  width: 100%;
+  accent-color: var(--cn-accent);
+}
+
+.noise-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-md);
+  background: var(--cn-surface);
+  padding: 12px 14px;
+  color: var(--cn-text-soft);
+  transition: all var(--cn-fast) var(--cn-ease);
+}
+
+.noise-option:hover,
+.noise-option-active {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.radio-dot {
+  display: flex;
+  height: 16px;
+  width: 16px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-border-strong);
+  border-radius: 999px;
+}
+
+.radio-dot span {
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+  background: var(--cn-accent);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: all 0.24s var(--cn-ease);
+}
+
+.modal-enter-from,
+.modal-leave-to {
   opacity: 0;
-  transform: scale(0.9) translateY(20px);
+  transform: scale(0.98) translateY(8px);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--cn-border-strong);
+  border-radius: 999px;
 }
 </style>

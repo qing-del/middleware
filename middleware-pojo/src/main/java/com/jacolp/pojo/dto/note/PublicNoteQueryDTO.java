@@ -8,8 +8,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-@Schema(description = "访客公开笔记查询请求")
-public class GuestNoteQueryDTO implements Serializable, PageParamProvider {
+@Schema(description = "公开笔记查询请求")
+public class PublicNoteQueryDTO implements Serializable, PageParamProvider {
 
     private static final long serialVersionUID = 1L;
 

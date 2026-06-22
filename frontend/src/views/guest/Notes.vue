@@ -99,32 +99,32 @@ onMounted(fetchNotes)
     </div>
 
     <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <article v-for="note in notes" :key="note.id" class="group flex min-h-52 flex-col rounded-lg border border-white/10 bg-white/[0.03] p-5 transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:bg-cyan-400/[0.04] hover:shadow-[0_18px_40px_rgba(8,47,73,0.28)]">
+      <article v-for="note in notes" :key="note.id" class="guest-public-card group flex min-h-52 flex-col rounded-lg p-5 transition hover:-translate-y-0.5">
         <div class="mb-4 flex items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="mb-2 flex items-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-              <Layers class="mr-1.5 h-3.5 w-3.5 text-cyan-300" />
+              <Layers class="mr-1.5 h-3.5 w-3.5 text-cyan-700" />
               {{ note.topicName || '未归属主题' }}
             </p>
-            <h2 class="line-clamp-2 text-lg font-black leading-snug text-white">{{ note.title }}</h2>
+            <h2 class="line-clamp-2 text-lg font-black leading-snug text-slate-950">{{ note.title }}</h2>
           </div>
-          <button class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400 transition group-hover:border-cyan-400/40 group-hover:text-cyan-200" title="查看" @click="openNote(note.id)">
+          <button class="guest-card-action" title="查看" @click="openNote(note.id)">
             <Eye class="h-4 w-4" />
           </button>
         </div>
 
-        <p class="line-clamp-3 min-h-[4.5rem] text-sm leading-6 text-slate-400">{{ note.description || '这篇笔记还没有描述。' }}</p>
+        <p class="line-clamp-3 min-h-[4.5rem] text-sm leading-6 text-slate-600">{{ note.description || '这篇笔记还没有描述。' }}</p>
 
         <div class="mt-5 flex flex-wrap gap-2">
-          <span v-for="tag in note.tags?.slice(0, 4)" :key="tag" class="inline-flex items-center rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[11px] font-bold text-cyan-100">
+          <span v-for="tag in note.tags?.slice(0, 4)" :key="tag" class="guest-public-tag inline-flex items-center rounded-md px-2 py-1 text-[11px] font-bold">
             <Tags class="mr-1 h-3 w-3" />
             {{ tag }}
           </span>
         </div>
 
-        <div class="mt-auto flex items-center justify-between border-t border-white/10 pt-4 text-xs text-slate-500">
+        <div class="mt-auto flex items-center justify-between border-t border-slate-200 pt-4 text-xs text-slate-500">
           <span>{{ formatDate(note.createTime) }}</span>
-          <button class="font-black text-cyan-300 transition hover:text-cyan-100" @click="openNote(note.id)">阅读全文</button>
+          <button class="font-black text-cyan-700 transition hover:text-cyan-900" @click="openNote(note.id)">阅读全文</button>
         </div>
       </article>
     </div>
@@ -145,3 +145,45 @@ onMounted(fetchNotes)
     </div>
   </section>
 </template>
+
+<style scoped>
+.guest-public-card {
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94)),
+    #f8fafc;
+  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
+}
+
+.guest-public-card:hover {
+  border-color: rgba(34, 211, 238, 0.46);
+  box-shadow: 0 22px 52px rgba(8, 47, 73, 0.22);
+}
+
+.guest-card-action {
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: rgba(248, 250, 252, 0.9);
+  color: #475569;
+  transition: all 0.18s ease;
+}
+
+.guest-card-action:hover {
+  border-color: rgba(34, 211, 238, 0.5);
+  background: #ecfeff;
+  color: #155e75;
+}
+
+.guest-public-tag {
+  border: 1px solid rgba(14, 116, 144, 0.22);
+  background: #ecfeff;
+  color: #155e75;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+</style>

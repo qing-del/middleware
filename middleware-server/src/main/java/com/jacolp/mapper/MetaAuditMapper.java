@@ -2,10 +2,10 @@ package com.jacolp.mapper;
 
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.vo.audit.MetaAuditVO;
-import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -25,9 +25,9 @@ public interface MetaAuditMapper {
 
     int insertAuditRecord(MetaAuditRecordEntity record);
 
-    @Select("SELECT COUNT(*) FROM biz_meta_audit_record WHERE apply_type = #{applyType} AND target_id = #{targetId} AND status = 0")
+    @Select("SELECT COUNT(*) FROM biz_tag_audit_record WHERE target_id = #{targetId} AND status = 1")
     int countPendingAuditByApplyTypeAndTargetId(@Param("applyType") Short applyType, @Param("targetId") Long targetId);
 
-    @Delete("DELETE FROM biz_meta_audit_record WHERE apply_type = #{applyType} AND target_id = #{targetId} AND status = 0")
+    @Update("UPDATE biz_tag_audit_record SET status = 0, update_time = NOW() WHERE target_id = #{targetId} AND status = 1")
     int deletePendingByApplyTypeAndTargetId(@Param("applyType") Short applyType, @Param("targetId") Long targetId);
 }

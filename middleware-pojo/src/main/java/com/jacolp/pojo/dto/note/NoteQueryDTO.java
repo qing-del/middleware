@@ -19,6 +19,8 @@ public class NoteQueryDTO implements Serializable, PageParamProvider {
 
     private Long topicId;
 
+    private Boolean unclassified;
+
     private String title;
 
     private Short status;  // 笔记状态过滤

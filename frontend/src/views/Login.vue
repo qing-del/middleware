@@ -41,7 +41,17 @@ const toastTimeoutRef = ref<number | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let animationFrameId: number
 let particles: any[] = []
-const mouse = { x: -1000, y: -1000, radius: 250 }
+const mouse = { x: -1000, y: -1000, radius: 220 }
+
+function handleMouseMove(e: MouseEvent) {
+  mouse.x = e.clientX
+  mouse.y = e.clientY
+}
+
+function handleMouseLeave() {
+  mouse.x = -1000
+  mouse.y = -1000
+}
 
 const viewConfig = computed(() => {
   switch (currentView.value) {
@@ -56,8 +66,8 @@ const viewConfig = computed(() => {
   }
 })
 
-// Canvas 星空类
-class StarParticle {
+// Antigravity-inspired monochrome particle field.
+class MonoParticle {
   x: number
   y: number
   angle: number
@@ -72,18 +82,18 @@ class StarParticle {
     this.x = Math.random() * canvas.width
     this.y = Math.random() * canvas.height
     this.angle = Math.random() * Math.PI * 2
-    this.orbitRadius = Math.random() * 2 + 0.5
-    this.speed = (Math.random() * 0.01) + 0.005
-    this.driftX = (Math.random() - 0.5) * 0.4
-    this.driftY = (Math.random() - 0.5) * 0.4
-    this.size = Math.random() * 2
-    this.color = Math.random() > 0.6 ? '#6366f1' : (Math.random() > 0.5 ? '#8b5cf6' : '#cbd5e1')
+    this.orbitRadius = Math.random() * 1.6 + 0.4
+    this.speed = (Math.random() * 0.006) + 0.002
+    this.driftX = (Math.random() - 0.5) * 0.16
+    this.driftY = (Math.random() - 0.5) * 0.16
+    this.size = Math.random() * 1.6 + 0.45
+    this.color = Math.random() > 0.72 ? '#111111' : (Math.random() > 0.5 ? '#5f5f58' : '#b8b8b2')
   }
 
   update() {
     this.angle += this.speed
-    let vx = Math.cos(this.angle) * this.orbitRadius * 0.1 + this.driftX
-    let vy = Math.sin(this.angle) * this.orbitRadius * 0.1 + this.driftY
+    let vx = Math.cos(this.angle) * this.orbitRadius * 0.06 + this.driftX
+    let vy = Math.sin(this.angle) * this.orbitRadius * 0.06 + this.driftY
 
     const dx = mouse.x - this.x
     const dy = mouse.y - this.y
@@ -95,14 +105,14 @@ class StarParticle {
       const ny = dy / dist
       const tx = -ny
       const ty = nx
-      const orbitSpeed = 1.2 * force
+      const orbitSpeed = 0.58 * force
       vx += tx * orbitSpeed
       vy += ty * orbitSpeed
-      const targetRadius = 80
+      const targetRadius = 92
       if (dist > targetRadius) {
-        vx += nx * force * 0.4
+        vx += nx * force * 0.18
       } else {
-        vx -= nx * force * 0.4
+        vx -= nx * force * 0.16
       }
     }
 
@@ -120,7 +130,7 @@ class StarParticle {
     ctx.beginPath()
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
     ctx.fillStyle = this.color
-    ctx.globalAlpha = Math.sin(this.angle) * 0.3 + 0.5
+    ctx.globalAlpha = Math.sin(this.angle) * 0.12 + 0.34
     ctx.fill()
   }
 }
@@ -147,7 +157,8 @@ function resizeCanvas() {
 function initParticles() {
   const canvas = canvasRef.value
   if (!canvas) return
-  particles = Array.from({ length: 150 }, () => new StarParticle(canvas))
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  particles = Array.from({ length: reducedMotion ? 36 : 118 }, () => new MonoParticle(canvas))
 }
 
 function animateCanvas() {
@@ -155,12 +166,14 @@ function animateCanvas() {
   const ctx = canvas?.getContext('2d')
   if (!canvas || !ctx) return
 
-  ctx.fillStyle = 'rgba(2, 6, 23, 0.15)'
+  ctx.fillStyle = 'rgba(247, 247, 245, 0.32)'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.globalCompositeOperation = 'lighter'
+  ctx.globalCompositeOperation = 'source-over'
 
   particles.forEach(p => {
-    p.update()
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      p.update()
+    }
     p.draw(ctx)
   })
 
@@ -169,9 +182,9 @@ function animateCanvas() {
       const dx = particles[i].x - particles[j].x
       const dy = particles[i].y - particles[j].y
       const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 100) {
+      if (dist < 118) {
         ctx.beginPath()
-        ctx.strokeStyle = `rgba(99, 102, 241, ${0.1 * (1 - dist / 100)})`
+        ctx.strokeStyle = `rgba(17, 17, 17, ${0.075 * (1 - dist / 118)})`
         ctx.lineWidth = 0.5
         ctx.moveTo(particles[i].x, particles[i].y)
         ctx.lineTo(particles[j].x, particles[j].y)
@@ -420,14 +433,8 @@ onMounted(() => {
   animateCanvas()
 
   window.addEventListener('resize', resizeCanvas)
-  window.addEventListener('mousemove', (e) => {
-    mouse.x = e.clientX
-    mouse.y = e.clientY
-  })
-  document.body.addEventListener('mouseleave', () => {
-    mouse.x = -1000
-    mouse.y = -1000
-  })
+  window.addEventListener('mousemove', handleMouseMove)
+  document.body.addEventListener('mouseleave', handleMouseLeave)
 })
 
 onUnmounted(() => {
@@ -438,14 +445,16 @@ onUnmounted(() => {
     clearTimeout(toastTimeoutRef.value)
   }
   window.removeEventListener('resize', resizeCanvas)
+  window.removeEventListener('mousemove', handleMouseMove)
+  document.body.removeEventListener('mouseleave', handleMouseLeave)
 })
 </script>
 
 <template>
-  <div class="min-h-screen w-full flex items-center justify-center overflow-hidden selection:bg-indigo-500/30 tracking-tight">
+  <div class="login-page min-h-screen w-full flex items-center justify-center overflow-hidden selection:bg-black/10 tracking-tight">
 
     <!-- Canvas 背景 -->
-    <canvas ref="canvasRef" id="bg-canvas" class="fixed inset-0 z-0 bg-[#020617]"></canvas>
+    <canvas ref="canvasRef" id="bg-canvas" class="fixed inset-0 z-0 bg-[var(--cn-bg)]"></canvas>
 
     <!-- 环境光晕 -->
     <div class="fixed top-[-20%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/10 blur-[150px] rounded-full pointer-events-none"></div>
@@ -782,5 +791,264 @@ onUnmounted(() => {
   max-height: 400px;
   opacity: 1;
   transform: translateY(0);
+}
+
+.login-page {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.92), transparent 28%),
+    linear-gradient(135deg, #fbfbfa 0%, #f3f3f1 100%);
+  color: var(--cn-text);
+}
+
+#bg-canvas {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 247, 245, 0.92)),
+    var(--cn-bg) !important;
+}
+
+.login-page :where(h1, h2, h3, p, span, button) {
+  text-shadow: none !important;
+}
+
+.login-page h1,
+.login-page h1 span,
+#form-title,
+#form-title span {
+  background: none !important;
+  color: var(--cn-text) !important;
+  filter: none !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+.login-page h1 {
+  letter-spacing: -0.04em;
+}
+
+.login-page h1 span:first-child {
+  color: var(--cn-text-soft) !important;
+  font-weight: 420 !important;
+}
+
+.login-page p {
+  border-color: var(--cn-border-strong) !important;
+  color: var(--cn-text-soft) !important;
+}
+
+.login-page [class*="bg-indigo-"],
+.login-page [class*="bg-purple-"],
+.login-page [class*="bg-cyan-"],
+.login-page [class*="bg-amber-"],
+.login-page [class*="bg-emerald-"],
+.login-page [class*="bg-rose-"] {
+  box-shadow: none !important;
+}
+
+.login-page > .fixed:not(#toast-container):not(#bg-canvas) {
+  opacity: 0 !important;
+}
+
+.login-page .container {
+  max-width: 1120px;
+}
+
+.login-page .inline-flex {
+  border-color: var(--cn-border) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: var(--cn-text-soft) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px);
+}
+
+.login-page .inline-flex svg {
+  color: var(--cn-text) !important;
+  fill: none !important;
+}
+
+#toggle-features-btn {
+  color: var(--cn-text-muted) !important;
+}
+
+#toggle-features-btn:hover {
+  color: var(--cn-text) !important;
+}
+
+#toggle-icon-container {
+  border-color: var(--cn-border) !important;
+  background: var(--cn-surface) !important;
+  color: var(--cn-text-muted) !important;
+}
+
+#features-panel > div,
+#glass-card {
+  border: 1px solid var(--cn-border) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  box-shadow: var(--cn-shadow-sm) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+
+#features-panel > div {
+  border-radius: var(--cn-radius-lg) !important;
+}
+
+#features-panel :where(span, p, svg) {
+  color: var(--cn-text-soft) !important;
+}
+
+#features-panel :where(span.text-white, .font-bold) {
+  color: var(--cn-text) !important;
+}
+
+#glass-card {
+  border-radius: 24px !important;
+  padding: 36px !important;
+}
+
+#glass-card > .absolute {
+  display: none !important;
+}
+
+#form-title {
+  font-size: 28px !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.03em !important;
+}
+
+#form-title-line {
+  height: 2px !important;
+  width: 32px !important;
+  border-radius: 999px !important;
+  background: var(--cn-accent) !important;
+  box-shadow: none !important;
+}
+
+#auth-form input,
+.login-page input {
+  height: 52px;
+  border: 1px solid var(--cn-border) !important;
+  border-radius: var(--cn-radius-md) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--cn-text) !important;
+  box-shadow: none !important;
+}
+
+#auth-form input:focus,
+.login-page input:focus {
+  border-color: var(--cn-accent) !important;
+  background: var(--cn-surface) !important;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08) !important;
+}
+
+#auth-form input::placeholder,
+.login-page input::placeholder {
+  color: var(--cn-text-faint) !important;
+}
+
+.login-page form .absolute.inset-y-0 {
+  color: var(--cn-text-muted) !important;
+}
+
+#submit-btn,
+.login-page form button[type="submit"] {
+  height: 52px !important;
+  border-radius: var(--cn-radius-md) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  color: var(--cn-text-inverse) !important;
+}
+
+#submit-btn > .absolute.inset-0,
+.login-page form button[type="submit"] {
+  background: var(--cn-accent) !important;
+}
+
+#submit-btn > .absolute:not(.inset-0),
+.login-page form button[type="submit"] > .absolute {
+  display: none !important;
+}
+
+#submit-btn :where(span, svg),
+.login-page form button[type="submit"] :where(span, svg) {
+  color: var(--cn-text-inverse) !important;
+}
+
+#switch-links button,
+.login-page button {
+  box-shadow: none !important;
+}
+
+#switch-links > button,
+#switch-links button:not(.grid button) {
+  color: var(--cn-text-soft) !important;
+}
+
+#switch-links > button:hover,
+#switch-links button:not(.grid button):hover {
+  color: var(--cn-text) !important;
+}
+
+#switch-links .grid button {
+  border: 1px solid var(--cn-border) !important;
+  border-radius: var(--cn-radius-md) !important;
+  background: var(--cn-surface) !important;
+  color: var(--cn-text) !important;
+}
+
+#switch-links .grid button:hover {
+  border-color: var(--cn-border-strong) !important;
+  background: var(--cn-surface-muted) !important;
+}
+
+.login-page :where(.text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-cyan-200, .text-indigo-200, .text-amber-200) {
+  color: var(--cn-text) !important;
+}
+
+.login-page :where(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-indigo-300, .text-purple-300, .text-cyan-300, .text-amber-300, .text-emerald-300) {
+  color: var(--cn-text-soft) !important;
+}
+
+.login-page input {
+  -webkit-text-fill-color: currentColor;
+}
+
+.login-page form button[type="submit"],
+.login-page form button[type="submit"] :where(span, svg),
+#submit-btn,
+#submit-btn :where(span, svg) {
+  color: var(--cn-text-inverse) !important;
+}
+
+.login-page .fixed.bottom-10 {
+  color: var(--cn-text-faint) !important;
+  opacity: 0.72;
+}
+
+#toast-container {
+  right: 24px;
+  bottom: 24px;
+  border: 1px solid var(--cn-border) !important;
+  border-left: 4px solid var(--cn-success) !important;
+  border-radius: var(--cn-radius-xl) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: var(--cn-text) !important;
+  box-shadow: var(--cn-shadow-md) !important;
+}
+
+#toast-container :where(span, svg) {
+  color: var(--cn-text) !important;
+}
+
+@media (max-width: 1024px) {
+  .login-page .container {
+    gap: 32px;
+  }
+
+  .login-page h1 {
+    font-size: clamp(3.5rem, 16vw, 5rem);
+  }
+
+  .login-page .fixed.bottom-10 {
+    display: none;
+  }
 }
 </style>

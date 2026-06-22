@@ -31,12 +31,138 @@ const HEADER_OFFSET = 88
 const prefersReducedMotion = typeof window !== 'undefined'
   && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
+const CALLOUT_TYPE_ALIASES: Record<string, string> = {
+  note: 'note',
+  info: 'info',
+  tip: 'tip',
+  hint: 'tip',
+  important: 'tip',
+  success: 'success',
+  check: 'success',
+  done: 'success',
+  warning: 'warning',
+  caution: 'warning',
+  attention: 'warning',
+  question: 'question',
+  help: 'question',
+  faq: 'question',
+  failure: 'failure',
+  fail: 'failure',
+  error: 'failure',
+  danger: 'failure',
+  bug: 'bug',
+  example: 'example',
+  quote: 'quote',
+  cite: 'quote'
+}
+
+const CALLOUT_DEFAULT_TITLES: Record<string, string> = {
+  note: 'Note',
+  info: 'Info',
+  tip: 'Tip',
+  success: 'Success',
+  warning: 'Warning',
+  question: 'Question',
+  failure: 'Failure',
+  bug: 'Bug',
+  example: 'Example',
+  quote: 'Quote'
+}
+
 function formatDate(raw?: string) {
   if (!raw) return '-'
   const d = new Date(raw)
   if (Number.isNaN(d.getTime())) return raw
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function resolveCalloutType(rawType: string): string {
+  const normalized = rawType.toLowerCase().trim()
+  return CALLOUT_TYPE_ALIASES[normalized] ?? normalized.replace(/[^\w-]/g, '')
+}
+
+function stripCalloutMarker(html: string): string {
+  return html.replace(/^\s*\[![\w-]+]\s*/i, '').trim()
+}
+
+function splitCalloutTitleAndBody(html: string, type: string) {
+  const match = html.match(/(?:<br\s*\/?>|\r?\n)/i)
+  if (!match || match.index == null) {
+    return {
+      titleHtml: html.trim() || CALLOUT_DEFAULT_TITLES[type] || type,
+      bodyHtml: ''
+    }
+  }
+
+  const titleHtml = html.slice(0, match.index).trim()
+  const bodyHtml = html.slice(match.index + match[0].length).trim()
+  return {
+    titleHtml: titleHtml || CALLOUT_DEFAULT_TITLES[type] || type,
+    bodyHtml
+  }
+}
+
+function transformGuestCalloutBlockquote(blockquote: HTMLElement) {
+  if (blockquote.dataset.calloutEnhanced === 'true') return
+
+  const firstChild = blockquote.firstElementChild as HTMLElement | null
+  if (!firstChild || firstChild.tagName.toLowerCase() !== 'p') return
+
+  const marker = firstChild.textContent?.match(/^\s*\[!([\w-]+)]/i)
+  if (!marker) return
+
+  const type = resolveCalloutType(marker[1])
+  if (!type) return
+
+  const callout = document.createElement('div')
+  callout.className = `callout callout-${type}`
+  callout.dataset.calloutEnhanced = 'true'
+
+  const title = document.createElement('div')
+  title.className = 'callout-title'
+
+  const content = document.createElement('div')
+  content.className = 'callout-content'
+
+  const { titleHtml, bodyHtml } = splitCalloutTitleAndBody(stripCalloutMarker(firstChild.innerHTML), type)
+  title.innerHTML = titleHtml
+
+  if (bodyHtml) {
+    const leadingParagraph = document.createElement('p')
+    leadingParagraph.innerHTML = bodyHtml
+    content.appendChild(leadingParagraph)
+  }
+
+  let node = firstChild.nextSibling
+  while (node) {
+    const next = node.nextSibling
+    content.appendChild(node)
+    node = next
+  }
+
+  callout.append(title, content)
+  blockquote.replaceWith(callout)
+}
+
+function markNestedGuestCallouts(container: HTMLElement) {
+  container.querySelectorAll<HTMLElement>('.callout').forEach((callout) => {
+    const parentCallout = callout.parentElement?.closest('.callout')
+    callout.classList.toggle('callout--nested', Boolean(parentCallout))
+  })
+}
+
+function normalizeGuestCallouts(container: HTMLElement) {
+  const blockquotes = Array.from(container.querySelectorAll<HTMLElement>('blockquote')).reverse()
+  blockquotes.forEach(transformGuestCalloutBlockquote)
+  markNestedGuestCallouts(container)
+}
+
+async function enhanceGuestArticleContent() {
+  const container = articleContentRef.value
+  if (!container) return
+  normalizeGuestCallouts(container)
+  await enhanceArticleContent(container)
 }
 
 // ── 锚点查找 / 滚动 ─────────────────────────────────
@@ -357,7 +483,7 @@ watch(
   async (html) => {
     if (!html) return
     await nextTick()
-    await enhanceArticleContent(articleContentRef.value)
+    await enhanceGuestArticleContent()
     // 增强完成后，正文里的 id 锚点才稳定 —— 此时再按当前 hash 定位一次
     if (route.hash) {
       scrollToHashAnchor()
@@ -426,7 +552,7 @@ onUnmounted(() => {
         <article class="min-w-0">
           <header class="mb-8">
             <div class="mb-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-400">
-              <span class="inline-flex items-center rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-cyan-100">
+              <span class="guest-public-chip inline-flex items-center rounded-md px-2.5 py-1">
                 <Layers class="mr-1.5 h-3.5 w-3.5" />
                 {{ note.topicName || '未归属主题' }}
               </span>
@@ -438,7 +564,7 @@ onUnmounted(() => {
             <h1 class="max-w-4xl text-3xl font-black leading-tight tracking-normal text-white sm:text-5xl">{{ note.title }}</h1>
             <p v-if="note.description" class="mt-5 max-w-3xl text-base leading-7 text-slate-400">{{ note.description }}</p>
             <div v-if="note.tags?.length" class="mt-6 flex flex-wrap gap-2">
-              <span v-for="tag in note.tags" :key="tag" class="inline-flex items-center rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-bold text-cyan-100">
+              <span v-for="tag in note.tags" :key="tag" class="guest-public-chip inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold">
                 <Tags class="mr-1.5 h-3.5 w-3.5" />
                 {{ tag }}
               </span>
@@ -455,7 +581,7 @@ onUnmounted(() => {
 
         <aside class="guest-matrix min-w-0" :class="matrixCollapsed ? 'guest-matrix--collapsed' : 'guest-matrix--expanded'">
           <div class="guest-matrix__sticky space-y-4">
-            <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <section class="guest-soft-panel rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <div class="mb-3 flex items-center justify-between">
                 <h2 class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">资源矩阵</h2>
                 <button class="hidden h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-white/5 hover:text-white xl:flex" @click="matrixCollapsed = true">
@@ -463,17 +589,17 @@ onUnmounted(() => {
                 </button>
               </div>
               <div class="grid grid-cols-3 gap-2">
-                <div class="rounded-md border border-white/10 bg-black/20 p-3">
+                <div class="guest-stat-card rounded-md border border-white/10 bg-white/[0.03] p-3">
                   <Hash class="mb-2 h-4 w-4 text-cyan-300" />
                   <div class="text-lg font-black text-white">{{ note.tags?.length ?? 0 }}</div>
                   <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Tags</div>
                 </div>
-                <div class="rounded-md border border-white/10 bg-black/20 p-3">
+                <div class="guest-stat-card rounded-md border border-white/10 bg-white/[0.03] p-3">
                   <ImageIcon class="mb-2 h-4 w-4 text-amber-300" />
                   <div class="text-lg font-black text-white">{{ note.images?.length ?? 0 }}</div>
                   <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Images</div>
                 </div>
-                <div class="rounded-md border border-white/10 bg-black/20 p-3">
+                <div class="guest-stat-card rounded-md border border-white/10 bg-white/[0.03] p-3">
                   <Link class="mb-2 h-4 w-4 text-emerald-300" />
                   <div class="text-lg font-black text-white">{{ note.eachNotes?.length ?? 0 }}</div>
                   <div class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Links</div>
@@ -481,7 +607,7 @@ onUnmounted(() => {
               </div>
             </section>
 
-            <section v-if="note.converted?.tocHtml" class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <section v-if="note.converted?.tocHtml" class="guest-soft-panel rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <h2 class="mb-3 flex items-center text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                 <ListTree class="mr-2 h-4 w-4 text-cyan-300" />
                 目录
@@ -489,11 +615,11 @@ onUnmounted(() => {
               <div ref="sidebarTocRef" class="toc-list max-h-[36vh] overflow-y-auto pr-1" v-html="note.converted.tocHtml" @click="onSidebarTocClick" />
             </section>
 
-            <section class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <section class="guest-soft-panel rounded-lg border border-white/10 bg-white/[0.03] p-4">
               <h2 class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">公开关联</h2>
               <div class="space-y-3 text-sm">
                 <div v-if="note.eachNotes?.length" class="space-y-2">
-                  <button v-for="link in note.eachNotes" :key="`${link.targetNoteId}-${link.anchor}`" class="block w-full rounded-md border border-white/10 bg-black/20 px-3 py-2 text-left text-slate-300 transition hover:border-cyan-400/40 hover:text-cyan-100" @click="router.push(link.anchor ? `/guest/notes/${link.targetNoteId}#${link.anchor}` : `/guest/notes/${link.targetNoteId}`)">
+                  <button v-for="link in note.eachNotes" :key="`${link.targetNoteId}-${link.anchor}`" class="guest-link-card block w-full rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-slate-300 transition hover:border-cyan-400/40 hover:text-cyan-100" @click="router.push(link.anchor ? `/guest/notes/${link.targetNoteId}#${link.anchor}` : `/guest/notes/${link.targetNoteId}`)">
                     {{ link.nickname || link.targetNoteTitle || link.parsedNoteName }}
                   </button>
                 </div>
@@ -603,6 +729,77 @@ onUnmounted(() => {
   background-color: rgba(148, 163, 184, 0.35);
 }
 
+.guest-public-chip {
+  border: 1px solid rgba(14, 116, 144, 0.22);
+  background: #ecfeff;
+  color: #155e75;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.guest-soft-panel {
+  background: var(--cn-surface) !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.guest-soft-panel h2 {
+  color: var(--cn-text-muted) !important;
+}
+
+.guest-soft-panel button:not(.guest-link-card) {
+  color: var(--cn-text-muted) !important;
+}
+
+.guest-soft-panel button:not(.guest-link-card):hover {
+  background: var(--cn-surface-muted) !important;
+  color: var(--cn-text) !important;
+}
+
+.guest-stat-card,
+.guest-link-card {
+  background: var(--cn-bg-subtle) !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text-soft) !important;
+}
+
+.guest-stat-card div:first-of-type {
+  color: var(--cn-text) !important;
+}
+
+.guest-stat-card div:last-of-type,
+.guest-soft-panel p {
+  color: var(--cn-text-muted) !important;
+}
+
+.guest-link-card:hover {
+  background: var(--cn-surface-muted) !important;
+  border-color: var(--cn-border-strong) !important;
+  color: var(--cn-link-hover) !important;
+}
+
+.guest-soft-panel .toc-list :deep(.toc-link) {
+  color: var(--cn-text-soft);
+}
+
+.guest-soft-panel .toc-list :deep(.toc-link:hover) {
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.guest-soft-panel .toc-list :deep(.toc-link--active) {
+  background: rgba(37, 99, 235, 0.08);
+  border-left-color: var(--cn-link);
+  color: var(--cn-link);
+}
+
+.guest-soft-panel .toc-list :deep(.toc-level-1),
+.guest-soft-panel .toc-list :deep(.toc-level-2),
+.guest-soft-panel .toc-list :deep(.toc-level-3),
+.guest-soft-panel .toc-list :deep(.toc-level-4) {
+  color: var(--cn-text-soft);
+}
+
 .toc-list :deep(.toc-sidebar) { display: contents; }
 .toc-list :deep(.toc-header),
 .toc-list :deep(.toc-fab) { display: none; }
@@ -695,16 +892,40 @@ onUnmounted(() => {
   font-weight: 750;
 }
 .article-content :deep(p) { margin-bottom: 1.15rem; }
-.article-content :deep(a) {
-  color: #67e8f9;
+.article-content :deep(a),
+.article-content :deep(.internal-note-link),
+.article-content :deep(.hash-link) {
+  color: var(--cn-link);
+  cursor: pointer;
   text-decoration: underline;
+  text-decoration-color: var(--cn-link-underline);
+  text-decoration-thickness: 1px;
   text-underline-offset: 4px;
-  text-decoration-color: rgba(103, 232, 249, 0.35);
+  transition:
+    color var(--cn-fast) var(--cn-ease),
+    text-decoration-color var(--cn-fast) var(--cn-ease),
+    background-color var(--cn-fast) var(--cn-ease);
+}
+.article-content :deep(a:hover),
+.article-content :deep(.internal-note-link:hover),
+.article-content :deep(.hash-link:hover) {
+  color: var(--cn-link-hover);
+  text-decoration-color: currentColor;
+}
+.article-content :deep(a:visited) {
+  color: var(--cn-link-visited);
+}
+.article-content :deep(a:focus-visible),
+.article-content :deep(.internal-note-link:focus-visible),
+.article-content :deep(.hash-link:focus-visible) {
+  border-radius: var(--cn-radius-xs);
+  outline: 2px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 3px;
 }
 .article-content :deep(.internal-note-link.unresolved) {
-  color: #64748b;
+  color: var(--cn-text-muted);
   cursor: default;
-  text-decoration-color: rgba(100, 116, 139, 0.3);
+  text-decoration-color: rgba(120, 120, 116, 0.36);
 }
 .article-content :deep(ul),
 .article-content :deep(ol) {
@@ -721,6 +942,130 @@ onUnmounted(() => {
   background: rgba(34, 211, 238, 0.07);
   padding: 1rem 1.25rem;
   color: #94a3b8;
+}
+.article-content :deep(.callout) {
+  --callout-accent: #22d3ee;
+  --callout-bg: rgba(34, 211, 238, 0.08);
+  --callout-border: rgba(34, 211, 238, 0.26);
+  --callout-title: #a5f3fc;
+
+  position: relative;
+  margin: 1.35rem 0;
+  border: 1px solid var(--callout-border);
+  border-left: 4px solid var(--callout-accent);
+  border-radius: 0.85rem;
+  background:
+    linear-gradient(135deg, var(--callout-bg), rgba(15, 23, 42, 0.62)),
+    rgba(2, 6, 23, 0.5);
+  padding: 1rem 1.15rem;
+  color: #cbd5e1;
+  line-height: 1.75;
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.article-content :deep(.callout-title) {
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--callout-title);
+  font-size: 0.95rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+.article-content :deep(.callout-title::before) {
+  content: '';
+  width: 0.58rem;
+  height: 0.58rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: var(--callout-accent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--callout-accent) 58%, transparent);
+}
+.article-content :deep(.callout-content) {
+  color: #cbd5e1;
+}
+.article-content :deep(.callout-content > :first-child) {
+  margin-top: 0;
+}
+.article-content :deep(.callout-content > :last-child) {
+  margin-bottom: 0;
+}
+.article-content :deep(.callout-content p) {
+  margin-bottom: 0.65rem;
+}
+.article-content :deep(.callout-content ul),
+.article-content :deep(.callout-content ol) {
+  margin: 0.6rem 0 0.75rem;
+}
+.article-content :deep(.callout-content li) {
+  margin-bottom: 0.25rem;
+}
+.article-content :deep(.callout-content .table-wrapper),
+.article-content :deep(.callout-content pre),
+.article-content :deep(.callout-content .mermaid),
+.article-content :deep(.callout-content img) {
+  margin-top: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+.article-content :deep(.callout .callout) {
+  margin: 0.85rem 0;
+}
+.article-content :deep(.callout--nested) {
+  border-radius: 0.7rem;
+  padding: 0.82rem 0.95rem;
+  background:
+    linear-gradient(135deg, var(--callout-bg), rgba(15, 23, 42, 0.78)),
+    rgba(15, 23, 42, 0.56);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+.article-content :deep(.callout--nested .callout-title) {
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+}
+.article-content :deep(.callout-note),
+.article-content :deep(.callout-info) {
+  --callout-accent: #22d3ee;
+  --callout-bg: rgba(34, 211, 238, 0.09);
+  --callout-border: rgba(34, 211, 238, 0.28);
+  --callout-title: #a5f3fc;
+}
+.article-content :deep(.callout-tip) {
+  --callout-accent: #34d399;
+  --callout-bg: rgba(52, 211, 153, 0.1);
+  --callout-border: rgba(52, 211, 153, 0.28);
+  --callout-title: #bbf7d0;
+}
+.article-content :deep(.callout-success) {
+  --callout-accent: #22c55e;
+  --callout-bg: rgba(34, 197, 94, 0.1);
+  --callout-border: rgba(34, 197, 94, 0.28);
+  --callout-title: #86efac;
+}
+.article-content :deep(.callout-warning) {
+  --callout-accent: #f59e0b;
+  --callout-bg: rgba(245, 158, 11, 0.11);
+  --callout-border: rgba(245, 158, 11, 0.3);
+  --callout-title: #fde68a;
+}
+.article-content :deep(.callout-question),
+.article-content :deep(.callout-example) {
+  --callout-accent: #818cf8;
+  --callout-bg: rgba(129, 140, 248, 0.1);
+  --callout-border: rgba(129, 140, 248, 0.28);
+  --callout-title: #c7d2fe;
+}
+.article-content :deep(.callout-failure),
+.article-content :deep(.callout-bug) {
+  --callout-accent: #fb7185;
+  --callout-bg: rgba(251, 113, 133, 0.1);
+  --callout-border: rgba(251, 113, 133, 0.3);
+  --callout-title: #fecdd3;
+}
+.article-content :deep(.callout-quote) {
+  --callout-accent: #94a3b8;
+  --callout-bg: rgba(148, 163, 184, 0.09);
+  --callout-border: rgba(148, 163, 184, 0.24);
+  --callout-title: #e2e8f0;
 }
 .article-content :deep(pre) {
   margin: 1.4rem 0;

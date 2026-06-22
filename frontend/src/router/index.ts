@@ -89,6 +89,16 @@ const router = createRouter({
           component: () => import('@/views/user/NoteDiff.vue')
         },
         {
+          path: 'public-notes',
+          name: 'UserPublicNotes',
+          component: () => import('@/views/user/PublicNotes.vue')
+        },
+        {
+          path: 'public-notes/:noteId',
+          name: 'UserPublicNoteDetail',
+          component: () => import('@/views/user/PublicNoteDetail.vue')
+        },
+        {
           path: 'topics',
           name: 'UserTopics',
           component: () => import('@/views/user/Topics.vue')

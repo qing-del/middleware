@@ -1,0 +1,35 @@
+body table {
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--cn-text);
+}
+
+body thead {
+  background: var(--cn-surface-muted) !important;
+}
+
+body th {
+  color: var(--cn-text-muted) !important;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+body td {
+  color: var(--cn-text-soft) !important;
+}
+
+body tr {
+  border-color: var(--cn-border) !important;
+}
+
+body tbody tr:hover {
+  background: rgba(17, 17, 17, 0.025) !important;
+}
+
+.table-wrapper {
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-md);
+  background: var(--cn-surface);
+  overflow: auto;
+}

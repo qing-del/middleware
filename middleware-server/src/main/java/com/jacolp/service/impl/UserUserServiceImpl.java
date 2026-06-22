@@ -237,6 +237,8 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public String activeAccount(Long userId) {
         log.info("User active: {}", userId);
+
+        // 查询用户
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
             log.error("User not found, userId: {}", userId);
@@ -276,7 +278,10 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException("用户名或邮箱不能为空");
         }
 
+        // 去除空白字符
         String trimmedAccount = account.trim();
+
+        // 尝试通过用户名或邮箱查询用户
         UserEntity user = EmailUtil.isValidEmail(trimmedAccount)
                 ? userMapper.selectByEmail(trimmedAccount)
                 : userMapper.selectByUsername(trimmedAccount);

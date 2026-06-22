@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "访客公开笔记详情")
-public class GuestNoteDetailVO implements Serializable {
+@Schema(description = "公开笔记详情")
+public class PublicNoteDetailVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

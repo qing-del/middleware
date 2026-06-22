@@ -27,7 +27,7 @@ interface NormalizedAuditItem {
 // ── State ─────────────────────────────────────────
 const router = useRouter()
 const currentType = ref<AuditType>('note')
-const currentStatus = ref(0) // 0: Pending, 1: Approved, 2: Rejected
+const currentStatus = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(15)
 const totalCount = ref(0)
@@ -44,9 +44,32 @@ const processingReview = ref(false)
 
 // ── Computed ──────────────────────────────────────
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize.value)))
-const isBatchMode = computed(() => selectedIds.value.size > 0 && currentStatus.value === 0)
+const isBatchMode = computed(() => selectedIds.value.size > 0 && currentStatus.value === pendingStatusFor())
+const statusOptions = computed(() => currentType.value === 'note'
+  ? [
+      { value: 0, label: '待审核' },
+      { value: 1, label: '已通过' },
+      { value: 2, label: '已驳回' }
+    ]
+  : [
+      { value: 1, label: '审核中' },
+      { value: 2, label: '已通过' },
+      { value: 3, label: '已驳回' }
+    ])
 
 // ── Helpers ───────────────────────────────────────
+function pendingStatusFor(type: AuditType = currentType.value): number {
+  return type === 'note' ? 0 : 1
+}
+
+function approveStatusFor(type: AuditType = currentType.value): number {
+  return type === 'note' ? 1 : 2
+}
+
+function rejectStatusFor(type: AuditType = currentType.value): number {
+  return type === 'note' ? 2 : 3
+}
+
 function formatDate(raw: string): string {
   if (!raw) return '-'
   const d = new Date(raw)
@@ -87,7 +110,7 @@ function normalizeData(data: any[], type: AuditType): NormalizedAuditItem[] {
       return {
         id: meta.id,
         resourceId: meta.targetId || meta.id,
-        title: `${meta.applyType === 1 ? '[主题]' : '[标签]'} ${meta.targetName}`,
+        title: `[标签] ${meta.targetName}`,
         applicant: meta.applicantUsername || meta.nickname || `UID: ${meta.applicantUserId}`,
         applicantId: meta.applicantUserId,
         submitTime: formatDate(meta.updateTime),
@@ -99,16 +122,17 @@ function normalizeData(data: any[], type: AuditType): NormalizedAuditItem[] {
   })
 }
 
-function statusClass(status: number): string {
-  if (status === 1) return 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20'
-  if (status === 2) return 'text-rose-300 bg-rose-500/10 border-rose-500/20'
+function statusClass(status: number, type: AuditType = currentType.value): string {
+  if (status === approveStatusFor(type)) return 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20'
+  if (status === rejectStatusFor(type)) return 'text-rose-300 bg-rose-500/10 border-rose-500/20'
+  if (type !== 'note' && status === pendingStatusFor(type)) return 'text-sky-300 bg-sky-500/10 border-sky-500/20'
   return 'text-amber-300 bg-amber-500/10 border-amber-500/20'
 }
 
-function statusLabel(status: number): string {
-  if (status === 1) return '已通过'
-  if (status === 2) return '已驳回'
-  return '待审核'
+function statusLabel(status: number, type: AuditType = currentType.value): string {
+  if (status === approveStatusFor(type)) return '已通过'
+  if (status === rejectStatusFor(type)) return '已驳回'
+  return type === 'note' ? '待审核' : '审核中'
 }
 
 function visiblePages(): number[] {
@@ -155,6 +179,7 @@ async function fetchAuditData() {
 function handleTypeChange(type: AuditType) {
   if (currentType.value === type) return
   currentType.value = type
+  currentStatus.value = pendingStatusFor(type)
   currentPage.value = 1
   selectedIds.value.clear()
   fetchAuditData()
@@ -199,7 +224,7 @@ async function handleBatchApprove() {
   try {
     const data: AuditBatchReviewDTO = {
       ids: Array.from(selectedIds.value),
-      status: 1, // Approved
+      status: approveStatusFor(),
     }
 
     if (currentType.value === 'note') await adminApi.batchReviewNotes(data)
@@ -229,7 +254,8 @@ function closeModal() {
 
 async function handleSingleReview(status: number) {
   if (!currentRecord.value) return
-  if (status === 2 && !rejectReason.value) {
+  const rejectedStatus = rejectStatusFor()
+  if (status === rejectedStatus && !rejectReason.value) {
     toastWarning('请填写驳回原因')
     return
   }
@@ -239,7 +265,7 @@ async function handleSingleReview(status: number) {
     const data: AuditBatchReviewDTO = {
       ids: [currentRecord.value.id],
       status,
-      rejectReason: status === 2 ? rejectReason.value : undefined
+      rejectReason: status === rejectedStatus ? rejectReason.value : undefined
     }
 
     if (currentType.value === 'note') await adminApi.batchReviewNotes(data)
@@ -286,7 +312,7 @@ watch(applicantIdFilter, () => {
         <!-- Tabs disguised as buttons -->
         <div class="flex bg-black/20 p-1 rounded-xl border border-white/10 mr-2">
           <button 
-            v-for="tab in [{id:'note', label:'笔记'}, {id:'image', label:'图片'}, {id:'meta', label:'元数据'}]"
+            v-for="tab in [{id:'note', label:'笔记'}, {id:'image', label:'图片'}, {id:'meta', label:'标签'}]"
             :key="tab.id"
             class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all"
             :class="currentType === tab.id ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-slate-400 hover:text-slate-200'"
@@ -297,9 +323,7 @@ watch(applicantIdFilter, () => {
         </div>
 
         <select :value="currentStatus" class="admin-input w-28" @change="handleStatusChange(Number(($event.target as HTMLSelectElement).value))">
-          <option :value="0">状态: 待审核</option>
-          <option :value="1">状态: 已通过</option>
-          <option :value="2">状态: 已驳回</option>
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">状态: {{ option.label }}</option>
         </select>
 
         <div class="group relative flex h-9 w-9 items-center overflow-hidden rounded-xl border border-white/10 bg-black/20 transition-all duration-300 ease-out hover:w-28 focus-within:!w-48 focus-within:border-rose-400/50 focus-within:bg-black/40 focus-within:ring-2 focus-within:ring-rose-400/10">
@@ -384,8 +408,8 @@ watch(applicantIdFilter, () => {
                     </div>
                   </td>
                   <td class="px-4 py-4">
-                    <span class="inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wider" :class="statusClass(item.status)">
-                      {{ statusLabel(item.status) }}
+                    <span class="inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wider" :class="statusClass(item.status, item.type)">
+                      {{ statusLabel(item.status, item.type) }}
                     </span>
                   </td>
                   <td class="px-4 py-4">
@@ -493,13 +517,13 @@ watch(applicantIdFilter, () => {
                   <template v-else>
                     <div class="flex flex-col items-center opacity-40">
                       <Hash class="w-8 h-8 mb-2" />
-                      <span class="text-xs">元数据申请记录</span>
+                      <span class="text-xs">标签申请记录</span>
                     </div>
                   </template>
                 </div>
               </div>
 
-              <div v-if="currentStatus === 0" class="space-y-4">
+              <div v-if="currentStatus === pendingStatusFor()" class="space-y-4">
                 <div>
                   <label class="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-500">驳回反馈 (仅在驳回时必填)</label>
                   <input v-model="rejectReason" type="text" placeholder="请输入驳回理由..." class="admin-input w-full" />
@@ -508,14 +532,14 @@ watch(applicantIdFilter, () => {
                   <button 
                     class="rounded-xl px-5 py-2.5 text-sm font-bold text-rose-400 border border-rose-500/20 hover:bg-rose-500/10 transition-colors"
                     :disabled="processingReview"
-                    @click="handleSingleReview(2)"
+                    @click="handleSingleReview(rejectStatusFor())"
                   >
                     驳回申请
                   </button>
                   <button 
                     class="flex items-center space-x-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-[0_0_15px_rgba(16,185,129,0.35)] transition-all hover:bg-emerald-500"
                     :disabled="processingReview"
-                    @click="handleSingleReview(1)"
+                    @click="handleSingleReview(approveStatusFor())"
                   >
                     <Loader2 v-if="processingReview" class="h-4 w-4 animate-spin" />
                     <span>通过审核</span>
@@ -524,7 +548,7 @@ watch(applicantIdFilter, () => {
               </div>
               <div v-else class="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-between">
                 <span class="text-xs text-slate-500 italic">该申请已完成审批，无法再次修改状态。</span>
-                <span class="text-xs font-bold uppercase tracking-widest" :class="statusClass(currentRecord!.status)">{{ statusLabel(currentRecord!.status) }}</span>
+                <span class="text-xs font-bold uppercase tracking-widest" :class="statusClass(currentRecord!.status, currentRecord!.type)">{{ statusLabel(currentRecord!.status, currentRecord!.type) }}</span>
               </div>
             </div>
           </div>

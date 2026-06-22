@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import com.jacolp.annotation.StorageHandler;
 import com.jacolp.context.PermissionContext;
+import com.jacolp.enums.AuditStatus;
 import com.jacolp.enums.StorageOperationType;
 import com.jacolp.pojo.vo.image.*;
 import org.jspecify.annotations.NonNull;
@@ -23,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import com.aliyun.oss.AliyunOSSOperator;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.constant.TopicConstant;
@@ -273,6 +273,12 @@ public class ImageServiceImpl implements ImageService {
         ArrayList<ImageDeleteDeadLetterEntity> imageDeleteDeadLetterEntities = new ArrayList<>();
 
         List<ImageEntity> images = imageMapper.selectByIds(new ArrayList<>(idSet));
+        for (ImageEntity image : images) {
+            AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
+            if (!status.canTransitionTo(AuditStatus.DELETED)) {
+                throw new BaseException("审核中的图片不能删除");
+            }
+        }
         images.forEach(image -> {
             ImageDeleteDeadLetterEntity imageDeleteDeadLetterEntity = new ImageDeleteDeadLetterEntity(
                     image.getId(),
@@ -373,20 +379,20 @@ public class ImageServiceImpl implements ImageService {
 
         // 查询审核记录
         ImageAuditRecordEntity auditRecord = auditService.getImageAuditRecordById(dto.getAuditId());
-        if (auditRecord == null || auditRecord.getStatus() != ImageConstant.AUDIT_STATUS_PENDING) {
+        if (auditRecord == null || !AuditStatus.AUDITING.getCode().equals(auditRecord.getStatus())) {
             throw new BaseException(ImageConstant.IMAGE_AUDIT_ALREADY_PROCESSED);
         }
 
         if (dto.getApproved()) {
             // 批准
-            auditRecord.setStatus(ImageConstant.AUDIT_STATUS_APPROVED);
+            auditRecord.setStatus(AuditStatus.APPROVED.getCode());
             auditRecord.setReviewerUserId(reviewerId);
             auditRecord.setReviewTime(LocalDateTime.now());
 
             // 更新图片的审核状态
             ImageEntity image = imageMapper.selectById(auditRecord.getImageId());
             if (image != null) {
-                image.setIsPass(ImageConstant.AUDIT_STATUS_APPROVED);
+                image.setAuditStatus(AuditStatus.APPROVED.getCode());
                 imageMapper.updateImage(image);
             }
         } else {
@@ -394,7 +400,7 @@ public class ImageServiceImpl implements ImageService {
             if (dto.getRejectReason() == null || dto.getRejectReason().isEmpty()) {
                 throw new BaseException(ImageConstant.IMAGE_REJECT_REASON_NOT_EMPTY);
             }
-            auditRecord.setStatus(ImageConstant.AUDIT_STATUS_REJECTED);
+            auditRecord.setStatus(AuditStatus.REJECTED.getCode());
             auditRecord.setReviewerUserId(reviewerId);
             auditRecord.setRejectReason(dto.getRejectReason());
             auditRecord.setReviewTime(LocalDateTime.now());
@@ -402,7 +408,7 @@ public class ImageServiceImpl implements ImageService {
             // 更新图片的审核状态
             ImageEntity image = imageMapper.selectById(auditRecord.getImageId());
             if (image != null) {
-                image.setIsPass(ImageConstant.AUDIT_STATUS_REJECTED);
+                image.setAuditStatus(AuditStatus.REJECTED.getCode());
                 imageMapper.updateImage(image);
             }
         }
@@ -444,7 +450,8 @@ public class ImageServiceImpl implements ImageService {
         if (!image.getUserId().equals(userId)) {
             throw new BaseException("只能申请审核自己的图片");
         }
-        if (AuditConstant.PASS.equals(image.getIsPass())) {
+        AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
+        if (!status.canTransitionTo(AuditStatus.AUDITING)) {
             throw new BaseException("该图片已通过审核");
         }
         if (auditService.hasPendingImageAudit(imageId)) {
@@ -455,6 +462,8 @@ public class ImageServiceImpl implements ImageService {
         record.setApplicantUserId(userId);
         record.setImageId(imageId);
         auditService.createImageAuditRecord(record);
+        image.setAuditStatus(AuditStatus.AUDITING.getCode());
+        imageMapper.updateImage(image);
     }
 
     /**
@@ -472,8 +481,14 @@ public class ImageServiceImpl implements ImageService {
         if (!image.getUserId().equals(userId)) {
             throw new BaseException("只能撤销自己图片的审核申请");
         }
+        AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
+        if (!status.canTransitionTo(AuditStatus.WAIT)) {
+            throw new BaseException("该图片未处于审核中");
+        }
 
         auditService.cancelImageAudit(imageId);
+        image.setAuditStatus(AuditStatus.WAIT.getCode());
+        imageMapper.updateImage(image);
     }
 
     /**
@@ -550,6 +565,10 @@ public class ImageServiceImpl implements ImageService {
         if (!image.getUserId().equals(userId)) {
             throw new BaseException(ImageConstant.IMAGE_NOT_OWNER);
         }
+        AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
+        if (!status.canTransitionTo(AuditStatus.DELETED)) {
+            throw new BaseException("审核中的图片不能删除");
+        }
 
         // 检查笔记是否存在引用
         int noteCount = noteRelationServiceImpl.countByImageId(id);
@@ -573,8 +592,8 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
-    public int updatePassStatusByIds(List<Long> ids, Short isPass) {
-        return imageMapper.updatePassByIds(ids, isPass);
+    public int updateAuditStatusByIds(List<Long> ids, Short auditStatus) {
+        return imageMapper.updateAuditStatusByIds(ids, auditStatus);
     }
 
 
@@ -686,7 +705,7 @@ public class ImageServiceImpl implements ImageService {
         image.setStorageType(ImageConstant.DEFAULT_STORAGE_TYPE);
         image.setFileSize(fileSize);
         image.setIsPublic(ImageConstant.IS_PUBLIC_NO);  // 初始未发布
-        image.setIsPass(ImageConstant.AUDIT_STATUS_PENDING);    // 待审核
+        image.setAuditStatus(AuditStatus.WAIT.getCode());
         image.setUploadTime(LocalDateTime.now());
         return image;
     }

@@ -5,8 +5,8 @@
 
     <!-- 新增主题，主键回填到 TopicEntity.id -->
     <insert id="insertTopic" parameterType="com.jacolp.pojo.entity.TopicEntity" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO biz_topic (user_id, topic_name, sort_order, create_time, update_time)
-        VALUES (#{userId}, #{topicName}, #{sortOrder}, NOW(), NOW())
+        INSERT INTO biz_topic (user_id, topic_name, parent_id, sort_order, create_time, update_time)
+        VALUES (#{userId}, #{topicName}, #{parentId}, #{sortOrder}, NOW(), NOW())
     </insert>
 
     <!-- 按需更新：仅更新传入字段 -->
@@ -16,6 +16,7 @@
             <if test="topicName != null and topicName != ''">
                 topic_name = #{topicName},
             </if>
+            parent_id = #{parentId},
             <if test="sortOrder != null">
                 sort_order = #{sortOrder},
             </if>
@@ -31,8 +32,8 @@
             t.id,
             t.user_id AS userId,
             t.topic_name AS topicName,
+            t.parent_id AS parentId,
             t.sort_order AS sortOrder,
-            t.is_pass AS isPass,
             t.create_time AS createTime,
             t.update_time AS updateTime,
             IFNULL(n.note_count, 0) AS noteCount
@@ -76,23 +77,14 @@
         </foreach>
     </delete>
 
-    <update id="updatePassByIds">
-        UPDATE biz_topic
-        SET is_pass = #{isPass},
-            update_time = NOW()
-        WHERE id IN
-        <foreach collection="ids" item="id" open="(" separator="," close=")">
-            #{id}
-        </foreach>
-    </update>
-
     <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
     <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.topic.TopicListVO">
         SELECT
             t.id,
+            t.user_id AS userId,
             t.topic_name AS topicName,
+            t.parent_id AS parentId,
             t.sort_order AS sortOrder,
-            t.is_pass AS isPass,
             t.create_time AS createTime,
             t.update_time AS updateTime,
             IFNULL(n.note_count, 0) AS noteCount
@@ -106,7 +98,7 @@
         <where>
             <choose>
                 <when test="globalScope">
-                    (t.user_id = #{userId} OR t.is_pass = 1)
+                    t.user_id = #{userId}
                 </when>
                 <otherwise>
                     t.user_id = #{userId}
@@ -116,6 +108,35 @@
                 AND t.topic_name LIKE CONCAT('%', #{keyword}, '%')
             </if>
         </where>
+        ORDER BY t.sort_order ASC, t.update_time DESC, t.id DESC
+    </select>
+
+    <select id="listChildrenByParentId" resultType="com.jacolp.pojo.vo.topic.TopicListVO">
+        SELECT
+            t.id,
+            t.user_id AS userId,
+            t.topic_name AS topicName,
+            t.parent_id AS parentId,
+            t.sort_order AS sortOrder,
+            t.create_time AS createTime,
+            t.update_time AS updateTime,
+            IFNULL(n.note_count, 0) AS noteCount
+        FROM biz_topic t
+        LEFT JOIN (
+            SELECT topic_id, COUNT(1) AS note_count
+            FROM biz_note
+            WHERE status != 8
+            GROUP BY topic_id
+        ) n ON t.id = n.topic_id
+        WHERE t.user_id = #{userId}
+        <choose>
+            <when test="rootOnly">
+                AND t.parent_id IS NULL
+            </when>
+            <otherwise>
+                AND t.parent_id = #{parentId}
+            </otherwise>
+        </choose>
         ORDER BY t.sort_order ASC, t.update_time DESC, t.id DESC
     </select>
 

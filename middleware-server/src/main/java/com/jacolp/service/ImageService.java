@@ -114,5 +114,5 @@ public interface ImageService {
 
     // ===== 交给“包工头”使用的方法 =====
 
-    int updatePassStatusByIds(List<Long> ids, Short isPass);
+    int updateAuditStatusByIds(List<Long> ids, Short auditStatus);
 }

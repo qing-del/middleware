@@ -26,7 +26,7 @@ public class NoteTagMappingEntity implements Serializable, NoteIdProvider {
 
     private String parsedTagName;
 
-    private Short isPass;
+    private Short status;
 
     private Short isDeleted;
 

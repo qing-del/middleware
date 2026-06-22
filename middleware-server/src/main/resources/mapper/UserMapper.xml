@@ -53,32 +53,39 @@
 
     <select id="listByCondition" resultType="com.jacolp.pojo.entity.UserEntity" parameterType="com.jacolp.pojo.dto.user.UserListDTO">
                 SELECT
-                    id,
-                    username,
-                    nickname,
-                    email,
-                    role_id,
-                    max_storage_bytes,
-                    used_storage_bytes,
-                    status,
-                    create_time,
-                    update_time
-                FROM sys_user
+                    u.id,
+                    u.username,
+                    u.nickname,
+                    u.email,
+                    u.role_id,
+                    u.max_storage_bytes,
+                    u.used_storage_bytes,
+                    u.status,
+                    u.create_time,
+                    u.update_time,
+                    IFNULL(n.note_count, 0) AS noteCount
+                FROM sys_user u
+                LEFT JOIN (
+                    SELECT user_id, COUNT(1) AS note_count
+                    FROM biz_note
+                    WHERE status != 8
+                    GROUP BY user_id
+                ) n ON n.user_id = u.id
                 <where>
                     <if test="id != null">
-                        id = #{id}
+                        u.id = #{id}
                     </if>
                     <if test="username != null and username != ''">
-                        AND username LIKE CONCAT('%', #{username}, '%')
+                        AND u.username LIKE CONCAT('%', #{username}, '%')
                     </if>
                     <if test="status != null">
-                        AND status = #{status}
+                        AND u.status = #{status}
                     </if>
                     <if test="roleId != null">
-                        AND role_id = #{roleId}
+                        AND u.role_id = #{roleId}
                     </if>
                 </where>
-                ORDER BY id DESC
+                ORDER BY u.id DESC
             </select>
 
     <delete id="deleteByIds">
