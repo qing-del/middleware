@@ -23,7 +23,7 @@ public class NoteEachMappingRowVO implements Serializable {
 
     private String nickname;
 
-    private Short isPass;
+    private Short status;
 
     private Short isMissing;
 }

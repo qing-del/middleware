@@ -13,9 +13,9 @@ export interface AdminTopicItem {
   id: number
   userId?: number
   topicName: string
+  parentId?: number | null
   sortOrder: number
   noteCount: number
-  isPass: number
   createTime: string
   updateTime: string
 }
@@ -33,7 +33,7 @@ export interface AdminTagItem {
   id: number
   userId?: number
   tagName: string
-  isPass: number
+  auditStatus: number
   createTime: string
 }
 
@@ -52,7 +52,7 @@ export interface AdminImageItem {
   fileSize: number
   userId: number
   isPublic: number
-  isPass: number
+  auditStatus: number
   storageType: number
   uploadTime: string
   createTime: string
@@ -64,7 +64,7 @@ export interface ImageQueryParams {
   filename?: string
   storageType?: number
   isPublic?: number
-  isPass?: number
+  auditStatus?: number
   pageNum?: number
   pageSize?: number
 }
@@ -79,6 +79,7 @@ export interface AdminUserItem {
   status: number
   maxStorageBytes: number
   usedStorageBytes: number
+  noteCount?: number
   createTime: string
 }
 
@@ -137,7 +138,7 @@ export interface AuditNoteItem {
 export interface AuditMetaItem {
   /** Audit record ID */
   id: number
-  applyType: number // 1: Topic, 2: Tag
+  applyType: number // 2: Tag
   targetId?: number
   targetName: string
   applicantUserId: number
@@ -169,6 +170,7 @@ export interface AuditQueryParams {
 }
 
 export interface MetaAuditQueryParams extends AuditQueryParams {
+  /** Kept for compatibility; backend treats meta audit as tag audit only. */
   applyType?: number
 }
 
@@ -203,6 +205,11 @@ export const adminApi = {
   // === Topics ===
   getTopicList(params: TopicQueryParams): Promise<PageResult<AdminTopicItem>> {
     return request.post('/admin/topic/list', params)
+  },
+  getTopicChildren(params: { userId: number; parentId?: number | null }): Promise<AdminTopicItem[]> {
+    const query: Record<string, number> = { userId: params.userId }
+    if (params.parentId != null) query.parentId = params.parentId
+    return request.get('/admin/topic/children', { params: query })
   },
   deleteTopics(ids: number[]): Promise<string> {
     return request.delete('/admin/topic/delete', {
@@ -316,8 +323,8 @@ export const adminApi = {
 export interface AdminNoteItem {
   id: number
   userId: number
-  topicId: number
-  topicName: string
+  topicId: number | null
+  topicName: string | null
   title: string
   description: string
   storageType: number
@@ -336,7 +343,7 @@ export interface AdminNoteItem {
 
 export interface AdminNoteImageVO {
   imageId: number; noteId: number; parsedImageName: string; filename: string
-  ossUrl: string; isPublic: number; isPass: number; isCrossUser: number; isMissing: number; createTime: string
+  ossUrl: string; isPublic: number; status: number; isCrossUser: number; isMissing: number; createTime: string
 }
 
 export interface AdminNoteEachVO {
@@ -346,7 +353,8 @@ export interface AdminNoteEachVO {
 
 export interface AdminNoteQueryParams {
   userId?: number
-  topicId?: number
+  topicId?: number | null
+  unclassified?: boolean
   title?: string
   status?: number
   pageNum?: number

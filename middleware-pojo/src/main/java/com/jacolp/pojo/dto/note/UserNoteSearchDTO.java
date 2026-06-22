@@ -21,6 +21,9 @@ public class UserNoteSearchDTO implements Serializable, PageParamProvider {
     @Schema(description = "主题ID", example = "1")
     private Long topicId;
 
+    @Schema(description = "是否只查询未归类笔记(topicId为空)", example = "false")
+    private Boolean unclassified;
+
     @Schema(description = "标签ID", example = "1")
     private Long tagId;
 

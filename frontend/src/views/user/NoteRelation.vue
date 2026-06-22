@@ -57,9 +57,10 @@ function formatDate(raw: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function resolveAuditStatus(isPass?: number) {
-  if (isPass === 1) return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
-  if (isPass === 2) return { label: '未通过', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
+function resolveAuditStatus(status?: number) {
+  if (status === 1) return { label: '审核中', cls: 'text-sky-400 bg-sky-500/10 border-sky-500/20' }
+  if (status === 2) return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
+  if (status === 3) return { label: '未通过', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
   return { label: '待审核', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
 }
 
@@ -203,7 +204,7 @@ async function handleBindSearch() {
         title: img.filename || '未命名图片',
         subtitle: formatBytes(img.fileSize),
         meta: formatDate(img.uploadTime || img.createTime),
-        status: resolveAuditStatus(img.isPass)
+        status: resolveAuditStatus(img.auditStatus)
       }))
     } else if (currentBind.value.type === 'tag') {
       const res = await tagApi.getList({ keyword, pageNum: 1, pageSize: 8 })
@@ -211,7 +212,7 @@ async function handleBindSearch() {
         id: tag.id,
         title: `#${tag.tagName}`,
         meta: formatDate(tag.createTime),
-        status: resolveAuditStatus(tag.isPass)
+        status: resolveAuditStatus(tag.auditStatus)
       }))
     } else {
       const res = await noteApi.searchNotes({ keyword, pageNum: 1, pageSize: 8 })
@@ -304,29 +305,29 @@ onMounted(() => {
         </span>
       </div>
 
-      <div class="glass-panel rounded-2xl p-6 border border-white/10 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-br from-[#0f172a]/80 to-transparent">
+      <div class="relation-health-panel rounded-2xl p-6 relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div class="flex items-start gap-4 relative z-10">
           <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 mt-1" :class="relationStats.missingTotal > 0 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'">
             <AlertTriangle v-if="relationStats.missingTotal > 0" class="w-6 h-6" />
             <CheckCircle2 v-else class="w-6 h-6" />
           </div>
           <div>
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <h2 class="text-xl font-bold flex items-center gap-2">
               关联健康度 {{ relationStats.missingTotal > 0 ? '异常' : '正常' }}
               <span v-if="relationStats.missingTotal > 0" class="px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20">{{ relationStats.missingTotal }} Missing</span>
             </h2>
-            <p class="text-sm text-slate-400 mt-1.5 max-w-xl leading-relaxed">
+            <p class="text-sm mt-1.5 max-w-xl leading-relaxed">
               引擎扫描到 Markdown 源码中存在引用的资产，但由于重名或不在当前主题内，系统无法自动补全关联。请手动指定映射目标，修复后方可继续转换与审核。
             </p>
           </div>
         </div>
 
         <div class="flex gap-4 relative z-10 shrink-0">
-          <div class="flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-emerald-500/30 relative">
+          <div class="relation-stat-orb relation-stat-orb--success flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-emerald-500/30 relative">
             <span class="text-lg font-black text-emerald-400">{{ relationStats.boundTotal }}</span>
             <span class="text-[9px] text-slate-500 uppercase font-bold">已绑定</span>
           </div>
-          <div class="flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-rose-500/20 relative">
+          <div class="relation-stat-orb relation-stat-orb--danger flex flex-col items-center justify-center w-20 h-20 rounded-full border-[3px] border-rose-500/20 relative">
             <span class="text-lg font-black text-rose-400">{{ relationStats.missingTotal }}</span>
             <span class="text-[9px] text-slate-500 uppercase font-bold">待修复</span>
           </div>
@@ -390,7 +391,7 @@ onMounted(() => {
                       <span v-if="row.isMissing === 1" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 flex items-center">未找到匹配资源</span>
                       <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center">绑定成功</span>
                       <span v-if="row.isMissing !== 1" class="text-xs text-slate-500">目标文件：<span class="text-blue-300 ml-1">{{ row.filename || '-' }}</span></span>
-                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.isPass).cls">{{ resolveAuditStatus(row.isPass).label }}</span>
+                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.status).cls">{{ resolveAuditStatus(row.status).label }}</span>
                     </div>
                   </div>
                 </div>
@@ -427,7 +428,7 @@ onMounted(() => {
                       <span v-if="row.isMissing === 1" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 flex items-center">未找到匹配资源</span>
                       <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center">绑定成功</span>
                       <span v-if="row.isMissing !== 1" class="text-xs text-slate-500">目标标签：<span class="text-blue-300 ml-1">{{ row.tagName || '-' }}</span></span>
-                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.isPass).cls">{{ resolveAuditStatus(row.isPass).label }}</span>
+                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.status).cls">{{ resolveAuditStatus(row.status).label }}</span>
                     </div>
                   </div>
                 </div>
@@ -464,7 +465,7 @@ onMounted(() => {
                       <span v-if="row.isMissing === 1" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 flex items-center">目标笔记不存在</span>
                       <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center">绑定成功</span>
                       <span v-if="row.isMissing !== 1" class="text-xs text-slate-500">目标笔记：<span class="text-blue-300 ml-1">{{ row.targetNoteTitle || '-' }}</span></span>
-                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.isPass).cls">{{ resolveAuditStatus(row.isPass).label }}</span>
+                      <span v-if="row.isMissing !== 1" class="px-2 py-0.5 rounded text-[10px] font-bold border" :class="resolveAuditStatus(row.status).cls">{{ resolveAuditStatus(row.status).label }}</span>
                     </div>
                     <span v-if="row.anchor" class="text-[10px] text-slate-500 mt-1">锚点：{{ row.anchor }}</span>
                   </div>
@@ -490,65 +491,63 @@ onMounted(() => {
       </Transition>
       <Transition name="modal">
         <div v-if="showBindModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" @click.self="closeBindModal">
-          <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 relative z-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] bg-[#020617]/90 border border-white/10">
-            <div class="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/20 blur-[60px] rounded-full pointer-events-none"></div>
+          <div class="relation-bind-modal w-full max-w-2xl rounded-2xl p-6 relative z-10">
             <div class="flex justify-between items-start mb-5">
               <div class="flex gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20 shrink-0">
+                <div class="relation-bind-icon w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
                   <Plug class="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                  <h3 class="relation-bind-title text-lg font-bold flex items-center gap-2">
                     强制绑定关联目标
-                    <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest" :class="getBindTypeBadgeClass(currentBind?.type)">{{ getBindTypeLabel(currentBind?.type) }}</span>
+                    <span class="relation-bind-badge px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest" :class="getBindTypeBadgeClass(currentBind?.type)">{{ getBindTypeLabel(currentBind?.type) }}</span>
                   </h3>
-                  <p class="text-xs text-slate-400 mt-1">
-                    为 Markdown 源码中解析出的 <span class="text-blue-300 font-mono bg-blue-500/10 px-1 rounded">{{ currentBind?.parsedName || '-' }}</span> 指定全站目标资源。
+                  <p class="relation-bind-copy text-xs mt-1">
+                    为 Markdown 源码中解析出的 <span class="relation-bind-source font-mono px-1 rounded">{{ currentBind?.parsedName || '-' }}</span> 指定全站目标资源。
                   </p>
                 </div>
               </div>
-              <button class="text-slate-500 hover:text-white transition-colors p-2 rounded-xl hover:bg-white/5" @click="closeBindModal">
+              <button class="relation-bind-close transition-colors p-2 rounded-xl" @click="closeBindModal">
                 <X class="w-5 h-5" />
               </button>
             </div>
 
-            <div class="relative group flex items-center bg-[#0b0f19] border border-white/10 rounded-xl overflow-hidden focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all h-12 mb-4">
-              <div class="w-12 h-full flex items-center justify-center text-slate-500">
+            <div class="relation-bind-search relative group flex items-center rounded-xl overflow-hidden transition-all h-12 mb-4">
+              <div class="relation-bind-search-icon w-12 h-full flex items-center justify-center">
                 <Search class="w-5 h-5" />
               </div>
-              <input v-model="bindSearchQuery" type="text" placeholder="输入全站资源的名称、标题进行模糊搜索..." class="w-full h-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none pr-4" @keyup.enter="handleBindSearch" />
-              <button class="absolute right-2 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors" :disabled="bindSearchLoading" @click="handleBindSearch">搜索</button>
+              <input v-model="bindSearchQuery" type="text" placeholder="输入全站资源的名称、标题进行模糊搜索..." class="relation-bind-input w-full h-full bg-transparent text-sm outline-none pr-4" @keyup.enter="handleBindSearch" />
+              <button class="relation-bind-search-button absolute right-2 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors" :disabled="bindSearchLoading" @click="handleBindSearch">搜索</button>
             </div>
 
             <div class="h-64 overflow-y-auto custom-scrollbar space-y-2 pr-2">
-              <div v-if="bindSearchLoading" class="text-xs text-slate-500">搜索中...</div>
-              <div v-else-if="bindSearchError" class="text-xs text-rose-400">{{ bindSearchError }}</div>
-              <div v-else-if="bindResults.length === 0" class="text-xs text-slate-500">暂无匹配结果</div>
-              <label v-else v-for="item in bindResults" :key="item.id" class="target-item glass-panel p-3 rounded-xl flex items-center gap-4 cursor-pointer transition-colors border border-white/5" :class="selectedBindTargetId === item.id ? 'selected' : 'hover:bg-white/5'" @click="selectedBindTargetId = item.id">
+              <div v-if="bindSearchLoading" class="relation-bind-muted text-xs">搜索中...</div>
+              <div v-else-if="bindSearchError" class="text-xs text-rose-600">{{ bindSearchError }}</div>
+              <div v-else-if="bindResults.length === 0" class="relation-bind-muted text-xs">暂无匹配结果</div>
+              <label v-else v-for="item in bindResults" :key="item.id" class="target-item relation-bind-target p-3 rounded-xl flex items-center gap-4 cursor-pointer transition-colors border" :class="selectedBindTargetId === item.id ? 'selected' : ''" @click="selectedBindTargetId = item.id">
                 <input type="radio" name="bind-target" class="hidden" :checked="selectedBindTargetId === item.id" />
-                <div class="w-12 h-12 rounded-lg bg-black/50 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
-                  <component :is="currentBind?.type === 'tag' ? Hash : currentBind?.type === 'note' ? FileText : ImageIcon" class="w-5 h-5 text-slate-500" />
+                <div class="relation-bind-thumb w-12 h-12 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                  <component :is="currentBind?.type === 'tag' ? Hash : currentBind?.type === 'note' ? FileText : ImageIcon" class="w-5 h-5" />
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="text-sm font-bold text-white truncate">{{ item.title }}</div>
-                  <div class="text-[10px] text-slate-400 flex items-center gap-2 mt-1">
-                    <span v-if="item.subtitle" class="text-indigo-300 bg-indigo-500/10 px-1.5 rounded">{{ item.subtitle }}</span>
+                  <div class="relation-bind-item-title text-sm font-bold truncate">{{ item.title }}</div>
+                  <div class="relation-bind-item-meta text-[10px] flex items-center gap-2 mt-1">
+                    <span v-if="item.subtitle" class="relation-bind-subtitle px-1.5 rounded">{{ item.subtitle }}</span>
                     <span v-if="item.meta">{{ item.meta }}</span>
                     <span v-if="item.status" class="px-1.5 py-0.5 rounded border" :class="item.status.cls">{{ item.status.label }}</span>
                   </div>
                 </div>
-                <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0" :class="selectedBindTargetId === item.id ? 'border-blue-500 bg-blue-500' : 'border-slate-600'">
-                  <div v-if="selectedBindTargetId === item.id" class="w-2 h-2 rounded-full bg-white"></div>
+                <div class="relation-bind-radio w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0" :class="{ 'selected': selectedBindTargetId === item.id }">
+                  <div v-if="selectedBindTargetId === item.id" class="w-2 h-2 rounded-full"></div>
                 </div>
               </label>
             </div>
 
-            <div class="pt-5 mt-2 border-t border-white/10 flex justify-between items-center">
-              <span class="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded flex items-center border border-amber-500/20">跨主题绑定将建立全局映射</span>
+            <div class="relation-bind-footer pt-5 mt-2 flex justify-between items-center">
+              <span class="relation-bind-warning text-xs px-2 py-1 rounded flex items-center">跨主题绑定将建立全局映射</span>
               <div class="flex gap-3">
-                <button type="button" class="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors" @click="closeBindModal">取消</button>
-                <button type="button" class="group relative px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all overflow-hidden flex items-center gap-2 disabled:opacity-50" :disabled="!selectedBindTargetId || bindSearchLoading" @click="handleBindConfirm">
-                  <div class="absolute inset-0 bg-[linear-gradient(to_right,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-700 ease-out"></div>
+                <button type="button" class="relation-bind-cancel px-5 py-2.5 rounded-xl text-sm font-bold transition-colors" @click="closeBindModal">取消</button>
+                <button type="button" class="relation-bind-confirm px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 disabled:opacity-50" :disabled="!selectedBindTargetId || bindSearchLoading" @click="handleBindConfirm">
                   <Network class="w-4 h-4" />
                   <span>确认映射并绑定</span>
                 </button>
@@ -579,6 +578,180 @@ onMounted(() => {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.5);
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+}
+
+.relation-health-panel {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-surface) !important;
+  background-image: none !important;
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-xs) !important;
+}
+
+.relation-health-panel h2 {
+  color: var(--cn-text);
+}
+
+.relation-health-panel p {
+  color: var(--cn-text-soft);
+}
+
+.relation-stat-orb {
+  background: var(--cn-bg-subtle);
+  border-width: 1px !important;
+}
+
+.relation-stat-orb--success {
+  border-color: rgba(21, 128, 61, 0.2) !important;
+}
+
+.relation-stat-orb--danger {
+  border-color: rgba(185, 28, 28, 0.18) !important;
+}
+
+.relation-stat-orb span:first-child {
+  color: var(--cn-text) !important;
+}
+
+.relation-stat-orb span:last-child {
+  color: var(--cn-text-muted) !important;
+}
+
+.relation-bind-modal {
+  border: 1px solid var(--cn-border);
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-md);
+}
+
+.relation-bind-icon,
+.relation-bind-thumb {
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  background: rgba(37, 99, 235, 0.07);
+  color: var(--cn-link);
+}
+
+.relation-bind-title,
+.relation-bind-item-title {
+  color: var(--cn-text);
+}
+
+.relation-bind-copy,
+.relation-bind-item-meta,
+.relation-bind-muted {
+  color: var(--cn-text-muted);
+}
+
+.relation-bind-source,
+.relation-bind-subtitle {
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--cn-link);
+}
+
+.relation-bind-badge {
+  border: 1px solid rgba(37, 99, 235, 0.18) !important;
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: var(--cn-link) !important;
+}
+
+.relation-bind-close {
+  color: var(--cn-text-muted);
+}
+
+.relation-bind-close:hover {
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.relation-bind-search {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-bg-subtle);
+}
+
+.relation-bind-search:focus-within {
+  border-color: rgba(37, 99, 235, 0.42);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.relation-bind-search-icon {
+  color: var(--cn-text-muted);
+}
+
+.relation-bind-input {
+  color: var(--cn-text);
+}
+
+.relation-bind-input::placeholder {
+  color: var(--cn-text-faint);
+}
+
+.relation-bind-search-button,
+.relation-bind-confirm {
+  border: 1px solid var(--cn-accent);
+  background: var(--cn-accent);
+  color: var(--cn-text-inverse);
+}
+
+.relation-bind-search-button:hover,
+.relation-bind-confirm:hover {
+  background: var(--cn-accent-hover);
+}
+
+.relation-bind-search-button:disabled,
+.relation-bind-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.relation-bind-target {
+  border-color: var(--cn-border);
+  background: var(--cn-surface);
+}
+
+.relation-bind-target:hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+}
+
+.relation-bind-target.selected {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(37, 99, 235, 0.07);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.relation-bind-radio {
+  border-color: var(--cn-border-strong);
+}
+
+.relation-bind-radio.selected {
+  border-color: var(--cn-accent);
+  background: var(--cn-accent);
+}
+
+.relation-bind-radio div {
+  background: var(--cn-text-inverse);
+}
+
+.relation-bind-footer {
+  border-top: 1px solid var(--cn-border);
+}
+
+.relation-bind-warning {
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  background: rgba(217, 119, 6, 0.08);
+  color: #92400e;
+}
+
+.relation-bind-cancel {
+  border: 1px solid var(--cn-border);
+  background: var(--cn-surface);
+  color: var(--cn-text-soft);
+}
+
+.relation-bind-cancel:hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
 }
 
 .fade-enter-active, .fade-leave-active {

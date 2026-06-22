@@ -5,16 +5,16 @@
 
     <!-- 新增标签，主键回填 -->
     <insert id="insertTag" parameterType="com.jacolp.pojo.entity.TagEntity" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO biz_tag (user_id, tag_name, is_pass, create_time)
-        VALUES (#{userId}, #{tagName}, #{isPass}, NOW())
+        INSERT INTO biz_tag (user_id, tag_name, audit_status, create_time)
+        VALUES (#{userId}, #{tagName}, #{auditStatus}, NOW())
     </insert>
 
     <!-- 批量新增（由 Service 预筛选后调用，保证无重复） -->
     <insert id="batchInsertTags">
-        INSERT INTO biz_tag (user_id, tag_name, is_pass, create_time)
+        INSERT INTO biz_tag (user_id, tag_name, audit_status, create_time)
         VALUES
         <foreach collection="tags" item="tag" separator=",">
-            (#{tag.userId}, #{tag.tagName}, #{tag.isPass}, NOW())
+            (#{tag.userId}, #{tag.tagName}, #{tag.auditStatus}, NOW())
         </foreach>
     </insert>
 
@@ -40,22 +40,26 @@
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+          AND t.audit_status != 4
         GROUP BY t.id, t.tag_name
     </select>
 
-    <!-- 批量删除 -->
-    <delete id="deleteByIds">
-        DELETE FROM biz_tag
-        WHERE user_id = #{userId}
-          AND id IN
+    <!-- 批量软删除 -->
+    <update id="deleteByIds">
+        UPDATE biz_tag
+        SET audit_status = 4
+        WHERE
+          <if test="userId != null">user_id = #{userId} AND </if>
+          id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+          AND audit_status IN (0, 2, 3)
+    </update>
 
-    <update id="updatePassByIds">
+    <update id="updateAuditStatusByIds">
         UPDATE biz_tag
-        SET is_pass = #{isPass}
+        SET audit_status = #{auditStatus}
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
@@ -64,11 +68,12 @@
 
     <!-- 列表查询（前缀搜索，PageHelper 分页） -->
     <select id="listByCondition" resultType="com.jacolp.pojo.vo.tag.TagVO">
-        SELECT id, user_id AS userId, tag_name AS tagName, is_pass AS isPass, create_time AS createTime
+        SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime
         FROM biz_tag
         <where>
+            audit_status != 4
             <if test="userId != null">
-                user_id = #{userId}
+                AND user_id = #{userId}
             </if>
             <if test="keyword != null and keyword != ''">
                 AND tag_name LIKE CONCAT(#{keyword}, '%')
@@ -78,9 +83,10 @@
     </select>
 
     <select id="selectByIds" resultType="com.jacolp.pojo.entity.TagEntity">
-        SELECT id, user_id, tag_name, is_pass, create_time
+        SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime
         FROM biz_tag
-        WHERE id IN
+        WHERE audit_status != 4
+          AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
@@ -89,12 +95,13 @@
     <select id="selectIdsByNamesAndUserId" resultType="com.jacolp.pojo.entity.TagEntity">
         select
             id,
-            user_id,
-            tag_name,
-            is_pass,
-            create_time
+            user_id AS userId,
+            tag_name AS tagName,
+            audit_status AS auditStatus,
+            create_time AS createTime
         from biz_tag
         where user_id = #{userId}
+        and audit_status != 4
         and tag_name in
         <foreach collection="tagNames" item="tagName" open="(" separator="," close=")">
             #{tagName}
@@ -103,12 +110,14 @@
 
     <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
     <select id="listByUserCondition" resultType="com.jacolp.pojo.vo.tag.TagVO">
-        SELECT id, user_id AS userId, tag_name AS tagName, is_pass AS isPass, create_time AS createTime
+        SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime
         FROM biz_tag
         <where>
+            audit_status != 4
+            AND
             <choose>
                 <when test="globalScope">
-                    (user_id = #{userId} OR is_pass = 1)
+                    (user_id = #{userId} OR audit_status = 2)
                 </when>
                 <otherwise>
                     user_id = #{userId}

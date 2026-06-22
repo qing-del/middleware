@@ -19,7 +19,7 @@ public class NoteTagMappingRowVO implements Serializable {
 
     private String tagName;
 
-    private Short isPass;
+    private Short status;
 
     private Short isMissing;
 }

@@ -35,6 +35,8 @@ public class UserEntity implements Serializable {
 
     private Long usedStorageBytes;  // 用户当前已用存储空间(字节)
 
+    private Long noteCount;  // 用户未删除笔记数量，管理端列表展示用
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;

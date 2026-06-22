@@ -16,7 +16,7 @@ const userId = ref<number | undefined>()
 const roleId = ref<number | undefined>()
 const showPreview = ref(false)
 const sending = ref(false)
-
+const emptyPreview = '<span class="empty-preview">暂无内容</span>'
 
 async function handleSubmit() {
   if (!subject.value.trim() || !body.value.trim()) return
@@ -43,44 +43,36 @@ function handleReset() {
 
 <template>
   <div class="space-y-5">
-    <!-- 标题栏 -->
     <div class="flex items-center gap-3">
-      <div :class="[
-        'w-10 h-10 rounded-xl flex items-center justify-center',
-        mode === 'admin'
-          ? 'bg-gradient-to-br from-rose-500 to-indigo-600 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
-          : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_0_15px_rgba(99,102,241,0.3)]'
-      ]">
-        <Mail class="text-white w-5 h-5" />
+      <div class="composer-icon">
+        <Mail class="h-5 w-5" />
       </div>
       <div>
-        <h2 class="text-lg font-bold text-slate-100 tracking-tight">
+        <h2 class="text-lg font-semibold tracking-tight text-[var(--cn-text)]">
           {{ mode === 'admin' ? '撰写邮件' : '邮件信息' }}
         </h2>
-        <p class="text-[11px] text-slate-500 font-medium tracking-wide">
-          {{ mode === 'admin' ? 'COMPOSE EMAIL' : 'EMAIL SETTINGS' }}
+        <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--cn-text-muted)]">
+          {{ mode === 'admin' ? 'Compose Email' : 'Email Settings' }}
         </p>
       </div>
     </div>
 
-    <!-- 表单卡片 -->
-    <div class="glass-panel rounded-2xl p-6 space-y-5">
-      <!-- 收件人区域 (admin only) -->
-      <div v-if="mode === 'admin'" class="grid grid-cols-2 gap-4">
+    <div class="composer-card space-y-5">
+      <div v-if="mode === 'admin'" class="grid gap-4 sm:grid-cols-2">
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">用户 ID</label>
+          <label class="field-label">用户 ID</label>
           <input
             v-model.number="userId"
             type="number"
             placeholder="指定用户 ID（选填）"
-            class="w-full bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-rose-500/50 focus:ring-4 focus:ring-rose-500/10 transition-all"
+            class="cn-input w-full rounded-lg px-4 py-2.5 text-sm"
           />
         </div>
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">角色筛选</label>
+          <label class="field-label">角色筛选</label>
           <select
             v-model.number="roleId"
-            class="w-full bg-black/20 border border-white/[0.05] rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-rose-500/50 focus:ring-4 focus:ring-rose-500/10 transition-all appearance-none cursor-pointer"
+            class="cn-input w-full cursor-pointer appearance-none rounded-lg px-4 py-2.5 text-sm"
           >
             <option :value="undefined">全部角色</option>
             <option :value="1">Creator</option>
@@ -91,71 +83,57 @@ function handleReset() {
         </div>
       </div>
 
-      <!-- 主题 -->
       <div class="space-y-2">
-        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">邮件主题</label>
+        <label class="field-label">邮件主题</label>
         <input
           v-model="subject"
           type="text"
           placeholder="请输入邮件主题"
-          :class="[
-            'w-full bg-black/20 border rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-4 transition-all',
-            mode === 'admin'
-              ? 'border-white/[0.05] focus:border-rose-500/50 focus:ring-rose-500/10'
-              : 'border-white/[0.05] focus:border-indigo-500/50 focus:ring-indigo-500/10'
-          ]"
+          class="cn-input w-full rounded-lg px-4 py-2.5 text-sm"
         />
       </div>
 
-      <!-- 邮件正文 -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider">邮件正文</label>
+          <label class="field-label">邮件正文</label>
           <button
+            class="preview-toggle"
+            type="button"
             @click="showPreview = !showPreview"
-            :class="[
-              'flex items-center gap-1.5 text-[11px] font-medium transition-colors',
-              showPreview ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'
-            ]"
           >
-            <Eye class="w-3.5 h-3.5" />
+            <Eye class="h-3.5 w-3.5" />
             {{ showPreview ? '编辑' : '预览' }}
           </button>
         </div>
-        <div v-if="showPreview" class="min-h-[180px] bg-black/20 border border-white/[0.05] rounded-xl p-4 text-sm text-slate-300 leading-relaxed prose-preview" v-html="body || '<span class=\'text-slate-600 italic\'>暂无内容</span>'"></div>
+        <div
+          v-if="showPreview"
+          class="prose-preview min-h-[180px] rounded-lg border border-[var(--cn-border)] bg-[var(--cn-surface-muted)] p-4 text-sm leading-relaxed text-[var(--cn-text-soft)]"
+          v-html="body || emptyPreview"
+        ></div>
         <textarea
           v-else
           v-model="body"
           rows="10"
           placeholder="请输入邮件正文（支持 HTML）"
-          :class="[
-            'w-full bg-black/20 border rounded-xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-4 transition-all resize-y font-mono',
-            mode === 'admin'
-              ? 'border-white/[0.05] focus:border-rose-500/50 focus:ring-rose-500/10'
-              : 'border-white/[0.05] focus:border-indigo-500/50 focus:ring-indigo-500/10'
-          ]"
+          class="cn-input w-full resize-y rounded-lg px-4 py-3 font-mono text-sm"
         ></textarea>
       </div>
 
-      <!-- 操作按钮 -->
       <div class="flex items-center gap-3 pt-2">
         <button
-          @click="handleSubmit"
+          class="cn-btn cn-btn-primary px-6"
+          type="button"
           :disabled="sending || !subject.trim() || !body.trim()"
-          :class="[
-            'flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed',
-            mode === 'admin'
-              ? 'bg-rose-500 hover:bg-rose-400 text-white shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.5)]'
-              : 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_30px_rgba(99,102,241,0.5)]'
-          ]"
+          @click="handleSubmit"
         >
-          <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />
-          <Send v-else class="w-4 h-4" />
+          <Loader2 v-if="sending" class="h-4 w-4 animate-spin" />
+          <Send v-else class="h-4 w-4" />
           {{ sending ? '发送中...' : '发送邮件' }}
         </button>
         <button
+          class="cn-btn px-5"
+          type="button"
           @click="handleReset"
-          class="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.06] hover:border-white/10 transition-all"
         >
           重置
         </button>
@@ -165,16 +143,57 @@ function handleReset() {
 </template>
 
 <style scoped>
-.glass-panel {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+.composer-icon {
+  display: flex;
+  height: 40px;
+  width: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-sm);
+  background: var(--cn-surface);
+  color: var(--cn-text);
+}
+
+.composer-card {
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-xl);
+  background: var(--cn-surface);
+  padding: 24px;
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.field-label {
+  display: block;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cn-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition: color var(--cn-fast) var(--cn-ease);
+}
+
+.preview-toggle:hover {
+  color: var(--cn-text);
 }
 
 .prose-preview :deep(a) {
-  color: #818cf8;
+  color: var(--cn-text);
   text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose-preview :deep(.empty-preview) {
+  color: var(--cn-text-faint);
+  font-style: italic;
 }
 </style>

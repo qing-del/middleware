@@ -12,14 +12,14 @@
         <result column="parsed_image_name" property="parsedImageName"/>
         <result column="note_title" property="noteTitle"/>
         <result column="is_cross_user" property="isCrossUser"/>
-        <result column="is_pass" property="isPass"/>
+        <result column="status" property="status"/>
         <result column="is_deleted" property="isDeleted"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="selectByNoteId" resultMap="NoteImageMappingMap">
-        SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, is_pass, is_deleted, create_time, update_time
+        SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, status, is_deleted, create_time, update_time
         FROM biz_note_image_mapping
         WHERE note_id = #{noteId}
           AND is_deleted = 0
@@ -27,7 +27,7 @@
     </select>
 
     <select id="selectById" resultMap="NoteImageMappingMap">
-        SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, is_pass, is_deleted, create_time, update_time
+        SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name, note_title, is_cross_user, status, is_deleted, create_time, update_time
         FROM biz_note_image_mapping
         WHERE id = #{id}
           AND is_deleted = 0
@@ -36,7 +36,7 @@
 
     <select id="selectByIdWithValidUserId" resultMap="NoteImageMappingMap">
         SELECT id, note_id, image_id, note_user_id, image_user_id, parsed_image_name,
-               note_title, is_cross_user, is_pass, is_deleted, create_time, update_time
+               note_title, is_cross_user, status, is_deleted, create_time, update_time
         FROM biz_note_image_mapping
         WHERE id = #{id}
           AND is_deleted = 0
@@ -55,7 +55,7 @@
              parsed_image_name,
              note_title,
              is_cross_user,
-             is_pass,
+             status,
              is_deleted)
         VALUES
         <foreach collection="mappings" item="mapping" separator=",">
@@ -66,14 +66,14 @@
             #{mapping.parsedImageName},
             #{mapping.noteTitle},
             #{mapping.isCrossUser},
-            #{mapping.isPass}, 0)
+            #{mapping.status}, 0)
         </foreach>
         ON DUPLICATE KEY UPDATE
             is_deleted = 0,
             image_id = VALUES(image_id),
             image_user_id = VALUES(image_user_id),
             is_cross_user = VALUES(is_cross_user),
-            is_pass = VALUES(is_pass),
+            status = VALUES(status),
             note_title = VALUES(note_title)
     </insert>
 
@@ -82,7 +82,7 @@
         SET image_id = #{imageId},
             image_user_id = #{imageUserId},
             is_cross_user = #{isCrossUser},
-            is_pass = #{isPass},
+            status = #{status},
             is_deleted = 0,
             update_time = NOW()
         WHERE id = #{id}
@@ -106,9 +106,9 @@
                 WHEN #{mapping.id} THEN #{mapping.isCrossUser}
             </foreach>
         END,
-            is_pass = CASE id
+            status = CASE id
             <foreach collection="mappings" item="mapping">
-                WHEN #{mapping.id} THEN #{mapping.isPass}
+                WHEN #{mapping.id} THEN #{mapping.status}
             </foreach>
         END,
             is_deleted = 0,
@@ -125,7 +125,7 @@
         SET image_id = NULL,
             image_user_id = NULL,
             is_cross_user = 0,
-            is_pass = 0,
+            status = 0,
             update_time = NOW()
         WHERE id = #{id}
           AND is_deleted = 0
@@ -170,20 +170,20 @@
         WHERE is_deleted = 1
     </delete>
 
-    <select id="countByNoteIdAndPass" resultType="java.lang.Integer">
+    <select id="countByNoteIdAndStatus" resultType="java.lang.Integer">
         SELECT
             COUNT(1)
         FROM biz_note_image_mapping
         WHERE note_id = #{noteId}
           AND is_deleted = 0
-          <if test="isPass != null">
-              AND is_pass = #{isPass}
+          <if test="status != null">
+              AND status = #{status}
           </if>
     </select>
 
     <update id="updateByImageIds">
         UPDATE biz_note_image_mapping
-        SET is_pass = #{status},
+        SET status = #{status},
             update_time = NOW()
         WHERE image_id IN
         <foreach collection="imageIds" item="imageId" open="(" separator="," close=")">
@@ -247,7 +247,7 @@
             i.filename          AS filename,
             i.oss_url           AS ossUrl,
             i.is_public         AS isPublic,
-            i.is_pass           AS isPass,
+            i.audit_status     AS status,
             m.is_cross_user     AS isCrossUser,
             0                   AS isMissing,
             m.create_time       AS createTime
@@ -257,11 +257,12 @@
         WHERE m.note_id = #{noteId}
           AND m.image_id IS NOT NULL
           AND m.is_deleted = 0
-          AND m.is_pass = 1
+          AND m.status = 2
           AND i.is_public = 1
-          AND i.is_pass = 1
+          AND i.audit_status = 2
           AND n.status = 6
         ORDER BY m.create_time ASC
     </select>
 
 </mapper>
+

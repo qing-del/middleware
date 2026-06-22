@@ -33,7 +33,7 @@ public interface NoteCoreService {
     NoteStatsVO getUserNoteOverview();
 
     /**
-     * 用户端条件查询：当前用户自己的笔记 + 别人已发布的笔记。
+     * 用户端条件查询：仅查询当前用户自己的笔记。
      */
     PageResult listUserNotes(UserNoteQueryDTO dto);
 

@@ -487,11 +487,11 @@ onUnmounted(() => {
         <aside class="detail-matrix xl:sticky xl:top-8" :class="matrixCollapsed ? 'detail-matrix--collapsed' : 'detail-matrix--expanded'" :aria-hidden="matrixCollapsed">
           <Transition name="matrix-panel">
             <div v-show="!matrixCollapsed" class="detail-matrix-inner">
-              <div class="glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col h-[calc(100vh-10rem)]">
+              <div class="relation-soft-panel admin-relation-panel glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col h-[calc(100vh-10rem)]">
                 <!-- Title bar -->
-                <div class="p-4 border-b border-white/5 bg-black/40 flex items-center justify-between">
-                  <span class="text-sm font-bold text-white flex items-center">
-                    <Network class="w-4 h-4 mr-2 text-rose-400" /> 资源关联审查
+                <div class="relation-panel-header p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
+                  <span class="relation-panel-title text-sm font-bold text-white flex items-center">
+                    <Network class="relation-panel-icon w-4 h-4 mr-2 text-rose-400" /> 资源关联审查
                   </span>
                   <span class="flex h-2 w-2 relative">
                     <span v-if="allRelationsIntact" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -529,7 +529,7 @@ onUnmounted(() => {
                       <ImageIcon class="w-3.5 h-3.5 mr-1.5 text-sky-400" />引用图片 ({{ note.images.length }})
                     </h4>
                     <div class="space-y-2">
-                      <div v-for="img in note.images" :key="img.imageId" class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border transition-colors group cursor-pointer" :class="img.isMissing ? 'border-rose-500/30 hover:border-rose-500/50' : 'border-white/5 hover:border-sky-500/30'">
+                      <div v-for="img in note.images" :key="img.imageId" class="flex items-center justify-between bg-white/[0.03] p-2.5 rounded-xl border transition-colors group cursor-pointer" :class="img.isMissing ? 'border-rose-500/30 hover:border-rose-500/50' : 'border-white/5 hover:border-sky-500/30'">
                         <span class="text-xs truncate max-w-[140px]" :class="img.isMissing ? 'text-rose-400' : 'text-slate-300 group-hover:text-sky-300'">
                           {{ img.filename || img.parsedImageName }}
                         </span>
@@ -545,7 +545,7 @@ onUnmounted(() => {
                       <Link class="w-3.5 h-3.5 mr-1.5 text-emerald-400" />关联笔记 ({{ note.eachNotes.length }})
                     </h4>
                     <div class="space-y-2">
-                      <div v-for="link in note.eachNotes" :key="link.targetNoteId" class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border transition-colors group cursor-pointer" :class="link.isMissing ? 'border-rose-500/30 hover:border-rose-500/50' : 'border-white/5 hover:border-emerald-500/30'">
+                      <div v-for="link in note.eachNotes" :key="link.targetNoteId" class="flex items-center justify-between bg-white/[0.03] p-2.5 rounded-xl border transition-colors group cursor-pointer" :class="link.isMissing ? 'border-rose-500/30 hover:border-rose-500/50' : 'border-white/5 hover:border-emerald-500/30'">
                         <span class="text-xs truncate max-w-[140px]" :class="link.isMissing ? 'text-rose-400' : 'text-slate-300 group-hover:text-emerald-300'">
                           {{ link.targetNoteTitle || link.parsedNoteName }}
                         </span>
@@ -558,16 +558,16 @@ onUnmounted(() => {
               </div>
 
               <!-- Backlinks (反向引用) — Admin lazy-load -->
-              <div class="mt-4 glass-panel rounded-2xl border border-white/10 overflow-hidden">
+              <div class="relation-soft-panel relation-backlinks-panel mt-4 glass-panel rounded-2xl border border-white/10 overflow-hidden">
                 <button
-                  class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-rose-500/5 transition-colors group"
+                  class="relation-panel-toggle w-full flex items-center justify-between px-4 py-3 text-left hover:bg-rose-500/5 transition-colors group"
                   :class="backlinksExpanded ? 'border-b border-white/5 bg-rose-500/5' : ''"
                   @click="toggleBacklinks"
                 >
-                  <span class="flex items-center gap-2 text-sm font-bold text-white">
-                    <Link class="w-4 h-4 text-rose-400" />
+                  <span class="relation-panel-title flex items-center gap-2 text-sm font-bold text-white">
+                    <Link class="relation-panel-icon w-4 h-4 text-rose-400" />
                     反向引用
-                    <span v-if="backlinksFetched" class="px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-500/10 text-rose-300 border border-rose-500/20">{{ backlinks.length }}</span>
+                    <span v-if="backlinksFetched" class="relation-count-badge px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-500/10 text-rose-300 border border-rose-500/20">{{ backlinks.length }}</span>
                     <span v-else class="text-[10px] text-slate-500 font-normal">点击加载</span>
                   </span>
                   <ChevronRight class="w-4 h-4 text-slate-400 transition-transform" :class="backlinksExpanded ? 'rotate-90 text-rose-300' : 'group-hover:text-rose-400'" />
@@ -583,11 +583,11 @@ onUnmounted(() => {
                       <div
                         v-for="b in backlinks"
                         :key="b.sourceNoteId"
-                        class="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/5 hover:border-rose-500/30 group transition-colors cursor-pointer mb-2 last:mb-0"
+                        class="relation-list-item flex items-center justify-between bg-white/[0.03] p-2.5 rounded-xl border border-white/5 hover:border-rose-500/30 group transition-colors cursor-pointer mb-2 last:mb-0"
                         @click="handleBacklinkClick(b)"
                       >
                         <div class="flex items-center space-x-2 overflow-hidden">
-                          <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-rose-500/10 text-rose-400">
+                          <div class="relation-list-icon w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-rose-500/10 text-rose-400">
                             <FileText class="w-4 h-4" />
                           </div>
                           <div class="flex flex-col min-w-0">
@@ -658,6 +658,87 @@ onUnmounted(() => {
 .mini-tag {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.relation-soft-panel {
+  background: var(--cn-surface) !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-xs) !important;
+}
+
+.relation-panel-header,
+.relation-panel-toggle {
+  background: transparent !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text);
+}
+
+.relation-panel-toggle:hover,
+.relation-panel-toggle[class*="bg-rose"] {
+  background: var(--cn-surface-muted) !important;
+}
+
+.relation-panel-title {
+  color: var(--cn-text) !important;
+}
+
+.relation-panel-icon {
+  color: var(--cn-danger) !important;
+}
+
+.relation-count-badge {
+  border-color: rgba(185, 28, 28, 0.18) !important;
+  background: rgba(185, 28, 28, 0.06) !important;
+  color: var(--cn-danger) !important;
+}
+
+.relation-soft-panel .text-white,
+.relation-soft-panel .text-slate-300,
+.relation-soft-panel .text-slate-400 {
+  color: var(--cn-text-soft) !important;
+}
+
+.relation-soft-panel .text-slate-500 {
+  color: var(--cn-text-muted) !important;
+}
+
+.relation-list-item,
+.admin-relation-panel .bg-white\/\[0\.03\] {
+  background: var(--cn-bg-subtle) !important;
+  border-color: var(--cn-border) !important;
+}
+
+.relation-list-item:hover,
+.admin-relation-panel .bg-white\/\[0\.03\]:hover {
+  background: var(--cn-surface-muted) !important;
+  border-color: var(--cn-border-strong) !important;
+}
+
+.relation-list-item:hover .text-slate-300 {
+  color: var(--cn-danger) !important;
+}
+
+.relation-list-icon {
+  background: var(--cn-surface) !important;
+  border: 1px solid var(--cn-border);
+  color: var(--cn-danger) !important;
+}
+
+.admin-relation-panel .border-white\/5,
+.admin-relation-panel .border-white\/10 {
+  border-color: var(--cn-border) !important;
+}
+
+.admin-relation-panel h4 {
+  color: var(--cn-text-muted) !important;
+}
+
+.admin-relation-panel .mini-tag {
+  background: var(--cn-bg-subtle) !important;
+  border-color: var(--cn-border) !important;
+  color: var(--cn-text-soft) !important;
+  box-shadow: none;
 }
 
 .detail-grid,
@@ -848,11 +929,48 @@ onUnmounted(() => {
   margin-bottom: 0.3rem;
 }
 .article-content :deep(h1 + ul a) {
-  color: #60a5fa;
+  color: var(--cn-link);
   text-decoration: none;
   transition: color 0.15s;
 }
-.article-content :deep(h1 + ul a:hover) { color: #93c5fd; }
+.article-content :deep(h1 + ul a:hover) { color: var(--cn-link-hover); }
+.article-content :deep(a),
+.article-content :deep(.internal-note-link),
+.article-content :deep(.hash-link),
+.article-content :deep(h1 + ul a) {
+  color: var(--cn-link) !important;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--cn-link-underline);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition:
+    color var(--cn-fast) var(--cn-ease),
+    text-decoration-color var(--cn-fast) var(--cn-ease),
+    background-color var(--cn-fast) var(--cn-ease);
+}
+.article-content :deep(a:hover),
+.article-content :deep(.internal-note-link:hover),
+.article-content :deep(.hash-link:hover),
+.article-content :deep(h1 + ul a:hover) {
+  color: var(--cn-link-hover) !important;
+  text-decoration-color: currentColor;
+}
+.article-content :deep(a:visited) {
+  color: var(--cn-link-visited) !important;
+}
+.article-content :deep(a:focus-visible),
+.article-content :deep(.internal-note-link:focus-visible),
+.article-content :deep(.hash-link:focus-visible) {
+  border-radius: var(--cn-radius-xs);
+  outline: 2px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 3px;
+}
+.article-content :deep(.internal-note-link.unresolved) {
+  color: var(--cn-text-muted) !important;
+  cursor: default;
+  text-decoration-color: rgba(120, 120, 116, 0.36);
+}
 .article-content :deep(p) { margin-bottom: 1.25rem; }
 .article-content :deep(strong) {
   color: #f8fafc; font-weight: 600;

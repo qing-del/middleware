@@ -1,4 +1,4 @@
-# 个人 SaaS 中台项目
+# CORE NODE
 
 基于 Spring Boot 4.x + JDK 21 的多模块中台服务，提供笔记（Markdown）管理、图片对象存储、标签/主题管理、审核工作流、邮件通知，以及基于 Redis Streams 的异步音频生成等能力。前端采用 Vue 3 + Arco Design + Tailwind CSS。
 

@@ -89,8 +89,8 @@ export function getNoteStatusInfo(code: number): NoteStatusInfo {
 export interface NoteItem {
   id: number
   userId: number
-  topicId: number
-  topicName: string
+  topicId: number | null
+  topicName: string | null
   title: string
   description: string
   storageType: number
@@ -98,8 +98,6 @@ export interface NoteItem {
   status: number
   /** 是否存在待确认变更: 0=否, 1=是 */
   isChanging?: number
-  /** 审核状态位: 0=待审核, 1=已通过, 2=已拒绝 (legacy, prefer NoteStatus) */
-  isPass: number
   /** 缺漏信息掩码 */
   missingInfoMask: number
   /** 缺漏项数量 */
@@ -124,6 +122,7 @@ export interface NoteItem {
 export interface NoteQueryParams {
   keyword?: string
   topicId?: number
+  unclassified?: boolean
   tagId?: number
   title?: string
   scope?: 'personal' | 'global'
@@ -135,8 +134,8 @@ export interface NoteQueryParams {
 export interface NoteDetailVO {
   id: number
   userId: number
-  topicId: number
-  topicName: string
+  topicId: number | null
+  topicName: string | null
   title: string
   description: string
   storageType: number
@@ -161,7 +160,7 @@ export interface NoteImageSimpleVO {
   filename: string
   ossUrl: string
   isPublic: number
-  isPass: number
+  status: number
   isCrossUser: number
   isMissing: number
   createTime: string
@@ -200,6 +199,8 @@ export interface GuestNoteItem {
   updateTime: string
 }
 
+export type PublicNoteItem = GuestNoteItem
+
 export interface GuestNoteDetailVO {
   id: number
   topicId?: number
@@ -213,6 +214,8 @@ export interface GuestNoteDetailVO {
   createTime: string
   updateTime: string
 }
+
+export type PublicNoteDetailVO = GuestNoteDetailVO
 
 // ── Upload ────────────────────────────────────────
 export interface NoteUploadVO {
@@ -262,7 +265,7 @@ export interface NoteTagMappingRowVO {
   tagId: number
   parsedTagName: string
   tagName: string
-  isPass: number
+  status: number
   isMissing: number
 }
 
@@ -273,7 +276,7 @@ export interface NoteImageMappingRowVO {
   parsedImageName: string
   filename: string
   isCrossUser: number
-  isPass: number
+  status: number
   isMissing: number
 }
 
@@ -285,7 +288,7 @@ export interface NoteEachMappingRowVO {
   targetNoteTitle: string
   anchor: string
   nickname: string
-  isPass: number
+  status: number
   isMissing: number
 }
 
@@ -394,8 +397,8 @@ export const noteApi = {
     return request.post(`/user/note/upload/${noteId}/confirm`, { id: noteId, confirm })
   },
 
-  /** 修改笔记元信息（描述、主题归属） */
-  modifyInfo(noteId: number, data: { topicId?: number; description?: string }): Promise<string> {
+  /** 修改笔记元信息（描述、主题归属），topicId 传 null 表示移至未分类 */
+  modifyInfo(noteId: number, data: { topicId?: number | null; description?: string }): Promise<string> {
     return request.put(`/user/note/${noteId}/info`, { ...data, id: noteId })
   },
 
@@ -406,12 +409,12 @@ export const noteApi = {
 
   /** 发起笔记审核申请 */
   submitAudit(noteId: number): Promise<string> {
-    return request.post('/user/note/submitAudit', null, { params: { id: noteId } })
+    return request.post('/user/audit/note/submitAudit', null, { params: { id: noteId } })
   },
 
   /** 撤销笔记审核申请 */
   cancelAudit(noteId: number): Promise<string> {
-    return request.post('/user/note/cancelAudit', null, { params: { id: noteId } })
+    return request.post('/user/audit/note/cancelAudit', null, { params: { id: noteId } })
   },
 
   /** 转换笔记为HTML */
@@ -511,5 +514,17 @@ export const guestNoteApi = {
   /** 查看公开笔记详情 */
   getDetail(noteId: number): Promise<GuestNoteDetailVO> {
     return request.get(`/guest/note/${noteId}`)
+  },
+}
+
+export const userPublicNoteApi = {
+  /** 分页查询公共笔记广场 */
+  getList(params: NoteQueryParams): Promise<PageResult<PublicNoteItem>> {
+    return request.get('/user/public-note', { params })
+  },
+
+  /** 查看公共笔记详情 */
+  getDetail(noteId: number): Promise<PublicNoteDetailVO> {
+    return request.get(`/user/public-note/${noteId}`)
   },
 }

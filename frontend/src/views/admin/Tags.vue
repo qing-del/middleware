@@ -77,10 +77,11 @@ function handleTagBacklinkClick(b: TagBacklinkVO) {
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
-function getStatusInfo(isPass: number) {
-  switch (isPass) {
-    case 1: return { label: '已通过', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' }
-    case 2: return { label: '已拒绝', cls: 'text-rose-300 bg-rose-500/10 border-rose-500/20' }
+function getStatusInfo(auditStatus: number) {
+  switch (auditStatus) {
+    case 1: return { label: '审核中', cls: 'text-sky-300 bg-sky-500/10 border-sky-500/20' }
+    case 2: return { label: '已通过', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' }
+    case 3: return { label: '已拒绝', cls: 'text-rose-300 bg-rose-500/10 border-rose-500/20' }
     default: return { label: '待审核', cls: 'text-amber-300 bg-amber-500/10 border-amber-500/20' }
   }
 }
@@ -240,8 +241,8 @@ onMounted(() => {
               </td>
               <td class="px-4 py-4">
                 <div class="flex items-center space-x-2">
-                  <span class="inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wider" :class="getStatusInfo(tag.isPass).cls">{{ getStatusInfo(tag.isPass).label }}</span>
-                  <div v-if="tag.isPass === 2" class="group/tooltip relative flex items-center">
+                  <span class="inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wider" :class="getStatusInfo(tag.auditStatus).cls">{{ getStatusInfo(tag.auditStatus).label }}</span>
+                  <div v-if="tag.auditStatus === 3" class="group/tooltip relative flex items-center">
                     <Info class="h-4 w-4 cursor-help text-rose-300" />
                     <div class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-40 -translate-x-1/2 scale-95 rounded-xl border border-rose-500/20 bg-slate-950/95 px-3 py-2 text-[11px] leading-5 text-rose-100 opacity-0 shadow-[0_14px_40px_rgba(15,23,42,0.45)] transition-all duration-200 ease-out group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100">
                       该标签审核未通过。

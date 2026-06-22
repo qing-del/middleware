@@ -39,13 +39,9 @@
             a.id,
             a.applicant_user_id,
             u1.username AS applicant_username,
-            a.apply_type,
+            2 AS apply_type,
             a.target_id,
-            CASE
-                WHEN a.apply_type = 1 THEN t.topic_name
-                WHEN a.apply_type = 2 THEN g.tag_name
-                ELSE NULL
-            END AS target_name,
+            g.tag_name AS target_name,
             a.apply_reason,
             a.status,
             a.reviewer_user_id,
@@ -54,17 +50,13 @@
             a.create_time,
             a.review_time,
             a.update_time
-        FROM biz_meta_audit_record a
+        FROM biz_tag_audit_record a
         LEFT JOIN sys_user u1 ON u1.id = a.applicant_user_id
         LEFT JOIN sys_user u2 ON u2.id = a.reviewer_user_id
-        LEFT JOIN biz_topic t ON a.apply_type = 1 AND t.id = a.target_id
-        LEFT JOIN biz_tag g ON a.apply_type = 2 AND g.id = a.target_id
+        LEFT JOIN biz_tag g ON g.id = a.target_id
         <where>
-            <if test="applyType != null">
-                a.apply_type = #{applyType}
-            </if>
             <if test="status != null">
-                AND a.status = #{status}
+                a.status = #{status}
             </if>
             <if test="applicantUserId != null">
                 AND a.applicant_user_id = #{applicantUserId}
@@ -74,10 +66,10 @@
     </select>
 
     <select id="selectPendingByIds" resultMap="MetaAuditRecordMap">
-        SELECT id, applicant_user_id, apply_type, target_id, apply_reason, status,
+        SELECT id, applicant_user_id, 2 AS apply_type, target_id, apply_reason, status,
                reviewer_user_id, reject_reason, create_time, review_time, update_time
-        FROM biz_meta_audit_record
-        WHERE status = 0
+        FROM biz_tag_audit_record
+        WHERE status = 1
           AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
@@ -85,13 +77,13 @@
     </select>
 
     <update id="batchReviewByIds">
-        UPDATE biz_meta_audit_record
+        UPDATE biz_tag_audit_record
         SET status = #{status},
             reviewer_user_id = #{reviewerUserId},
             reject_reason = #{rejectReason},
             review_time = NOW(),
             update_time = NOW()
-        WHERE status = 0
+        WHERE status = 1
           AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
@@ -99,8 +91,8 @@
     </update>
 
     <insert id="insertAuditRecord" parameterType="com.jacolp.pojo.entity.MetaAuditRecordEntity" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO biz_meta_audit_record (applicant_user_id, apply_type, target_id, apply_reason, status, create_time)
-        VALUES (#{applicantUserId}, #{applyType}, #{targetId}, #{applyReason}, 0, NOW())
+        INSERT INTO biz_tag_audit_record (applicant_user_id, target_id, apply_reason, status, create_time)
+        VALUES (#{applicantUserId}, #{targetId}, #{applyReason}, 1, NOW())
     </insert>
 
 </mapper>

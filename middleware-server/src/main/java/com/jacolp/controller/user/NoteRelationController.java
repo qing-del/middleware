@@ -74,7 +74,7 @@ public class NoteRelationController {
 
     @GetMapping("/backlinks/tag/{tagId}")
     @Operation(summary = "查询标签反向引用笔记",
-            description = "按标签 ID 反查所有引用了它的源笔记。目标标签需为当前用户拥有或已通过审核(isPass=1)。")
+            description = "按标签 ID 反查所有引用了它的源笔记。目标标签需为当前用户拥有或已通过审核(auditStatus=2)。")
     public Result<List<TagBacklinkVO>> listTagBacklinks(@Parameter(description = "标签ID") @PathVariable Long tagId) {
         log.info("User list tag backlinks, tagId: {}", tagId);
         return Result.success(noteRelationFacade.listBacklinksByTagId(tagId));

@@ -17,16 +17,16 @@ public interface TagMapper {
 
     int batchInsertTags(@Param("tags") List<TagEntity> tags);
 
-    @Select("SELECT tag_name FROM biz_tag WHERE user_id = #{userId}")
+    @Select("SELECT tag_name FROM biz_tag WHERE user_id = #{userId} AND audit_status != 4")
     List<String> selectTagNamesByUserId(@Param("userId") Long userId);
 
-    @Select("SELECT id, user_id, tag_name, is_pass, create_time FROM biz_tag WHERE user_id = #{userId}")
+    @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE user_id = #{userId} AND audit_status != 4")
     List<TagEntity> selectByUserId(@Param("userId") Long userId);
 
-    @Select("SELECT id, user_id, tag_name, is_pass, create_time FROM biz_tag WHERE user_id = #{userId} AND tag_name = #{tagName}")
+    @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE user_id = #{userId} AND tag_name = #{tagName} AND audit_status != 4")
     TagEntity selectByUserIdAndTagName(@Param("userId") Long userId, @Param("tagName") String tagName);
 
-    @Select("SELECT id, user_id, tag_name, is_pass, create_time FROM biz_tag WHERE id = #{id} AND user_id = #{userId}")
+    @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE id = #{id} AND user_id = #{userId} AND audit_status != 4")
     TagEntity selectByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
     List<TagEntity> selectByIds(@Param("ids") List<Long> ids);
@@ -43,8 +43,8 @@ public interface TagMapper {
 
     int deleteByIds(@Param("userId") Long userId, @Param("ids") List<Long> ids);
 
-    int updatePassByIds(@Param("ids") List<Long> ids,
-                        @Param("isPass") Short isPass);
+    int updateAuditStatusByIds(@Param("ids") List<Long> ids,
+                               @Param("auditStatus") Short auditStatus);
 
     /**
      * 根据条件查询标签
@@ -71,18 +71,18 @@ public interface TagMapper {
      * @param tagId
      * @return
      */
-    @Select("SELECT * FROM biz_tag WHERE id = #{tagId}")
+    @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE id = #{tagId} AND audit_status != 4")
     TagEntity selectById(Long tagId);
 
     /**
      * 统计指定用户的标签数量。
      */
-    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_tag WHERE user_id = #{userId}")
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_tag WHERE user_id = #{userId} AND audit_status != 4")
     long countByUserId(@Param("userId") Long userId);
 
     /**
      * 统计指定用户已通过审核的标签数量。
      */
-    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_tag WHERE user_id = #{userId} AND is_pass = 1")
+    @Select("SELECT IFNULL(COUNT(1), 0) FROM biz_tag WHERE user_id = #{userId} AND audit_status = 2")
     long countPassedByUserId(@Param("userId") Long userId);
 }

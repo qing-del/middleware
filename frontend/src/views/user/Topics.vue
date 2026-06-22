@@ -5,8 +5,8 @@ import type { TopicItem } from '@/api/topics'
 import { useAuthStore } from '@/stores/auth'
 import {
   Layers, Plus, Search, Globe, FolderTree, Pencil, Trash2,
-  Send, Info, Loader2, X, ChevronLeft, ChevronRight,
-  ArrowUpDown, CornerUpLeft
+  Loader2, X, ChevronLeft, ChevronRight,
+  ArrowUpDown
 } from 'lucide-vue-next'
 import { confirmAction, toastWarning } from '@/utils/feedback'
 
@@ -29,17 +29,6 @@ const submitting = ref(false)
 
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
-
-function getStatusInfo(isPass: number): { label: string; cls: string } {
-  switch (isPass) {
-    case 1:
-      return { label: '已通过', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
-    case 2:
-      return { label: '已拒绝', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
-    default:
-      return { label: '待审核', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
-  }
-}
 
 function formatDate(raw: string): string {
   if (!raw) return '-'
@@ -176,22 +165,6 @@ async function handleBatchDelete() {
   await fetchTopics()
 }
 
-async function handleSubmitAudit(id: number) {
-  if (!await confirmAction({ content: '确认提交该主题进行审核吗？' })) return
-  await topicApi.submitAudit(id)
-  await fetchTopics()
-}
-
-async function handleCancelAudit(id: number) {
-  if (!await confirmAction({ content: '确认撤销该主题的审核申请吗？' })) return
-  try {
-    await topicApi.cancelAudit(id)
-    await fetchTopics()
-  } catch {
-    // 错误信息由 request 拦截器统一弹出
-  }
-}
-
 onMounted(() => {
   fetchTopics()
 })
@@ -308,14 +281,13 @@ onMounted(() => {
               </th>
               <th class="border-b border-white/5 px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">主题名称</th>
               <th class="border-b border-white/5 px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">排序等级</th>
-              <th class="border-b border-white/5 px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">状态</th>
               <th class="border-b border-white/5 px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">创建时间</th>
               <th class="border-b border-white/5 px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-400">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-white/5">
             <tr v-if="loading">
-              <td colspan="6" class="px-6 py-16 text-center">
+              <td colspan="5" class="px-6 py-16 text-center">
                 <div class="flex flex-col items-center space-y-3">
                   <Loader2 class="h-6 w-6 animate-spin text-indigo-400" />
                   <span class="text-xs text-slate-500">加载中...</span>
@@ -324,7 +296,7 @@ onMounted(() => {
             </tr>
 
             <tr v-else-if="topicList.length === 0">
-              <td colspan="6" class="px-6 py-16 text-center">
+              <td colspan="5" class="px-6 py-16 text-center">
                 <div class="flex flex-col items-center space-y-3">
                   <Layers class="h-8 w-8 text-slate-600" />
                   <p class="text-sm text-slate-500">暂无主题数据</p>
@@ -365,47 +337,11 @@ onMounted(() => {
               <td class="px-6 py-4">
                 <span class="rounded bg-black/30 px-2 py-1 font-mono text-xs text-slate-400">{{ topic.sortOrder }}</span>
               </td>
-              <td class="px-6 py-4">
-                <div class="flex items-center space-x-2">
-                  <span
-                    class="inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wider"
-                    :class="getStatusInfo(topic.isPass).cls"
-                  >
-                    {{ getStatusInfo(topic.isPass).label }}
-                  </span>
-                  <div v-if="topic.isPass === 2" class="group/tooltip relative flex items-center">
-                    <Info class="h-4 w-4 cursor-help text-rose-400" />
-                    <div
-                      class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-44 -translate-x-1/2 scale-95 rounded-xl border border-rose-500/20 bg-slate-950/95 px-3 py-2 text-[11px] leading-5 text-rose-100 opacity-0 shadow-[0_14px_40px_rgba(15,23,42,0.45)] transition-all duration-200 ease-out group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100"
-                    >
-                      该主题审核未通过，可修改后重新提交审核。
-                    </div>
-                  </div>
-                </div>
-              </td>
               <td class="px-6 py-4 text-xs text-slate-500">
                 {{ formatDate(topic.createTime) }}
               </td>
               <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2 translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
-                  <button
-                    v-if="topic.isPass === 0"
-                    class="flex items-center space-x-1 rounded border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[10px] font-bold uppercase text-orange-400 transition-colors hover:bg-orange-500/20"
-                    title="撤销审核"
-                    @click="handleCancelAudit(topic.id)"
-                  >
-                    <CornerUpLeft class="h-3 w-3" />
-                    <span>撤销</span>
-                  </button>
-                  <button
-                    v-if="topic.isPass !== 1"
-                    class="flex items-center space-x-1 rounded border border-teal-500/20 bg-teal-500/10 px-2 py-1 text-[10px] font-bold uppercase text-teal-400 transition-colors hover:bg-teal-500/20"
-                    title="提交审核"
-                    @click="handleSubmitAudit(topic.id)"
-                  >
-                    <Send class="h-3 w-3" />
-                    <span>送审</span>
-                  </button>
                   <button
                     class="flex h-7 w-7 items-center justify-center rounded bg-white/5 text-slate-400 transition-colors hover:bg-indigo-500/20 hover:text-indigo-400"
                     title="编辑排序"

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { adminApi } from '@/api/admin'
 import type { AdminTopicItem, PageResult } from '@/api/admin'
-import { Layers, Search, Trash2, Loader2, ChevronLeft, ChevronRight, Info } from 'lucide-vue-next'
+import { Layers, Search, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { confirmAction } from '@/utils/feedback'
 
 const loading = ref(true)
@@ -39,14 +39,6 @@ async function prefetchUserNicknames() {
 
 const isBatchMode = computed(() => selectedIds.value.size > 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
-
-function getStatusInfo(isPass: number) {
-  switch (isPass) {
-    case 1: return { label: '已通过', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' }
-    case 2: return { label: '已拒绝', cls: 'text-rose-300 bg-rose-500/10 border-rose-500/20' }
-    default: return { label: '待审核', cls: 'text-amber-300 bg-amber-500/10 border-amber-500/20' }
-  }
-}
 
 function formatDate(raw: string): string {
   if (!raw) return '-'
@@ -135,7 +127,7 @@ onMounted(() => {
         <div class="rounded-xl border border-cyan-400/20 bg-cyan-400/10 p-2 text-cyan-300"><Layers class="h-5 w-5" /></div>
         <div>
           <h2 class="text-xl font-bold text-white">主题调度</h2>
-          <p class="mt-0.5 text-xs text-slate-400">管理全局用户主题资产与审核状态</p>
+          <p class="mt-0.5 text-xs text-slate-400">管理全局用户主题目录资产</p>
         </div>
       </div>
       <div class="flex items-center space-x-3">
@@ -163,13 +155,12 @@ onMounted(() => {
             <th class="border-b border-white/5 px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">ID</th>
             <th class="border-b border-white/5 px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">主题名称</th>
             <th class="border-b border-white/5 px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">排序</th>
-            <th class="border-b border-white/5 px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">状态</th>
             <th class="border-b border-white/5 px-4 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">创建时间</th>
             <th class="border-b border-white/5 px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-400">操作</th>
           </tr></thead>
           <tbody class="divide-y divide-white/5">
-            <tr v-if="loading"><td colspan="7" class="px-6 py-16 text-center"><Loader2 class="mx-auto mb-3 h-6 w-6 animate-spin text-cyan-300" /><span class="text-xs text-slate-500">加载中...</span></td></tr>
-            <tr v-else-if="topicList.length === 0"><td colspan="7" class="px-6 py-16 text-center text-sm text-slate-500">暂无主题数据</td></tr>
+            <tr v-if="loading"><td colspan="6" class="px-6 py-16 text-center"><Loader2 class="mx-auto mb-3 h-6 w-6 animate-spin text-cyan-300" /><span class="text-xs text-slate-500">加载中...</span></td></tr>
+            <tr v-else-if="topicList.length === 0"><td colspan="6" class="px-6 py-16 text-center text-sm text-slate-500">暂无主题数据</td></tr>
             <TransitionGroup v-else name="list">
             <tr v-for="topic in topicList" :key="topic.id" class="group transition-colors duration-200 hover:bg-white/5">
               <td class="px-4 py-4"><input type="checkbox" class="glass-checkbox" :checked="selectedIds.has(topic.id)" @change="toggleSelect(topic.id)" /></td>
@@ -181,17 +172,6 @@ onMounted(() => {
                 </div>
               </td>
               <td class="px-4 py-4"><span class="rounded bg-black/30 px-2 py-1 font-mono text-xs text-slate-400">{{ topic.sortOrder }}</span></td>
-              <td class="px-4 py-4">
-                <div class="flex items-center space-x-2">
-                  <span class="inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wider" :class="getStatusInfo(topic.isPass).cls">{{ getStatusInfo(topic.isPass).label }}</span>
-                  <div v-if="topic.isPass === 2" class="group/tooltip relative flex items-center">
-                    <Info class="h-4 w-4 cursor-help text-rose-300" />
-                    <div class="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-40 -translate-x-1/2 scale-95 rounded-xl border border-rose-500/20 bg-slate-950/95 px-3 py-2 text-[11px] leading-5 text-rose-100 opacity-0 shadow-[0_14px_40px_rgba(15,23,42,0.45)] transition-all duration-200 ease-out group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100">
-                      该主题审核未通过。
-                    </div>
-                  </div>
-                </div>
-              </td>
               <td class="px-4 py-4 text-xs text-slate-500">{{ formatDate(topic.createTime) }}</td>
               <td class="px-4 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2 translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">

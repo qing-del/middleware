@@ -13,13 +13,13 @@
         <result column="storage_type" property="storageType"/>
         <result column="file_size" property="fileSize"/>
         <result column="is_public" property="isPublic"/>
-        <result column="is_pass" property="isPass"/>
+        <result column="audit_status" property="auditStatus"/>
         <result column="upload_time" property="uploadTime"/>
     </resultMap>
 
     <!-- 新增图片，主键回填 -->
     <insert id="insertImage" parameterType="com.jacolp.pojo.entity.ImageEntity" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO biz_image (user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time)
+        INSERT INTO biz_image (user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, audit_status, upload_time)
         VALUES (#{userId}, #{topicId}, #{filename}, #{ossUrl}, #{storageType}, #{fileSize}, 0, 0, NOW())
     </insert>
 
@@ -45,8 +45,8 @@
             <if test="isPublic != null">
                 is_public = #{isPublic},
             </if>
-            <if test="isPass != null">
-                is_pass = #{isPass},
+            <if test="auditStatus != null">
+                audit_status = #{auditStatus},
             </if>
         </set>
         WHERE id = #{id}
@@ -55,17 +55,18 @@
     <!-- 条件分页查询：支持多条件过滤 -->
     <select id="listByCondition" parameterType="com.jacolp.pojo.entity.ImageEntity" resultMap="ImageVO">
         SELECT
-            id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
+            id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, audit_status, upload_time
         FROM biz_image
         <where>
-            <if test="userId != null">user_id = #{userId}</if>
+            audit_status != 4
+            <if test="userId != null">AND user_id = #{userId}</if>
             <if test="topicId != null">AND topic_id = #{topicId}</if>
             <if test="filename != null and filename != ''">
                 AND filename LIKE CONCAT(#{filename}, '%')
             </if>
             <if test="storageType != null">AND storage_type = #{storageType}</if>
             <if test="isPublic != null">AND is_public = #{isPublic}</if>
-            <if test="isPass != null">AND is_pass = #{isPass}</if>
+            <if test="auditStatus != null">AND audit_status = #{auditStatus}</if>
         </where>
         ORDER BY upload_time DESC
     </select>
@@ -78,7 +79,8 @@
             COUNT(m.id) AS refCount
         FROM biz_image i
         LEFT JOIN biz_note_image_mapping m ON i.id = m.image_id AND m.is_deleted = 0
-        WHERE i.id IN
+        WHERE i.audit_status != 4
+          AND i.id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
@@ -86,26 +88,29 @@
     </select>
 
     <select id="selectByIds" resultType="com.jacolp.pojo.entity.ImageEntity">
-        SELECT id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
+        SELECT id, user_id AS userId, topic_id AS topicId, filename, oss_url AS ossUrl, storage_type AS storageType, file_size AS fileSize, is_public AS isPublic, audit_status AS auditStatus, upload_time AS uploadTime
         FROM biz_image
-        WHERE id IN
+        WHERE audit_status != 4
+          AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
     </select>
 
-    <!-- 批量删除图片 -->
-    <delete id="deleteByIds">
-        DELETE FROM biz_image
+    <!-- 批量软删除图片 -->
+    <update id="deleteByIds">
+        UPDATE biz_image
+        SET audit_status = 4
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+          AND audit_status IN (0, 2, 3)
+    </update>
 
-    <update id="updatePassByIds">
+    <update id="updateAuditStatusByIds">
         UPDATE biz_image
-        SET is_pass = #{isPass}
+        SET audit_status = #{auditStatus}
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
@@ -114,10 +119,11 @@
 
     <!-- 批量查询：命中 (user_id, topic_id, filename(40)) 联合索引 -->
     <select id="selectByUserIdAndTopicIdAndFilenames" resultType="com.jacolp.pojo.entity.ImageEntity">
-        SELECT id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
+        SELECT id, user_id AS userId, topic_id AS topicId, filename, oss_url AS ossUrl, storage_type AS storageType, file_size AS fileSize, is_public AS isPublic, audit_status AS auditStatus, upload_time AS uploadTime
         FROM biz_image
         WHERE user_id = #{userId}
           AND topic_id = #{topicId}
+          AND audit_status != 4
           AND filename IN
         <foreach collection="filenames" item="filename" open="(" separator="," close=")">
             #{filename}
@@ -127,12 +133,14 @@
     <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
     <select id="listByUserCondition" resultMap="ImageVO">
         SELECT
-            id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, is_pass, upload_time
+            id, user_id, topic_id, filename, oss_url, storage_type, file_size, is_public, audit_status, upload_time
         FROM biz_image
         <where>
+            audit_status != 4
+            AND
             <choose>
                 <when test="globalScope">
-                    (user_id = #{userId} OR is_public = 1)
+                    (user_id = #{userId} OR (is_public = 1 AND audit_status = 2))
                 </when>
                 <otherwise>
                     user_id = #{userId}

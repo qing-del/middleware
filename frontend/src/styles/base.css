@@ -1,0 +1,104 @@
+html {
+  min-height: 100%;
+  background: var(--cn-bg);
+}
+
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 247, 245, 0.98)),
+    var(--cn-bg);
+  color: var(--cn-text);
+  font-family: var(--cn-font-sans);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(17, 17, 17, 0.12);
+  color: var(--cn-text);
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+body [class*="bg-[#020617]"],
+body [class*="bg-slate-950"],
+body [class*="bg-black/"],
+body [class*="from-[#0f172a]"] {
+  background-color: var(--cn-bg) !important;
+}
+
+body [class*="text-slate-100"],
+body [class*="text-slate-200"],
+body [class*="text-white"] {
+  color: var(--cn-text) !important;
+}
+
+body [class*="text-slate-300"],
+body [class*="text-slate-400"] {
+  color: var(--cn-text-soft) !important;
+}
+
+body [class*="text-slate-500"],
+body [class*="text-slate-600"],
+body [class*="text-slate-700"],
+body [class*="text-slate-800"] {
+  color: var(--cn-text-muted) !important;
+}
+
+body [class*="border-white/"],
+body [class*="border-slate-"] {
+  border-color: var(--cn-border) !important;
+}
+
+body [class*="shadow-[0_0"],
+body [class*="drop-shadow-[0_0"] {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+body [class*="blur-[120px]"],
+body [class*="blur-[150px]"],
+body [class*="blur-2xl"],
+body [class*="blur-3xl"] {
+  opacity: 0 !important;
+}
+
+body div[class*="blur-"][class*="rounded-full"][class*="pointer-events-none"],
+body div[class*="blur-["][class*="rounded-full"][class*="pointer-events-none"] {
+  opacity: 0 !important;
+}
+
+body [class*="text-transparent"][class*="bg-clip-text"] {
+  background: none !important;
+  color: var(--cn-text) !important;
+  -webkit-text-fill-color: currentColor;
+}
+
+body [class*="bg-gradient-to-"]:not([class*="bg-clip-text"]) {
+  background-image: none !important;
+  background-color: var(--cn-accent) !important;
+}

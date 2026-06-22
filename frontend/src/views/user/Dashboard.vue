@@ -54,105 +54,236 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto space-y-8">
-    <!-- 欢迎卡片 -->
-    <div class="glass-panel rounded-3xl p-8 relative overflow-hidden group">
-      <div class="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/10 blur-[60px] rounded-full group-hover:bg-indigo-500/20 transition-all duration-700 pointer-events-none"></div>
-
-      <div class="relative z-10">
-        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-4">
-          <Sparkles class="text-indigo-400 w-3 h-3" />
-          <span class="text-[10px] text-indigo-300 font-bold uppercase tracking-[0.2em]">System Optimal</span>
-        </div>
-        <h2 class="text-3xl font-black text-white tracking-tight mb-2">
-          欢迎回来，<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">{{ authStore.user?.nickname || 'Node Explorer' }}</span>
-        </h2>
-        <p class="text-slate-400 text-sm max-w-xl leading-relaxed">
-          您的数字化资产已同步就绪。尽情享受沉浸式的创作与管理体验。
+  <div class="dashboard-page">
+    <section class="dashboard-hero">
+      <div>
+        <p class="dashboard-eyebrow">
+          <Sparkles class="h-3.5 w-3.5" />
+          Workspace ready
         </p>
+        <h2>欢迎回来，{{ authStore.user?.nickname || 'Node Explorer' }}</h2>
+        <p>你的笔记、主题、标签和素材用量都在这里。保持轻一点，写作会更快进入状态。</p>
       </div>
-    </div>
+    </section>
 
-    <!-- 统计卡片 -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- 笔记统计 -->
-      <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors border-t border-white/10 border-l-0 border-r-0 border-b-0">
-        <div class="flex justify-between items-start mb-4">
-          <div class="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400">
-            <FileText class="w-5 h-5" />
-          </div>
-          <span v-if="noteStats" class="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-lg">
-            公开 {{ formatNumber(noteStats.publicNoteCount) }}
-          </span>
+    <section class="metric-grid" aria-label="账户概览">
+      <article class="metric-card">
+        <div class="metric-head">
+          <span class="metric-icon"><FileText class="h-5 w-5" /></span>
+          <span v-if="noteStats" class="metric-badge">公开 {{ formatNumber(noteStats.publicNoteCount) }}</span>
         </div>
-        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Notes</h3>
-        <div v-if="loading" class="flex items-center space-x-2 text-slate-500">
-          <Loader2 class="w-4 h-4 animate-spin" />
-          <span class="text-xs">加载中...</span>
+        <p class="metric-label">Total Notes</p>
+        <div v-if="loading" class="metric-loading">
+          <Loader2 class="h-4 w-4 animate-spin" />
+          加载中...
         </div>
-        <div v-else class="text-3xl font-black text-white">{{ formatNumber(noteStats?.noteTotalCount ?? 0) }}</div>
-        <p v-if="!loading && noteStats" class="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">
-          已通过 {{ formatNumber(noteStats.passedNoteCount) }} 篇
-        </p>
-      </div>
+        <strong v-else class="metric-value">{{ formatNumber(noteStats?.noteTotalCount ?? 0) }}</strong>
+        <p v-if="!loading && noteStats" class="metric-note">已通过 {{ formatNumber(noteStats.passedNoteCount) }} 篇</p>
+      </article>
 
-      <!-- 主题与标签统计 -->
-      <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors border-t border-white/10 border-l-0 border-r-0 border-b-0">
-        <div class="flex justify-between items-start mb-4">
-          <div class="p-2.5 bg-purple-500/10 rounded-xl text-purple-400">
-            <Layers class="w-5 h-5" />
-          </div>
+      <article class="metric-card">
+        <div class="metric-head">
+          <span class="metric-icon"><Layers class="h-5 w-5" /></span>
         </div>
-        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Topics & Tags</h3>
-        <div v-if="loading" class="flex items-center space-x-2 text-slate-500">
-          <Loader2 class="w-4 h-4 animate-spin" />
-          <span class="text-xs">加载中...</span>
+        <p class="metric-label">Topics & Tags</p>
+        <div v-if="loading" class="metric-loading">
+          <Loader2 class="h-4 w-4 animate-spin" />
+          加载中...
         </div>
-        <div v-else class="text-3xl font-black text-white">
-          {{ formatNumber(topicStats?.topicCount ?? 0) }} <span class="text-lg text-slate-500 font-normal">/</span> {{ formatNumber(tagStats?.tagCount ?? 0) }}
-        </div>
-        <p v-if="!loading" class="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">
-          主题 / 标签
-        </p>
-      </div>
+        <strong v-else class="metric-value">
+          {{ formatNumber(topicStats?.topicCount ?? 0) }}
+          <span>/</span>
+          {{ formatNumber(tagStats?.tagCount ?? 0) }}
+        </strong>
+        <p v-if="!loading" class="metric-note">主题 / 标签</p>
+      </article>
 
-      <!-- 存储用量 -->
-      <div class="glass-panel rounded-2xl p-6 hover:bg-white/[0.04] transition-colors border-t border-white/10 border-l-0 border-r-0 border-b-0">
-        <div class="flex justify-between items-start mb-4">
-          <div class="p-2.5 bg-rose-500/10 rounded-xl text-rose-400">
-            <HardDrive class="w-5 h-5" />
-          </div>
-          <span v-if="!loading && overview" class="text-xs font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg">
-            {{ storagePercent }}% Used
-          </span>
+      <article class="metric-card">
+        <div class="metric-head">
+          <span class="metric-icon"><HardDrive class="h-5 w-5" /></span>
+          <span v-if="!loading && overview" class="metric-badge">{{ storagePercent }}% Used</span>
         </div>
-        <h3 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Storage Usage</h3>
-        <div v-if="loading" class="flex items-center space-x-2 text-slate-500">
-          <Loader2 class="w-4 h-4 animate-spin" />
-          <span class="text-xs">加载中...</span>
+        <p class="metric-label">Storage Usage</p>
+        <div v-if="loading" class="metric-loading">
+          <Loader2 class="h-4 w-4 animate-spin" />
+          加载中...
         </div>
         <template v-else>
-          <div class="text-3xl font-black text-white">
-            {{ formatBytes(overview?.usedStorageBytes ?? 0).split(' ')[0] }} <span class="text-lg text-slate-500">{{ formatBytes(overview?.usedStorageBytes ?? 0).split(' ')[1] }}</span>
+          <strong class="metric-value">
+            {{ formatBytes(overview?.usedStorageBytes ?? 0).split(' ')[0] }}
+            <span>{{ formatBytes(overview?.usedStorageBytes ?? 0).split(' ')[1] }}</span>
+          </strong>
+          <div class="storage-bar" aria-hidden="true">
+            <div :style="{ width: storagePercent + '%' }"></div>
           </div>
-          <div class="w-full bg-black/40 h-1.5 rounded-full mt-4 overflow-hidden">
-            <div class="bg-gradient-to-r from-rose-500 to-indigo-500 h-full rounded-full transition-all duration-700" :style="{ width: storagePercent + '%' }"></div>
-          </div>
-          <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">
-            上限 {{ formatBytes(overview?.maxStorageBytes ?? 0) }}
-          </p>
+          <p class="metric-note">上限 {{ formatBytes(overview?.maxStorageBytes ?? 0) }}</p>
         </template>
-      </div>
-    </div>
+      </article>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.glass-panel {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+.dashboard-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
+}
+
+.dashboard-hero {
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-lg);
+  background: var(--cn-surface);
+  padding: 28px;
+  box-shadow: var(--cn-shadow-xs);
+}
+
+.dashboard-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dashboard-hero h2 {
+  margin: 0;
+  color: var(--cn-text);
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.dashboard-hero p:last-child {
+  max-width: 620px;
+  margin: 10px 0 0;
+  color: var(--cn-text-soft);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  min-height: 184px;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-lg);
+  background: var(--cn-surface);
+  padding: 22px;
+  box-shadow: var(--cn-shadow-xs);
+  transition:
+    border-color var(--cn-fast) var(--cn-ease),
+    box-shadow var(--cn-fast) var(--cn-ease),
+    transform var(--cn-fast) var(--cn-ease);
+}
+
+.metric-card:hover {
+  border-color: var(--cn-border-strong);
+  box-shadow: var(--cn-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.metric-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.metric-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-sm);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+}
+
+.metric-badge {
+  border: 1px solid var(--cn-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--cn-bg-subtle);
+  color: var(--cn-text-soft);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.metric-label {
+  margin: 0 0 6px;
+  color: var(--cn-text-muted);
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  display: block;
+  color: var(--cn-text);
+  font-size: 34px;
+  font-weight: 760;
+  line-height: 1.12;
+}
+
+.metric-value span {
+  color: var(--cn-text-muted);
+  font-size: 18px;
+  font-weight: 560;
+}
+
+.metric-note,
+.metric-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--cn-text-muted);
+  font-size: 12px;
+}
+
+.storage-bar {
+  height: 6px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cn-surface-muted);
+}
+
+.storage-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cn-accent);
+  transition: width var(--cn-normal) var(--cn-ease);
+}
+
+@media (max-width: 900px) {
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card,
+  .storage-bar > div {
+    transition-duration: 0.01s;
+  }
+
+  .metric-card:hover {
+    transform: none;
+  }
 }
 </style>

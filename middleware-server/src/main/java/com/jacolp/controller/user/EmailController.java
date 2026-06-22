@@ -45,11 +45,13 @@ public class EmailController {
     public Result<Map<String, Object>> getEmailStatus() {
         Long userId = BaseContext.getCurrentId();
         UserDetailVO user = userUserService.getCurrentUser();
+
+        // 构造返回结果
         Map<String, Object> status = new HashMap<>();
-        status.put("email", user.getEmail());
-        status.put("username", user.getUsername());
-        boolean isActive = user.getStatus() != null && user.getStatus() == UserConstant.ACTIVE_STATUS;
-        status.put("isActive", isActive);
+        status.put("email", user.getEmail());   // 邮箱地址
+        status.put("username", user.getUsername()); // 用户名
+        boolean isActive = user.getStatus() != null && user.getStatus() == UserConstant.ACTIVE_STATUS;  // 账号激活状态
+        status.put("isActive", isActive);   // 账号激活状态
         log.info("User email status query, userId: {}", userId);
         return Result.success(status);
     }

@@ -27,7 +27,7 @@ public interface NoteEachMappingMapper {
     int bindNoteBySourceIdAndParseName(@Param("sourceNoteId") Long sourceNoteId,
                                        @Param("parsedNoteName") String parseName,
                                        @Param("targetNoteId") Long targetNoteId,
-                                       @Param("isPass") Short isPass);
+                                       @Param("status") Short status);
 
     int batchBindNoteByIds(@Param("mappings") List<NoteEachMappingEntity> mappings);
 
@@ -46,11 +46,11 @@ public interface NoteEachMappingMapper {
     /**
      * 统计指定笔记的内联笔记映射数量
      * @param noteId 笔记 id
-     * @param isPass 是否通过 （传入null代表全查）
+     * @param status 状态快照（传入null代表全查）
      * @return 笔记内联笔记映射行数量
      */
-    int countByNoteIdAndPass(@Param("noteId") Long noteId,
-                             @Param("isPass") Short isPass);
+    int countByNoteIdAndStatus(@Param("noteId") Long noteId,
+                               @Param("status") Short status);
 
     int updateBySourceNoteIds(@Param("sourceNoteIds") List<Long> sourceNoteIds,
                               @Param("status") Short status);

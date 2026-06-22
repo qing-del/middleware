@@ -19,6 +19,7 @@ import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
+import com.jacolp.enums.AuditStatus;
 import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
@@ -108,11 +109,11 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         }
         // 不是自己的标签，且目标标签未通过审核
         if (!BaseContext.getCurrentId().equals(targetTag.getUserId()) &&
-                !AuditConstant.PASS.equals(targetTag.getIsPass())) {
+                !AuditStatus.APPROVED.getCode().equals(targetTag.getAuditStatus())) {
             throw new BaseException("目标标签未通过审核，无法绑定");
         }
 
-        noteTagMappingMapper.bindTagById(mapping.getId(), targetTag.getId(), targetTag.getIsPass());
+        noteTagMappingMapper.bindTagById(mapping.getId(), targetTag.getId(), targetTag.getAuditStatus());
         return mapping;
     }
 
@@ -137,7 +138,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
 
         // 不是自己的图片，且图片未通过审核
         if (!userId.equals(targetImage.getUserId())) {
-            if (!AuditConstant.PASS.equals(targetImage.getIsPass())) {
+            if (!AuditStatus.APPROVED.getCode().equals(targetImage.getAuditStatus())) {
                 throw new BaseException("目标图片未通过审核，无法绑定");
             }
         }
@@ -147,7 +148,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
                 : NoteConstant.NOT_IS_CROSS_USER;
 
         noteImageMappingMapper.bindImageById(mapping.getId(), targetImage.getId(),
-                targetImage.getUserId(), isCrossUser, targetImage.getIsPass());
+                targetImage.getUserId(), isCrossUser, targetImage.getAuditStatus());
         return mapping;
     }
 
@@ -296,14 +297,14 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         for (NoteTagMappingEntity mapping : mappings) {
             TagEntity target = tagMap.get(mapping.getParsedTagName());
             if (target == null ||
-                    (!userId.equals(target.getUserId()) && !AuditConstant.PASS.equals(target.getIsPass()))) {
+                    (!userId.equals(target.getUserId()) && !AuditStatus.APPROVED.getCode().equals(target.getAuditStatus()))) {
                 continue;
             }
 
             NoteTagMappingEntity bind = new NoteTagMappingEntity();
             bind.setId(mapping.getId());
             bind.setTagId(target.getId());
-            bind.setIsPass(target.getIsPass());
+            bind.setStatus(target.getAuditStatus());
             toBind.add(bind);
         }
 
@@ -326,7 +327,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             }
 
             boolean isCrossUser = target.getUserId() != null && !target.getUserId().equals(mapping.getNoteUserId());
-            if (isCrossUser && !AuditConstant.PASS.equals(target.getIsPass())) {
+            if (isCrossUser && !AuditStatus.APPROVED.getCode().equals(target.getAuditStatus())) {
                 continue;
             }
 
@@ -334,7 +335,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             boolean alreadyBound = Objects.equals(mapping.getImageId(), target.getId())
                     && Objects.equals(mapping.getImageUserId(), target.getUserId())
                     && Objects.equals(mapping.getIsCrossUser(), crossUserFlag)
-                    && Objects.equals(mapping.getIsPass(), target.getIsPass());
+                    && Objects.equals(mapping.getStatus(), target.getAuditStatus());
             if (alreadyBound) {
                 continue;
             }
@@ -344,7 +345,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             bind.setImageId(target.getId());
             bind.setImageUserId(target.getUserId());
             bind.setIsCrossUser(crossUserFlag);
-            bind.setIsPass(target.getIsPass());
+            bind.setStatus(target.getAuditStatus());
             toBind.add(bind);
         }
 
@@ -373,7 +374,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             NoteEachMappingEntity bind = new NoteEachMappingEntity();
             bind.setId(mapping.getId());
             bind.setTargetNoteId(target.getId());
-            bind.setIsPass(NoteStatus.isPassed(targetNoteStatus) ? AuditConstant.PASS : AuditConstant.WAIT);
+            bind.setStatus(NoteStatus.isPassed(targetNoteStatus) ? AuditConstant.PASS : AuditConstant.WAIT);
             bind.setTargetNoteId(target.getId());
             toBind.add(bind);
         }
@@ -420,7 +421,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             mapping.setNoteId(noteId);
             mapping.setTagId(null);
             mapping.setParsedTagName(tagName);
-            mapping.setIsPass(AuditConstant.WAIT);
+            mapping.setStatus(AuditConstant.WAIT);
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
             mapping.setCreateTime(java.time.LocalDateTime.now());
             mappings.add(mapping);
@@ -449,7 +450,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             mapping.setParsedImageName(imageName);
             mapping.setImageId(null);
             mapping.setIsCrossUser(NoteConstant.NOT_IS_CROSS_USER); // 默认先设置为没有跨用户
-            mapping.setIsPass(AuditConstant.WAIT);
+            mapping.setStatus(AuditConstant.WAIT);
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
             mapping.setCreateTime(java.time.LocalDateTime.now());
             mappings.add(mapping);
@@ -481,7 +482,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             mapping.setParsedNoteName(reflection.parseName());
             mapping.setAnchor(reflection.anchor());
             mapping.setNickname(reflection.nickname());
-            mapping.setIsPass(AuditConstant.WAIT);
+            mapping.setStatus(AuditConstant.WAIT);
             mapping.setIsDeleted(NoteConstant.NOT_DELETED);
             mapping.setCreateTime(java.time.LocalDateTime.now());
             mappings.add(mapping);
@@ -511,13 +512,13 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
-    public boolean countByNoteIdAndPass(Long noteId) {
-        return noteTagMappingMapper.countByNoteIdAndPass(noteId, AuditConstant.PASS)
-                == noteTagMappingMapper.countByNoteIdAndPass(noteId, null)
-                && noteImageMappingMapper.countByNoteIdAndPass(noteId, AuditConstant.PASS)
-                == noteImageMappingMapper.countByNoteIdAndPass(noteId, null)
-                && noteEachMappingMapper.countByNoteIdAndPass(noteId, AuditConstant.PASS)
-                == noteEachMappingMapper.countByNoteIdAndPass(noteId, null);
+    public boolean allMappingsPassed(Long noteId) {
+        return noteTagMappingMapper.countByNoteIdAndStatus(noteId, AuditStatus.APPROVED.getCode())
+                == noteTagMappingMapper.countByNoteIdAndStatus(noteId, null)
+                && noteImageMappingMapper.countByNoteIdAndStatus(noteId, AuditStatus.APPROVED.getCode())
+                == noteImageMappingMapper.countByNoteIdAndStatus(noteId, null)
+                && noteEachMappingMapper.countByNoteIdAndStatus(noteId, AuditConstant.PASS)
+                == noteEachMappingMapper.countByNoteIdAndStatus(noteId, null);
     }
 
     @Override
@@ -600,7 +601,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             row.setTagId(mapping.getTagId());
             row.setParsedTagName(mapping.getParsedTagName());
             row.setTagName(tag == null ? null : tag.getTagName());
-            row.setIsPass(mapping.getIsPass());
+            row.setStatus(mapping.getStatus());
             row.setIsMissing(validBind ? NoteConstant.NOT_MISSED_INFO : NoteConstant.MISSED_INFO);
             return row;
         }).toList();
@@ -620,7 +621,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             row.setParsedImageName(mapping.getParsedImageName());
             row.setFilename(image == null ? null : image.getFilename());
             row.setIsCrossUser(mapping.getIsCrossUser());
-            row.setIsPass(mapping.getIsPass());
+            row.setStatus(mapping.getStatus());
             row.setIsMissing(validBind ? NoteConstant.NOT_MISSED_INFO : NoteConstant.MISSED_INFO);
             return row;
         }).toList();
@@ -642,7 +643,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             row.setTargetNoteTitle(target == null ? null : target.getTitle());
             row.setAnchor(mapping.getAnchor());
             row.setNickname(mapping.getNickname());
-            row.setIsPass(mapping.getIsPass());
+            row.setStatus(mapping.getStatus());
             row.setIsMissing(validBind ? NoteConstant.NOT_MISSED_INFO : NoteConstant.MISSED_INFO);
             return row;
         }).toList();
@@ -803,3 +804,4 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         return new ParseReflection(parseName, anchor, nickname);
     }
 }
+

@@ -1,10 +1,10 @@
 package com.jacolp.controller.guest;
 
-import com.jacolp.pojo.dto.note.GuestNoteQueryDTO;
-import com.jacolp.pojo.vo.note.GuestNoteDetailVO;
+import com.jacolp.pojo.dto.note.PublicNoteQueryDTO;
+import com.jacolp.pojo.vo.note.PublicNoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
-import com.jacolp.service.GuestNoteService;
+import com.jacolp.service.PublicNoteService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,19 +28,19 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Guest-公开笔记", description = "访客公开笔记只读接口")
 public class NoteController {
 
-    @Autowired private GuestNoteService guestNoteService;
+    @Autowired private PublicNoteService publicNoteService;
 
     @GetMapping
     @Operation(summary = "分页查询公开笔记")
-    public Result<PageResult> list(@Parameter(description = "公开笔记查询条件") GuestNoteQueryDTO dto) {
+    public Result<PageResult> list(@Parameter(description = "公开笔记查询条件") PublicNoteQueryDTO dto) {
         log.info("Guest list published notes, topicId: {}, keyword: {}", dto.getTopicId(), dto.getKeyword());
-        return Result.success(guestNoteService.listPublishedNotes(dto));
+        return Result.success(publicNoteService.listPublishedNotes(dto));
     }
 
     @GetMapping("/{noteId}")
     @Operation(summary = "查看公开笔记详情")
-    public Result<GuestNoteDetailVO> detail(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
+    public Result<PublicNoteDetailVO> detail(@Parameter(description = "笔记ID") @PathVariable Long noteId) {
         log.info("Guest get published note detail, noteId: {}", noteId);
-        return Result.success(guestNoteService.getPublishedNoteDetail(noteId));
+        return Result.success(publicNoteService.getPublishedNoteDetail(noteId));
     }
 }

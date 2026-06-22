@@ -80,5 +80,5 @@ public interface TagService {
 
     List<TagNoteCountDTO> listDeleteChecksByIds(Long userId, List<Long> ids);
 
-    int updatePassStatusByIds(List<Long> ids, Short isPass);
+    int updateAuditStatusByIds(List<Long> ids, Short auditStatus);
 }

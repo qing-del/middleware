@@ -16,6 +16,8 @@ public class TopicDetailVO implements Serializable {
 
     private String topicName;
 
+    private Long parentId;
+
     private Integer sortOrder;
 
     private LocalDateTime createTime;

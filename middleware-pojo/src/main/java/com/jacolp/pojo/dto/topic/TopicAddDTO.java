@@ -18,6 +18,9 @@ public class TopicAddDTO implements Serializable {
     @Size(max = TopicConstant.MAX_TOPIC_NAME_LENGTH, message = "标题名字长度超出限制")
     private String topicName;
 
+    @Positive(message = "父级主题 ID 必须为正数")
+    private Long parentId;
+
     @Positive(message = "排序序号必须为正数")
     private Integer sortOrder;
 }

@@ -1,0 +1,129 @@
+.arco-message {
+  --color-text-1: var(--cn-text);
+  --color-text-2: var(--cn-text-soft);
+  --color-text-3: var(--cn-text-muted);
+  overflow: hidden;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-lg);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-sm);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.arco-message-content {
+  color: var(--cn-text) !important;
+  font-weight: 650;
+  text-shadow: none;
+}
+
+.arco-message-icon {
+  filter: none;
+}
+
+.arco-modal-mask {
+  background: rgba(17, 17, 17, 0.32);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.arco-modal,
+.arco-modal-simple {
+  --color-text-1: var(--cn-text);
+  --color-text-2: var(--cn-text-soft);
+  --color-text-3: var(--cn-text-muted);
+  --color-text-4: var(--cn-text-faint);
+  overflow: hidden;
+  border: 1px solid var(--cn-border);
+  border-radius: var(--cn-radius-xl);
+  background: var(--cn-surface);
+  color: var(--cn-text);
+  box-shadow: var(--cn-shadow-md);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.arco-modal::before,
+.arco-modal-simple::before {
+  display: none;
+}
+
+.arco-modal-header,
+.arco-modal-footer {
+  border-color: var(--cn-border);
+  background: var(--cn-surface);
+}
+
+.arco-modal-title,
+.arco-modal-title *,
+.arco-modal-simple-title,
+.arco-modal-simple-title * {
+  color: var(--cn-text) !important;
+  font-weight: 760;
+  text-shadow: none;
+}
+
+.arco-modal-body,
+.arco-modal-body *,
+.arco-modal-simple-content,
+.arco-modal-simple-content * {
+  color: var(--cn-text-soft) !important;
+  line-height: 1.7;
+}
+
+.arco-modal-body {
+  font-weight: 500;
+  text-shadow: none;
+}
+
+.arco-modal-close-btn {
+  color: var(--cn-text-muted);
+  border-radius: 999px;
+}
+
+.arco-modal-close-btn:hover {
+  color: var(--cn-text);
+  background: var(--cn-surface-muted);
+  transform: none;
+}
+
+.arco-modal-footer .arco-btn,
+.arco-modal-simple-footer .arco-btn {
+  min-width: 76px;
+  border-radius: var(--cn-radius-sm);
+  font-weight: 650;
+  box-shadow: none !important;
+}
+
+.arco-modal-footer .arco-btn:not(.arco-btn-primary),
+.arco-modal-simple-footer .arco-btn:not(.arco-btn-primary) {
+  border-color: var(--cn-border);
+  background: var(--cn-surface);
+  color: var(--cn-text-soft);
+}
+
+.arco-modal-footer .arco-btn:not(.arco-btn-primary):hover,
+.arco-modal-simple-footer .arco-btn:not(.arco-btn-primary):hover {
+  border-color: var(--cn-border-strong);
+  background: var(--cn-surface-muted);
+  color: var(--cn-text);
+  transform: none;
+}
+
+.arco-btn-primary {
+  border-color: var(--cn-accent) !important;
+  background: var(--cn-accent) !important;
+  color: var(--cn-text-inverse) !important;
+  box-shadow: none !important;
+}
+
+.arco-btn-primary:hover {
+  background: var(--cn-accent-hover) !important;
+  transform: none;
+}
+
+.arco-btn-status-danger.arco-btn-primary {
+  border-color: var(--cn-danger) !important;
+  background: var(--cn-danger) !important;
+}

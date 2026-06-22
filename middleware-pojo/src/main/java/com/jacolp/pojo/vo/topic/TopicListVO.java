@@ -18,11 +18,11 @@ public class TopicListVO implements Serializable {
 
     private String topicName;
 
+    private Long parentId;
+
     private Integer sortOrder;
 
     private Long noteCount;
-
-    private Short isPass;
 
     private LocalDateTime createTime;
 

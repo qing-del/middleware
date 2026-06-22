@@ -17,6 +17,9 @@ public class TopicModifyDTO implements Serializable {
     @Positive(message = "标题 ID 必须为正数")
     private Long id;
 
+    @Positive(message = "父级主题 ID 必须为正数")
+    private Long parentId;
+
     @Positive(message = "排序序号必须为正数")
     private Integer sortOrder;
 }

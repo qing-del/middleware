@@ -2,6 +2,7 @@ package com.jacolp.controller.user;
 
 import com.jacolp.pojo.dto.topic.TopicAddDTO;
 import com.jacolp.pojo.dto.topic.TopicModifyDTO;
+import com.jacolp.pojo.vo.topic.TopicListVO;
 import com.jacolp.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,30 +40,21 @@ public class TopicController {
         return Result.success(topicService.listUserTopics(dto));
     }
 
+    @GetMapping("/children")
+    @Operation(summary = "查询当前用户指定父级下的主题目录",
+            description = "parentId 为空时查询一级主题目录；parentId 非空时查询该主题下的一层子目录。")
+    public Result<List<TopicListVO>> listChildren(
+            @Parameter(description = "父级主题ID，不传表示一级目录") @RequestParam(required = false) Long parentId) {
+        log.info("User list topic children, parentId: {}", parentId);
+        return Result.success(topicService.listChildren(parentId));
+    }
+
     @GetMapping("/stats")
     @Operation(summary = "获取用户主题统计",
             description = "返回当前用户的主题总数和已通过审核数。")
     public Result<TopicStatsVO> getStats() {
         log.info("User get topic stats");
         return Result.success(topicService.getUserTopicStats());
-    }
-
-    @PostMapping("/submitAudit")
-    @Operation(summary = "发起主题审核申请",
-            description = "传入主题 ID，发起对该主题的审核申请。仅允许申请审核自己的主题，且该主题不能已通过审核或已有待审核申请。")
-    public Result<String> submitAudit(@Parameter(description = "主题ID") @RequestParam Long id) {
-        log.info("User submit topic audit, topicId: {}", id);
-        topicService.submitTopicAudit(id);
-        return Result.success();
-    }
-
-    @PostMapping("/cancelAudit")
-    @Operation(summary = "撤销主题审核申请",
-            description = "撤销当前用户的主题审核申请，仅删除待审核记录。")
-    public Result<String> cancelAudit(@Parameter(description = "主题ID") @RequestParam Long id) {
-        log.info("User cancel topic audit, topicId: {}", id);
-        topicService.cancelTopicAudit(id);
-        return Result.success("审核申请已撤销");
     }
 
     @PostMapping("/add")
