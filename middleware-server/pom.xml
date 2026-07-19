@@ -55,6 +55,11 @@
 
         <dependency>
             <groupId>com.jacolp</groupId>
+            <artifactId>middleware-common-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.jacolp</groupId>
             <artifactId>middleware-pojo</artifactId>
         </dependency>
         <dependency>

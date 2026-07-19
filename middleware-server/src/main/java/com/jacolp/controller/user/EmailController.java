@@ -3,7 +3,7 @@ package com.jacolp.controller.user;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.jacolp.annotation.RateLimit;
+import com.jacolp.middleware.common.web.annotation.RateLimit;
 import com.jacolp.constant.RateLimitConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;

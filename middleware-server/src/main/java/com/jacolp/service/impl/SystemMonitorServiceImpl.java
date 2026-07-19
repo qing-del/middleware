@@ -1,6 +1,6 @@
 package com.jacolp.service.impl;
 
-import com.jacolp.component.QpsCounter;
+import com.jacolp.middleware.common.core.metrics.QpsCounter;
 import com.jacolp.pojo.vo.MonitorDataVO;
 import com.jacolp.service.SystemMonitorService;
 import lombok.extern.slf4j.Slf4j;

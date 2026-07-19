@@ -1,6 +1,6 @@
 package com.jacolp.controller.user;
 
-import com.jacolp.annotation.RateLimit;
+import com.jacolp.middleware.common.web.annotation.RateLimit;
 import com.jacolp.constant.RateLimitConstant;
 import com.jacolp.pojo.dto.audio.AudioTaskPageQueryDTO;
 import com.jacolp.pojo.dto.audio.AudioTaskSubmitDTO;

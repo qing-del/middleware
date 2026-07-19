@@ -1,9 +1,6 @@
 package com.jacolp.constant;
 
 public class UserConstant {
-    public static final String ADMIN_ID_CLAIM = "adminId";
-    public static final String USER_ID_CLAIM = "userId";
-
     /**
      * 用户名、密码长度限制
      */
@@ -24,9 +21,6 @@ public class UserConstant {
      * 激活用户账号状态使用的常量
      */
     public static final String JWT_NOT_VALID = "无效的激活链接";
-    public static final String ACTIVE_SIGN_KEY = "active";
-    public static final String ACTIVE_CODE_PREFIX = "active:code:";
-    public static final String ACTIVE_EMAIL_SEND_COOLDOWN_PREFIX = "active:send-cooldown:";
 
     public static final String USER_LOGIN_FAILED = "用户登录失败";
     public static final String NOT_FOUND_USER = "用户不存在";
@@ -50,7 +44,6 @@ public class UserConstant {
     /**
      * 邮箱修改验证码常量
      */
-    public static final String EMAIL_CHANGE_CODE_PREFIX = "emailchange:code:";
     public static final String EMAIL_CHANGE_SEND_FAILED = "邮箱地址错误";
     public static final String OLD_EMAIL_NOT_MATCH = "原邮箱地址与当前绑定邮箱不匹配";
     public static final String EMAIL_CHANGE_DIRECT_NOT_ALLOWED = "已激活账号请通过邮箱验证流程修改邮箱";

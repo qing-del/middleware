@@ -16,11 +16,12 @@ import com.jacolp.pojo.dto.user.UserRegisterDTO;
 import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
-import com.jacolp.properties.JwtProperties;
+import com.jacolp.middleware.common.security.jwt.JwtProperties;
+import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
+import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
+import com.jacolp.middleware.common.security.token.SecurityTokenKeyGenerator;
 import com.jacolp.service.UserUserService;
 import com.jacolp.utils.EmailUtil;
-import com.jacolp.utils.JwtUtil;
-import com.jacolp.utils.KeyToolUtil;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -76,18 +77,18 @@ public class UserUserServiceImpl implements UserUserService {
 
         // 将用户ID写入 JWT，后续请求会通过拦截器解析出来
         Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.USER_ID_CLAIM, user.getId());
-        String jwt = JwtUtil.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
+        claims.put(SecurityTokenConstants.USER_ID_CLAIM, user.getId());
+        String jwt = JwtTokenSupport.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
 
         // 将 jwt 存入 Redis
-        redis.opsForValue().set(KeyToolUtil.getUserLoginKey(user.getId()), jwt);
+        redis.opsForValue().set(SecurityTokenKeyGenerator.getUserLoginKey(user.getId()), jwt);
 
         return jwt;
     }
 
     @Override
     public void logout() {
-        redis.delete(KeyToolUtil.getUserLoginKey(BaseContext.getCurrentId()));
+        redis.delete(SecurityTokenKeyGenerator.getUserLoginKey(BaseContext.getCurrentId()));
     }
 
     @Override
@@ -325,7 +326,7 @@ public class UserUserServiceImpl implements UserUserService {
         }
 
         // 尝试使用 Redis 做用户速率限制
-        String cooldownKey = KeyToolUtil.getActivationEmailCooldownKey(user.getId());
+        String cooldownKey = SecurityTokenKeyGenerator.getActivationEmailCooldownKey(user.getId());
         Boolean acquired = redis.opsForValue().setIfAbsent(cooldownKey, "1", Duration.ofSeconds(60));
         if (!Boolean.TRUE.equals(acquired)) {
             throw new BaseException(UserConstant.ACTIVATION_EMAIL_SEND_TOO_FREQUENT);
@@ -338,7 +339,7 @@ public class UserUserServiceImpl implements UserUserService {
 
     @Override
     public String verifyActivationCode(String code) {
-        String redisKey = KeyToolUtil.getActiveCodeKey(code);
+        String redisKey = SecurityTokenKeyGenerator.getActiveCodeKey(code);
 
         // 获取用户ID
         String userIdStr = redis.opsForValue().get(redisKey);
@@ -390,7 +391,7 @@ public class UserUserServiceImpl implements UserUserService {
 
     @Override
     public String verifyEmailChangeCode(String code) {
-        String redisKey = KeyToolUtil.getEmailChangeCodeKey(code);
+        String redisKey = SecurityTokenKeyGenerator.getEmailChangeCodeKey(code);
         String storedValue = redis.opsForValue().get(redisKey);
         if (storedValue == null) {
             throw new BaseException("验证码无效或已过期");

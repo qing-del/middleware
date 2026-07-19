@@ -4,9 +4,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.jacolp.properties.JwtProperties;
-import com.jacolp.utils.JwtUtil;
-import com.jacolp.utils.KeyToolUtil;
+import com.jacolp.middleware.common.security.jwt.JwtProperties;
+import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
+import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
+import com.jacolp.middleware.common.security.token.SecurityTokenKeyGenerator;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,18 +80,18 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         // 生成 JWT 令牌（封装 id 到令牌里面）
         Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.ADMIN_ID_CLAIM, user.getId());
-        String jwt = JwtUtil.createJWT(jwtProperties.getAdminSecretKey(), jwtProperties.getAdminTtl(), claims);
+        claims.put(SecurityTokenConstants.ADMIN_ID_CLAIM, user.getId());
+        String jwt = JwtTokenSupport.createJWT(jwtProperties.getAdminSecretKey(), jwtProperties.getAdminTtl(), claims);
 
         // 将 jwt 存入 Redis 中
-        redis.opsForValue().set(KeyToolUtil.getAdminLoginKey(user.getId()), jwt);
+        redis.opsForValue().set(SecurityTokenKeyGenerator.getAdminLoginKey(user.getId()), jwt);
 
         return jwt;
     }
 
     @Override
     public void logout() {
-        redis.delete(KeyToolUtil.getAdminLoginKey(BaseContext.getCurrentId()));
+        redis.delete(SecurityTokenKeyGenerator.getAdminLoginKey(BaseContext.getCurrentId()));
     }
 
     @Override

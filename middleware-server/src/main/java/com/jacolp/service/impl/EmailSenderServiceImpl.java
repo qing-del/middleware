@@ -8,13 +8,14 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.entity.UserEntity;
-import com.jacolp.properties.JwtProperties;
+import com.jacolp.middleware.common.security.jwt.JwtProperties;
+import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
+import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
+import com.jacolp.middleware.common.security.token.SecurityTokenKeyGenerator;
 import com.jacolp.service.EmailSenderService;
 import com.jacolp.pojo.dto.email.EmailSendDTO;
 import com.jacolp.pojo.dto.email.EmailResultDTO;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.utils.JwtUtil;
-import com.jacolp.utils.KeyToolUtil;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,9 +52,9 @@ public class EmailSenderServiceImpl implements EmailSenderService {
     @Override
     public String sendActivationEmail(UserEntity user) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put(UserConstant.ACTIVE_SIGN_KEY, true);
-        claims.put(UserConstant.USER_ID_CLAIM, user.getId());
-        String token = JwtUtil.createJWT(
+        claims.put(SecurityTokenConstants.ACTIVE_SIGN_KEY, true);
+        claims.put(SecurityTokenConstants.USER_ID_CLAIM, user.getId());
+        String token = JwtTokenSupport.createJWT(
                 jwtProperties.getActiveSecretKey(),
                 jwtProperties.getActiveTtl(),
                 claims);
@@ -63,7 +64,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
         // 生成 6 位数字激活码并存入 Redis
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
         redis.opsForValue().set(
-                KeyToolUtil.getActiveCodeKey(code),
+                SecurityTokenKeyGenerator.getActiveCodeKey(code),
                 String.valueOf(user.getId()),
                 Duration.ofMillis(jwtProperties.getActiveCodeTtl()));
         log.info("Activation code generated for user: {}", user.getId());
@@ -165,7 +166,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
 
         // 存储验证码到 Redis
         redis.opsForValue().set(
-                KeyToolUtil.getEmailChangeCodeKey(code),
+                SecurityTokenKeyGenerator.getEmailChangeCodeKey(code),
                 user.getId() + "|" + newEmail,
                 Duration.ofMillis(jwtProperties.getActiveTtl()));
         log.info("Email change code generated for user: {}, new email: {}", user.getId(), newEmail);

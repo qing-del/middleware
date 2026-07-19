@@ -2,7 +2,7 @@ package com.jacolp.controller.user;
 
 import java.util.Map;
 
-import com.jacolp.annotation.RateLimit;
+import com.jacolp.middleware.common.web.annotation.RateLimit;
 import com.jacolp.constant.RateLimitConstant;
 import com.jacolp.service.UserUserService;
 import jakarta.validation.Valid;
