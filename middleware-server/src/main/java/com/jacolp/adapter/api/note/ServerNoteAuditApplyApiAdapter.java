@@ -1,15 +1,18 @@
 package com.jacolp.adapter.api.note;
 
 import com.jacolp.mapper.NoteEachMappingMapper;
+import com.jacolp.mapper.NoteImageMappingMapper;
 import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.NoteAuditApplyApi;
 import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
 import com.jacolp.middleware.module.note.api.command.ApplyTagAuditCommand;
+import com.jacolp.middleware.module.note.api.command.ApplyMediaRelationAuditCommand;
 import com.jacolp.middleware.module.note.api.model.AuditDecision;
 import com.jacolp.middleware.module.note.api.model.NoteAuditApplyResult;
 import com.jacolp.middleware.module.note.api.model.TagAuditApplyResult;
+import com.jacolp.middleware.module.note.api.model.MediaRelationAuditApplyResult;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,14 +36,17 @@ public class ServerNoteAuditApplyApiAdapter implements NoteAuditApplyApi {
     private final TagMapper tagMapper;
     private final NoteEachMappingMapper noteEachMappingMapper;
     private final NoteTagMappingMapper noteTagMappingMapper;
+    private final NoteImageMappingMapper noteImageMappingMapper;
 
     public ServerNoteAuditApplyApiAdapter(NoteMapper noteMapper, TagMapper tagMapper,
                                           NoteEachMappingMapper noteEachMappingMapper,
-                                          NoteTagMappingMapper noteTagMappingMapper) {
+                                          NoteTagMappingMapper noteTagMappingMapper,
+                                          NoteImageMappingMapper noteImageMappingMapper) {
         this.noteMapper = noteMapper;
         this.tagMapper = tagMapper;
         this.noteEachMappingMapper = noteEachMappingMapper;
         this.noteTagMappingMapper = noteTagMappingMapper;
+        this.noteImageMappingMapper = noteImageMappingMapper;
     }
 
     @Override
@@ -71,6 +77,16 @@ public class ServerNoteAuditApplyApiAdapter implements NoteAuditApplyApi {
         int tagRows = tagMapper.updateAuditStatusByIds(ids, status);
         int relationRows = noteTagMappingMapper.updateByTagIds(ids, status);
         return new TagAuditApplyResult(tagRows, relationRows);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MediaRelationAuditApplyResult applyMediaRelationAudit(ApplyMediaRelationAuditCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        List<Long> ids = normalizeIds(command.mediaIds(), "mediaIds");
+        if (ids.isEmpty()) return new MediaRelationAuditApplyResult(0);
+        short status = command.decision() == AuditDecision.APPROVED ? RESOURCE_APPROVED : RESOURCE_REJECTED;
+        return new MediaRelationAuditApplyResult(noteImageMappingMapper.updateByImageIds(ids, status));
     }
 
     private static List<Long> normalizeIds(List<Long> ids, String name) {

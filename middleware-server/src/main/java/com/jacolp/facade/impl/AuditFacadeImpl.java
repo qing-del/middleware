@@ -13,7 +13,9 @@ import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.NoteAuditRecordEntity;
 import com.jacolp.service.*;
-import com.jacolp.middleware.module.media.biz.application.service.MediaImageService;
+import com.jacolp.middleware.module.media.api.MediaAuditApplyApi;
+import com.jacolp.middleware.module.media.api.command.ApplyMediaAuditCommand;
+import com.jacolp.middleware.module.media.api.model.MediaAuditDecision;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,7 +34,7 @@ public class AuditFacadeImpl implements AuditFacade {
     @Autowired private AuditService auditService;
 
     @Autowired private TagService tagService;
-    @Autowired private MediaImageService imageService;
+    @Autowired private MediaAuditApplyApi mediaAuditApplyApi;
     @Autowired private NoteCoreService noteCoreService;
     @Autowired private NoteRelationService noteRelationService;
 
@@ -174,8 +176,9 @@ public class AuditFacadeImpl implements AuditFacade {
      */
     private void updateImagesAndImageMappingsPass(List<Long> imageIds, Short status, int affected) {
         // 批量更新图片状态。
-        int count = imageService.updateAuditStatusByIds(imageIds, status);
-        noteRelationService.updateImageMappingPassByImageIds(imageIds, status);
+        MediaAuditDecision decision = AuditStatus.APPROVED.getCode().equals(status)
+                ? MediaAuditDecision.APPROVED : MediaAuditDecision.REJECTED;
+        int count = mediaAuditApplyApi.applyMediaAudit(new ApplyMediaAuditCommand(imageIds, decision)).mediaRowsUpdated();
         // 保守校验：业务表更新必须跟审核表影响行数一致。
         if (count < affected) {
             log.error("Failed to update image status! : {}", imageIds);

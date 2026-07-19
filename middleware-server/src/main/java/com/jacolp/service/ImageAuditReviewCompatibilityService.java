@@ -4,19 +4,21 @@ import com.jacolp.constant.ImageConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
-import com.jacolp.middleware.module.media.biz.infrastructure.persistence.dataobject.ImageDO;
-import com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
+import com.jacolp.middleware.module.media.api.MediaAuditApplyApi;
+import com.jacolp.middleware.module.media.api.command.ApplyMediaAuditCommand;
+import com.jacolp.middleware.module.media.api.model.MediaAuditDecision;
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /** Temporary server compatibility seam for the legacy single-image review endpoint. */
 @Service
 public class ImageAuditReviewCompatibilityService {
-    private final AuditService auditService; private final ImageMapper imageMapper;
-    public ImageAuditReviewCompatibilityService(AuditService auditService, ImageMapper imageMapper) { this.auditService = auditService; this.imageMapper = imageMapper; }
+    private final AuditService auditService; private final MediaAuditApplyApi mediaAuditApplyApi;
+    public ImageAuditReviewCompatibilityService(AuditService auditService, MediaAuditApplyApi mediaAuditApplyApi) { this.auditService = auditService; this.mediaAuditApplyApi = mediaAuditApplyApi; }
     @Transactional(rollbackFor = Exception.class)
     public void review(ImageAuditReviewDTO dto) {
         if (dto == null || dto.getAuditId() == null || dto.getAuditId() <= 0) throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
@@ -26,8 +28,8 @@ public class ImageAuditReviewCompatibilityService {
         Short status = dto.getApproved() ? AuditStatus.APPROVED.getCode() : AuditStatus.REJECTED.getCode();
         record.setStatus(status); record.setReviewerUserId(BaseContext.getCurrentId()); record.setReviewTime(LocalDateTime.now());
         if (!dto.getApproved()) record.setRejectReason(dto.getRejectReason());
-        ImageDO image = imageMapper.selectById(record.getImageId());
-        if (image != null) { image.setAuditStatus(status); imageMapper.updateImage(image); }
+        mediaAuditApplyApi.applyMediaAudit(new ApplyMediaAuditCommand(List.of(record.getImageId()),
+                dto.getApproved() ? MediaAuditDecision.APPROVED : MediaAuditDecision.REJECTED, false));
         auditService.updateImageAuditRecord(record);
     }
 }

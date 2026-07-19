@@ -276,11 +276,6 @@ public class MediaImageServiceImpl implements MediaImageService {
     }
 
     @Override
-    public int updateAuditStatusByIds(List<Long> ids, Short auditStatus) {
-        return imageMapper.updateAuditStatusByIds(ids, auditStatus);
-    }
-
-    @Override
     public MediaFileSummary findRequired(Long id) {
         ImageDO image = imageMapper.selectById(id);
         if (image == null) throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);

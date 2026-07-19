@@ -30,6 +30,5 @@ public interface MediaImageService {
     void deleteImage(Long id);
     void submitImageAudit(Long id);
     void cancelImageAudit(Long id);
-    int updateAuditStatusByIds(List<Long> ids, Short status);
     MediaFileSummary findRequired(Long id);
 }

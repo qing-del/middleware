@@ -6,6 +6,7 @@ import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
+import com.jacolp.middleware.module.note.api.command.ApplyMediaRelationAuditCommand;
 import com.jacolp.middleware.module.note.api.model.AuditDecision;
 import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
 import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
@@ -93,13 +94,26 @@ class ServerNoteApiAdapterTest {
         when(eachMapper.updateBySourceNoteIds(List.of(7L), (short) 1)).thenReturn(3);
 
         var result = new ServerNoteAuditApplyApiAdapter(noteMapper, mock(TagMapper.class), eachMapper,
-                mock(NoteTagMappingMapper.class)).applyNoteAudit(
+                mock(NoteTagMappingMapper.class), mock(NoteImageMappingMapper.class)).applyNoteAudit(
                         new ApplyNoteAuditCommand(List.of(7L), AuditDecision.APPROVED));
 
         assertEquals(1, result.noteRowsUpdated());
         assertEquals(3, result.relationRowsUpdated());
         verify(noteMapper).updateStatusByIds(List.of(7L), (short) 5);
         verify(eachMapper).updateBySourceNoteIds(List.of(7L), (short) 1);
+    }
+
+    @Test
+    void mediaRelationAuditUpdatesAllRowsInOneBatch() {
+        NoteImageMappingMapper imageMapper = mock(NoteImageMappingMapper.class);
+        when(imageMapper.updateByImageIds(List.of(7L, 8L), (short) 3)).thenReturn(4);
+
+        var result = new ServerNoteAuditApplyApiAdapter(mock(NoteMapper.class), mock(TagMapper.class),
+                mock(NoteEachMappingMapper.class), mock(NoteTagMappingMapper.class), imageMapper)
+                .applyMediaRelationAudit(new ApplyMediaRelationAuditCommand(List.of(7L, 8L, 7L), AuditDecision.REJECTED));
+
+        assertEquals(4, result.relationRowsUpdated());
+        verify(imageMapper).updateByImageIds(List.of(7L, 8L), (short) 3);
     }
 
     private static NoteEntity note(Long id, short status) {
