@@ -73,6 +73,10 @@
         </dependency>
         <dependency>
             <groupId>com.jacolp</groupId>
+            <artifactId>middleware-module-system-biz</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jacolp</groupId>
             <artifactId>middleware-module-note-api</artifactId>
         </dependency>
         <dependency>

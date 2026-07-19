@@ -1,34 +1,34 @@
-package com.jacolp.adapter.api.system;
+package com.jacolp.middleware.module.system.biz.application.api;
 
 import com.jacolp.constant.UserConstant;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.ApiDailyUsageMapper;
-import com.jacolp.mapper.UserMapper;
 import com.jacolp.middleware.module.system.api.quota.ConsumeQuotaCommand;
 import com.jacolp.middleware.module.system.api.quota.ConsumeQuotaResult;
 import com.jacolp.middleware.module.system.api.quota.QuotaSnapshot;
 import com.jacolp.middleware.module.system.api.quota.QuotaType;
 import com.jacolp.middleware.module.system.api.quota.UserQuotaApi;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.ApiDailyUsageDO;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.ApiDailyUsageMapper;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
-import com.jacolp.pojo.entity.ApiDailyUsageEntity;
-import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
 import com.jacolp.utils.RoleDataComputerUtil;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.Objects;
 
 /**
- * Transitional quota implementation backed only by the legacy user and daily-usage mappers.
+ * System-owned daily API and storage quota operations.
  */
-@Component
-public class ServerUserQuotaApiAdapter implements UserQuotaApi {
+@Service
+public class UserQuotaApiService implements UserQuotaApi {
 
     private final UserMapper userMapper;
     private final ApiDailyUsageMapper apiDailyUsageMapper;
 
-    public ServerUserQuotaApiAdapter(UserMapper userMapper, ApiDailyUsageMapper apiDailyUsageMapper) {
+    public UserQuotaApiService(UserMapper userMapper, ApiDailyUsageMapper apiDailyUsageMapper) {
         this.userMapper = userMapper;
         this.apiDailyUsageMapper = apiDailyUsageMapper;
     }
@@ -72,11 +72,11 @@ public class ServerUserQuotaApiAdapter implements UserQuotaApi {
     }
 
     private QuotaSnapshot dailyApiQuota(long userId, LocalDate quotaDate) {
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new BaseException(UserConstant.NOT_FOUND_USER);
         }
-        ApiDailyUsageEntity usage = apiDailyUsageMapper.selectByUserIdAndDate(userId, quotaDate);
+        ApiDailyUsageDO usage = apiDailyUsageMapper.selectByUserIdAndDate(userId, quotaDate);
         long used = usage == null || usage.getUsedCount() == null ? 0L : usage.getUsedCount();
         return new QuotaSnapshot(userId, QuotaType.DAILY_API_CALL,
                 RoleDataComputerUtil.getApiLimit(user.getRoleId()), used, quotaDate);

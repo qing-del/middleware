@@ -2,10 +2,10 @@ package com.jacolp.component;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.mapper.RoleMapper;
-import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.entity.RoleEntity;
-import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.RoleDO;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.RoleMapper;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.utils.RoleDataComputerUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,9 +43,9 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initRoleData() {
-        List<RoleEntity> roles = roleMapper.getAll();
+        List<RoleDO> roles = roleMapper.getAll();
 
-        for (RoleEntity role : roles) {
+        for (RoleDO role : roles) {
             RoleDataComputerUtil.putStorage(role.getId(), role.getMaxStorageBytes());
             RoleDataComputerUtil.putApiLimit(role.getId(), role.getDailyApiLimit());
         }
@@ -55,13 +55,13 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initCreatorAccount() {
         // 检查是否存在管理员账号
-        UserEntity creator = userMapper.selectById(1L);
+        UserDO creator = userMapper.selectById(1L);
         if (creator == null) {
             creator = userMapper.selectByUsername(adminUsername);
         }
 
         // 强制加入一个创建者角色
-        creator = new UserEntity();
+        creator = new UserDO();
         creator.setId(1L);
         creator.setUsername(adminUsername);
         creator.setPassword(passwordEncoder.encode(adminPassword));

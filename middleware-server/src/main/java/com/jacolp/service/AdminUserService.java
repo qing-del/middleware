@@ -7,7 +7,7 @@ import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserModifyDTO;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
-import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.result.PageResult;
 
 public interface AdminUserService {
@@ -31,7 +31,7 @@ public interface AdminUserService {
     void updateStatus(Long targetId, Integer status);
     // 获取用户信息
 
-    UserEntity getUserById(Long id);
+    UserDO getUserById(Long id);
 
     UserQuoteStorageDTO getUserQuoteStorage(Long userId);
 

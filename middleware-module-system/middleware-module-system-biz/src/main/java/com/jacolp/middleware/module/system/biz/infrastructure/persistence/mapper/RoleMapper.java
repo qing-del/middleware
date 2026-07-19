@@ -1,6 +1,6 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper;
 
-import com.jacolp.pojo.entity.RoleEntity;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.RoleDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
@@ -16,8 +16,8 @@ public interface RoleMapper {
     Long selectMaxStorageById(Long id);
 
     @Select("select * from sys_role where id = #{id}")
-    RoleEntity getById(long user);
+    RoleDO getById(long user);
 
     @Select("select * from sys_role")
-    List<RoleEntity> getAll();
+    List<RoleDO> getAll();
 }

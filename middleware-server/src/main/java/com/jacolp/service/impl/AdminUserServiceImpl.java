@@ -28,13 +28,13 @@ import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PasswordIncorrectException;
 import com.jacolp.exception.PermissionDeniedException;
 import com.jacolp.exception.UserIsBanException;
-import com.jacolp.mapper.UserMapper;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserAddDTO;
 import com.jacolp.pojo.dto.user.UserListDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserModifyDTO;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
-import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AdminUserService;
 import com.jacolp.utils.EmailUtil;
@@ -53,7 +53,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public String loginAdmin(UserLoginDTO userLoginDTO) {
         // 通过用户名查询用户
-        UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
+        UserDO user = userMapper.selectByUsername(userLoginDTO.getUsername());
         if (user == null) {
             log.error("User not found!");
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
@@ -102,8 +102,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         PageHelper.startPage(userListDTO.getPageNumOrDefault(), userListDTO.getPageSizeOrDefault());
-        List<UserEntity> records = userMapper.listByCondition(userListDTO);
-        PageInfo<UserEntity> pageInfo = new PageInfo<>(records);
+        List<UserDO> records = userMapper.listByCondition(userListDTO);
+        PageInfo<UserDO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }
 
@@ -114,7 +114,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         log.info("Admin modifying user, target user id: {}", dto.getId());
 
         // 检查权限
-        UserEntity modifier = userMapper.selectById(BaseContext.getCurrentId());
+        UserDO modifier = userMapper.selectById(BaseContext.getCurrentId());
         if (modifier == null) {
             throw new AuthenticationException("操作者用户不存在");
         }
@@ -125,7 +125,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         // 构建更新实体，仅设置非空字段（updateById 的 XML 使用 <if> 动态判断）
-        UserEntity user = new UserEntity();
+        UserDO user = new UserDO();
         BeanUtils.copyProperties(dto, user);
 
         // 处理密码修改：无需旧密码，直接覆盖
@@ -155,7 +155,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         // 1. Get the modifier's identity
         Long modifierId = BaseContext.getCurrentId();
-        UserEntity modifier = userMapper.selectById(modifierId);
+        UserDO modifier = userMapper.selectById(modifierId);
         if (modifier == null) {
             throw new AuthenticationException("操作者用户不存在");
         }
@@ -168,13 +168,13 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         // 2. Check if the username already exists
-        UserEntity existed = userMapper.selectByUsername(dto.getUsername());
+        UserDO existed = userMapper.selectByUsername(dto.getUsername());
         if (existed != null) {
             throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
         }
 
         // 5. Build and persist the new user
-        UserEntity user = new UserEntity();
+        UserDO user = new UserDO();
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setNickname(StringUtils.hasText(dto.getNickname()) ? dto.getNickname() : dto.getUsername());
@@ -202,7 +202,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         // 1. Check modifier identity
         Long modifierId = BaseContext.getCurrentId();
-        UserEntity modifier = userMapper.selectById(modifierId);
+        UserDO modifier = userMapper.selectById(modifierId);
         if (modifier == null) {
             throw new AuthenticationException("操作者用户不存在");
         }
@@ -214,8 +214,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         // 3. Fail-fast: pre-fetch all targets and check for any privilege violation
-        List<UserEntity> targets = userMapper.selectByIds(ids);
-        for (UserEntity target : targets) {
+        List<UserDO> targets = userMapper.selectByIds(ids);
+        for (UserDO target : targets) {
             if (target.getRoleId() <= modifier.getRoleId()) {
                 log.error("Permission denied: Cannot delete user id={} (roleId={}), modifier roleId={}",
                         target.getId(), target.getRoleId(), modifier.getRoleId());
@@ -240,7 +240,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         // The AOP @RequireSuperiorRole on the controller already handled role verification.
         // Just build a minimal update entity and persist.
-        UserEntity user = new UserEntity();
+        UserDO user = new UserDO();
         user.setId(targetId);
         user.setStatus(status);
         int affected = userMapper.updateById(user);
@@ -253,12 +253,12 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
-    public UserEntity getUserById(Long id) {
+    public UserDO getUserById(Long id) {
         if (id == null || id <= 0) {
             log.error("Invalid user id: {}", id);
             throw new BaseException("无效的用户 ID");
         }
-        UserEntity user = userMapper.selectById(id);
+        UserDO user = userMapper.selectById(id);
         user.setPassword(null);
         if (user.getNickname() == null) {
             user.setNickname(user.getUsername());
@@ -273,7 +273,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public void updateUserStorageUsed(Long userId, Long usedStorageBytes) {
-        UserEntity user = new UserEntity();
+        UserDO user = new UserDO();
         user.setId(userId);
         user.setUsedStorageBytes(usedStorageBytes);
         userMapper.updateById(user);

@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import com.jacolp.mapper.UserMapper;
-import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
@@ -50,7 +50,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
     private String from;
 
     @Override
-    public String sendActivationEmail(UserEntity user) {
+    public String sendActivationEmail(UserDO user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(SecurityTokenConstants.ACTIVE_SIGN_KEY, true);
         claims.put(SecurityTokenConstants.USER_ID_CLAIM, user.getId());
@@ -91,7 +91,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
 
         // 根据用户 ID 查询收件人
         if (dto.getUserId() != null) {
-            UserEntity user = userMapper.selectById(dto.getUserId());
+            UserDO user = userMapper.selectById(dto.getUserId());
             if (user != null && user.getEmail() != null && !user.getEmail().isEmpty()) {
                 recipients.add(user.getEmail());
             }
@@ -99,8 +99,8 @@ public class EmailSenderServiceImpl implements EmailSenderService {
 
         // 根据角色 ID 查询收件人
         if (dto.getRoleId() != null) {
-            List<UserEntity> users = userMapper.selectByRoleId(dto.getRoleId());
-            for (UserEntity u : users) {
+            List<UserDO> users = userMapper.selectByRoleId(dto.getRoleId());
+            for (UserDO u : users) {
                 if (u.getEmail() != null && !u.getEmail().isEmpty()
                         && !recipients.contains(u.getEmail())) {
                     recipients.add(u.getEmail());
@@ -160,7 +160,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
     }
 
     @Override
-    public void sendEmailChangeCode(UserEntity user, String newEmail) {
+    public void sendEmailChangeCode(UserDO user, String newEmail) {
         // 生成 修改邮箱 使用的 6 位验证码
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
 

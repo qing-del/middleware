@@ -7,21 +7,19 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.exception.RateLimitExceededException;
-import com.jacolp.mapper.ApiDailyUsageMapper;
 import com.jacolp.mapper.AudioTaskMapper;
-import com.jacolp.mapper.UserMapper;
+import com.jacolp.middleware.module.system.api.quota.ConsumeQuotaCommand;
+import com.jacolp.middleware.module.system.api.quota.ConsumeQuotaResult;
+import com.jacolp.middleware.module.system.api.quota.UserQuotaApi;
 import com.jacolp.pojo.dto.audio.AudioCallbackFinishDTO;
 import com.jacolp.pojo.dto.audio.AudioCallbackStartDTO;
 import com.jacolp.pojo.dto.audio.AudioTaskPageQueryDTO;
 import com.jacolp.pojo.dto.audio.AudioTaskSubmitDTO;
-import com.jacolp.pojo.entity.ApiDailyUsageEntity;
 import com.jacolp.pojo.entity.AudioTaskEntity;
-import com.jacolp.pojo.entity.UserEntity;
 import com.jacolp.pojo.vo.audio.AudioTaskSubmitVO;
 import com.jacolp.pojo.vo.audio.AudioTaskVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AudioTaskService;
-import com.jacolp.utils.RoleDataComputerUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -43,8 +41,7 @@ import java.util.stream.Collectors;
 public class AudioTaskServiceImpl implements AudioTaskService {
 
     @Autowired private AudioTaskMapper audioTaskMapper;
-    @Autowired private ApiDailyUsageMapper apiDailyUsageMapper;
-    @Autowired private UserMapper userMapper;
+    @Autowired private UserQuotaApi userQuotaApi;
     @Autowired private StringRedisTemplate redis;
 
     @PostConstruct
@@ -134,7 +131,9 @@ public class AudioTaskServiceImpl implements AudioTaskService {
             Long userId = audioTaskMapper.getUserIdByTaskId(dto.getTaskId());
             LocalDate today = LocalDate.now();
             // 原子递减（并发安全）
-            apiDailyUsageMapper.decrementUsage(userId, today);
+            if (userId != null) {
+                userQuotaApi.rollback(ConsumeQuotaCommand.dailyApiCall(userId, 1L, today));
+            }
 
             return false;
         }
@@ -191,20 +190,16 @@ public class AudioTaskServiceImpl implements AudioTaskService {
      * @param userId
      */
     private void checkDailyQuota(Long userId) {
-        UserEntity user = userMapper.selectById(userId);
-        int dailyLimit = RoleDataComputerUtil.getApiLimit(user.getRoleId());
-
         LocalDate today = LocalDate.now();
-        ApiDailyUsageEntity usage = apiDailyUsageMapper.selectByUserIdAndDate(userId, today);
-        int currentCount = (usage != null) ? usage.getUsedCount() : 0;
+        ConsumeQuotaResult result = userQuotaApi.consume(ConsumeQuotaCommand.dailyApiCall(userId, 1L, today));
+        long dailyLimit = result.quota().limit();
 
-        if (currentCount >= dailyLimit) {
+        if (!result.consumed()) {
             throw new RateLimitExceededException(
                     String.format("今日 API 调用次数已达上限（%d 次），请明日再试", dailyLimit));
         }
 
         // 原子递增（并发安全）
-        apiDailyUsageMapper.incrementUsage(userId, today);
     }
 
     /**

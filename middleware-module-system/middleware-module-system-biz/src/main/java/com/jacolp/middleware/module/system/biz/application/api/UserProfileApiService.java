@@ -1,9 +1,9 @@
-package com.jacolp.adapter.api.system;
+package com.jacolp.middleware.module.system.biz.application.api;
 
-import com.jacolp.mapper.UserMapper;
 import com.jacolp.middleware.module.system.api.UserProfileApi;
-import com.jacolp.pojo.entity.UserEntity;
-import org.springframework.stereotype.Component;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
+import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -12,24 +12,20 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Transitional implementation backed directly by the legacy user mapper.
+ * Batch user-profile reader owned by the system module.
  */
-@Component
-public class ServerUserProfileApiAdapter implements UserProfileApi {
+@Service
+public class UserProfileApiService implements UserProfileApi {
 
     private final UserMapper userMapper;
 
-    public ServerUserProfileApiAdapter(UserMapper userMapper) {
+    public UserProfileApiService(UserMapper userMapper) {
         this.userMapper = userMapper;
     }
 
     @Override
     public Map<Long, UserProfile> getProfilesByIds(Collection<Long> userIds) {
         Objects.requireNonNull(userIds, "userIds must not be null");
-        if (userIds.isEmpty()) {
-            return Map.of();
-        }
-
         List<Long> ids = userIds.stream()
                 .peek(id -> {
                     if (id == null || id <= 0) {
@@ -43,7 +39,7 @@ public class ServerUserProfileApiAdapter implements UserProfileApi {
         }
 
         Map<Long, UserProfile> profiles = new LinkedHashMap<>();
-        for (UserEntity user : userMapper.selectByIds(ids)) {
+        for (UserDO user : userMapper.selectByIds(ids)) {
             profiles.put(user.getId(), new UserProfile(user.getId(), user.getUsername(), user.getNickname()));
         }
         return Map.copyOf(profiles);

@@ -5,9 +5,9 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PermissionDeniedException;
-import com.jacolp.mapper.UserMapper;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.pojo.provider.TargetUserProvider;
-import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
@@ -55,8 +55,8 @@ public class SuperiorRoleAspect {
         Long targetUserId = provider.getTargetUserId();
 
         // 3. 查询操作者和被操作者的用户信息
-        UserEntity modifier = userMapper.selectById(modifierId);
-        UserEntity target = userMapper.selectById(targetUserId);
+        UserDO modifier = userMapper.selectById(modifierId);
+        UserDO target = userMapper.selectById(targetUserId);
 
         if (modifier == null) {
             log.error("Modifier user not found, id: {}", modifierId);

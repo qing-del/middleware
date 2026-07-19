@@ -8,12 +8,12 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PasswordIncorrectException;
 import com.jacolp.exception.UserIsBanException;
-import com.jacolp.mapper.UserMapper;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.EmailChangeRequestDTO;
 import com.jacolp.pojo.dto.user.UserLoginDTO;
 import com.jacolp.pojo.dto.user.UserProfileUpdateDTO;
 import com.jacolp.pojo.dto.user.UserRegisterDTO;
-import com.jacolp.pojo.entity.UserEntity;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.pojo.vo.user.UserDetailVO;
 import com.jacolp.pojo.vo.user.UserOverviewVO;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
@@ -50,7 +50,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public String loginUser(@NotNull @Valid UserLoginDTO userLoginDTO) {
         // 1. 根据用户名查用户
-        UserEntity user = userMapper.selectByUsername(userLoginDTO.getUsername());
+        UserDO user = userMapper.selectByUsername(userLoginDTO.getUsername());
         if (user == null) {
             log.error("User isn't existed!");
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
@@ -99,13 +99,13 @@ public class UserUserServiceImpl implements UserUserService {
         }
 
         // 检查是否存在相同用户名的用户
-        UserEntity existed = userMapper.selectByUsername(userRegisterDTO.getUsername());
+        UserDO existed = userMapper.selectByUsername(userRegisterDTO.getUsername());
         if (existed != null) {
             throw new BaseException(UserConstant.USER_ALREADY_EXISTS);
         }
 
         // 构建用户实体类（注册用户）
-        UserEntity user = new UserEntity();
+        UserDO user = new UserDO();
         user.setUsername(userRegisterDTO.getUsername());
         user.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
         user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
@@ -136,7 +136,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public UserDetailVO getCurrentUser() {
         Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
@@ -157,7 +157,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public UserOverviewVO getUserOverview() {
         Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
@@ -170,13 +170,13 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public void deleteCurrentUser() {
         Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
 
         // 软删除：仅更新状态为已删除，保留历史数据
-        UserEntity updateEntity = new UserEntity();
+        UserDO updateEntity = new UserDO();
         updateEntity.setId(userId);
         updateEntity.setStatus(UserConstant.DELETED_STATUS);
         int affected = userMapper.updateById(updateEntity);
@@ -192,7 +192,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public void updateCurrentUserProfile(@NotNull @Valid UserProfileUpdateDTO dto) {
         Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
         }
@@ -240,7 +240,7 @@ public class UserUserServiceImpl implements UserUserService {
         log.info("User active: {}", userId);
 
         // 查询用户
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         if (user == null) {
             log.error("User not found, userId: {}", userId);
             throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
@@ -269,7 +269,7 @@ public class UserUserServiceImpl implements UserUserService {
      */
     @Override
     public void sendActivationEmail(Long userId) {
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
         sendActivationEmail(user);
     }
 
@@ -283,7 +283,7 @@ public class UserUserServiceImpl implements UserUserService {
         String trimmedAccount = account.trim();
 
         // 尝试通过用户名或邮箱查询用户
-        UserEntity user = EmailUtil.isValidEmail(trimmedAccount)
+        UserDO user = EmailUtil.isValidEmail(trimmedAccount)
                 ? userMapper.selectByEmail(trimmedAccount)
                 : userMapper.selectByUsername(trimmedAccount);
 
@@ -300,7 +300,7 @@ public class UserUserServiceImpl implements UserUserService {
      * <p>- 会通过 {@code Redis} 限制每分钟内单个用户只能收到一次验证码</p>
      * @param user 用户信息
      */
-    private void sendActivationEmail(UserEntity user) {
+    private void sendActivationEmail(UserDO user) {
 
         // 检查用户是否存在
         if (user == null) {
@@ -355,7 +355,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     public void initiateEmailChange(@NotNull @Valid EmailChangeRequestDTO dto) {
         Long userId = BaseContext.getCurrentId();
-        UserEntity user = userMapper.selectById(userId);
+        UserDO user = userMapper.selectById(userId);
 
         // 检查用户是否存在
         if (user == null) {
@@ -412,7 +412,7 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException("验证码无效或已过期");
         }
 
-        UserEntity updateEntity = new UserEntity();
+        UserDO updateEntity = new UserDO();
         updateEntity.setId(userId);
         updateEntity.setEmail(newEmail);
         int affected = userMapper.updateById(updateEntity);

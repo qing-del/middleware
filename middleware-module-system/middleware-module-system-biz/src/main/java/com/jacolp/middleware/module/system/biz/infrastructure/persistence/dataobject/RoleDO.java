@@ -1,33 +1,27 @@
-package com.jacolp.pojo.entity;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
+package com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
 /**
- * 系统角色与额度配置表 sys_role 对应实体。
+ * 角色信息表 sys_role 对应持久化对象。
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoleEntity implements Serializable {
+public class RoleDO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private Long id;
-
     private String roleName;
-
     private String roleCode;
-
     private Integer dailyApiLimit;
-
     private Long maxStorageBytes;
-
     private LocalDateTime createTime;
-
     private LocalDateTime updateTime;
 }

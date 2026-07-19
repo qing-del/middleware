@@ -4,7 +4,7 @@ import com.jacolp.middleware.module.system.api.quota.StorageHandler;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteMapper;
-import com.jacolp.mapper.UserMapper;
+import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
 import com.jacolp.result.Result;
