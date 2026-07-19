@@ -2,7 +2,7 @@ package com.jacolp.component;
 
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.middleware.framework.markdown.converter.MarkdownPlugin;
-import com.jacolp.mapper.ImageMapper;
+import com.jacolp.adapter.media.LegacyImagePersistenceGateway;
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
 import com.jacolp.pojo.entity.ImageEntity;
@@ -37,7 +37,7 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
      */
     private static final Pattern UNIFIED_PATTERN = Pattern.compile("(!?)\\[\\[([^\\]]+)]]");
 
-    @Autowired private ImageMapper imageMapper;
+    @Autowired private LegacyImagePersistenceGateway imageMapper;
     @Autowired private NoteImageMappingMapper noteImageMappingMapper;
     @Autowired private NoteEachMappingMapper noteEachMappingMapper;
 

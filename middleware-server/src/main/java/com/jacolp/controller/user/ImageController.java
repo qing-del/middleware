@@ -1,15 +1,15 @@
 package com.jacolp.controller.user;
 
-import com.jacolp.annotation.ImageLimit;
-import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
+import com.jacolp.middleware.module.media.biz.application.annotation.ImageLimit;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImageModifyInfoDTO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.UserImageQueryDTO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageOverviewVO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.UserImageDetailVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.context.BaseContext;
-import com.jacolp.pojo.dto.image.UserImageQueryDTO;
-import com.jacolp.pojo.vo.image.ImageOverviewVO;
-import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.service.ImageService;

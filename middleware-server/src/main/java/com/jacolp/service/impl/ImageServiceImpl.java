@@ -10,10 +10,18 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.jacolp.middleware.module.system.api.quota.StorageHandler;
+import com.jacolp.adapter.media.LegacyImagePersistenceGateway;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImageModifyInfoDTO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImageQueryDTO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.UserImageQueryDTO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageBatchDeleteVO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageOverviewVO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageVO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.UserImageDetailVO;
+import com.jacolp.middleware.module.note.api.NoteReadApi;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.middleware.module.system.api.quota.StorageOperationType;
-import com.jacolp.pojo.vo.image.*;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,16 +38,10 @@ import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.middleware.module.system.api.quota.StorageUpdateContext;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.ImageDeleteDeadLetterMapper;
-import com.jacolp.mapper.ImageMapper;
-import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
-import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
-import com.jacolp.pojo.dto.image.ImageQueryDTO;
-import com.jacolp.pojo.dto.image.UserImageQueryDTO;
 import com.jacolp.pojo.entity.ImageAuditRecordEntity;
-import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
 import com.jacolp.pojo.entity.ImageEntity;
+import com.jacolp.middleware.module.media.biz.infrastructure.persistence.dataobject.ImageDeleteDeadLetterDO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
@@ -62,8 +64,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ImageServiceImpl implements ImageService {
 
-    @Autowired private ImageMapper imageMapper;
-    @Autowired private ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper;
+    @Autowired private LegacyImagePersistenceGateway imageMapper;
+    @Autowired private com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper;
 
     // 存储服务
     @Autowired private AliyunOSSOperator aliyunOSSOperator;
@@ -71,6 +73,7 @@ public class ImageServiceImpl implements ImageService {
     // 来自其他模块的 Service
     @Autowired private AuditService auditService;
     @Autowired private NoteRelationServiceImpl noteRelationServiceImpl;
+    @Autowired private NoteReadApi noteReadApi;
     @Autowired private TopicService topicService;
 
     /**
@@ -246,13 +249,14 @@ public class ImageServiceImpl implements ImageService {
         Set<Long> idSet = new LinkedHashSet<>(ids);
 
         // 查询删除检查
-        List<ImageNoteCountDTO> deleteChecks = imageMapper.selectDeleteChecksByIds(new ArrayList<>(idSet));
+        List<ImageEntity> images = imageMapper.selectByIds(new ArrayList<>(idSet));
+        Map<Long, Long> referenceCounts = noteReadApi.countMediaReferencesByMediaIds(idSet);
 
-        // 检查所有引用情况
+        // Check all references in one Note API call; no cross-module join or N+1 query.
         List<String> inUseImageNames = new ArrayList<>();
-        for (ImageNoteCountDTO check : deleteChecks) {
-            if (check.getRefCount() != null && check.getRefCount() > 0) {
-                inUseImageNames.add(check.getFilename());
+        for (ImageEntity image : images) {
+            if (referenceCounts.getOrDefault(image.getId(), 0L) > 0) {
+                inUseImageNames.add(image.getFilename());
             }
         }
 
@@ -270,9 +274,8 @@ public class ImageServiceImpl implements ImageService {
                 new ArrayList<>(),
                 new ArrayList<>(),
                 new ArrayList<>());
-        ArrayList<ImageDeleteDeadLetterEntity> imageDeleteDeadLetterEntities = new ArrayList<>();
+        ArrayList<ImageDeleteDeadLetterDO> imageDeleteDeadLetterEntities = new ArrayList<>();
 
-        List<ImageEntity> images = imageMapper.selectByIds(new ArrayList<>(idSet));
         for (ImageEntity image : images) {
             AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
             if (!status.canTransitionTo(AuditStatus.DELETED)) {
@@ -280,7 +283,7 @@ public class ImageServiceImpl implements ImageService {
             }
         }
         images.forEach(image -> {
-            ImageDeleteDeadLetterEntity imageDeleteDeadLetterEntity = new ImageDeleteDeadLetterEntity(
+            ImageDeleteDeadLetterDO imageDeleteDeadLetterEntity = new ImageDeleteDeadLetterDO(
                     image.getId(),
                     image.getOssUrl(),
                     ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING,
@@ -715,7 +718,7 @@ public class ImageServiceImpl implements ImageService {
      * @throws BaseException 插入失败的时候会报错
      */
     private void insertToDeadLetterQueue(ImageEntity existed) {
-        ImageDeleteDeadLetterEntity deadLetter = new ImageDeleteDeadLetterEntity();
+        ImageDeleteDeadLetterDO deadLetter = new ImageDeleteDeadLetterDO();
         deadLetter.setImageUrl(existed.getOssUrl());
         deadLetter.setStatus(ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING);
         deadLetter.setRetryCount(0);
@@ -728,7 +731,7 @@ public class ImageServiceImpl implements ImageService {
      * 批量插入图片删除死信队列。
      * @throws BaseException 插入失败的时候会报错
      */
-    private void batchInsertToDeadLetterQueue(List<ImageDeleteDeadLetterEntity> deadLetters) {
+    private void batchInsertToDeadLetterQueue(List<ImageDeleteDeadLetterDO> deadLetters) {
         int insertCount = imageDeleteDeadLetterMapper.insertBatch(deadLetters);
         if (insertCount < deadLetters.size()) {
             log.error("插入死信队列失败，count: {}, size: {}", insertCount, deadLetters.size());

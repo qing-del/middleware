@@ -1,29 +1,24 @@
-package com.jacolp.adapter.api.media;
+package com.jacolp.middleware.module.media.biz.application.api;
 
-import com.jacolp.mapper.ImageMapper;
 import com.jacolp.middleware.module.media.api.MediaFileApi;
 import com.jacolp.middleware.module.media.api.command.MediaFileLookupCommand;
 import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
 import com.jacolp.middleware.module.media.api.model.MediaReviewStatus;
-import com.jacolp.pojo.entity.ImageEntity;
-import org.springframework.stereotype.Component;
+import com.jacolp.middleware.module.media.biz.infrastructure.persistence.dataobject.ImageDO;
+import com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
+import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Transitional batch reader backed directly by the legacy image mapper.
- */
-@Component
-public class ServerMediaFileApiAdapter implements MediaFileApi {
-
+@Service
+public class MediaFileApiService implements MediaFileApi {
     private final ImageMapper imageMapper;
 
-    public ServerMediaFileApiAdapter(ImageMapper imageMapper) {
+    public MediaFileApiService(ImageMapper imageMapper) {
         this.imageMapper = imageMapper;
     }
 
@@ -34,7 +29,7 @@ public class ServerMediaFileApiAdapter implements MediaFileApi {
             return Map.of();
         }
         Map<Long, MediaFileSummary> summaries = new LinkedHashMap<>();
-        for (ImageEntity image : imageMapper.selectByIds(new ArrayList<>(ids))) {
+        for (ImageDO image : imageMapper.selectByIds(ids)) {
             summaries.put(image.getId(), toSummary(image));
         }
         return Map.copyOf(summaries);
@@ -49,14 +44,13 @@ public class ServerMediaFileApiAdapter implements MediaFileApi {
             return Map.of();
         }
         Map<String, MediaFileSummary> summaries = new LinkedHashMap<>();
-        for (ImageEntity image : imageMapper.selectByUserIdAndTopicIdAndFilenames(
-                command.userId(), command.topicId(), filenames)) {
+        for (ImageDO image : imageMapper.selectByUserIdAndTopicIdAndFilenames(command.userId(), command.topicId(), filenames)) {
             summaries.put(image.getFilename(), toSummary(image));
         }
         return Map.copyOf(summaries);
     }
 
-    private static MediaFileSummary toSummary(ImageEntity image) {
+    private static MediaFileSummary toSummary(ImageDO image) {
         return new MediaFileSummary(image.getId(), image.getUserId(), image.getTopicId(), image.getFilename(),
                 image.getOssUrl(), image.getFileSize() == null ? 0L : image.getFileSize(),
                 Short.valueOf((short) 1).equals(image.getIsPublic()), toStatus(image.getAuditStatus()));
@@ -69,14 +63,11 @@ public class ServerMediaFileApiAdapter implements MediaFileApi {
 
     private static List<String> normalizeFilenames(List<String> filenames) {
         Objects.requireNonNull(filenames, "filenames must not be null");
-        return filenames.stream()
-                .peek(filename -> {
-                    if (filename == null || filename.isBlank()) {
-                        throw new IllegalArgumentException("filenames must contain non-blank names only");
-                    }
-                })
-                .distinct()
-                .toList();
+        return filenames.stream().peek(filename -> {
+            if (filename == null || filename.isBlank()) {
+                throw new IllegalArgumentException("filenames must contain non-blank names only");
+            }
+        }).distinct().toList();
     }
 
     private static void requirePositive(Long id, String name) {

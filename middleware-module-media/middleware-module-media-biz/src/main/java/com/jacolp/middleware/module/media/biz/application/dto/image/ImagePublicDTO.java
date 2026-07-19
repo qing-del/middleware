@@ -1,20 +1,15 @@
-package com.jacolp.pojo.dto.image;
-
-import java.io.Serializable;
+package com.jacolp.middleware.module.media.biz.application.dto.image;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 公开/取消公开图片 DTO。
- */
+import java.io.Serializable;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImagePublicDTO implements Serializable {
-
     private static final long serialVersionUID = 1L;
-
-    private Long id;  // 图片ID，必填
+    private Long id;
 }

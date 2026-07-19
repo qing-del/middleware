@@ -1,18 +1,14 @@
-package com.jacolp.adapter.api.media;
+package com.jacolp.middleware.module.media.biz.application.api;
 
-import com.jacolp.mapper.ImageMapper;
 import com.jacolp.middleware.module.media.api.MediaUsageApi;
-import org.springframework.stereotype.Component;
+import com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
+import org.springframework.stereotype.Service;
 
-/**
- * Transitional media usage reader backed by the legacy image mapper.
- */
-@Component
-public class ServerMediaUsageApiAdapter implements MediaUsageApi {
-
+@Service
+public class MediaUsageApiService implements MediaUsageApi {
     private final ImageMapper imageMapper;
 
-    public ServerMediaUsageApiAdapter(ImageMapper imageMapper) {
+    public MediaUsageApiService(ImageMapper imageMapper) {
         this.imageMapper = imageMapper;
     }
 

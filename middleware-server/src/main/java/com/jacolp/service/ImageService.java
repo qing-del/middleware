@@ -3,17 +3,17 @@ package com.jacolp.service;
 import java.util.List;
 
 import com.jacolp.context.PermissionContext;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImageModifyInfoDTO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImageQueryDTO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.UserImageQueryDTO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageBatchDeleteVO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageOverviewVO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageVO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.UserImageDetailVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
 import com.jacolp.pojo.entity.ImageEntity;
-import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
-import com.jacolp.pojo.dto.image.ImageQueryDTO;
-import com.jacolp.pojo.dto.image.UserImageQueryDTO;
-import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
-import com.jacolp.pojo.vo.image.ImageOverviewVO;
-import com.jacolp.pojo.vo.image.ImageVO;
-import com.jacolp.pojo.vo.image.UserImageDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 

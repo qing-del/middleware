@@ -1,34 +1,20 @@
-package com.jacolp.pojo.dto.image;
+package com.jacolp.middleware.module.media.biz.application.dto.image;
 
-import java.io.Serializable;
-
-import com.jacolp.pojo.provider.PageParamProvider;
-
+import com.jacolp.middleware.module.media.biz.application.dto.PageParamProvider;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 用户端图片条件查询 DTO。
- * 查询逻辑：当前用户自己的图片 + 别人已公开的图片。
- */
+import java.io.Serializable;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserImageQueryDTO implements Serializable, PageParamProvider {
-
     private static final long serialVersionUID = 1L;
-
     private Long topicId;
-
     private String filename;
-
-    /**
-     * 查询范围：{@code "global"} 时包含他人已公开图片，其他值仅查当前用户图片。
-     */
     private String scope;
-
     private Integer pageNum;
-
     private Integer pageSize;
 }

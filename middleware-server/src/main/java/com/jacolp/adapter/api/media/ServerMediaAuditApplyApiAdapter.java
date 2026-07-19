@@ -1,7 +1,7 @@
 package com.jacolp.adapter.api.media;
 
-import com.jacolp.mapper.ImageMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
+import com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
 import com.jacolp.middleware.module.media.api.MediaAuditApplyApi;
 import com.jacolp.middleware.module.media.api.command.ApplyMediaAuditCommand;
 import com.jacolp.middleware.module.media.api.model.MediaAuditApplyResult;

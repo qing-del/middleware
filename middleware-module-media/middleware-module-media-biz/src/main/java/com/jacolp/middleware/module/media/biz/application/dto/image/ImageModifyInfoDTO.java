@@ -1,22 +1,16 @@
-package com.jacolp.pojo.dto.image;
-
-import java.io.Serializable;
+package com.jacolp.middleware.module.media.biz.application.dto.image;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 修改图片信息（改名/换主题）DTO。
- */
+import java.io.Serializable;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImageModifyInfoDTO implements Serializable {
-
     private static final long serialVersionUID = 1L;
-
-    private Long id;  // 图片ID，必填
-
-    private Long topicId;  // 新主题ID，可选
+    private Long id;
+    private Long topicId;
 }

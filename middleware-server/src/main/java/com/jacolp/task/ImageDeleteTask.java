@@ -2,8 +2,8 @@ package com.jacolp.task;
 
 import com.jacolp.middleware.framework.oss.AliyunOSSOperator;
 import com.jacolp.constant.ImageConstant;
-import com.jacolp.mapper.ImageDeleteDeadLetterMapper;
-import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
+import com.jacolp.middleware.module.media.biz.infrastructure.persistence.dataobject.ImageDeleteDeadLetterDO;
+import com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageDeleteDeadLetterMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,7 +27,7 @@ public class ImageDeleteTask {
     @Scheduled(fixedRateString = "${jacolp.image.delete-image-task-time:60}", timeUnit = TimeUnit.MINUTES)
     public void deleteImageTask() {
         log.debug("Start to delete images from OSS");
-        List<ImageDeleteDeadLetterEntity> list = imageDeleteDeadLetterMapper.selectBatch(
+        List<ImageDeleteDeadLetterDO> list = imageDeleteDeadLetterMapper.selectBatch(
                 ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING
         );
 

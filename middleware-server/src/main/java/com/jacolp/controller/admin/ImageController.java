@@ -2,15 +2,15 @@ package com.jacolp.controller.admin;
 
 import java.util.List;
 
-import com.jacolp.pojo.vo.image.ImageBatchDeleteVO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImageModifyInfoDTO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImagePublicDTO;
+import com.jacolp.middleware.module.media.biz.application.dto.image.ImageQueryDTO;
+import com.jacolp.middleware.module.media.biz.application.vo.image.ImageBatchDeleteVO;
 import com.jacolp.utils.IdParserUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
-import com.jacolp.pojo.dto.image.ImageModifyInfoDTO;
-import com.jacolp.pojo.dto.image.ImagePublicDTO;
-import com.jacolp.pojo.dto.image.ImageQueryDTO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
