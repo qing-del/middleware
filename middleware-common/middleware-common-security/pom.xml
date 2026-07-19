@@ -4,21 +4,15 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.jacolp</groupId>
-        <artifactId>middleware</artifactId>
+        <artifactId>middleware-common</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
-    <groupId>com.jacolp</groupId>
-    <artifactId>flexmark-jacolp-starter</artifactId>
-    <name>flexmark-jacolp-starter</name>
-    <description>flexmark-jacolp-starter</description>
-
-    <!-- Starter 模块的核心原则：本身不包含任何代码，仅引入对应的 autoconfigure 模块和其他必需的依赖 -->
+    <artifactId>middleware-common-security</artifactId>
     <dependencies>
         <dependency>
             <groupId>com.jacolp</groupId>
-            <artifactId>flexmark-jacolp-autoconfigure</artifactId>
+            <artifactId>middleware-common-core</artifactId>
         </dependency>
     </dependencies>
-
 </project>

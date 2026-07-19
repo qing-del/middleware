@@ -29,7 +29,6 @@
         <dependency>
             <groupId>com.aliyun.oss</groupId>
             <artifactId>aliyun-oss-spring-boot-starter</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
         <dependency>
@@ -51,14 +50,12 @@
 
         <dependency>
             <groupId>com.jacolp</groupId>
-            <artifactId>middleware-common</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <artifactId>middleware-common-legacy</artifactId>
         </dependency>
 
         <dependency>
             <groupId>com.jacolp</groupId>
             <artifactId>middleware-pojo</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -75,7 +72,6 @@
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
-            <version>3.2.3</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -103,7 +99,6 @@
         <dependency>
             <groupId>com.github.xiaoymin</groupId>
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
-            <version>4.3.0</version>
         </dependency>
 
         <dependency>
@@ -115,14 +110,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
-            <version>${spring-boot.version}</version>
         </dependency>
 
         <!-- OSHI 系统监控 -->
         <dependency>
             <groupId>com.github.oshi</groupId>
             <artifactId>oshi-core</artifactId>
-            <version>6.6.5</version>
         </dependency>
 
         <!-- 集成测试 h2 内存数据库 -->

@@ -18,8 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>com.jacolp</groupId>
-            <artifactId>middleware-common</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <artifactId>middleware-common-legacy</artifactId>
         </dependency>
 
         <dependency>
@@ -48,17 +47,5 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 
 </project>
