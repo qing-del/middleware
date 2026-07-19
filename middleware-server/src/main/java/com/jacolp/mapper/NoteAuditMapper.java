@@ -17,6 +17,8 @@ public interface NoteAuditMapper {
 
     List<NoteAuditRecordEntity> selectPendingByIds(@Param("ids") List<Long> ids);
 
+    NoteAuditRecordEntity selectPendingByNoteId(@Param("noteId") Long noteId);
+
     int batchReviewByIds(@Param("ids") List<Long> ids,
                          @Param("status") Short status,
                          @Param("reviewerUserId") Long reviewerUserId,

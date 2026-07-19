@@ -76,6 +76,15 @@
         </foreach>
     </select>
 
+    <select id="selectPendingByApplyTypeAndTargetId" resultMap="MetaAuditRecordMap">
+        SELECT id, applicant_user_id, 2 AS apply_type, target_id, apply_reason, status,
+               reviewer_user_id, reject_reason, create_time, review_time, update_time
+        FROM biz_tag_audit_record
+        WHERE status = 1
+          AND target_id = #{targetId}
+        LIMIT 1
+    </select>
+
     <update id="batchReviewByIds">
         UPDATE biz_tag_audit_record
         SET status = #{status},

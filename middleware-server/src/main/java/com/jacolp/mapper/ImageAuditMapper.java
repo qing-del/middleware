@@ -50,6 +50,8 @@ public interface ImageAuditMapper {
 
     List<ImageAuditRecordEntity> selectPendingByIds(@Param("ids") List<Long> ids);
 
+    ImageAuditRecordEntity selectPendingByImageId(@Param("imageId") Long imageId);
+
     int batchReviewByIds(@Param("ids") List<Long> ids,
                          @Param("status") Short status,
                          @Param("reviewerUserId") Long reviewerUserId,

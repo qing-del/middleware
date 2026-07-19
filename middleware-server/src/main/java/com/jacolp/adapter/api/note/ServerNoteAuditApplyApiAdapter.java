@@ -1,0 +1,87 @@
+package com.jacolp.adapter.api.note;
+
+import com.jacolp.mapper.NoteEachMappingMapper;
+import com.jacolp.mapper.NoteMapper;
+import com.jacolp.mapper.NoteTagMappingMapper;
+import com.jacolp.mapper.TagMapper;
+import com.jacolp.middleware.module.note.api.NoteAuditApplyApi;
+import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
+import com.jacolp.middleware.module.note.api.command.ApplyTagAuditCommand;
+import com.jacolp.middleware.module.note.api.model.AuditDecision;
+import com.jacolp.middleware.module.note.api.model.NoteAuditApplyResult;
+import com.jacolp.middleware.module.note.api.model.TagAuditApplyResult;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * Transitional audit writer preserving the legacy note and relation-status mappings.
+ */
+@Component
+public class ServerNoteAuditApplyApiAdapter implements NoteAuditApplyApi {
+
+    private static final short NOTE_APPROVED = 5;
+    private static final short NOTE_REJECTED = 7;
+    private static final short LEGACY_RELATION_APPROVED = 1;
+    private static final short LEGACY_RELATION_REJECTED = 2;
+    private static final short RESOURCE_APPROVED = 2;
+    private static final short RESOURCE_REJECTED = 3;
+
+    private final NoteMapper noteMapper;
+    private final TagMapper tagMapper;
+    private final NoteEachMappingMapper noteEachMappingMapper;
+    private final NoteTagMappingMapper noteTagMappingMapper;
+
+    public ServerNoteAuditApplyApiAdapter(NoteMapper noteMapper, TagMapper tagMapper,
+                                          NoteEachMappingMapper noteEachMappingMapper,
+                                          NoteTagMappingMapper noteTagMappingMapper) {
+        this.noteMapper = noteMapper;
+        this.tagMapper = tagMapper;
+        this.noteEachMappingMapper = noteEachMappingMapper;
+        this.noteTagMappingMapper = noteTagMappingMapper;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public NoteAuditApplyResult applyNoteAudit(ApplyNoteAuditCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        List<Long> ids = normalizeIds(command.noteIds(), "noteIds");
+        if (ids.isEmpty()) {
+            return new NoteAuditApplyResult(0, 0);
+        }
+        int noteRows = noteMapper.updateStatusByIds(ids,
+                command.decision() == AuditDecision.APPROVED ? NOTE_APPROVED : NOTE_REJECTED);
+        int relationRows = noteEachMappingMapper.updateBySourceNoteIds(ids,
+                command.decision() == AuditDecision.APPROVED
+                        ? LEGACY_RELATION_APPROVED : LEGACY_RELATION_REJECTED);
+        return new NoteAuditApplyResult(noteRows, relationRows);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TagAuditApplyResult applyTagAudit(ApplyTagAuditCommand command) {
+        Objects.requireNonNull(command, "command must not be null");
+        List<Long> ids = normalizeIds(command.tagIds(), "tagIds");
+        if (ids.isEmpty()) {
+            return new TagAuditApplyResult(0, 0);
+        }
+        short status = command.decision() == AuditDecision.APPROVED ? RESOURCE_APPROVED : RESOURCE_REJECTED;
+        int tagRows = tagMapper.updateAuditStatusByIds(ids, status);
+        int relationRows = noteTagMappingMapper.updateByTagIds(ids, status);
+        return new TagAuditApplyResult(tagRows, relationRows);
+    }
+
+    private static List<Long> normalizeIds(List<Long> ids, String name) {
+        Objects.requireNonNull(ids, name + " must not be null");
+        return ids.stream()
+                .peek(id -> {
+                    if (id == null || id <= 0) {
+                        throw new IllegalArgumentException(name + " must contain positive ids only");
+                    }
+                })
+                .distinct()
+                .toList();
+    }
+}

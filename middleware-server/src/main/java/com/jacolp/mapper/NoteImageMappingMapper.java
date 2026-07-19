@@ -6,6 +6,7 @@ import java.util.List;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
+import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -90,6 +91,8 @@ public interface NoteImageMappingMapper {
      */
     @Select("SELECT COUNT(1) FROM biz_note_image_mapping WHERE image_id = #{imageId} AND is_deleted = 0")
     int countByImageId(Long imageId);
+
+    List<ImageNoteCountDTO> countByImageIds(@Param("imageIds") List<Long> imageIds);
 
     /**
      * 查询引用了指定图片的源笔记列表（图片反向引用）

@@ -1,0 +1,17 @@
+package com.jacolp.middleware.module.media.api.command;
+
+import com.jacolp.middleware.module.media.api.model.MediaAuditDecision;
+
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * A single decision applied atomically to a batch of media files.
+ */
+public record ApplyMediaAuditCommand(List<Long> mediaIds, MediaAuditDecision decision) {
+
+    public ApplyMediaAuditCommand {
+        mediaIds = List.copyOf(Objects.requireNonNull(mediaIds, "mediaIds"));
+        decision = Objects.requireNonNull(decision, "decision");
+    }
+}

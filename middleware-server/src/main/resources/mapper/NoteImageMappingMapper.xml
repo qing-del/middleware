@@ -200,6 +200,17 @@
           AND is_deleted = 0
     </select>
 
+    <select id="countByImageIds" resultType="com.jacolp.pojo.dto.image.ImageNoteCountDTO">
+        SELECT image_id AS imageId, COUNT(1) AS refCount
+        FROM biz_note_image_mapping
+        WHERE image_id IN
+        <foreach collection="imageIds" item="imageId" open="(" separator="," close=")">
+            #{imageId}
+        </foreach>
+          AND is_deleted = 0
+        GROUP BY image_id
+    </select>
+
     <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.note.NoteSimpleVO">
         SELECT
             m.note_id AS id,

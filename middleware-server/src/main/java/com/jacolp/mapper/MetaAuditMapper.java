@@ -18,6 +18,9 @@ public interface MetaAuditMapper {
 
     List<MetaAuditRecordEntity> selectPendingByIds(@Param("ids") List<Long> ids);
 
+    MetaAuditRecordEntity selectPendingByApplyTypeAndTargetId(@Param("applyType") Short applyType,
+                                                               @Param("targetId") Long targetId);
+
     int batchReviewByIds(@Param("ids") List<Long> ids,
                          @Param("status") Short status,
                          @Param("reviewerUserId") Long reviewerUserId,

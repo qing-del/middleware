@@ -8,7 +8,7 @@ import com.jacolp.annotation.GuestCacheEvict;
 import com.jacolp.constant.GuestCacheConstant;
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.context.PermissionContext;
-import com.jacolp.context.StorageUpdateContext;
+import com.jacolp.middleware.module.system.api.quota.StorageUpdateContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;

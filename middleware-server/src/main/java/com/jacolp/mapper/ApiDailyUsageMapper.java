@@ -20,7 +20,21 @@ public interface ApiDailyUsageMapper {
     int incrementUsage(@Param("userId") Long userId, @Param("date") LocalDate date);
 
     /**
+     * API adapter variant that keeps consumption atomic for an arbitrary amount.
+     */
+    int incrementUsageBy(@Param("userId") Long userId,
+                         @Param("date") LocalDate date,
+                         @Param("amount") long amount);
+
+    /**
      * 原子递减当日用量
      */
     int decrementUsage(Long userId, LocalDate today);
+
+    /**
+     * API adapter variant matching {@link #incrementUsageBy(Long, LocalDate, long)}.
+     */
+    int decrementUsageBy(@Param("userId") Long userId,
+                         @Param("date") LocalDate date,
+                         @Param("amount") long amount);
 }

@@ -1,6 +1,6 @@
 package com.jacolp.aspect;
 
-import com.jacolp.annotation.StorageHandler;
+import com.jacolp.middleware.module.system.api.quota.StorageHandler;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteMapper;
@@ -8,7 +8,7 @@ import com.jacolp.mapper.UserMapper;
 import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
 import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
 import com.jacolp.result.Result;
-import com.jacolp.enums.StorageOperationType;
+import com.jacolp.middleware.module.system.api.quota.StorageOperationType;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.component.LockOperator;
 
@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.context.BaseContext;
-import com.jacolp.context.StorageUpdateContext;
+import com.jacolp.middleware.module.system.api.quota.StorageUpdateContext;
 import com.jacolp.mapper.ImageMapper;
 
 import java.util.ArrayList;

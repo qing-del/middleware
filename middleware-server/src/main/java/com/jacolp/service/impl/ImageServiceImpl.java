@@ -9,10 +9,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import com.jacolp.annotation.StorageHandler;
+import com.jacolp.middleware.module.system.api.quota.StorageHandler;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.AuditStatus;
-import com.jacolp.enums.StorageOperationType;
+import com.jacolp.middleware.module.system.api.quota.StorageOperationType;
 import com.jacolp.pojo.vo.image.*;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeanUtils;
@@ -28,7 +28,7 @@ import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
-import com.jacolp.context.StorageUpdateContext;
+import com.jacolp.middleware.module.system.api.quota.StorageUpdateContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.ImageDeleteDeadLetterMapper;
 import com.jacolp.mapper.ImageMapper;
@@ -236,7 +236,7 @@ public class ImageServiceImpl implements ImageService {
      * @return
      */
     @Override
-    @StorageHandler(operationType = com.jacolp.enums.StorageOperationType.BATCH_DELETE)
+    @StorageHandler(operationType = com.jacolp.middleware.module.system.api.quota.StorageOperationType.BATCH_DELETE)
     public ImageBatchDeleteVO deleteImages(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BaseException("待删除的图片 ID 列表不能为空");

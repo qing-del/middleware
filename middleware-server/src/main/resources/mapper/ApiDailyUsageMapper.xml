@@ -9,8 +9,19 @@
         ON DUPLICATE KEY UPDATE used_count = used_count + 1
     </insert>
 
+    <insert id="incrementUsageBy">
+        INSERT INTO biz_api_daily_usage (user_id, record_date, used_count)
+        VALUES (#{userId}, #{date}, #{amount})
+        ON DUPLICATE KEY UPDATE used_count = used_count + #{amount}
+    </insert>
+
     <update id="decrementUsage">
         update biz_api_daily_usage set used_count = used_count - 1
+        where user_id = #{userId} and record_date = #{date}
+    </update>
+
+    <update id="decrementUsageBy">
+        update biz_api_daily_usage set used_count = used_count - #{amount}
         where user_id = #{userId} and record_date = #{date}
     </update>
 

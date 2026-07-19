@@ -82,6 +82,6 @@ aliyun:
 
 # 开启驼峰命名转换
 mybatis:
-  mapper-locations: classpath:mapper/*.xml
+  mapper-locations: classpath*:mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true

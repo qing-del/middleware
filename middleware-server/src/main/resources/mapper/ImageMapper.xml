@@ -122,7 +122,14 @@
         SELECT id, user_id AS userId, topic_id AS topicId, filename, oss_url AS ossUrl, storage_type AS storageType, file_size AS fileSize, is_public AS isPublic, audit_status AS auditStatus, upload_time AS uploadTime
         FROM biz_image
         WHERE user_id = #{userId}
-          AND topic_id = #{topicId}
+          <choose>
+              <when test="topicId == null">
+                  AND topic_id IS NULL
+              </when>
+              <otherwise>
+                  AND topic_id = #{topicId}
+              </otherwise>
+          </choose>
           AND audit_status != 4
           AND filename IN
         <foreach collection="filenames" item="filename" open="(" separator="," close=")">
