@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TopicMapper">
+
+    <!-- 新增主题，主键回填到 TopicEntity.id -->
+    <insert id="insertTopic" parameterType="com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TopicDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_topic (user_id, topic_name, parent_id, sort_order, create_time, update_time)
+        VALUES (#{userId}, #{topicName}, #{parentId}, #{sortOrder}, NOW(), NOW())
+    </insert>
+
+    <!-- 按需更新：仅更新传入字段 -->
+    <update id="updateTopic" parameterType="com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TopicDO">
+        UPDATE biz_topic
+        <set>
+            <if test="topicName != null and topicName != ''">
+                topic_name = #{topicName},
+            </if>
+            parent_id = #{parentId},
+            <if test="sortOrder != null">
+                sort_order = #{sortOrder},
+            </if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+          AND user_id = #{userId}
+    </update>
+
+    <!-- 主题列表查询：左连接笔记统计，支持关键词过滤 -->
+    <select id="listByCondition" resultType="com.jacolp.middleware.module.note.biz.application.vo.topic.TopicListVO">
+        SELECT
+            t.id,
+            t.user_id AS userId,
+            t.topic_name AS topicName,
+            t.parent_id AS parentId,
+            t.sort_order AS sortOrder,
+            t.create_time AS createTime,
+            t.update_time AS updateTime,
+            IFNULL(n.note_count, 0) AS noteCount
+        FROM biz_topic t
+        LEFT JOIN (
+            SELECT topic_id, COUNT(1) AS note_count
+            FROM biz_note
+            WHERE status != 8
+            GROUP BY topic_id
+        ) n ON t.id = n.topic_id
+        <where>
+            <if test="userId != null"> t.user_id = #{userId} </if>
+            <if test="keyword != null and keyword != ''">
+                AND t.topic_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY t.sort_order ASC, t.update_time DESC, t.id DESC
+    </select>
+
+    <!-- 删除前校验查询：获取每个主题的未删除笔记数 -->
+    <select id="selectDeleteChecksByIds" resultType="com.jacolp.middleware.module.note.biz.infrastructure.persistence.dto.TopicNoteCountDTO">
+        SELECT
+            t.topic_name AS topicName,
+            COUNT(n.id) AS noteCount,
+            t.user_id AS userId
+        FROM biz_topic t
+        LEFT JOIN biz_note n ON n.topic_id = t.id AND n.status != 8
+        WHERE t.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        GROUP BY t.id
+    </select>
+
+    <!-- 批量删除主题（仅删除当前用户所属主题） -->
+    <delete id="deleteByIds">
+        DELETE FROM biz_topic
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
+    <select id="listByUserCondition" resultType="com.jacolp.middleware.module.note.biz.application.vo.topic.TopicListVO">
+        SELECT
+            t.id,
+            t.user_id AS userId,
+            t.topic_name AS topicName,
+            t.parent_id AS parentId,
+            t.sort_order AS sortOrder,
+            t.create_time AS createTime,
+            t.update_time AS updateTime,
+            IFNULL(n.note_count, 0) AS noteCount
+        FROM biz_topic t
+        LEFT JOIN (
+            SELECT topic_id, COUNT(1) AS note_count
+            FROM biz_note
+            WHERE status != 8
+            GROUP BY topic_id
+        ) n ON t.id = n.topic_id
+        <where>
+            <choose>
+                <when test="globalScope">
+                    t.user_id = #{userId}
+                </when>
+                <otherwise>
+                    t.user_id = #{userId}
+                </otherwise>
+            </choose>
+            <if test="keyword != null and keyword != ''">
+                AND t.topic_name LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY t.sort_order ASC, t.update_time DESC, t.id DESC
+    </select>
+
+    <select id="listChildrenByParentId" resultType="com.jacolp.middleware.module.note.biz.application.vo.topic.TopicListVO">
+        SELECT
+            t.id,
+            t.user_id AS userId,
+            t.topic_name AS topicName,
+            t.parent_id AS parentId,
+            t.sort_order AS sortOrder,
+            t.create_time AS createTime,
+            t.update_time AS updateTime,
+            IFNULL(n.note_count, 0) AS noteCount
+        FROM biz_topic t
+        LEFT JOIN (
+            SELECT topic_id, COUNT(1) AS note_count
+            FROM biz_note
+            WHERE status != 8
+            GROUP BY topic_id
+        ) n ON t.id = n.topic_id
+        WHERE t.user_id = #{userId}
+        <choose>
+            <when test="rootOnly">
+                AND t.parent_id IS NULL
+            </when>
+            <otherwise>
+                AND t.parent_id = #{parentId}
+            </otherwise>
+        </choose>
+        ORDER BY t.sort_order ASC, t.update_time DESC, t.id DESC
+    </select>
+
+</mapper>

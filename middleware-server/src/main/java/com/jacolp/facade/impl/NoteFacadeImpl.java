@@ -56,7 +56,7 @@ import com.jacolp.service.NoteConvertService;
 import com.jacolp.service.NoteCoreService;
 import com.jacolp.service.NoteRelationService;
 import com.jacolp.service.TagService;
-import com.jacolp.service.TopicService;
+import com.jacolp.middleware.module.note.biz.application.service.TopicService;
 
 import lombok.extern.slf4j.Slf4j;
 
