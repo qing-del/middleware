@@ -48,7 +48,8 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
         for (NoteEntity note : noteMapper.selectByIds(ids)) {
             if (note.getStatus() != null && note.getStatus() != NOTE_DELETED) {
                 summaries.put(note.getId(), new NoteSummary(note.getId(), note.getUserId(), note.getTopicId(),
-                        note.getTitle(), toNoteStatus(note.getStatus())));
+                        note.getTitle(), toNoteStatus(note.getStatus()),
+                        note.getMdFileSize() == null ? 0L : note.getMdFileSize()));
             }
         }
         return Map.copyOf(summaries);

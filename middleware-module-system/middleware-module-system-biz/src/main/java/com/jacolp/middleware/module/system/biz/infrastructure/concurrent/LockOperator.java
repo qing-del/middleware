@@ -1,4 +1,4 @@
-package com.jacolp.component;
+package com.jacolp.middleware.module.system.biz.infrastructure.concurrent;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

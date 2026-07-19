@@ -124,7 +124,7 @@
         update_time = now()
     </insert>
 
-    <select id="selectQuoteStorageByIds" resultType="com.jacolp.pojo.dto.user.UserQuoteStorageDTO">
+    <select id="selectQuoteStorageByIds" resultType="com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO">
         SELECT
             id,
             role_id,

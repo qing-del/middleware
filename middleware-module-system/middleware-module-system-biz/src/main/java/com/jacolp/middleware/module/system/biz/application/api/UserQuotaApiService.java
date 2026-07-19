@@ -11,8 +11,8 @@ import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataob
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.ApiDailyUsageMapper;
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
-import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
-import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
+import com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO;
+import com.jacolp.middleware.module.system.biz.application.dto.user.UserStorageHandlerDTO;
 import com.jacolp.utils.RoleDataComputerUtil;
 import org.springframework.stereotype.Service;
 

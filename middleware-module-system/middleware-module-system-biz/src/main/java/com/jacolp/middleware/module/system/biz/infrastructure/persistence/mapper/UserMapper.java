@@ -2,8 +2,8 @@ package com.jacolp.middleware.module.system.biz.infrastructure.persistence.mappe
 
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserListDTO;
-import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
-import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
+import com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO;
+import com.jacolp.middleware.module.system.biz.application.dto.user.UserStorageHandlerDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;

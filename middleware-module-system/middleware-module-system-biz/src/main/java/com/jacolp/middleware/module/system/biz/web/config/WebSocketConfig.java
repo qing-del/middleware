@@ -1,6 +1,6 @@
-package com.jacolp.config;
+package com.jacolp.middleware.module.system.biz.web.config;
 
-import com.jacolp.handler.MonitorWebSocketHandler;
+import com.jacolp.middleware.module.system.biz.web.websocket.MonitorWebSocketHandler;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;

@@ -1,16 +1,14 @@
-package com.jacolp.aspect;
+package com.jacolp.middleware.module.system.biz.application.aspect;
 
 import com.jacolp.middleware.module.system.api.quota.StorageHandler;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.NoteMapper;
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
-import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
-import com.jacolp.pojo.dto.user.UserStorageHandlerDTO;
+import com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO;
+import com.jacolp.middleware.module.system.biz.application.dto.user.UserStorageHandlerDTO;
 import com.jacolp.result.Result;
 import com.jacolp.middleware.module.system.api.quota.StorageOperationType;
-import com.jacolp.pojo.entity.NoteEntity;
-import com.jacolp.component.LockOperator;
+import com.jacolp.middleware.module.system.biz.infrastructure.concurrent.LockOperator;
 
 import com.jacolp.utils.RoleDataComputerUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +24,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.context.BaseContext;
 import com.jacolp.middleware.module.system.api.quota.StorageUpdateContext;
-import com.jacolp.mapper.ImageMapper;
+import com.jacolp.middleware.module.note.api.NoteReadApi;
+import com.jacolp.middleware.module.note.api.model.NoteSummary;
+import com.jacolp.middleware.module.media.api.MediaFileApi;
+import com.jacolp.middleware.module.media.api.MediaUsageApi;
+import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,9 +48,10 @@ public class StorageHandlerAspect {
 
     @Autowired private LockOperator lockOperator;
 
-    @Autowired private ImageMapper imageMapper;
     @Autowired private UserMapper userMapper;
-    @Autowired private NoteMapper noteMapper;
+    @Autowired private NoteReadApi noteReadApi;
+    @Autowired private MediaUsageApi mediaUsageApi;
+    @Autowired private MediaFileApi mediaFileApi;
 
     @Pointcut("@annotation(storageHandler)")
     public void storageHandlerPointcut(StorageHandler storageHandler) {
@@ -350,9 +353,8 @@ public class StorageHandlerAspect {
      * 从 DB 实时计算用户实际使用的存储空间（笔记 + 图片）。
      */
     private long computeActualUsedStorage(Long userId) {
-        Long noteBytes = noteMapper.sumNoteFileSizeByUserId(userId);
-        Long imageBytes = imageMapper.sumImageFileSizeByUserId(userId);
-        return (noteBytes == null ? 0L : noteBytes) + (imageBytes == null ? 0L : imageBytes);
+        return noteReadApi.getUserStorageUsageBytes(userId)
+                + mediaUsageApi.getUserStorageUsageBytes(userId);
     }
 
     /**
@@ -368,10 +370,14 @@ public class StorageHandlerAspect {
         }
 
         for (Object arg : joinPoint.getArgs()) {
-            if (arg instanceof Long noteId) {
-                NoteEntity note = noteMapper.selectById(noteId);
-                if (note != null && note.getMdFileSize() != null) {
-                    return fileSize - note.getMdFileSize();
+            if (arg instanceof Long resourceId) {
+                NoteSummary note = noteReadApi.findNoteSummariesByIds(List.of(resourceId)).get(resourceId);
+                if (note != null) {
+                    return fileSize - note.storageBytes();
+                }
+                MediaFileSummary media = mediaFileApi.findByIds(List.of(resourceId)).get(resourceId);
+                if (media != null) {
+                    return fileSize - media.sizeBytes();
                 }
             }
         }

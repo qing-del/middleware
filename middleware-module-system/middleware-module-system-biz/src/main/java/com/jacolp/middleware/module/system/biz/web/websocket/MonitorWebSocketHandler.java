@@ -1,8 +1,8 @@
-package com.jacolp.handler;
+package com.jacolp.middleware.module.system.biz.web.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jacolp.pojo.vo.MonitorDataVO;
-import com.jacolp.service.SystemMonitorService;
+import com.jacolp.middleware.module.system.biz.application.vo.MonitorDataVO;
+import com.jacolp.middleware.module.system.biz.application.service.SystemMonitorService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

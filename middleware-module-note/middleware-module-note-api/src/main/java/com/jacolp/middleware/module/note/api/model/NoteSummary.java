@@ -8,6 +8,11 @@ public record NoteSummary(
         Long userId,
         Long topicId,
         String title,
-        NoteLifecycleStatus status
+        NoteLifecycleStatus status,
+        long storageBytes
 ) {
+
+    public NoteSummary(Long id, Long userId, Long topicId, String title, NoteLifecycleStatus status) {
+        this(id, userId, topicId, title, status, 0L);
+    }
 }

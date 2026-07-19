@@ -1,4 +1,4 @@
-package com.jacolp.pojo.vo;
+package com.jacolp.middleware.module.system.biz.application.vo;
 
 import lombok.Builder;
 import lombok.Data;

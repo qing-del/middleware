@@ -33,7 +33,7 @@ import com.jacolp.middleware.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserListDTO;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserModifyDTO;
-import com.jacolp.pojo.dto.user.UserQuoteStorageDTO;
+import com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO;
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.result.PageResult;
 import com.jacolp.middleware.module.system.biz.application.service.AdminUserService;

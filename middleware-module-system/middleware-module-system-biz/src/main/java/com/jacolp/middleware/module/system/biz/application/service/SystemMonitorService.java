@@ -1,6 +1,6 @@
-package com.jacolp.service;
+package com.jacolp.middleware.module.system.biz.application.service;
 
-import com.jacolp.pojo.vo.MonitorDataVO;
+import com.jacolp.middleware.module.system.biz.application.vo.MonitorDataVO;
 
 public interface SystemMonitorService {
     /**

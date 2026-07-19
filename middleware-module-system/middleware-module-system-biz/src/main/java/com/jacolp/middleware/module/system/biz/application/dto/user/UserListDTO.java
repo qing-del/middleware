@@ -1,7 +1,5 @@
 package com.jacolp.middleware.module.system.biz.application.dto.user;
 
-import com.jacolp.pojo.provider.PageParamProvider;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,11 +7,19 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserListDTO implements PageParamProvider {
+public class UserListDTO {
     private Long id;
     private String username;
     private Integer status;
     private Long roleId;
     private Integer pageNum;
     private Integer pageSize;
+
+    public int getPageNumOrDefault() {
+        return pageNum == null ? 1 : pageNum;
+    }
+
+    public int getPageSizeOrDefault() {
+        return pageSize == null ? 15 : pageSize;
+    }
 }

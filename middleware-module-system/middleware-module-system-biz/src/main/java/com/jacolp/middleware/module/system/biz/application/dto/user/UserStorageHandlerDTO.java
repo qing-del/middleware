@@ -1,4 +1,4 @@
-package com.jacolp.pojo.dto.user;
+package com.jacolp.middleware.module.system.biz.application.dto.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
