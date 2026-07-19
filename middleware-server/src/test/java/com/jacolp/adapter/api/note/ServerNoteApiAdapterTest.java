@@ -2,7 +2,7 @@ package com.jacolp.adapter.api.note;
 
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.mapper.NoteMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
@@ -12,7 +12,7 @@ import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
 import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
 import com.jacolp.middleware.module.note.api.model.NoteSummary;
 import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import org.junit.jupiter.api.Test;
 
@@ -31,8 +31,8 @@ class ServerNoteApiAdapterTest {
     @Test
     void noteSummariesUseOneBatchQueryAndOmitDeletedRows() {
         NoteMapper noteMapper = mock(NoteMapper.class);
-        NoteEntity visible = note(2L, (short) 5);
-        NoteEntity deleted = note(1L, (short) 8);
+        NoteDO visible = note(2L, (short) 5);
+        NoteDO deleted = note(1L, (short) 8);
         when(noteMapper.selectByIds(List.of(2L, 1L))).thenReturn(List.of(visible, deleted));
 
         Map<Long, NoteSummary> summaries = new ServerNoteReadApiAdapter(noteMapper, mock(TagMapper.class),
@@ -116,8 +116,8 @@ class ServerNoteApiAdapterTest {
         verify(imageMapper).updateByImageIds(List.of(7L, 8L), (short) 3);
     }
 
-    private static NoteEntity note(Long id, short status) {
-        NoteEntity note = new NoteEntity();
+    private static NoteDO note(Long id, short status) {
+        NoteDO note = new NoteDO();
         note.setId(id);
         note.setUserId(9L);
         note.setTopicId(3L);

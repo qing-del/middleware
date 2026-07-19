@@ -15,12 +15,12 @@ import com.jacolp.constant.NoteConstant;
 import com.jacolp.exception.BaseException;
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.mapper.NoteMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.pojo.dto.note.PublicNoteQueryDTO;
 import com.jacolp.pojo.vo.note.PublicNoteDetailVO;
 import com.jacolp.pojo.vo.note.PublicNoteListVO;
-import com.jacolp.pojo.vo.note.NoteVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.PublicNoteService;
 import com.jacolp.service.NoteConvertService;
@@ -42,7 +42,7 @@ public class PublicNoteServiceImpl implements PublicNoteService {
         PublicNoteQueryDTO query = normalizeQuery(dto);
 
         PageHelper.startPage(query.getPageNumOrDefault(), query.getPageSizeOrDefault());
-        List<NoteVO> records = noteMapper.listPublicPublished(query);
+        List<NoteVO> records = noteMapper.listPublicPublished(query.getTopicId(), query.getKeyword());
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
 
         List<PublicNoteListVO> list = pageInfo.getList().stream()

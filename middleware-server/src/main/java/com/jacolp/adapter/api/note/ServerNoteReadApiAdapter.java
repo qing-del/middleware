@@ -1,7 +1,7 @@
 package com.jacolp.adapter.api.note;
 
 import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.mapper.NoteMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.NoteReadApi;
 import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
@@ -10,7 +10,7 @@ import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
 import com.jacolp.middleware.module.note.api.model.TagReviewStatus;
 import com.jacolp.middleware.module.note.api.model.TagSummary;
 import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import org.springframework.stereotype.Component;
@@ -47,7 +47,7 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
             return Map.of();
         }
         Map<Long, NoteSummary> summaries = new LinkedHashMap<>();
-        for (NoteEntity note : noteMapper.selectByIds(ids)) {
+        for (NoteDO note : noteMapper.selectByIds(ids)) {
             if (note.getStatus() != null && note.getStatus() != NOTE_DELETED) {
                 summaries.put(note.getId(), new NoteSummary(note.getId(), note.getUserId(), note.getTopicId(),
                         note.getTitle(), toNoteStatus(note.getStatus()),

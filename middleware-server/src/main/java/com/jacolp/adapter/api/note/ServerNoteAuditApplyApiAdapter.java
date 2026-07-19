@@ -2,7 +2,7 @@ package com.jacolp.adapter.api.note;
 
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.mapper.NoteMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.NoteAuditApplyApi;

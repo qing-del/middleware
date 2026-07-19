@@ -9,6 +9,7 @@ import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.*;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteBacklinkVO;
@@ -36,7 +37,7 @@ public interface NoteRelationService {
      * @param images 图片名称列表
      * @return 插入的行数
      */
-    int initImageBatchInsertMappings(NoteEntity note, List<String> images);
+    int initImageBatchInsertMappings(NoteDO note, List<String> images);
 
 
     /**
@@ -62,7 +63,7 @@ public interface NoteRelationService {
             Long noteId,
             List<NoteTagMappingEntity> tagMappings, Map<Long, TagDO> tagMap,
             List<NoteImageMappingEntity> imageMappings, Map<Long, MediaFileSummary> imageMap,
-            List<NoteEachMappingEntity> eachMappings, Map<Long, NoteEntity> targetNoteMap);
+            List<NoteEachMappingEntity> eachMappings, Map<Long, NoteDO> targetNoteMap);
 
     /**
      * 绑定标签关系
@@ -96,7 +97,7 @@ public interface NoteRelationService {
      * @param targetNote
      * @return 被绑定的 映射行实体
      */
-    NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteEntity targetNote);
+    NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteDO targetNote);
 
     /**
      * 解绑关系
@@ -110,7 +111,7 @@ public interface NoteRelationService {
      * @param note
      * @return
      */
-    NoteCheckBindingVO checkRelationCompletion(NoteEntity note);
+    NoteCheckBindingVO checkRelationCompletion(NoteDO note);
 
     /**
      * 获取笔记标签关系列表
@@ -173,7 +174,7 @@ public interface NoteRelationService {
      * @param noteMap 可供选择的笔记
      * @throws BaseException 批量绑定失败
      */
-    void tryBatchBindNoteMappings(List<NoteEachMappingEntity> mappings, Map<String, NoteEntity> noteMap);
+    void tryBatchBindNoteMappings(List<NoteEachMappingEntity> mappings, Map<String, NoteDO> noteMap);
 
     /**
      * 批量更新标签关系状态

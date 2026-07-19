@@ -35,7 +35,7 @@ import com.jacolp.pojo.dto.tag.UserTagAssignDTO;
 import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
 import com.jacolp.pojo.dto.tag.UserTagRemoveDTO;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.tag.TagBatchAddVO;
@@ -360,7 +360,7 @@ public class TagServiceImpl implements TagService {
      * @throws BaseException 不存在笔记 | 已有关联映射 | 创建映射关系失败
      */
     private void assignTagToNote(TagDO tag, Long noteId, Long userId) {
-        NoteEntity note = noteCoreService.getById(noteId);
+        NoteDO note = noteCoreService.getById(noteId);
         // 显示校验所属权（实际上已经校验过了）
         if (!note.getUserId().equals(userId)) {
             throw new BaseException("只能绑定到自己的笔记");
@@ -397,7 +397,7 @@ public class TagServiceImpl implements TagService {
      * @throws BaseException 不存在笔记 | 未找到映射关系 | 删除映射关系失败
      */
     private void removeTagFromNote(TagDO tag, Long noteId, Long userId) {
-        NoteEntity note = noteCoreService.getById(noteId);
+        NoteDO note = noteCoreService.getById(noteId);
         if (!note.getUserId().equals(userId)) {
             throw new BaseException("只能操作自己的笔记");
         }

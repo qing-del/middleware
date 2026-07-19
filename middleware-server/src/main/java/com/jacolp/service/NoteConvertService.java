@@ -2,7 +2,7 @@ package com.jacolp.service;
 
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.entity.NoteContextEntity;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 
 import java.util.List;
@@ -15,7 +15,7 @@ public interface NoteConvertService {
      * @return 解析出的标题（可能不同于文件名）
      * @throws BaseException 写入数据库失败的时候会抛出此异常
      */
-    String convertAndSave(NoteEntity note, NoteContextEntity context);
+    String convertAndSave(NoteDO note, NoteContextEntity context);
 
     /**
      * 删除单条转换结果。

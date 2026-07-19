@@ -4,7 +4,7 @@ import com.jacolp.annotation.CheckMissingInfo;
 import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.provider.NoteIdProvider;
 import com.jacolp.service.NoteCoreService;
 import com.jacolp.service.NoteRelationService;
@@ -58,7 +58,7 @@ public class CheckMissingInfoAspect {
 
         // 检查是否需要回写到 DB
         if (NoteMissingInfoMask.isComplete(missingInfo) && missingCount == 0) {
-            NoteEntity note = noteCoreService.getById(noteId);
+            NoteDO note = noteCoreService.getById(noteId);
             note.setMissingInfoMask(missingInfo);
             note.setMissingCount(missingCount);
             noteCoreService.update(note);

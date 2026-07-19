@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.jacolp.mapper.NoteMapper">
+<mapper namespace="com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper">
 
-        <resultMap id="NoteEntityMap" type="com.jacolp.pojo.entity.NoteEntity">
+        <resultMap id="NoteEntityMap" type="com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO">
                 <id column="id" property="id"/>
                 <result column="user_id" property="userId"/>
                 <result column="topic_id" property="topicId"/>
@@ -18,7 +18,7 @@
                 <result column="update_time" property="updateTime"/>
         </resultMap>
 
-        <resultMap id="NoteVOMap" type="com.jacolp.pojo.vo.note.NoteVO">
+        <resultMap id="NoteVOMap" type="com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO">
                 <id column="id" property="id"/>
                 <result column="user_id" property="userId"/>
                 <result column="topic_id" property="topicId"/>
@@ -34,14 +34,14 @@
                 <result column="update_time" property="updateTime"/>
         </resultMap>
 
-        <insert id="insertNote" parameterType="com.jacolp.pojo.entity.NoteEntity" useGeneratedKeys="true" keyProperty="id">
+        <insert id="insertNote" parameterType="com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO" useGeneratedKeys="true" keyProperty="id">
                 INSERT INTO biz_note
                 (user_id, topic_id, title, description, storage_type, status, missing_info_mask, missing_count, md_file_size)
                 VALUES
                 (#{userId}, #{topicId}, #{title}, #{description}, #{storageType}, #{status}, #{missingInfoMask}, #{missingCount}, #{mdFileSize})
         </insert>
 
-        <update id="updateNote" parameterType="com.jacolp.pojo.entity.NoteEntity">
+        <update id="updateNote" parameterType="com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO">
                 UPDATE biz_note
                 <set>
                         <if test="userId != null">user_id = #{userId},</if>
@@ -116,7 +116,7 @@
                 </foreach>
         </select>
 
-        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.pojo.vo.note.NoteSimpleVO">
+        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.middleware.module.note.biz.application.vo.note.NoteSimpleVO">
                 SELECT
                         m.note_id AS id,
                         m.note_title AS title,
@@ -145,7 +145,7 @@
                   AND status != 8
         </select>
 
-        <select id="listByCondition" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.note.NoteQueryDTO">
+        <select id="listByCondition" resultMap="NoteVOMap">
                 SELECT n.id, n.user_id, n.topic_id, t.topic_name, n.title, n.description,
                            n.storage_type, n.status, n.missing_info_mask, n.missing_count, n.md_file_size,
                            n.create_time, n.update_time
@@ -207,7 +207,7 @@
                 ORDER BY n.create_time DESC
         </select>
 
-        <select id="listPublicPublished" resultMap="NoteVOMap" parameterType="com.jacolp.pojo.dto.note.PublicNoteQueryDTO">
+        <select id="listPublicPublished" resultMap="NoteVOMap">
                 SELECT
                     n.id, n.topic_id, t.topic_name, n.title, n.description,
                     n.storage_type, n.status, n.missing_info_mask, n.missing_count,

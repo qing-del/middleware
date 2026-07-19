@@ -32,7 +32,7 @@ import com.jacolp.middleware.module.media.api.command.MediaFileLookupCommand;
 import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
 import com.jacolp.middleware.module.media.api.model.MediaReviewStatus;
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
@@ -73,7 +73,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         // 构建缓存
         Map<Long, TagDO> tagMap = buildTagMap(tagMappings);
         Map<Long, MediaFileSummary> imageMap = buildImageMap(imageMappings);
-        Map<Long, NoteEntity> targetNoteMap = buildTargetNoteMap(eachMappings);
+        Map<Long, NoteDO> targetNoteMap = buildTargetNoteMap(eachMappings);
 
         // 构建返回结果
         return noteRelationService.getRelationInfo(
@@ -113,7 +113,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         NoteTagMappingEntity mapping = noteRelationService.bindTagMapping(dto, targetTag);
 
         // 检查是否需要更新笔记状态
-        NoteEntity note = noteCoreService.getById(mapping.getNoteId());
+        NoteDO note = noteCoreService.getById(mapping.getNoteId());
 
         // 检查状态是否允许操作
         if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
@@ -139,7 +139,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         NoteTagMappingEntity result = noteRelationService.unbindTagMapping(mappingId);
 
         // 检查是否需要更新笔记状态
-        NoteEntity note = noteCoreService.getById(result.getNoteId());
+        NoteDO note = noteCoreService.getById(result.getNoteId());
 
         // 检查状态是否允许操作
         if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
@@ -171,7 +171,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         NoteImageMappingEntity mapping = noteRelationService.bindImageMapping(dto, targetImage);
 
         // 检查是否需要更新笔记状态
-        NoteEntity note = noteCoreService.getById(mapping.getNoteId());
+        NoteDO note = noteCoreService.getById(mapping.getNoteId());
 
         // 检查状态是否允许操作
         if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
@@ -197,7 +197,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         NoteImageMappingEntity result = noteRelationService.unbindImageMapping(mappingId);
 
         // 检查是否需要更新笔记状态
-        NoteEntity note = noteCoreService.getById(result.getNoteId());
+        NoteDO note = noteCoreService.getById(result.getNoteId());
 
         // 检查状态是否允许操作
         if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
@@ -224,7 +224,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      */
     @Override
     public void bindEachMapping(EachMappingBindDTO dto) {
-        NoteEntity targetNote = noteCoreService.getById(dto.getNoteId());
+        NoteDO targetNote = noteCoreService.getById(dto.getNoteId());
         NoteEachMappingEntity mapping = null;
         int affectedRow = 0;
         try {
@@ -235,7 +235,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         }
 
         // 检查是否需要更新笔记状态
-        NoteEntity note = noteCoreService.getById(mapping.getNoteId());
+        NoteDO note = noteCoreService.getById(mapping.getNoteId());
 
         // 检查状态是否允许操作
         if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
@@ -261,7 +261,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         NoteEachMappingEntity result = noteRelationService.unbindEachMapping(mappingId);
 
         // 检查是否需要更新笔记状态
-        NoteEntity note = noteCoreService.getById(result.getNoteId());
+        NoteDO note = noteCoreService.getById(result.getNoteId());
 
         // 检查状态是否允许操作
         if (!NoteStatus.canBindOperation(NoteStatus.fromCode(note.getStatus()))) {
@@ -285,7 +285,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
     @Override
     public NoteCheckBindingVO checkRelationCompletion(Long noteId) {
-        NoteEntity note = noteCoreService.getById(noteId);
+        NoteDO note = noteCoreService.getById(noteId);
 
         // 先尝试自动补绑定已存在且可绑定的标签/图片/内联笔记
         syncBindableMappings(noteId, note.getUserId(), note.getTopicId());
@@ -305,7 +305,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         }
 
         Long currentUserId = BaseContext.getCurrentId();
-        NoteEntity target = noteCoreService.getEntityById(noteId);
+        NoteDO target = noteCoreService.getEntityById(noteId);
 
         // 校验可见性
         boolean isOwner = Objects.equals(target.getUserId(), currentUserId);    // 校验归属权
@@ -373,10 +373,10 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     /**
      * 尝试自动补绑定已存在且可绑定的标签/图片/内联笔记
      * <p>- 此处不会校验权限</p>
-     * <p>- 使用{@link NoteRelationService#checkRelationCompletion(NoteEntity)} 去检查绑定状态</p>
-     * <p>- 使用{@link NoteCoreService#update(NoteEntity)} 更新笔记</p>
+     * <p>- 使用{@link NoteRelationService#checkRelationCompletion(NoteDO)} 去检查绑定状态</p>
+     * <p>- 使用{@link NoteCoreService#update(NoteDO)} 更新笔记</p>
      */
-    private @NonNull NoteCheckBindingVO tryConvertNoteToReady(NoteEntity note) {
+    private @NonNull NoteCheckBindingVO tryConvertNoteToReady(NoteDO note) {
         // 获取笔记检查需要使用的关联信息
         NoteCheckBindingVO vo = noteRelationService.checkRelationCompletion(note);
 
@@ -460,7 +460,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         // 同步内联笔记映射
         List<NoteEachMappingEntity> noteMappings = Optional.ofNullable
                 (noteRelationService.listEachMappingsByNoteId(noteId)).orElse(List.of());
-        Map<String, NoteEntity> noteMap = getNoteEntitiesMap(noteMappings, userId, topicId);
+        Map<String, NoteDO> noteMap = getNoteEntitiesMap(noteMappings, userId, topicId);
         noteRelationService.tryBatchBindNoteMappings(noteMappings, noteMap);
     }
 
@@ -541,9 +541,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      * @param mappings 笔记映射行
      * @param userId   用户 id
      * @param topicId  话题 id
-     * @return 笔记实体的 <noteName, NoteEntity> 的 Map
+     * @return 笔记实体的 <noteName, NoteDO> 的 Map
      */
-    private Map<String, NoteEntity> getNoteEntitiesMap(List<NoteEachMappingEntity> mappings,
+    private Map<String, NoteDO> getNoteEntitiesMap(List<NoteEachMappingEntity> mappings,
                                                        Long userId, Long topicId) {
         if (mappings.isEmpty()) {
             return Map.of();
@@ -558,7 +558,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             return Map.of();
         }
 
-        List<NoteEntity> notes = Optional.ofNullable(
+        List<NoteDO> notes = Optional.ofNullable(
                         noteCoreService.getByUserIdAndTopicIdAndTitles(userId, topicId, parsedNames))
                 .orElse(List.of());
         if (notes.isEmpty()) {
@@ -568,7 +568,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         return notes.stream()
                 .collect(Collectors
                         .toMap(
-                                NoteEntity::getTitle,
+                                NoteDO::getTitle,
                                 note -> note,
                                 (left, right) -> left)
                 );
@@ -605,7 +605,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         return switch (status) { case WAITING -> 0; case REVIEWING -> 1; case APPROVED -> 2; case REJECTED -> 3; case DELETED -> 4; };
     }
 
-    private Map<Long, NoteEntity> buildTargetNoteMap(List<NoteEachMappingEntity> mappings) {
+    private Map<Long, NoteDO> buildTargetNoteMap(List<NoteEachMappingEntity> mappings) {
         List<Long> ids = mappings.stream()
                 .map(NoteEachMappingEntity::getTargetNoteId)
                 .filter(Objects::nonNull)
@@ -615,7 +615,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             return Map.of();
         }
         return noteCoreService.getByIds(ids).stream()
-                .collect(Collectors.toMap(NoteEntity::getId, note -> note, (left, right) -> left));
+                .collect(Collectors.toMap(NoteDO::getId, note -> note, (left, right) -> left));
     }
 }
 

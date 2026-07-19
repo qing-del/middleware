@@ -32,7 +32,7 @@ import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
 import com.jacolp.middleware.module.media.api.model.MediaReviewStatus;
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
@@ -55,7 +55,7 @@ import lombok.extern.slf4j.Slf4j;
  * 并在信息齐全时自动将状态从 {@code PENDING_INFO} 推进到 {@code READY_TO_CONVERT}。</p>
  *
  * <h3>自动补绑定</h3>
- * <p>{@link #checkRelationCompletion(NoteEntity)} 方法触发三类映射的自动补绑定
+ * <p>{@link #checkRelationCompletion(NoteDO)} 方法触发三类映射的自动补绑定
  * 标签/图片/笔记，减少用户手工绑定操作。</p>
  *
  * @see NoteRelationService
@@ -78,7 +78,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
             Long noteId,
             List<NoteTagMappingEntity> tagMappings, Map<Long, TagDO> tagMap,
             List<NoteImageMappingEntity> imageMappings, Map<Long, MediaFileSummary> imageMap,
-            List<NoteEachMappingEntity> eachMappings, Map<Long, NoteEntity> targetNoteMap) {
+            List<NoteEachMappingEntity> eachMappings, Map<Long, NoteDO> targetNoteMap) {
         // 组装返回 VO
         NoteRelationDetailVO vo = new NoteRelationDetailVO();
         vo.setNoteId(noteId);
@@ -164,7 +164,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
 
     @Override
     @CheckMissingInfo(enableTransaction = true)
-    public NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteEntity targetNote) {
+    public NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteDO targetNote) {
         if (dto == null) {
             throw new BaseException("映射ID和笔记ID不能为空");
         }
@@ -205,7 +205,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public NoteCheckBindingVO checkRelationCompletion(NoteEntity note) {
+    public NoteCheckBindingVO checkRelationCompletion(NoteDO note) {
         NoteCheckBindingVO result = new NoteCheckBindingVO();
         result.setNoteId(note.getId());
 
@@ -359,10 +359,10 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
-    public void tryBatchBindNoteMappings(List<NoteEachMappingEntity> mappings, Map<String, NoteEntity> noteMap) {
+    public void tryBatchBindNoteMappings(List<NoteEachMappingEntity> mappings, Map<String, NoteDO> noteMap) {
         List<NoteEachMappingEntity> toBind = new ArrayList<>();
         for (NoteEachMappingEntity mapping : mappings) {
-            NoteEntity target = noteMap.get(mapping.getParsedNoteName());
+            NoteDO target = noteMap.get(mapping.getParsedNoteName());
             if (target == null) {
                 continue;
             }
@@ -431,7 +431,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
-    public int initImageBatchInsertMappings(NoteEntity note, List<String> images) {
+    public int initImageBatchInsertMappings(NoteDO note, List<String> images) {
         if (images == null || images.isEmpty()) {
             return 0;
         }
@@ -638,9 +638,9 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         };
     }
 
-    private List<NoteEachMappingRowVO> buildEachRows(List<NoteEachMappingEntity> mappings, Map<Long, NoteEntity> noteMap) {
+    private List<NoteEachMappingRowVO> buildEachRows(List<NoteEachMappingEntity> mappings, Map<Long, NoteDO> noteMap) {
         return mappings.stream().map(mapping -> {
-            NoteEntity target = mapping.getTargetNoteId() == null ? null : noteMap.get(mapping.getTargetNoteId());
+            NoteDO target = mapping.getTargetNoteId() == null ? null : noteMap.get(mapping.getTargetNoteId());
             boolean validBind = mapping.getTargetNoteId() != null
                     && target != null
                     && !NoteStatus.fromCode(target.getStatus()).isDeleted()

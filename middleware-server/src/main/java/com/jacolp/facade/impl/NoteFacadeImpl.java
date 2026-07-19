@@ -38,7 +38,7 @@ import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.pojo.dto.note.UploadToInsertNoteDTO;
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
 import com.jacolp.pojo.entity.NoteContextEntity;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
@@ -49,7 +49,7 @@ import com.jacolp.pojo.vo.note.NoteEachSimpleVO;
 import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
-import com.jacolp.pojo.vo.note.NoteVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.service.NoteChangeDiffService;
 import com.jacolp.service.NoteContextService;
 import com.jacolp.service.NoteConvertService;
@@ -125,7 +125,7 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 插入笔记行
         Long noteId = noteCoreService.insertNote(dto);
-        NoteEntity note = new NoteEntity();
+        NoteDO note = new NoteDO();
         note.setId(noteId);
         note.setUserId(userId);
         note.setTopicId(topicId);
@@ -172,7 +172,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @StorageHandler(operationType = StorageOperationType.MODIFY)
     public NoteDiffVO modifyNoteSource(Long noteId, MultipartFile file) {
         // 校验所有权，非所有者抛出 PERMISSION_DENIED
-        NoteEntity existed = noteCoreService.getById(noteId);
+        NoteDO existed = noteCoreService.getById(noteId);
 
         // 检查是否可以发生状态转换
         NoteStatus currentStatus = NoteStatus.fromCode(existed.getStatus());
@@ -233,7 +233,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @Transactional(rollbackFor = Exception.class)
     public void confirmChange(Long noteId, NoteChangeConfirmDTO dto) {
         // 检查笔记和内容是否存在
-        NoteEntity existed = noteCoreService.getById(noteId);
+        NoteDO existed = noteCoreService.getById(noteId);
         if (existed == null || NoteConstant.NOT_CHANGING.equals(existed.getIsChanging())) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);   // 不存在这种状态的笔记
         }
@@ -324,7 +324,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void convertNote(Long noteId) {
-        NoteEntity note = noteCoreService.getById(noteId);
+        NoteDO note = noteCoreService.getById(noteId);
 
         // 校验信息完整性 — 缺失信息的笔记不允许转换
         NoteStatus noteStatus = NoteStatus.fromCode(note.getStatus());
@@ -365,7 +365,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @StorageHandler(operationType = StorageOperationType.BATCH_DELETE)
     public void adminDeleteNotes(List<Long> ids) {
         // 批量获取笔记 & 检查数量级是否能对应上
-        List<NoteEntity> notes = noteCoreService.getByIds(ids);
+        List<NoteDO> notes = noteCoreService.getByIds(ids);
         if (notes.size() != ids.size()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
@@ -394,7 +394,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @Override
     @StorageHandler(operationType = StorageOperationType.DELETE)
     public void deleteNote(Long noteId) {
-        NoteEntity note = noteCoreService.getById(noteId);
+        NoteDO note = noteCoreService.getById(noteId);
 
         NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
         if (currentStatus == NoteStatus.PENDING_AUDIT) {
@@ -431,7 +431,7 @@ public class NoteFacadeImpl implements NoteFacade {
     })
     public void updateNoteStatus(Long noteId, Short status) {
         // 先获取笔记
-        NoteEntity note = noteCoreService.getById(noteId);
+        NoteDO note = noteCoreService.getById(noteId);
 
         NoteStatus currentStatus = NoteStatus.fromCode(note.getStatus());
         NoteStatus targetStatus = NoteStatus.fromCode(status);
@@ -502,7 +502,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteConverted(Long noteId) {
-        NoteEntity note = noteCoreService.getById(noteId);
+        NoteDO note = noteCoreService.getById(noteId);
         NoteStatus status = NoteStatus.fromCode(note.getStatus());
         if (!status.canTransitionTo(NoteStatus.READY_TO_CONVERT)) {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
@@ -622,9 +622,9 @@ public class NoteFacadeImpl implements NoteFacade {
      * @return 用户存储回收量的 <userId, fileSize(Long)> 的 Map
      * @throws BaseException 如果存在不可删除状态的笔记 会抛出此异常
      */
-    private @NonNull Map<Long, Long> checkAndBuildStorageMap(List<NoteEntity> notes) {
+    private @NonNull Map<Long, Long> checkAndBuildStorageMap(List<NoteDO> notes) {
         // 状态校验 — 审核中和已公开的笔记不允许删除
-        for (NoteEntity note : notes) {
+        for (NoteDO note : notes) {
             NoteStatus status = NoteStatus.fromCode(note.getStatus());
             if (status == NoteStatus.PENDING_AUDIT) {
                 throw new BaseException("笔记【" + note.getTitle() + "】正在审核中，不能删除");
@@ -636,7 +636,7 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 汇总各用户的存储回收量
         Map<Long, Long> userStorageMap = new LinkedHashMap<>();
-        for (NoteEntity note : notes) {
+        for (NoteDO note : notes) {
             userStorageMap.merge(note.getUserId(), safeLong(note.getMdFileSize()), Long::sum);
         }
         return userStorageMap;
@@ -667,7 +667,7 @@ public class NoteFacadeImpl implements NoteFacade {
                     ? Map.of() : noteCoreService.getByIds(targetIds)
                                  .stream()
                                  .filter(n -> n.getStatus() == null || !NoteStatus.fromCode(n.getStatus()).isDeleted())
-                                 .collect(Collectors.toMap(NoteEntity::getId, NoteEntity::getTitle, (left, right) -> left));
+                                 .collect(Collectors.toMap(NoteDO::getId, NoteDO::getTitle, (left, right) -> left));
 
             // 构建列表
             detailVO.setEachNotes(eachNotesList

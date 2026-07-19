@@ -3,9 +3,9 @@ package com.jacolp.service;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.note.*;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.vo.note.NoteStatsVO;
-import com.jacolp.pojo.vo.note.NoteVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
 import org.jspecify.annotations.NonNull;
 
@@ -18,7 +18,7 @@ public interface NoteCoreService {
      * @param noteEntity 笔记
      * @throws BaseException 笔记不存在 / 更新失败
      */
-    void update(NoteEntity noteEntity);
+    void update(NoteDO noteEntity);
 
     /**
      * 获取笔记列表
@@ -46,7 +46,7 @@ public interface NoteCoreService {
      * @return 笔记
      * @throws BaseException 笔记不存在 / 笔记无权限访问
      */
-    NoteEntity getById(Long id);
+    NoteDO getById(Long id);
 
     /**
      * 批量获取笔记
@@ -54,7 +54,7 @@ public interface NoteCoreService {
      * @param ids 笔记 ID
      * @return 笔记列表
      */
-    List<NoteEntity> getByIds(List<Long> ids);
+    List<NoteDO> getByIds(List<Long> ids);
 
     /**
      * 根据 ID 获取笔记实体（无所有权校验）
@@ -64,7 +64,7 @@ public interface NoteCoreService {
      * @return 笔记实体
      * @throws BaseException 笔记不存在或已删除
      */
-    NoteEntity getEntityById(Long id);
+    NoteDO getEntityById(Long id);
 
     /**
      * 检查是否存在笔记
@@ -86,14 +86,14 @@ public interface NoteCoreService {
      * @return 存在就返回笔记列表
      * @throws com.jacolp.exception.BaseException 不存在
      */
-    List<NoteEntity> getByUserIdAndTopicIdAndTitles(Long userId, Long topicId, List<String> titles);
+    List<NoteDO> getByUserIdAndTopicIdAndTitles(Long userId, Long topicId, List<String> titles);
 
     /**
      * 保存笔记
      *
      * @param noteEntity 笔记
      */
-    void saveNote(NoteEntity noteEntity);
+    void saveNote(NoteDO noteEntity);
 
     /**
      * 删除笔记转换结果 -- (管理员)

@@ -17,11 +17,11 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.NoteMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.pojo.entity.NoteAuditRecordEntity;
-import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.vo.note.NoteStatsVO;
-import com.jacolp.pojo.vo.note.NoteVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.service.AuditService;
 import com.jacolp.service.NoteCoreService;
@@ -44,7 +44,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     @Autowired private AuditService auditService;
 
     @Override
-    public void update(NoteEntity noteEntity) {
+    public void update(NoteDO noteEntity) {
         int affected = noteMapper.updateNote(noteEntity);
         if (affected <= 0) {
             throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
@@ -58,7 +58,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
         }
         PageHelper.startPage(dto.getPageNumOrDefault(), dto.getPageSizeOrDefault());
 
-        List<NoteVO> records = noteMapper.listByCondition(dto);
+        List<NoteVO> records = noteMapper.listByCondition(dto.getUserId(), dto.getTopicId(),
+                dto.getUnclassified(), dto.getTitle(), dto.getStatus());
         PageInfo<NoteVO> pageInfo = new PageInfo<>(records);
         return new PageResult(pageInfo.getTotal(), pageInfo.getList());
     }
@@ -95,8 +96,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
      * @throws BaseException 笔记不存在 / 笔记无权限访问
      */
     @Override
-    public NoteEntity getById(Long id) {
-        NoteEntity note = noteMapper.selectById(id);
+    public NoteDO getById(Long id) {
+        NoteDO note = noteMapper.selectById(id);
         // 校验笔记是否存在
         if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
@@ -110,8 +111,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     }
 
     @Override
-    public NoteEntity getEntityById(Long id) {
-        NoteEntity note = noteMapper.selectById(id);
+    public NoteDO getEntityById(Long id) {
+        NoteDO note = noteMapper.selectById(id);
         if (note == null || NoteStatus.fromCode(note.getStatus()).isDeleted()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
@@ -119,7 +120,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     }
 
     @Override
-    public List<NoteEntity> getByIds(List<Long> ids) {
+    public List<NoteDO> getByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
@@ -132,12 +133,12 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     }
 
     @Override
-    public List<NoteEntity> getByUserIdAndTopicIdAndTitles(Long userId, Long topicId, List<String> titles) {
+    public List<NoteDO> getByUserIdAndTopicIdAndTitles(Long userId, Long topicId, List<String> titles) {
         if (titles == null) {
             return List.of();
         }
 
-        List<NoteEntity> notes = noteMapper.selectByUserIdAndTitles(userId, titles);
+        List<NoteDO> notes = noteMapper.selectByUserIdAndTitles(userId, titles);
         if (notes == null || notes.isEmpty()) {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
@@ -145,7 +146,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     }
 
     @Override
-    public void saveNote(NoteEntity noteEntity) {
+    public void saveNote(NoteDO noteEntity) {
         if (noteMapper.insertNote(noteEntity) <= 0) {
             throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
         }
@@ -173,7 +174,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
 
     @Override
     public void modifyInfo(NoteModifyInfoDTO dto) {
-        NoteEntity note = getById(dto.getId());
+        NoteDO note = getById(dto.getId());
 
         if (StringUtils.hasText(dto.getDescription())) {
             note.setDescription(dto.getDescription().trim());
@@ -202,7 +203,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_ID_INVALID);
         }
 
-        NoteEntity note = getById(noteId);  // TODO this自调用，后续解耦审核模块的时候优化
+        NoteDO note = getById(noteId);  // TODO this自调用，后续解耦审核模块的时候优化
 
         // 检查笔记状态是否可以发生转换
         NoteStatus status = NoteStatus.fromCode(note.getStatus());
@@ -240,7 +241,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_ID_INVALID);
         }
 
-        NoteEntity note = getById(noteId);
+        NoteDO note = getById(noteId);
 
         // 仅 PENDING_AUDIT 状态可撤销，且需符合状态机的转换规则
         NoteStatus status = NoteStatus.fromCode(note.getStatus());
@@ -298,7 +299,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
     @NonNull
     public Long insertNote(UploadToInsertNoteDTO dto) {
         // 构建笔记的实体类
-        NoteEntity note = new NoteEntity();
+        NoteDO note = new NoteDO();
         note.setUserId(dto.getUserId());
         note.setTopicId(dto.getTopicId());
         note.setTitle(stripMarkdownExtension(dto.getOriginalFilename()));

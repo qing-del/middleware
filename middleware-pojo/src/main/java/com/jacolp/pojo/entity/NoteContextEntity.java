@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 /**
  * 笔记内容表实体
- * 与 NoteEntity 一对一关联，存储笔记的 Markdown 原文内容
+ * 与笔记记录一对一关联，存储笔记的 Markdown 原文内容
  */
 @Data
 @NoArgsConstructor
