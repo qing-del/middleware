@@ -51,7 +51,7 @@
                 WHERE id = #{id}
         </update>
 
-    <select id="listByCondition" resultType="com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO" parameterType="com.jacolp.pojo.dto.user.UserListDTO">
+    <select id="listByCondition" resultType="com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO" parameterType="com.jacolp.middleware.module.system.biz.application.dto.user.UserListDTO">
                 SELECT
                     u.id,
                     u.username,
