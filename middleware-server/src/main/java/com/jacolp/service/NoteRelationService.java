@@ -9,6 +9,7 @@ import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.*;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
@@ -59,7 +60,7 @@ public interface NoteRelationService {
      */
     NoteRelationDetailVO getRelationInfo(
             Long noteId,
-            List<NoteTagMappingEntity> tagMappings, Map<Long, TagEntity> tagMap,
+            List<NoteTagMappingEntity> tagMappings, Map<Long, TagDO> tagMap,
             List<NoteImageMappingEntity> imageMappings, Map<Long, MediaFileSummary> imageMap,
             List<NoteEachMappingEntity> eachMappings, Map<Long, NoteEntity> targetNoteMap);
 
@@ -67,7 +68,7 @@ public interface NoteRelationService {
      * 绑定标签关系
      * @param dto
      */
-    NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagEntity targetTag);
+    NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagDO targetTag);
 
     /**
      * 解绑标签关系
@@ -154,7 +155,7 @@ public interface NoteRelationService {
      * @param tagMap 可供选择的标签
      * @throws BaseException 批量绑定失败
      */
-    void tryBatchBindTagMappings(List<NoteTagMappingEntity> mappings, Map<String, TagEntity> tagMap);
+    void tryBatchBindTagMappings(List<NoteTagMappingEntity> mappings, Map<String, TagDO> tagMap);
 
     /**
      * 尝试批量绑定图片关系。

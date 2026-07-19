@@ -4,7 +4,7 @@ import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
 import com.jacolp.mapper.NoteMapper;
 import com.jacolp.mapper.NoteTagMappingMapper;
-import com.jacolp.mapper.TagMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
 import com.jacolp.middleware.module.note.api.command.ApplyMediaRelationAuditCommand;
 import com.jacolp.middleware.module.note.api.model.AuditDecision;

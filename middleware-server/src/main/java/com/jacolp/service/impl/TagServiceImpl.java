@@ -25,8 +25,8 @@ import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.TagMapper;
-import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dto.TagNoteCountDTO;
 import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
 import com.jacolp.pojo.dto.tag.TagModifyDTO;
@@ -37,10 +37,10 @@ import com.jacolp.pojo.dto.tag.UserTagRemoveDTO;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
-import com.jacolp.pojo.entity.TagEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.tag.TagBatchAddVO;
 import com.jacolp.pojo.vo.tag.TagStatsVO;
-import com.jacolp.pojo.vo.tag.TagVO;
+import com.jacolp.middleware.module.note.biz.application.vo.tag.TagVO;
 import com.jacolp.pojo.vo.tag.UserTagSimpleVO;
 import com.jacolp.result.PageResult;
 
@@ -64,12 +64,12 @@ public class TagServiceImpl implements TagService {
         validateTagName(tagName);
 
         // 检查是否存在同主题下的同名标签
-        TagEntity existed = tagMapper.selectByUserIdAndTagName(userId, tagName);
+        TagDO existed = tagMapper.selectByUserIdAndTagName(userId, tagName);
         if (existed != null) {
             throw new BaseException(TagConstant.TAG_ALREADY_EXISTS);
         }
 
-        TagEntity tag = new TagEntity();
+        TagDO tag = new TagDO();
         tag.setUserId(userId);
         tag.setTagName(tagName);
         tag.setAuditStatus(AuditStatus.WAIT.getCode());
@@ -102,12 +102,12 @@ public class TagServiceImpl implements TagService {
         Set<String> existedSet = new HashSet<>(existedNames);
 
         List<String> existingTags = new ArrayList<>();
-        List<TagEntity> toInsert = new ArrayList<>();
+        List<TagDO> toInsert = new ArrayList<>();
         for (String tagName : normalized) {
             if (existedSet.contains(tagName)) {
                 existingTags.add(tagName);
             } else {
-                TagEntity tag = new TagEntity();
+                TagDO tag = new TagDO();
                 tag.setUserId(userId);
                 tag.setTagName(tagName);
                 tag.setAuditStatus(AuditStatus.WAIT.getCode());
@@ -127,7 +127,7 @@ public class TagServiceImpl implements TagService {
         Long userId = BaseContext.getCurrentId();
         validateTagId(dto.getId());
 
-        TagEntity existed = tagMapper.selectByIdAndUserId(dto.getId(), userId);
+        TagDO existed = tagMapper.selectByIdAndUserId(dto.getId(), userId);
         if (existed == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
@@ -141,13 +141,13 @@ public class TagServiceImpl implements TagService {
         String tagName = normalizeTagName(dto.getTagName());
         validateTagName(tagName);
         if (!tagName.equals(existed.getTagName())) {
-            TagEntity duplicate = tagMapper.selectByUserIdAndTagName(userId, tagName);
+            TagDO duplicate = tagMapper.selectByUserIdAndTagName(userId, tagName);
             if (duplicate != null && !duplicate.getId().equals(dto.getId())) {
                 throw new BaseException(TagConstant.TAG_ALREADY_EXISTS);
             }
         }
 
-        TagEntity update = new TagEntity();
+        TagDO update = new TagDO();
         update.setId(dto.getId());
         update.setUserId(userId);
         update.setTagName(tagName);
@@ -180,8 +180,8 @@ public class TagServiceImpl implements TagService {
                         + TagConstant.TAG_DELETE_NOT_ALLOWED_SUFFIX);
             }
         }
-        List<TagEntity> tags = tagMapper.selectByIds(new ArrayList<>(ids));
-        for (TagEntity tag : tags) {
+        List<TagDO> tags = tagMapper.selectByIds(new ArrayList<>(ids));
+        for (TagDO tag : tags) {
             AuditStatus status = AuditStatus.fromCode(tag.getAuditStatus());
             if (!status.canTransitionTo(AuditStatus.DELETED)) {
                 throw new BaseException("审核中的标签不能删除");
@@ -237,7 +237,7 @@ public class TagServiceImpl implements TagService {
         Long userId = BaseContext.getCurrentId();
         validateTagId(tagId);
 
-        TagEntity tag = tagMapper.selectByIdAndUserId(tagId, userId);
+        TagDO tag = tagMapper.selectByIdAndUserId(tagId, userId);
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
@@ -266,7 +266,7 @@ public class TagServiceImpl implements TagService {
         Long userId = BaseContext.getCurrentId();
         validateTagId(tagId);
 
-        TagEntity tag = tagMapper.selectByIdAndUserId(tagId, userId);
+        TagDO tag = tagMapper.selectByIdAndUserId(tagId, userId);
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
@@ -291,12 +291,12 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    public TagEntity getByIdAndUserId(Long id, Long userId) {
+    public TagDO getByIdAndUserId(Long id, Long userId) {
         return tagMapper.selectByIdAndUserId(id, userId);
     }
 
     @Override
-    public List<TagEntity> getByIds(List<Long> ids) {
+    public List<TagDO> getByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
@@ -304,7 +304,7 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    public List<TagEntity> getByNamesAndUserId(List<String> names, Long userId) {
+    public List<TagDO> getByNamesAndUserId(List<String> names, Long userId) {
         if (names == null || names.isEmpty()) {
             return List.of();
         }
@@ -316,7 +316,7 @@ public class TagServiceImpl implements TagService {
     @Override
     public List<UserTagSimpleVO> listUserTagSimples() {
         Long userId = BaseContext.getCurrentId();
-        List<TagEntity> tags = tagMapper.selectByUserId(userId);
+        List<TagDO> tags = tagMapper.selectByUserId(userId);
         return tags.stream()
                 .map(tag -> {
                     UserTagSimpleVO vo = new UserTagSimpleVO();
@@ -332,7 +332,7 @@ public class TagServiceImpl implements TagService {
     public void assignUserTag(UserTagAssignDTO dto) {
         Long userId = BaseContext.getCurrentId();
 
-        TagEntity tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
+        TagDO tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
@@ -344,7 +344,7 @@ public class TagServiceImpl implements TagService {
     public void removeUserTag(UserTagRemoveDTO dto) {
         Long userId = BaseContext.getCurrentId();
 
-        TagEntity tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
+        TagDO tag = tagMapper.selectByIdAndUserId(dto.getTagId(), userId);
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
         }
@@ -359,7 +359,7 @@ public class TagServiceImpl implements TagService {
      * <p>- 若不存在重复，使用{@link NoteRelationService#batchInsertTagMappings(List)} 创建映射关系</p>
      * @throws BaseException 不存在笔记 | 已有关联映射 | 创建映射关系失败
      */
-    private void assignTagToNote(TagEntity tag, Long noteId, Long userId) {
+    private void assignTagToNote(TagDO tag, Long noteId, Long userId) {
         NoteEntity note = noteCoreService.getById(noteId);
         // 显示校验所属权（实际上已经校验过了）
         if (!note.getUserId().equals(userId)) {
@@ -396,7 +396,7 @@ public class TagServiceImpl implements TagService {
      * <p>- 若存在映射关系，使用{@link NoteRelationService#unbindTagMappingById(Long)} 删除映射关系</p>
      * @throws BaseException 不存在笔记 | 未找到映射关系 | 删除映射关系失败
      */
-    private void removeTagFromNote(TagEntity tag, Long noteId, Long userId) {
+    private void removeTagFromNote(TagDO tag, Long noteId, Long userId) {
         NoteEntity note = noteCoreService.getById(noteId);
         if (!note.getUserId().equals(userId)) {
             throw new BaseException("只能操作自己的笔记");

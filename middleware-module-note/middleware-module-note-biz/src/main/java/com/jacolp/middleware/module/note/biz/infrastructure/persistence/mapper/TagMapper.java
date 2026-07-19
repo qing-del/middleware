@@ -1,37 +1,37 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper;
 
 import java.util.List;
 
-import com.jacolp.pojo.dto.tag.TagNoteCountDTO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dto.TagNoteCountDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-import com.jacolp.pojo.entity.TagEntity;
-import com.jacolp.pojo.vo.tag.TagVO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
+import com.jacolp.middleware.module.note.biz.application.vo.tag.TagVO;
 
 @Mapper
 public interface TagMapper {
 
-    int insertTag(TagEntity tag);
+    int insertTag(TagDO tag);
 
-    int batchInsertTags(@Param("tags") List<TagEntity> tags);
+    int batchInsertTags(@Param("tags") List<TagDO> tags);
 
     @Select("SELECT tag_name FROM biz_tag WHERE user_id = #{userId} AND audit_status != 4")
     List<String> selectTagNamesByUserId(@Param("userId") Long userId);
 
     @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE user_id = #{userId} AND audit_status != 4")
-    List<TagEntity> selectByUserId(@Param("userId") Long userId);
+    List<TagDO> selectByUserId(@Param("userId") Long userId);
 
     @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE user_id = #{userId} AND tag_name = #{tagName} AND audit_status != 4")
-    TagEntity selectByUserIdAndTagName(@Param("userId") Long userId, @Param("tagName") String tagName);
+    TagDO selectByUserIdAndTagName(@Param("userId") Long userId, @Param("tagName") String tagName);
 
     @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE id = #{id} AND user_id = #{userId} AND audit_status != 4")
-    TagEntity selectByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+    TagDO selectByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
-    List<TagEntity> selectByIds(@Param("ids") List<Long> ids);
+    List<TagDO> selectByIds(@Param("ids") List<Long> ids);
 
-    int updateTag(TagEntity tag);
+    int updateTag(TagDO tag);
 
     /**
      * 批量查询待删除标签
@@ -54,7 +54,7 @@ public interface TagMapper {
      */
     List<TagVO> listByCondition(@Param("userId") Long userId, @Param("keyword") String keyword);
 
-    List<TagEntity> selectIdsByNamesAndUserId(List<String> tagNames, Long userId);
+    List<TagDO> selectIdsByNamesAndUserId(List<String> tagNames, Long userId);
 
     /**
      * 用户端条件查询：根据 scope 控制查询范围。
@@ -72,7 +72,7 @@ public interface TagMapper {
      * @return
      */
     @Select("SELECT id, user_id AS userId, tag_name AS tagName, audit_status AS auditStatus, create_time AS createTime FROM biz_tag WHERE id = #{tagId} AND audit_status != 4")
-    TagEntity selectById(Long tagId);
+    TagDO selectById(Long tagId);
 
     /**
      * 统计指定用户的标签数量。

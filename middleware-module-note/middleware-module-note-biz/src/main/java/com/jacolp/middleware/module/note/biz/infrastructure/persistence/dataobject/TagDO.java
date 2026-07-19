@@ -1,4 +1,4 @@
-package com.jacolp.pojo.entity;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TagEntity implements Serializable {
+public class TagDO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

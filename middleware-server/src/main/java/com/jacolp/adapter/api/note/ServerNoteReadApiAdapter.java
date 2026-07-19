@@ -2,7 +2,7 @@ package com.jacolp.adapter.api.note;
 
 import com.jacolp.mapper.NoteImageMappingMapper;
 import com.jacolp.mapper.NoteMapper;
-import com.jacolp.mapper.TagMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.NoteReadApi;
 import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
 import com.jacolp.middleware.module.note.api.model.NoteSummary;
@@ -12,7 +12,7 @@ import com.jacolp.middleware.module.note.api.model.TagSummary;
 import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
-import com.jacolp.pojo.entity.TagEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -64,7 +64,7 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
             return Map.of();
         }
         Map<Long, TagSummary> summaries = new LinkedHashMap<>();
-        for (TagEntity tag : tagMapper.selectByIds(ids)) {
+        for (TagDO tag : tagMapper.selectByIds(ids)) {
             summaries.put(tag.getId(), new TagSummary(tag.getId(), tag.getUserId(), tag.getTagName(),
                     toTagStatus(tag.getAuditStatus())));
         }

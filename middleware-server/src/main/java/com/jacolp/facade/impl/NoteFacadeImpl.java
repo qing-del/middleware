@@ -40,7 +40,7 @@ import com.jacolp.pojo.entity.NoteChangeDiffEntity;
 import com.jacolp.pojo.entity.NoteContextEntity;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
-import com.jacolp.pojo.entity.TagEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
 import com.jacolp.pojo.vo.note.NoteDiffVO;
@@ -476,7 +476,7 @@ public class NoteFacadeImpl implements NoteFacade {
                 .filter(Objects::nonNull)
                 .toList();
         detailVO.setTags(tagIds.isEmpty()
-                ? List.of() : tagService.getByIds(tagIds).stream().map(TagEntity::getTagName).toList());
+                ? List.of() : tagService.getByIds(tagIds).stream().map(TagDO::getTagName).toList());
 
         // 图片简要列表
         detailVO.setImages(noteRelationFacade.listImageSimpleVOsByNoteId(noteId));

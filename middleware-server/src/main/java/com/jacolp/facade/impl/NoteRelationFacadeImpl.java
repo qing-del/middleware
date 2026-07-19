@@ -35,7 +35,7 @@ import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
-import com.jacolp.pojo.entity.TagEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteBacklinkVO;
@@ -71,7 +71,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         List<NoteEachMappingEntity> eachMappings = noteRelationService.listEachMappingsByNoteId(noteId);
 
         // 构建缓存
-        Map<Long, TagEntity> tagMap = buildTagMap(tagMappings);
+        Map<Long, TagDO> tagMap = buildTagMap(tagMappings);
         Map<Long, MediaFileSummary> imageMap = buildImageMap(imageMappings);
         Map<Long, NoteEntity> targetNoteMap = buildTargetNoteMap(eachMappings);
 
@@ -109,7 +109,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      */
     @Override
     public void bindTagMapping(TagMappingBindDTO dto) {
-        TagEntity targetTag = tagService.getByIdAndUserId(dto.getTagId(), BaseContext.getCurrentId());
+        TagDO targetTag = tagService.getByIdAndUserId(dto.getTagId(), BaseContext.getCurrentId());
         NoteTagMappingEntity mapping = noteRelationService.bindTagMapping(dto, targetTag);
 
         // 检查是否需要更新笔记状态
@@ -329,7 +329,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         }
 
         Long currentUserId = BaseContext.getCurrentId();
-        TagEntity tag = tagService.getByIds(List.of(tagId)).stream()
+        TagDO tag = tagService.getByIds(List.of(tagId)).stream()
                 .findFirst().orElse(null);
         if (tag == null) {
             throw new BaseException(TagConstant.TAG_NOT_FOUND);
@@ -446,7 +446,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         // 同步标签映射
         List<NoteTagMappingEntity> tagMappings = Optional.ofNullable
                 (noteRelationService.listTagMappingsByNoteId(noteId)).orElse(List.of());
-        Map<String, TagEntity> tagMap = getTagEntitiesMap(tagMappings, userId);
+        Map<String, TagDO> tagMap = getTagEntitiesMap(tagMappings, userId);
         noteRelationService.tryBatchBindTagMappings(tagMappings, tagMap);
 
         if (topicId == null) return;
@@ -472,9 +472,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      *
      * @param mappings 标签映射行
      * @param userId   用户 id
-     * @return 标签实体的 <tagName, TagEntity> 的 Map
+     * @return 标签数据对象的 <tagName, TagDO> 的 Map
      */
-    private Map<String, TagEntity> getTagEntitiesMap(List<NoteTagMappingEntity> mappings, Long userId) {
+    private Map<String, TagDO> getTagEntitiesMap(List<NoteTagMappingEntity> mappings, Long userId) {
         if (mappings.isEmpty()) {
             return Map.of();
         }
@@ -489,7 +489,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             return Map.of();
         }
 
-        List<TagEntity> tags = Optional.ofNullable(tagService.getByNamesAndUserId(parsedNames, userId))
+        List<TagDO> tags = Optional.ofNullable(tagService.getByNamesAndUserId(parsedNames, userId))
                 .orElse(List.of());
         if (tags.isEmpty()) {
             return Map.of();
@@ -498,7 +498,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         return tags.stream()
                 .collect(Collectors
                         .toMap(
-                                TagEntity::getTagName,
+                                TagDO::getTagName,
                                 tag -> tag,
                                 (left, right) -> left)
                 );
@@ -574,7 +574,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                 );
     }
 
-    private Map<Long, TagEntity> buildTagMap(List<NoteTagMappingEntity> mappings) {
+    private Map<Long, TagDO> buildTagMap(List<NoteTagMappingEntity> mappings) {
         List<Long> ids = mappings.stream()
                 .map(NoteTagMappingEntity::getTagId)
                 .filter(Objects::nonNull)
@@ -585,7 +585,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             return Map.of();
         }
         return tagService.getByIds(ids).stream()
-                .collect(Collectors.toMap(TagEntity::getId, tag -> tag, (left, right) -> left));
+                .collect(Collectors.toMap(TagDO::getId, tag -> tag, (left, right) -> left));
     }
 
     private Map<Long, MediaFileSummary> buildImageMap(List<NoteImageMappingEntity> mappings) {

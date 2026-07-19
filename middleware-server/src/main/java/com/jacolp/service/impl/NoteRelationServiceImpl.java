@@ -35,7 +35,7 @@ import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.NoteTagMappingEntity;
-import com.jacolp.pojo.entity.TagEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.service.NoteRelationService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -76,7 +76,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     @Override
     public NoteRelationDetailVO getRelationInfo(
             Long noteId,
-            List<NoteTagMappingEntity> tagMappings, Map<Long, TagEntity> tagMap,
+            List<NoteTagMappingEntity> tagMappings, Map<Long, TagDO> tagMap,
             List<NoteImageMappingEntity> imageMappings, Map<Long, MediaFileSummary> imageMap,
             List<NoteEachMappingEntity> eachMappings, Map<Long, NoteEntity> targetNoteMap) {
         // 组装返回 VO
@@ -95,7 +95,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
      */
     @Override
     @CheckMissingInfo(enableTransaction = true)
-    public NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagEntity targetTag) {
+    public NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagDO targetTag) {
         // 1) 基础参数校验
         if (dto == null) {
             throw new BaseException("映射ID和标签ID不能为空");
@@ -284,7 +284,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
      * @throws BaseException 批量绑定失败
      */
     @Override
-    public void tryBatchBindTagMappings(List<NoteTagMappingEntity> mappings, Map<String, TagEntity> tagMap) {
+    public void tryBatchBindTagMappings(List<NoteTagMappingEntity> mappings, Map<String, TagDO> tagMap) {
         // 待绑定的标签映射行不能为空
         if (mappings == null || mappings.isEmpty() ||
                 tagMap == null || tagMap.isEmpty()) {
@@ -296,7 +296,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
 
         // 遍历待绑定的标签映射行 检查是否有匹配的标签
         for (NoteTagMappingEntity mapping : mappings) {
-            TagEntity target = tagMap.get(mapping.getParsedTagName());
+            TagDO target = tagMap.get(mapping.getParsedTagName());
             if (target == null ||
                     (!userId.equals(target.getUserId()) && !AuditStatus.APPROVED.getCode().equals(target.getAuditStatus()))) {
                 continue;
@@ -589,9 +589,9 @@ public class NoteRelationServiceImpl implements NoteRelationService {
 
 
     // ===== 私有方法 =====
-    private List<NoteTagMappingRowVO> buildTagRows(List<NoteTagMappingEntity> mappings, Map<Long, TagEntity> tagMap) {
+    private List<NoteTagMappingRowVO> buildTagRows(List<NoteTagMappingEntity> mappings, Map<Long, TagDO> tagMap) {
         return mappings.stream().map(mapping -> {
-            TagEntity tag = mapping.getTagId() == null ? null : tagMap.get(mapping.getTagId());
+            TagDO tag = mapping.getTagId() == null ? null : tagMap.get(mapping.getTagId());
             boolean validBind = mapping.getTagId() != null
                     && tag != null
                     && Objects.equals(mapping.getParsedTagName(), tag.getTagName());

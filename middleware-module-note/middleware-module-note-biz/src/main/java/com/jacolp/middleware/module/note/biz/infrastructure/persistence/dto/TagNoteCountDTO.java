@@ -1,4 +1,4 @@
-package com.jacolp.pojo.dto.tag;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

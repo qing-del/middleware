@@ -1,4 +1,4 @@
-package com.jacolp.pojo.vo.tag;
+package com.jacolp.middleware.module.note.biz.application.vo.tag;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
