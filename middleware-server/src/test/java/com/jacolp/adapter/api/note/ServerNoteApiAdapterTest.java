@@ -8,16 +8,20 @@ import com.jacolp.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
 import com.jacolp.middleware.module.note.api.model.AuditDecision;
 import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
+import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
 import com.jacolp.middleware.module.note.api.model.NoteSummary;
 import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +53,36 @@ class ServerNoteApiAdapterTest {
 
         assertEquals(Map.of(2L, 4L, 1L, 0L), counts);
         verify(mappingMapper).countByImageIds(List.of(2L, 1L));
+    }
+
+    @Test
+    void mediaNoteSummariesAndCompatibilityProjectionUseBatchQueries() {
+        NoteMapper noteMapper = mock(NoteMapper.class);
+        NoteImageMappingMapper mappingMapper = mock(NoteImageMappingMapper.class);
+        NoteImageMappingEntity mapping = new NoteImageMappingEntity();
+        mapping.setNoteId(7L);
+        mapping.setImageId(2L);
+        mapping.setNoteTitle("readme.md");
+        mapping.setIsCrossUser((short) 1);
+        mapping.setStatus((short) 6);
+        mapping.setCreateTime(LocalDateTime.of(2026, 7, 20, 3, 0));
+        when(mappingMapper.selectActiveByImageIds(List.of(2L, 1L))).thenReturn(List.of(mapping));
+        when(noteMapper.selectByIds(List.of(7L))).thenReturn(List.of(note(7L, (short) 6)));
+
+        ServerNoteReadApiAdapter adapter = new ServerNoteReadApiAdapter(
+                noteMapper, mock(TagMapper.class), mappingMapper);
+        Map<Long, List<NoteSummary>> summaries =
+                adapter.findNoteSummariesByMediaIds(List.of(2L, 1L, 2L));
+        Map<Long, List<NoteMediaReferenceSummary>> compatibility =
+                adapter.findNoteMediaReferenceSummariesByMediaIds(List.of(2L, 1L, 2L));
+
+        assertEquals(NoteLifecycleStatus.PUBLISHED, summaries.get(2L).getFirst().status());
+        assertEquals(List.of(), summaries.get(1L));
+        assertEquals(new NoteMediaReferenceSummary(7L, "readme.md", (short) 1, (short) 6,
+                LocalDateTime.of(2026, 7, 20, 3, 0)), compatibility.get(2L).getFirst());
+        assertEquals(List.of(), compatibility.get(1L));
+        verify(mappingMapper, times(2)).selectActiveByImageIds(List.of(2L, 1L));
+        verify(noteMapper).selectByIds(List.of(7L));
     }
 
     @Test

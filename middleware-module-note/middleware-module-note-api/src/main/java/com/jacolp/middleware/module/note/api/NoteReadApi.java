@@ -2,8 +2,10 @@ package com.jacolp.middleware.module.note.api;
 
 import com.jacolp.middleware.module.note.api.model.NoteSummary;
 import com.jacolp.middleware.module.note.api.model.TagSummary;
+import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,6 +28,12 @@ public interface NoteReadApi {
      * IDs with no references must be present with a count of {@code 0}.
      */
     Map<Long, Long> countMediaReferencesByMediaIds(Collection<Long> mediaIds);
+
+    /** Returns associated note summaries for every requested media ID using batch queries. */
+    Map<Long, List<NoteSummary>> findNoteSummariesByMediaIds(Collection<Long> mediaIds);
+
+    /** Compatibility projection for the legacy image-to-note list endpoint. */
+    Map<Long, List<NoteMediaReferenceSummary>> findNoteMediaReferenceSummariesByMediaIds(Collection<Long> mediaIds);
 
     /**
      * Returns the current user's non-deleted markdown storage usage in bytes.

@@ -1,24 +1,16 @@
-package com.jacolp.task;
+package com.jacolp.middleware.module.media.biz.infrastructure.task;
 
 import com.jacolp.middleware.framework.oss.AliyunOSSClient;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
 import java.util.concurrent.TimeUnit;
 
 @Component
-@Slf4j
 @ConditionalOnProperty(prefix = "jacolp.aliyun.oss", name = "enabled", havingValue = "true")
 public class AliyunOSSClientKeepLiveTask {
-    @Autowired private AliyunOSSClient aliyunOSSClient;
-
-    // 默认 45s 尝试保持一次活性
+    private final AliyunOSSClient client;
+    public AliyunOSSClientKeepLiveTask(AliyunOSSClient client) { this.client = client; }
     @Scheduled(fixedRateString = "${jacolp.aliyun.oss.keep-live-time:45}", timeUnit = TimeUnit.SECONDS)
-    public void keepLive() {
-        log.debug("Aliyun OSS Client Keep Live Task");
-        aliyunOSSClient.keepLive();
-    }
+    public void keepLive() { client.keepLive(); }
 }

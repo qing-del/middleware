@@ -12,6 +12,8 @@
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-common-core</artifactId></dependency>
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-common-security</artifactId></dependency>
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-common-web</artifactId></dependency>
+        <dependency><groupId>com.jacolp</groupId><artifactId>middleware-oss-starter</artifactId></dependency>
+        <dependency><groupId>com.github.pagehelper</groupId><artifactId>pagehelper-spring-boot-starter</artifactId></dependency>
         <!-- Temporary compatibility shell for media constants and shared result types. -->
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-common-legacy</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter</artifactId></dependency>

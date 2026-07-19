@@ -6,10 +6,12 @@ import com.jacolp.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.NoteReadApi;
 import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
 import com.jacolp.middleware.module.note.api.model.NoteSummary;
+import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
 import com.jacolp.middleware.module.note.api.model.TagReviewStatus;
 import com.jacolp.middleware.module.note.api.model.TagSummary;
 import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.pojo.entity.NoteEntity;
+import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import com.jacolp.pojo.entity.TagEntity;
 import org.springframework.stereotype.Component;
 
@@ -83,6 +85,39 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
             }
         }
         return Map.copyOf(counts);
+    }
+
+    @Override
+    public Map<Long, List<NoteSummary>> findNoteSummariesByMediaIds(Collection<Long> mediaIds) {
+        List<Long> ids = normalizeIds(mediaIds, "mediaIds");
+        if (ids.isEmpty()) return Map.of();
+        Map<Long, List<NoteSummary>> result = new LinkedHashMap<>();
+        ids.forEach(id -> result.put(id, new java.util.ArrayList<>()));
+        List<NoteImageMappingEntity> mappings = noteImageMappingMapper.selectActiveByImageIds(ids);
+        Map<Long, NoteSummary> notes = findNoteSummariesByIds(mappings.stream().map(NoteImageMappingEntity::getNoteId).toList());
+        for (NoteImageMappingEntity mapping : mappings) {
+            NoteSummary note = notes.get(mapping.getNoteId());
+            if (note != null) result.get(mapping.getImageId()).add(note);
+        }
+        Map<Long, List<NoteSummary>> immutable = new LinkedHashMap<>();
+        result.forEach((mediaId, summaries) -> immutable.put(mediaId, List.copyOf(summaries)));
+        return Map.copyOf(immutable);
+    }
+
+    @Override
+    public Map<Long, List<NoteMediaReferenceSummary>> findNoteMediaReferenceSummariesByMediaIds(Collection<Long> mediaIds) {
+        List<Long> ids = normalizeIds(mediaIds, "mediaIds");
+        if (ids.isEmpty()) return Map.of();
+        Map<Long, List<NoteMediaReferenceSummary>> result = new LinkedHashMap<>();
+        ids.forEach(id -> result.put(id, new java.util.ArrayList<>()));
+        for (NoteImageMappingEntity mapping : noteImageMappingMapper.selectActiveByImageIds(ids)) {
+            result.get(mapping.getImageId()).add(new NoteMediaReferenceSummary(
+                    mapping.getNoteId(), mapping.getNoteTitle(), mapping.getIsCrossUser(),
+                    mapping.getStatus(), mapping.getCreateTime()));
+        }
+        Map<Long, List<NoteMediaReferenceSummary>> immutable = new LinkedHashMap<>();
+        result.forEach((mediaId, summaries) -> immutable.put(mediaId, List.copyOf(summaries)));
+        return Map.copyOf(immutable);
     }
 
     @Override

@@ -27,7 +27,10 @@ import com.jacolp.facade.NoteRelationFacade;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.entity.ImageEntity;
+import com.jacolp.middleware.module.media.api.MediaFileApi;
+import com.jacolp.middleware.module.media.api.command.MediaFileLookupCommand;
+import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
+import com.jacolp.middleware.module.media.api.model.MediaReviewStatus;
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
@@ -39,7 +42,6 @@ import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.TagBacklinkVO;
-import com.jacolp.service.ImageService;
 import com.jacolp.service.NoteCoreService;
 import com.jacolp.service.NoteRelationService;
 import com.jacolp.service.TagService;
@@ -51,7 +53,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     @Autowired private NoteRelationService noteRelationService;
 
     @Autowired private TagService tagService;
-    @Autowired private ImageService imageService;
+    @Autowired private MediaFileApi mediaFileApi;
 
     /**
      * 获取笔记三类关联映射详情（标签 / 图片 / 内联笔记）。
@@ -70,7 +72,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
 
         // 构建缓存
         Map<Long, TagEntity> tagMap = buildTagMap(tagMappings);
-        Map<Long, ImageEntity> imageMap = buildImageMap(imageMappings);
+        Map<Long, MediaFileSummary> imageMap = buildImageMap(imageMappings);
         Map<Long, NoteEntity> targetNoteMap = buildTargetNoteMap(eachMappings);
 
         // 构建返回结果
@@ -93,10 +95,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                 .map(NoteImageMappingEntity::getImageId)
                 .toList();
 
-        Map<Long, ImageEntity> imageMap = imageIds.isEmpty()
+        Map<Long, MediaFileSummary> imageMap = imageIds.isEmpty()
                 ? Map.of()
-                : imageService.getByIds(imageIds).stream()
-                  .collect(Collectors.toMap(ImageEntity::getId, image -> image, (left, right) -> left));
+                : mediaFileApi.findByIds(imageIds);
 
         List<ImageSimpleVO> result = new ArrayList<>();
         buildNoteImageSimpleVOList(noteId, mappings, imageMap, result);
@@ -165,7 +166,8 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      */
     @Override
     public void bindImageMapping(ImageMappingBindDTO dto) {
-        ImageEntity targetImage = imageService.getById(dto.getImageId());
+        MediaFileSummary targetImage = mediaFileApi.findByIds(List.of(dto.getImageId())).get(dto.getImageId());
+        if (targetImage == null) throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
         NoteImageMappingEntity mapping = noteRelationService.bindImageMapping(dto, targetImage);
 
         // 检查是否需要更新笔记状态
@@ -354,13 +356,13 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         }
 
         Long currentUserId = BaseContext.getCurrentId();
-        ImageEntity image = imageService.getById(imageId);
+        MediaFileSummary image = mediaFileApi.findByIds(List.of(imageId)).get(imageId);
         if (image == null) {
             throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
         }
 
-        boolean isOwner = Objects.equals(image.getUserId(), currentUserId);
-        boolean isPublic = Objects.equals(image.getIsPublic(), (short) 1);
+        boolean isOwner = Objects.equals(image.userId(), currentUserId);
+        boolean isPublic = image.publiclyVisible();
         if (!isOwner && !isPublic) {
             throw new BaseException(UserConstant.PERMISSION_DENIED);
         }
@@ -411,7 +413,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      * 构建简单图片信息列表
      */
     private static void buildNoteImageSimpleVOList(Long noteId, List<NoteImageMappingEntity> mappings,
-                                                   Map<Long, ImageEntity> imageMap, List<ImageSimpleVO> result) {
+                                                   Map<Long, MediaFileSummary> imageMap, List<ImageSimpleVO> result) {
         for (NoteImageMappingEntity mapping : mappings) {
             ImageSimpleVO vo = new ImageSimpleVO();
             vo.setNoteId(noteId);
@@ -422,13 +424,12 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             if (mapping.getImageId() == null) {
                 vo.setIsMissing(NoteConstant.MISSED_INFO);
             } else {
-                ImageEntity image = imageMap.get(mapping.getImageId());
+                MediaFileSummary image = imageMap.get(mapping.getImageId());
                 if (image != null) {
-                    vo.setFilename(image.getFilename());
-                    vo.setOssUrl(image.getOssUrl());
-                    vo.setIsPublic(image.getIsPublic());
-                    vo.setStatus(image.getAuditStatus());
-                    vo.setCreateTime(image.getUploadTime());
+                    vo.setFilename(image.filename());
+                    vo.setOssUrl(image.url());
+                    vo.setIsPublic(image.publiclyVisible() ? (short) 1 : (short) 0);
+                    vo.setStatus(mediaStatusCode(image.status()));
                     vo.setIsMissing(NoteConstant.NOT_MISSED_INFO);
                 } else {
                     vo.setIsMissing(NoteConstant.MISSED_INFO);
@@ -453,7 +454,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         // 同步图片映射
         List<NoteImageMappingEntity> imageMappings = Optional.ofNullable
                 (noteRelationService.listImageMappingsByNoteId(noteId)).orElse(List.of());
-        Map<String, ImageEntity> imageMap = getImageEntitiesMap(imageMappings, userId, topicId);
+        Map<String, MediaFileSummary> imageMap = getImageEntitiesMap(imageMappings, userId, topicId);
         noteRelationService.tryBatchBindImageMappings(imageMappings, imageMap);
 
         // 同步内联笔记映射
@@ -507,14 +508,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      * 获取图片实体
      * <p>- 如果传入空集，则返回空集</p>
      * <p>- 否则会进行批量查询，并返回结果</p>
-     * <p>- 这里使用了 {@link ImageService#getByUserIdAndTopicIdAndFilenames(Long, Long, List)} 方法</p>
+     * <p>通过 MediaFileApi 按 owner/topic 和文件名批量读取。</p>
      *
      * @param mappings 图片映射行
      * @param userId   用户 id
      * @param topicId  话题 id
-     * @return 图片实体的 <imageName, ImageEntity> 的 Map
+     * @return 图片摘要的 <imageName, MediaFileSummary> 的 Map
      */
-    private Map<String, ImageEntity> getImageEntitiesMap(List<NoteImageMappingEntity> mappings, Long userId, Long topicId) {
+    private Map<String, MediaFileSummary> getImageEntitiesMap(List<NoteImageMappingEntity> mappings, Long userId, Long topicId) {
         if (mappings.isEmpty()) {
             return Map.of();
         }
@@ -528,20 +529,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             return Map.of();
         }
 
-        List<ImageEntity> images = Optional.ofNullable(
-                        imageService.getByUserIdAndTopicIdAndFilenames(userId, topicId, parsedNames))
-                .orElse(List.of());
-        if (images.isEmpty()) {
-            return Map.of();
-        }
-
-        return images.stream()
-                .collect(Collectors
-                        .toMap(
-                                ImageEntity::getFilename,
-                                image -> image,
-                                (left, right) -> left)
-                );
+        return mediaFileApi.findByOwnerTopicAndFilenames(new MediaFileLookupCommand(userId, topicId, parsedNames));
     }
 
     /**
@@ -600,7 +588,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                 .collect(Collectors.toMap(TagEntity::getId, tag -> tag, (left, right) -> left));
     }
 
-    private Map<Long, ImageEntity> buildImageMap(List<NoteImageMappingEntity> mappings) {
+    private Map<Long, MediaFileSummary> buildImageMap(List<NoteImageMappingEntity> mappings) {
         List<Long> ids = mappings.stream()
                 .map(NoteImageMappingEntity::getImageId)
                 .filter(Objects::nonNull)
@@ -610,8 +598,11 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        return imageService.getByIds(ids).stream()
-                .collect(Collectors.toMap(ImageEntity::getId, image -> image, (left, right) -> left));
+        return mediaFileApi.findByIds(ids);
+    }
+
+    private static Short mediaStatusCode(MediaReviewStatus status) {
+        return switch (status) { case WAITING -> 0; case REVIEWING -> 1; case APPROVED -> 2; case REJECTED -> 3; case DELETED -> 4; };
     }
 
     private Map<Long, NoteEntity> buildTargetNoteMap(List<NoteEachMappingEntity> mappings) {

@@ -2,10 +2,10 @@ package com.jacolp.component;
 
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.middleware.framework.markdown.converter.MarkdownPlugin;
-import com.jacolp.adapter.media.LegacyImagePersistenceGateway;
+import com.jacolp.middleware.module.media.api.MediaFileApi;
+import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.pojo.entity.ImageEntity;
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +37,7 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
      */
     private static final Pattern UNIFIED_PATTERN = Pattern.compile("(!?)\\[\\[([^\\]]+)]]");
 
-    @Autowired private LegacyImagePersistenceGateway imageMapper;
+    @Autowired private MediaFileApi mediaFileApi;
     @Autowired private NoteImageMappingMapper noteImageMappingMapper;
     @Autowired private NoteEachMappingMapper noteEachMappingMapper;
 
@@ -59,17 +59,15 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
                                 (left, right) -> left))
                 : Map.of();
 
-        // 批量加载 ImageEntity，避免 N+1
+        // Batch read through the media boundary, avoiding N+1 and persistence leakage.
         ArrayList<Long> imageIds = imageMappingMap.values().stream()
                 .map(NoteImageMappingEntity::getImageId)
                 .filter(id -> id != null)
                 .distinct()
                 .collect(Collectors.toCollection(ArrayList::new));
-        Map<Long, ImageEntity> imageMap = imageIds.isEmpty()
+        Map<Long, MediaFileSummary> imageMap = imageIds.isEmpty()
                 ? Map.of()
-                : imageMapper.selectByIds(imageIds).stream()
-                        .filter(img -> img.getId() != null)
-                        .collect(Collectors.toMap(ImageEntity::getId, img -> img, (l, r) -> l));
+                : mediaFileApi.findByIds(imageIds);
 
         // ---- 批量加载笔记映射 ----
         // Key 设计：normalizeName(parsedNoteName) + "\0" + nullToEmpty(anchor)
@@ -100,7 +98,7 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
      */
     private String processLinks(String rawMarkdown,
                                 Map<String, NoteImageMappingEntity> imageMappingMap,
-                                Map<Long, ImageEntity> imageMap,
+                                Map<Long, MediaFileSummary> imageMap,
                                 Map<String, NoteEachMappingEntity> noteMappingMap) {
         StringBuilder builder = new StringBuilder();
         Matcher matcher = UNIFIED_PATTERN.matcher(rawMarkdown);
@@ -207,15 +205,15 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
      * imageMap 已在调用前批量加载，此方法不触发任何网络 IO。
      */
     private String buildImageReplacement(NoteImageMappingEntity mapping, String altText,
-                                         Map<Long, ImageEntity> imageMap) {
+                                         Map<Long, MediaFileSummary> imageMap) {
         if (mapping == null || mapping.getImageId() == null) {
             return "![" + altText + "](#)";
         }
-        ImageEntity image = imageMap.get(mapping.getImageId());
-        if (image == null || !StringUtils.hasText(image.getOssUrl())) {
+        MediaFileSummary image = imageMap.get(mapping.getImageId());
+        if (image == null || !StringUtils.hasText(image.url())) {
             return "![" + altText + "](#)";
         }
-        return "![" + altText + "](" + image.getOssUrl() + ")";
+        return "![" + altText + "](" + image.url() + ")";
     }
 
     // ==================== 工具方法 ====================

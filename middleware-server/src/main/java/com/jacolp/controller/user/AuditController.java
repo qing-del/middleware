@@ -1,7 +1,7 @@
 package com.jacolp.controller.user;
 
 import com.jacolp.result.Result;
-import com.jacolp.service.ImageService;
+import com.jacolp.middleware.module.media.biz.application.service.MediaImageService;
 import com.jacolp.service.NoteCoreService;
 import com.jacolp.service.TagService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +26,7 @@ public class AuditController {
 
     @Autowired private NoteCoreService noteCoreService;
     @Autowired private TagService tagService;
-    @Autowired private ImageService imageService;
+    @Autowired private MediaImageService imageService;
 
     @PostMapping("/note/submitAudit")
     @Operation(summary = "发起笔记审核申请",

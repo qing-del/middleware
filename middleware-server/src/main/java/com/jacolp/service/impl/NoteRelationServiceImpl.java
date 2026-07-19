@@ -29,7 +29,8 @@ import com.jacolp.mapper.NoteTagMappingMapper;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.entity.ImageEntity;
+import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
+import com.jacolp.middleware.module.media.api.model.MediaReviewStatus;
 import com.jacolp.pojo.entity.NoteEachMappingEntity;
 import com.jacolp.pojo.entity.NoteEntity;
 import com.jacolp.pojo.entity.NoteImageMappingEntity;
@@ -76,7 +77,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     public NoteRelationDetailVO getRelationInfo(
             Long noteId,
             List<NoteTagMappingEntity> tagMappings, Map<Long, TagEntity> tagMap,
-            List<NoteImageMappingEntity> imageMappings, Map<Long, ImageEntity> imageMap,
+            List<NoteImageMappingEntity> imageMappings, Map<Long, MediaFileSummary> imageMap,
             List<NoteEachMappingEntity> eachMappings, Map<Long, NoteEntity> targetNoteMap) {
         // 组装返回 VO
         NoteRelationDetailVO vo = new NoteRelationDetailVO();
@@ -128,7 +129,7 @@ public class NoteRelationServiceImpl implements NoteRelationService {
 
     @Override
     @CheckMissingInfo(enableTransaction = true)
-    public NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, ImageEntity targetImage) {
+    public NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, MediaFileSummary targetImage) {
         if (dto == null) {
             throw new BaseException("映射ID和图片ID不能为空");
         }
@@ -137,18 +138,18 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         NoteImageMappingEntity mapping = requireOwnedImageMapping(dto.getMappingId(), userId);
 
         // 不是自己的图片，且图片未通过审核
-        if (!userId.equals(targetImage.getUserId())) {
-            if (!AuditStatus.APPROVED.getCode().equals(targetImage.getAuditStatus())) {
+        if (!userId.equals(targetImage.userId())) {
+            if (targetImage.status() != MediaReviewStatus.APPROVED) {
                 throw new BaseException("目标图片未通过审核，无法绑定");
             }
         }
 
-        Short isCrossUser = targetImage.getUserId() != null && !targetImage.getUserId().equals(mapping.getNoteUserId())
+        Short isCrossUser = targetImage.userId() != null && !targetImage.userId().equals(mapping.getNoteUserId())
                 ? NoteConstant.IS_CROSS_USER
                 : NoteConstant.NOT_IS_CROSS_USER;
 
-        noteImageMappingMapper.bindImageById(mapping.getId(), targetImage.getId(),
-                targetImage.getUserId(), isCrossUser, targetImage.getAuditStatus());
+        noteImageMappingMapper.bindImageById(mapping.getId(), targetImage.id(),
+                targetImage.userId(), isCrossUser, mediaStatusCode(targetImage));
         return mapping;
     }
 
@@ -318,34 +319,34 @@ public class NoteRelationServiceImpl implements NoteRelationService {
     }
 
     @Override
-    public void tryBatchBindImageMappings(List<NoteImageMappingEntity> mappings, Map<String, ImageEntity> imageMap) {
+    public void tryBatchBindImageMappings(List<NoteImageMappingEntity> mappings, Map<String, MediaFileSummary> imageMap) {
         List<NoteImageMappingEntity> toBind = new ArrayList<>();
         for (NoteImageMappingEntity mapping : mappings) {
-            ImageEntity target = imageMap.get(mapping.getParsedImageName());
+            MediaFileSummary target = imageMap.get(mapping.getParsedImageName());
             if (target == null) {
                 continue;
             }
 
-            boolean isCrossUser = target.getUserId() != null && !target.getUserId().equals(mapping.getNoteUserId());
-            if (isCrossUser && !AuditStatus.APPROVED.getCode().equals(target.getAuditStatus())) {
+            boolean isCrossUser = target.userId() != null && !target.userId().equals(mapping.getNoteUserId());
+            if (isCrossUser && target.status() != MediaReviewStatus.APPROVED) {
                 continue;
             }
 
             Short crossUserFlag = isCrossUser ? NoteConstant.IS_CROSS_USER : NoteConstant.NOT_IS_CROSS_USER;
-            boolean alreadyBound = Objects.equals(mapping.getImageId(), target.getId())
-                    && Objects.equals(mapping.getImageUserId(), target.getUserId())
+            boolean alreadyBound = Objects.equals(mapping.getImageId(), target.id())
+                    && Objects.equals(mapping.getImageUserId(), target.userId())
                     && Objects.equals(mapping.getIsCrossUser(), crossUserFlag)
-                    && Objects.equals(mapping.getStatus(), target.getAuditStatus());
+                    && Objects.equals(mapping.getStatus(), mediaStatusCode(target));
             if (alreadyBound) {
                 continue;
             }
 
             NoteImageMappingEntity bind = new NoteImageMappingEntity();
             bind.setId(mapping.getId());
-            bind.setImageId(target.getId());
-            bind.setImageUserId(target.getUserId());
+            bind.setImageId(target.id());
+            bind.setImageUserId(target.userId());
             bind.setIsCrossUser(crossUserFlag);
-            bind.setStatus(target.getAuditStatus());
+            bind.setStatus(mediaStatusCode(target));
             toBind.add(bind);
         }
 
@@ -607,24 +608,34 @@ public class NoteRelationServiceImpl implements NoteRelationService {
         }).toList();
     }
 
-    private List<NoteImageMappingRowVO> buildImageRows(List<NoteImageMappingEntity> mappings, Map<Long, ImageEntity> imageMap) {
+    private List<NoteImageMappingRowVO> buildImageRows(List<NoteImageMappingEntity> mappings, Map<Long, MediaFileSummary> imageMap) {
         return mappings.stream().map(mapping -> {
-            ImageEntity image = mapping.getImageId() == null ? null : imageMap.get(mapping.getImageId());
+            MediaFileSummary image = mapping.getImageId() == null ? null : imageMap.get(mapping.getImageId());
             boolean validBind = mapping.getImageId() != null
                     && image != null
-                    && Objects.equals(mapping.getParsedImageName(), image.getFilename());
+                    && Objects.equals(mapping.getParsedImageName(), image.filename());
 
             NoteImageMappingRowVO row = new NoteImageMappingRowVO();
             row.setMappingId(mapping.getId());
             row.setNoteId(mapping.getNoteId());
             row.setImageId(mapping.getImageId());
             row.setParsedImageName(mapping.getParsedImageName());
-            row.setFilename(image == null ? null : image.getFilename());
+            row.setFilename(image == null ? null : image.filename());
             row.setIsCrossUser(mapping.getIsCrossUser());
             row.setStatus(mapping.getStatus());
             row.setIsMissing(validBind ? NoteConstant.NOT_MISSED_INFO : NoteConstant.MISSED_INFO);
             return row;
         }).toList();
+    }
+
+    private static Short mediaStatusCode(MediaFileSummary media) {
+        return switch (media.status()) {
+            case WAITING -> 0;
+            case REVIEWING -> 1;
+            case APPROVED -> 2;
+            case REJECTED -> 3;
+            case DELETED -> 4;
+        };
     }
 
     private List<NoteEachMappingRowVO> buildEachRows(List<NoteEachMappingEntity> mappings, Map<Long, NoteEntity> noteMap) {

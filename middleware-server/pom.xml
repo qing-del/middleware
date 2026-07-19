@@ -28,11 +28,6 @@
 
         <dependency>
             <groupId>com.jacolp</groupId>
-            <artifactId>middleware-oss-starter</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.jacolp</groupId>
             <artifactId>middleware-markdown-starter</artifactId>
         </dependency>
 

@@ -15,6 +15,7 @@ import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteSimpleVO;
 import com.jacolp.pojo.vo.note.TagBacklinkVO;
+import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
 import org.apache.ibatis.annotations.Param;
 
 public interface NoteRelationService {
@@ -59,7 +60,7 @@ public interface NoteRelationService {
     NoteRelationDetailVO getRelationInfo(
             Long noteId,
             List<NoteTagMappingEntity> tagMappings, Map<Long, TagEntity> tagMap,
-            List<NoteImageMappingEntity> imageMappings, Map<Long, ImageEntity> imageMap,
+            List<NoteImageMappingEntity> imageMappings, Map<Long, MediaFileSummary> imageMap,
             List<NoteEachMappingEntity> eachMappings, Map<Long, NoteEntity> targetNoteMap);
 
     /**
@@ -79,7 +80,7 @@ public interface NoteRelationService {
      * @param dto
      * @return 被绑定的 映射行实体
      */
-    NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, ImageEntity targetImage);
+    NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, MediaFileSummary targetImage);
 
     /**
      * 解绑图片关系
@@ -162,7 +163,7 @@ public interface NoteRelationService {
      * @param imageMap 可供选择的图片
      * @throws BaseException 批量绑定失败
      */
-    void tryBatchBindImageMappings(List<NoteImageMappingEntity> mappings, Map<String, ImageEntity> imageMap);
+    void tryBatchBindImageMappings(List<NoteImageMappingEntity> mappings, Map<String, MediaFileSummary> imageMap);
 
     /**
      * 尝试批量绑定关系。

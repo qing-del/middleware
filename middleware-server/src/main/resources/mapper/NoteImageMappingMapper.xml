@@ -3,6 +3,20 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.jacolp.mapper.NoteImageMappingMapper">
 
+    <select id="selectActiveByImageIds" resultType="com.jacolp.pojo.entity.NoteImageMappingEntity">
+        SELECT m.id,
+               m.note_id AS noteId,
+               m.image_id AS imageId,
+               m.note_title AS noteTitle,
+               m.is_cross_user AS isCrossUser,
+               n.status AS status,
+               m.create_time AS createTime
+        FROM biz_note_image_mapping m
+        LEFT JOIN biz_note n ON n.id = m.note_id
+        WHERE m.is_deleted = 0 AND m.image_id IN
+        <foreach collection="imageIds" item="imageId" open="(" separator="," close=")">#{imageId}</foreach>
+    </select>
+
     <resultMap id="NoteImageMappingMap" type="com.jacolp.pojo.entity.NoteImageMappingEntity">
         <id column="id" property="id"/>
         <result column="note_id" property="noteId"/>

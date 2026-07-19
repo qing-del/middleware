@@ -94,6 +94,8 @@ public interface NoteImageMappingMapper {
 
     List<ImageNoteCountDTO> countByImageIds(@Param("imageIds") List<Long> imageIds);
 
+    List<NoteImageMappingEntity> selectActiveByImageIds(@Param("imageIds") List<Long> imageIds);
+
     /**
      * 查询引用了指定图片的源笔记列表（图片反向引用）
      * @param imageId 目标图片 id

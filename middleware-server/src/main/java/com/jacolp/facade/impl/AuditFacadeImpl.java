@@ -13,6 +13,7 @@ import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.NoteAuditRecordEntity;
 import com.jacolp.service.*;
+import com.jacolp.middleware.module.media.biz.application.service.MediaImageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,7 @@ public class AuditFacadeImpl implements AuditFacade {
     @Autowired private AuditService auditService;
 
     @Autowired private TagService tagService;
-    @Autowired private ImageService imageService;
+    @Autowired private MediaImageService imageService;
     @Autowired private NoteCoreService noteCoreService;
     @Autowired private NoteRelationService noteRelationService;
 
