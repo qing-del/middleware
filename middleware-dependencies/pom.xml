@@ -141,26 +141,6 @@
 
             <!-- Legacy reactor artifacts. -->
             <dependency>
-                <groupId>com.aliyun.oss</groupId>
-                <artifactId>aliyun-oss-spring-boot-autoconfigure</artifactId>
-                <version>1.0.0-SNAPSHOT</version>
-            </dependency>
-            <dependency>
-                <groupId>com.aliyun.oss</groupId>
-                <artifactId>aliyun-oss-spring-boot-starter</artifactId>
-                <version>1.0.0-SNAPSHOT</version>
-            </dependency>
-            <dependency>
-                <groupId>com.jacolp</groupId>
-                <artifactId>flexmark-jacolp-autoconfigure</artifactId>
-                <version>${middleware.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.jacolp</groupId>
-                <artifactId>flexmark-jacolp-starter</artifactId>
-                <version>${middleware.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.jacolp</groupId>
                 <artifactId>middleware-common-legacy</artifactId>
                 <version>${middleware.version}</version>

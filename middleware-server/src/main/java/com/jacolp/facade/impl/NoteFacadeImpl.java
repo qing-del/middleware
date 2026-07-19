@@ -27,7 +27,7 @@ import com.jacolp.constant.TopicConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.context.StorageUpdateContext;
-import com.jacolp.converter.MarkdownHtmlEngine;
+import com.jacolp.middleware.framework.markdown.converter.MarkdownHtmlEngine;
 import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.enums.StorageOperationType;

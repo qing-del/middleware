@@ -27,18 +27,12 @@
         <module>middleware-module-audio</module>
 
         <!-- Legacy modules kept buildable while code is migrated vertically. -->
-        <module>aliyun-oss-spring-boot-autoconfigure</module>
-        <module>aliyun-oss-spring-boot-starter</module>
-        <module>flexmark-jacolp-autoconfigure</module>
-        <module>flexmark-jacolp-starter</module>
         <module>middleware-common-legacy</module>
         <module>middleware-pojo</module>
         <module>middleware-server</module>
     </modules>
 
     <properties>
-        <flexmark.jacolp>0.0.1-SNAPSHOT</flexmark.jacolp>
-
         <spring-boot.version>4.0.5</spring-boot.version>
         <middleware.version>0.0.1-SNAPSHOT</middleware.version>
         <java.version>21</java.version>

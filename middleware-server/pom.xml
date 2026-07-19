@@ -27,13 +27,13 @@
         </dependency>
 
         <dependency>
-            <groupId>com.aliyun.oss</groupId>
-            <artifactId>aliyun-oss-spring-boot-starter</artifactId>
+            <groupId>com.jacolp</groupId>
+            <artifactId>middleware-oss-starter</artifactId>
         </dependency>
 
         <dependency>
             <groupId>com.jacolp</groupId>
-            <artifactId>flexmark-jacolp-starter</artifactId>
+            <artifactId>middleware-markdown-starter</artifactId>
         </dependency>
 
         <dependency>

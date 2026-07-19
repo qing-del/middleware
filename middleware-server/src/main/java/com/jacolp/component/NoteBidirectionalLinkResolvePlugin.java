@@ -1,7 +1,7 @@
 package com.jacolp.component;
 
 import com.jacolp.context.NoteImageResolveContext;
-import com.jacolp.converter.MarkdownPlugin;
+import com.jacolp.middleware.framework.markdown.converter.MarkdownPlugin;
 import com.jacolp.mapper.ImageMapper;
 import com.jacolp.mapper.NoteEachMappingMapper;
 import com.jacolp.mapper.NoteImageMappingMapper;

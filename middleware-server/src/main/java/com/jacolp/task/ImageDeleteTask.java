@@ -1,6 +1,6 @@
 package com.jacolp.task;
 
-import com.aliyun.oss.AliyunOSSOperator;
+import com.jacolp.middleware.framework.oss.AliyunOSSOperator;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.mapper.ImageDeleteDeadLetterMapper;
 import com.jacolp.pojo.entity.ImageDeleteDeadLetterEntity;
