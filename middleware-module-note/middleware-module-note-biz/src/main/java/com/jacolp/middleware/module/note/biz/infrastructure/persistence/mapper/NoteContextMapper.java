@@ -1,6 +1,6 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper;
 
-import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -15,17 +15,17 @@ public interface NoteContextMapper {
     /**
      * 根据 note_id 查询笔记内容
      */
-    NoteContextEntity selectByNoteId(Long noteId);
+    NoteContextDO selectByNoteId(Long noteId);
 
     /**
      * 新增笔记内容
      */
-    int insertContext(NoteContextEntity entity);
+    int insertContext(NoteContextDO entity);
 
     /**
      * 更新笔记内容（UPSERT 语义）
      */
-    int updateContext(NoteContextEntity entity);
+    int updateContext(NoteContextDO entity);
 
     /**
      * 删除笔记内容
@@ -44,5 +44,5 @@ public interface NoteContextMapper {
      * @param userId 用户 ID（传入 null 则不进行所有权校验）
      * @return 笔记内容（不存在 / 没有所有权会返回 null）
      */
-    NoteContextEntity selectByNoteIdWithValidUserId(@Param("noteId") Long noteId, @Param("userId") Long userId);
+    NoteContextDO selectByNoteIdWithValidUserId(@Param("noteId") Long noteId, @Param("userId") Long userId);
 }

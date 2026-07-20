@@ -1,6 +1,6 @@
-package com.jacolp.service;
+package com.jacolp.middleware.module.note.biz.application.service;
 
-import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
 
 import java.util.List;
 
@@ -18,7 +18,7 @@ public interface NoteContextService {
      * @param noteId 笔记 ID
      * @return
      */
-    NoteContextEntity getByNoteId(Long noteId);
+    NoteContextDO getByNoteId(Long noteId);
 
     /**
      * 获取笔记源文件
@@ -27,19 +27,19 @@ public interface NoteContextService {
      * @return 笔记内容实体
      * @throws com.jacolp.exception.BaseException 笔记不存在 / 笔记无权限访问
      */
-    NoteContextEntity getByNoteIdWithValid(Long noteId);
+    NoteContextDO getByNoteIdWithValid(Long noteId);
 
     /**
      * 保存笔记
      * @param noteContext 笔记文本实体
      */
-    void insert(NoteContextEntity noteContext);
+    void insert(NoteContextDO noteContext);
 
     /**
      * 更新笔记
      * @param noteContext 笔记文本实体
      */
-    void update(NoteContextEntity noteContext);
+    void update(NoteContextDO noteContext);
 
     /**
      * 批量删除笔记内容

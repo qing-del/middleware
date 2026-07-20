@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
-import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +49,7 @@ public class NoteConvertServiceImpl implements NoteConvertService {
      * @throws BaseException 写入数据库失败的时候会抛出此异常
      */
     @Override
-    public String convertAndSave(NoteDO note, NoteContextEntity context) {
+    public String convertAndSave(NoteDO note, NoteContextDO context) {
         // 设置上下文供图片解析插件获取 noteId
         NoteImageResolveContext.setCurrentNoteId(note.getId());
         try {

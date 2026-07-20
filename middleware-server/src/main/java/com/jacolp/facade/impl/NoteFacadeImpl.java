@@ -37,7 +37,7 @@ import com.jacolp.facade.NoteRelationFacade;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.pojo.dto.note.UploadToInsertNoteDTO;
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
-import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
@@ -51,7 +51,7 @@ import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.service.NoteChangeDiffService;
-import com.jacolp.service.NoteContextService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteContextService;
 import com.jacolp.service.NoteConvertService;
 import com.jacolp.service.NoteCoreService;
 import com.jacolp.service.NoteRelationService;
@@ -134,7 +134,7 @@ public class NoteFacadeImpl implements NoteFacade {
         try {
             // 插入笔记文本 — 通过 NoteImageResolveContext 为图片解析插件提供 noteId
             NoteImageResolveContext.setCurrentNoteId(noteId);
-            NoteContextEntity contextEntity = buildNoteContextEntity(noteId, rawMarkdown);
+            NoteContextDO contextEntity = buildNoteContextEntity(noteId, rawMarkdown);
             noteContextService.insert(contextEntity);
         } finally {
             NoteImageResolveContext.clear();
@@ -188,7 +188,7 @@ public class NoteFacadeImpl implements NoteFacade {
         }
 
         // 读取旧内容，新内容暂存到 markdown_content_new
-        NoteContextEntity noteContext = noteContextService.getByNoteId(noteId);
+        NoteContextDO noteContext = noteContextService.getByNoteId(noteId);
         if (noteContext == null) {
             throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
         }
@@ -239,7 +239,7 @@ public class NoteFacadeImpl implements NoteFacade {
         }
 
         // 检查是否存在待确认 diff，不存在存在即返回报错
-        NoteContextEntity contextEntity = noteContextService.getByNoteId(noteId);
+        NoteContextDO contextEntity = noteContextService.getByNoteId(noteId);
         NoteChangeDiffEntity diffEntity = noteChangeDiffService
                 .getByNoteIdAndStatus(noteId, NoteConstant.NOTE_DIFF_STATUS_PENDING);
         if (diffEntity == null) {
@@ -291,7 +291,7 @@ public class NoteFacadeImpl implements NoteFacade {
     @Override
     public NoteModifyDiffDetailVO getModifyDiff(Long noteId) {
         // 获取新旧文本
-        NoteContextEntity contextEntity = noteContextService.getByNoteIdWithValid(noteId);
+        NoteContextDO contextEntity = noteContextService.getByNoteIdWithValid(noteId);
         if (contextEntity == null) {
             throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
         }
@@ -339,7 +339,7 @@ public class NoteFacadeImpl implements NoteFacade {
         }
 
         // 读取笔记内容
-        NoteContextEntity context = noteContextService.getByNoteId(noteId);
+        NoteContextDO context = noteContextService.getByNoteId(noteId);
         if (context == null) {
             throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
         }
@@ -592,8 +592,8 @@ public class NoteFacadeImpl implements NoteFacade {
     /**
      * 构建笔记文本内容实体
      */
-    private static @NonNull NoteContextEntity buildNoteContextEntity(Long noteId, String rawMarkdown) {
-        NoteContextEntity contextEntity = new NoteContextEntity();
+    private static @NonNull NoteContextDO buildNoteContextEntity(Long noteId, String rawMarkdown) {
+        NoteContextDO contextEntity = new NoteContextDO();
         contextEntity.setNoteId(noteId);
         contextEntity.setMarkdownContent(rawMarkdown);
         return contextEntity;

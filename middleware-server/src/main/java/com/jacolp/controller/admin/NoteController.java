@@ -8,7 +8,7 @@ import com.jacolp.pojo.vo.note.NoteDetailVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.facade.NoteFacade;
-import com.jacolp.service.NoteContextService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteContextService;
 import com.jacolp.service.NoteConvertService;
 import com.jacolp.service.NoteCoreService;
 

@@ -1,4 +1,4 @@
-package com.jacolp.service.impl;
+package com.jacolp.middleware.module.note.biz.application.service;
 
 import java.util.List;
 
@@ -10,9 +10,8 @@ import org.springframework.stereotype.Service;
 
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.NoteContextMapper;
-import com.jacolp.pojo.entity.NoteContextEntity;
-import com.jacolp.service.NoteContextService;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteContextMapper;
 
 /**
  * 笔记文本内容管理实现。
@@ -32,7 +31,7 @@ public class NoteContextServiceImpl implements NoteContextService {
      */
     @Override
     public String adminGetSource(Long noteId) {
-        NoteContextEntity context = noteContextMapper.selectByNoteId(noteId);
+        NoteContextDO context = noteContextMapper.selectByNoteId(noteId);
         if (context == null) {
             throw new BaseException(NoteConstant.NOTE_CONTENT_NOT_FOUND);
         }
@@ -45,7 +44,7 @@ public class NoteContextServiceImpl implements NoteContextService {
      * @return 文本实体，不存在时返回 null
      */
     @Override
-    public NoteContextEntity getByNoteId(Long noteId) {
+    public NoteContextDO getByNoteId(Long noteId) {
         return noteContextMapper.selectByNoteId(noteId);
     }
 
@@ -57,8 +56,8 @@ public class NoteContextServiceImpl implements NoteContextService {
      * @throws BaseException 笔记不存在 / 笔记无权限访问
      */
     @Override
-    public NoteContextEntity getByNoteIdWithValid(Long noteId) {
-        NoteContextEntity result;
+    public NoteContextDO getByNoteIdWithValid(Long noteId) {
+        NoteContextDO result;
         if (PermissionContext.isAdmin()) {
             result = noteContextMapper.selectByNoteIdWithValidUserId(noteId, null);
         } else {
@@ -70,7 +69,7 @@ public class NoteContextServiceImpl implements NoteContextService {
             throw new BaseException(NoteConstant.NOTE_NOT_FOUND);
         }
 
-        NoteContextEntity entity = new NoteContextEntity();
+        NoteContextDO entity = new NoteContextDO();
         BeanUtils.copyProperties(result, entity);
         return entity;
     }
@@ -80,7 +79,7 @@ public class NoteContextServiceImpl implements NoteContextService {
      * @param noteContext 笔记文本实体
      */
     @Override
-    public void insert(NoteContextEntity noteContext) {
+    public void insert(NoteContextDO noteContext) {
         noteContextMapper.insertContext(noteContext);
     }
 
@@ -89,7 +88,7 @@ public class NoteContextServiceImpl implements NoteContextService {
      * @param noteContext 笔记文本实体
      */
     @Override
-    public void update(NoteContextEntity noteContext) {
+    public void update(NoteContextDO noteContext) {
         noteContextMapper.updateContext(noteContext);
     }
 

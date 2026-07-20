@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.facade.NoteFacade;
-import com.jacolp.pojo.entity.NoteContextEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
-import com.jacolp.service.NoteContextService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteContextService;
 import com.jacolp.service.NoteCoreService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -132,7 +132,7 @@ public class NoteController {
             @Parameter(description = "笔记ID")
             @PathVariable Long id) {
         log.info("User get note source: {}", id);
-        NoteContextEntity context = noteContextService.getByNoteIdWithValid(id);
+        NoteContextDO context = noteContextService.getByNoteIdWithValid(id);
         return Result.success(context != null ? context.getMarkdownContent() : "");
     }
 

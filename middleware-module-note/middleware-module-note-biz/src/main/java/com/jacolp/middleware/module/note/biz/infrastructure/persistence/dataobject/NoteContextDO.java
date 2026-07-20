@@ -1,4 +1,4 @@
-package com.jacolp.pojo.entity;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoteContextEntity {
+public class NoteContextDO {
 
     /**
      * 主键ID
