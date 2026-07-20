@@ -14,6 +14,7 @@ import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobj
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.MetaAuditMapper;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.NoteAuditMapper;
+import com.jacolp.middleware.module.audit.biz.domain.audit.AuditReviewPolicy;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +22,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuditApplicationApiService implements AuditApplicationApi {
     private static final short TAG_APPLY_TYPE = 2;
-    private static final short TAG_AND_IMAGE_PENDING_STATUS = 1;
-    private static final short NOTE_PENDING_STATUS = 0;
-
     private final MetaAuditMapper metaAuditMapper;
     private final ImageAuditMapper imageAuditMapper;
     private final NoteAuditMapper noteAuditMapper;
@@ -92,19 +90,19 @@ public class AuditApplicationApiService implements AuditApplicationApi {
 
     private CancelAuditApplicationResult cancelTagApplication(CancelAuditApplicationCommand command) {
         MetaAuditRecordDO record = metaAuditMapper.selectPendingByApplyTypeAndTargetId(TAG_APPLY_TYPE, command.targetId());
-        ensurePendingApplicant(record == null ? null : record.getApplicantUserId(), record == null ? null : record.getStatus(), TAG_AND_IMAGE_PENDING_STATUS, command.actorUserId());
+        ensurePendingApplicant(record == null ? null : record.getApplicantUserId(), record == null ? null : record.getStatus(), AuditTargetType.TAG, command.actorUserId());
         return cancelledResult(command, metaAuditMapper.deletePendingByApplyTypeAndTargetId(TAG_APPLY_TYPE, command.targetId()));
     }
 
     private CancelAuditApplicationResult cancelImageApplication(CancelAuditApplicationCommand command) {
         ImageAuditRecordDO record = imageAuditMapper.selectPendingByImageId(command.targetId());
-        ensurePendingApplicant(record == null ? null : record.getApplicantUserId(), record == null ? null : record.getStatus(), TAG_AND_IMAGE_PENDING_STATUS, command.actorUserId());
+        ensurePendingApplicant(record == null ? null : record.getApplicantUserId(), record == null ? null : record.getStatus(), AuditTargetType.IMAGE, command.actorUserId());
         return cancelledResult(command, imageAuditMapper.deletePendingByImageId(command.targetId()));
     }
 
     private CancelAuditApplicationResult cancelNoteApplication(CancelAuditApplicationCommand command) {
         NoteAuditRecordDO record = noteAuditMapper.selectPendingByNoteId(command.targetId());
-        ensurePendingApplicant(record == null ? null : record.getApplicantUserId(), record == null ? null : record.getStatus(), NOTE_PENDING_STATUS, command.actorUserId());
+        ensurePendingApplicant(record == null ? null : record.getApplicantUserId(), record == null ? null : record.getStatus(), AuditTargetType.NOTE, command.actorUserId());
         return cancelledResult(command, noteAuditMapper.deletePendingByNoteId(command.targetId()));
     }
 
@@ -121,9 +119,9 @@ public class AuditApplicationApiService implements AuditApplicationApi {
         if (affected < 1 || auditApplicationId == null) throw new BaseException("创建审核申请失败");
     }
 
-    private static void ensurePendingApplicant(Long applicantUserId, Short status, short expectedPendingStatus, Long actorUserId) {
+    private static void ensurePendingApplicant(Long applicantUserId, Short status, AuditTargetType targetType, Long actorUserId) {
         if (applicantUserId == null) throw new BaseException("未找到待审核的申请记录");
-        if (!Objects.equals(status, expectedPendingStatus)) throw new BaseException("审核申请未处于待审核状态");
+        if (!AuditReviewPolicy.isPending(targetType, status)) throw new BaseException("审核申请未处于待审核状态");
         if (!Objects.equals(applicantUserId, actorUserId)) throw new BaseException("只能撤销自己的审核申请");
     }
 }

@@ -3,10 +3,13 @@ package com.jacolp.middleware.module.audit.biz.application.service;
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.context.BaseContext;
-import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.module.audit.biz.application.dto.AuditBatchReviewDTO;
 import com.jacolp.middleware.module.audit.biz.application.dto.AuditReviewContext;
+import com.jacolp.middleware.module.audit.api.AuditTargetType;
+import com.jacolp.middleware.module.audit.biz.domain.audit.AuditReviewPolicy;
+import com.jacolp.middleware.module.audit.biz.domain.audit.AuditReviewPolicy.Outcome;
+import com.jacolp.middleware.module.audit.biz.domain.audit.AuditReviewPolicy.ReviewMode;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.NoteAuditRecordDO;
@@ -50,14 +53,15 @@ public class AuditReviewService {
 
     @Transactional(rollbackFor = Exception.class)
     public int batchReviewMeta(AuditBatchReviewDTO dto) {
-        AuditReviewContext context = validateReviewRequest(dto, false);
+        AuditReviewContext context = validateReviewRequest(dto, AuditTargetType.TAG);
         List<MetaAuditRecordDO> pendingRecords = metaAuditMapper.selectPendingByIds(context.getIds());
         if (pendingRecords == null || pendingRecords.isEmpty()) return 0;
         List<Long> reviewIds = pendingRecords.stream().map(MetaAuditRecordDO::getId).toList();
         validateAffected(pendingRecords.size(), metaAuditMapper.batchReviewByIds(reviewIds, context.getStatus(), context.getReviewerUserId(), context.getRejectReason()));
         List<Long> tagIds = pendingRecords.stream().map(MetaAuditRecordDO::getTargetId).filter(id -> id != null).toList();
         if (!tagIds.isEmpty()) {
-            int updated = noteAuditApplyApi.applyTagAudit(new ApplyTagAuditCommand(tagIds, toDecision(context.getStatus(), false))).tagRowsUpdated();
+            int updated = noteAuditApplyApi.applyTagAudit(new ApplyTagAuditCommand(tagIds,
+                    toDecision(AuditReviewPolicy.outcome(AuditTargetType.TAG, context.getStatus())))).tagRowsUpdated();
             if (updated < pendingRecords.size()) {
                 log.error("Failed to update tag status! : {}", tagIds);
                 throw new BaseException("更新标签状态失败");
@@ -68,7 +72,7 @@ public class AuditReviewService {
 
     @Transactional(rollbackFor = Exception.class)
     public int batchReviewImage(AuditBatchReviewDTO dto) {
-        AuditReviewContext context = validateReviewRequest(dto, false);
+        AuditReviewContext context = validateReviewRequest(dto, AuditTargetType.IMAGE);
         List<ImageAuditRecordDO> pendingRecords = imageAuditMapper.selectPendingByIds(context.getIds());
         if (pendingRecords == null || pendingRecords.isEmpty()) return 0;
         List<Long> reviewIds = pendingRecords.stream().map(ImageAuditRecordDO::getId).toList();
@@ -76,7 +80,9 @@ public class AuditReviewService {
         List<Long> imageIds = pendingRecords.stream().map(ImageAuditRecordDO::getImageId).filter(id -> id != null).toList();
         if (!imageIds.isEmpty()) {
             int updated = mediaAuditApplyApi.applyMediaAudit(
-                    new ApplyMediaAuditCommand(imageIds, toMediaDecision(context.getStatus()), true)).mediaRowsUpdated();
+                    new ApplyMediaAuditCommand(imageIds,
+                            toMediaDecision(AuditReviewPolicy.outcome(AuditTargetType.IMAGE, context.getStatus())),
+                            AuditReviewPolicy.shouldUpdateRelationStatus(ReviewMode.BATCH))).mediaRowsUpdated();
             if (updated < pendingRecords.size()) {
                 log.error("Failed to update image status! : {}", imageIds);
                 throw new BaseException("更新图片状态失败");
@@ -87,14 +93,15 @@ public class AuditReviewService {
 
     @Transactional(rollbackFor = Exception.class)
     public int batchReviewNote(AuditBatchReviewDTO dto) {
-        AuditReviewContext context = validateReviewRequest(dto, true);
+        AuditReviewContext context = validateReviewRequest(dto, AuditTargetType.NOTE);
         List<NoteAuditRecordDO> pendingRecords = noteAuditMapper.selectPendingByIds(context.getIds());
         if (pendingRecords == null || pendingRecords.isEmpty()) return 0;
         List<Long> reviewIds = pendingRecords.stream().map(NoteAuditRecordDO::getId).toList();
         validateAffected(pendingRecords.size(), noteAuditMapper.batchReviewByIds(reviewIds, context.getStatus(), context.getReviewerUserId(), context.getRejectReason()));
         List<Long> noteIds = pendingRecords.stream().map(NoteAuditRecordDO::getNoteId).filter(id -> id != null).toList();
         if (!noteIds.isEmpty()) {
-            int updated = noteAuditApplyApi.applyNoteAudit(new ApplyNoteAuditCommand(noteIds, toDecision(context.getStatus(), true))).noteRowsUpdated();
+            int updated = noteAuditApplyApi.applyNoteAudit(new ApplyNoteAuditCommand(noteIds,
+                    toDecision(AuditReviewPolicy.outcome(AuditTargetType.NOTE, context.getStatus())))).noteRowsUpdated();
             if (updated < pendingRecords.size()) {
                 log.error("Failed to update note status! : {}", noteIds);
                 throw new BaseException(NoteConstant.NOTE_UPDATE_FAILED);
@@ -103,29 +110,26 @@ public class AuditReviewService {
         return pendingRecords.size();
     }
 
-    private static AuditReviewContext validateReviewRequest(AuditBatchReviewDTO dto, boolean noteLegacy) {
+    private static AuditReviewContext validateReviewRequest(AuditBatchReviewDTO dto, AuditTargetType targetType) {
         if (dto == null || dto.getIds() == null || dto.getIds().isEmpty()) throw new BaseException("审核记录ID列表不能为空");
-        boolean validStatus = noteLegacy
-                ? AuditConstant.PASS.equals(dto.getStatus()) || AuditConstant.REJECT.equals(dto.getStatus())
-                : AuditStatus.APPROVED.getCode().equals(dto.getStatus()) || AuditStatus.REJECTED.getCode().equals(dto.getStatus());
+        boolean validStatus = AuditReviewPolicy.isReviewResultAllowed(targetType, dto.getStatus());
         if (!validStatus) throw new BaseException("无效的审核状态");
         Set<Long> ids = new LinkedHashSet<>();
         for (Long id : dto.getIds()) if (id != null && id > 0) ids.add(id);
         if (ids.isEmpty()) throw new BaseException("审核记录ID列表不能为空");
-        Short rejectCode = noteLegacy ? AuditConstant.REJECT : AuditStatus.REJECTED.getCode();
+        Short rejectCode = AuditReviewPolicy.resultStatus(targetType, Outcome.REJECTED);
         String rejectReason = rejectCode.equals(dto.getStatus())
                 ? (StringUtils.hasText(dto.getRejectReason()) ? dto.getRejectReason().trim() : AuditConstant.DEFAULT_REJECT_REASON)
                 : null;
         return new AuditReviewContext(new ArrayList<>(ids), dto.getStatus(), BaseContext.getCurrentId(), rejectReason);
     }
 
-    private static AuditDecision toDecision(Short status, boolean noteLegacy) {
-        return (noteLegacy ? AuditConstant.PASS : AuditStatus.APPROVED.getCode()).equals(status)
-                ? AuditDecision.APPROVED : AuditDecision.REJECTED;
+    private static AuditDecision toDecision(Outcome outcome) {
+        return outcome == Outcome.APPROVED ? AuditDecision.APPROVED : AuditDecision.REJECTED;
     }
 
-    private static MediaAuditDecision toMediaDecision(Short status) {
-        return AuditStatus.APPROVED.getCode().equals(status) ? MediaAuditDecision.APPROVED : MediaAuditDecision.REJECTED;
+    private static MediaAuditDecision toMediaDecision(Outcome outcome) {
+        return outcome == Outcome.APPROVED ? MediaAuditDecision.APPROVED : MediaAuditDecision.REJECTED;
     }
 
     private static void validateAffected(int pendingRecords, int affected) {
