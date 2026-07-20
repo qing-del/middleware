@@ -42,7 +42,7 @@ import com.jacolp.pojo.vo.note.NoteBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteCheckBindingVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.TagBacklinkVO;
-import com.jacolp.service.NoteCoreService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
 import com.jacolp.service.NoteRelationService;
 import com.jacolp.service.TagService;
 

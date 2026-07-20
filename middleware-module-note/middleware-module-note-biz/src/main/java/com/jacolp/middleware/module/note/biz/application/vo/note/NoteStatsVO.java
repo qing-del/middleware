@@ -1,4 +1,4 @@
-package com.jacolp.pojo.vo.note;
+package com.jacolp.middleware.module.note.biz.application.vo.note;
 
 import java.io.Serializable;
 

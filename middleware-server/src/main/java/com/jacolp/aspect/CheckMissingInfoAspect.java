@@ -6,7 +6,7 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.pojo.provider.NoteIdProvider;
-import com.jacolp.service.NoteCoreService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
 import com.jacolp.service.NoteRelationService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;

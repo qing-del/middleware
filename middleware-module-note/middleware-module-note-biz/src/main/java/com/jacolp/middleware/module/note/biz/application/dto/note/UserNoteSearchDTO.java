@@ -1,6 +1,6 @@
-package com.jacolp.pojo.dto.note;
+package com.jacolp.middleware.module.note.biz.application.dto.note;
 
-import com.jacolp.pojo.provider.PageParamProvider;
+import com.jacolp.middleware.module.note.biz.application.dto.PageParamProvider;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 

@@ -1,8 +1,8 @@
-package com.jacolp.service.impl;
+package com.jacolp.middleware.module.note.biz.application.service;
 
 import java.util.List;
 
-import com.jacolp.pojo.dto.note.*;
+import com.jacolp.middleware.module.note.biz.application.dto.note.*;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,13 +18,15 @@ import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
-import com.jacolp.pojo.entity.NoteAuditRecordEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.pojo.vo.note.NoteStatsVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteStatsVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
-import com.jacolp.service.AuditService;
-import com.jacolp.service.NoteCoreService;
+import com.jacolp.middleware.module.audit.api.AuditApplicationApi;
+import com.jacolp.middleware.module.audit.api.AuditTargetType;
+import com.jacolp.middleware.module.audit.api.CancelAuditApplicationCommand;
+import com.jacolp.middleware.module.audit.api.CreateAuditApplicationCommand;
+import com.jacolp.middleware.module.audit.api.PendingAuditApplicationQuery;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
  * 笔记核心 CRUD 实现。
  *
  * <p>负责 {@code biz_note} 表的基础读写及生命周期管理（发布/下架、审核申请、删除）。
- * 复杂编排（上传、修改、确认变更）由 {@link com.jacolp.facade.impl.NoteFacadeImpl} 负责。</p>
+ * 复杂编排（上传、修改、确认变更）由上层应用编排负责。</p>
  */
 @Service
 @Slf4j
@@ -40,8 +42,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
 
     @Autowired private NoteMapper noteMapper;
 
-    // 来自其他模块的 Service
-    @Autowired private AuditService auditService;
+    @Autowired private AuditApplicationApi auditApplicationApi;
 
     @Override
     public void update(NoteDO noteEntity) {
@@ -203,7 +204,7 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_ID_INVALID);
         }
 
-        NoteDO note = getById(noteId);  // TODO this自调用，后续解耦审核模块的时候优化
+        NoteDO note = getById(noteId);
 
         // 检查笔记状态是否可以发生转换
         NoteStatus status = NoteStatus.fromCode(note.getStatus());
@@ -215,19 +216,16 @@ public class NoteCoreServiceImpl implements NoteCoreService {
         }
 
         // 检查是否存在待审核申请
-        if (auditService.hasPendingNoteAudit(noteId)) {
+        if (auditApplicationApi.hasPendingApplication(new PendingAuditApplicationQuery(AuditTargetType.NOTE, noteId))) {
             throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
         }
 
-        // 插入笔记审核记录
-        NoteAuditRecordEntity record = new NoteAuditRecordEntity();
-        record.setApplicantUserId(userId);
-        record.setNoteId(noteId);
-        auditService.createNoteAuditRecord(record);
+        auditApplicationApi.createApplication(new CreateAuditApplicationCommand(
+                AuditTargetType.NOTE, noteId, userId, null));
 
         // 更新笔记状态
         note.setStatus(NoteStatus.PENDING_AUDIT.getCode());
-        update(note);   // TODO this自调用，后续解耦审核模块的时候优化
+        update(note);
     }
 
     /**
@@ -250,8 +248,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        // 删除待审核记录
-        auditService.cancelNoteAudit(noteId);
+        auditApplicationApi.cancelApplication(new CancelAuditApplicationCommand(
+                AuditTargetType.NOTE, noteId, note.getUserId()));
 
         // 状态回退到 CONVERTED
         note.setStatus(NoteStatus.CONVERTED.getCode());

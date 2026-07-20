@@ -3,6 +3,10 @@ package com.jacolp.controller.user;
 import com.jacolp.annotation.NoteFileLimit;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.pojo.dto.note.*;
+import com.jacolp.middleware.module.note.biz.application.dto.note.NoteModifyInfoDTO;
+import com.jacolp.middleware.module.note.biz.application.dto.note.UserNoteQueryDTO;
+import com.jacolp.middleware.module.note.biz.application.dto.note.UserNoteSearchDTO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteStatsVO;
 import com.jacolp.pojo.vo.note.*;
 import com.jacolp.service.NoteConvertService;
 import jakarta.validation.Valid;
@@ -17,7 +21,7 @@ import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobje
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 import com.jacolp.middleware.module.note.biz.application.service.NoteContextService;
-import com.jacolp.service.NoteCoreService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

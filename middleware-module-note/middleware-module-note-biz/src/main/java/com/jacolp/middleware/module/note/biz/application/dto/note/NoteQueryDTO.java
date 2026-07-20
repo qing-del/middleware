@@ -1,8 +1,8 @@
-package com.jacolp.pojo.dto.note;
+package com.jacolp.middleware.module.note.biz.application.dto.note;
 
 import java.io.Serializable;
 
-import com.jacolp.pojo.provider.PageParamProvider;
+import com.jacolp.middleware.module.note.biz.application.dto.PageParamProvider;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

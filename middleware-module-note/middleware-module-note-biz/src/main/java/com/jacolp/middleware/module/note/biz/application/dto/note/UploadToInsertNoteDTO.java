@@ -1,4 +1,4 @@
-package com.jacolp.pojo.dto.note;
+package com.jacolp.middleware.module.note.biz.application.dto.note;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

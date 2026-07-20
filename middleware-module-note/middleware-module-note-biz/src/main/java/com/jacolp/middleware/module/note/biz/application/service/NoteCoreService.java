@@ -1,10 +1,10 @@
-package com.jacolp.service;
+package com.jacolp.middleware.module.note.biz.application.service;
 
 import com.jacolp.context.PermissionContext;
 import com.jacolp.exception.BaseException;
-import com.jacolp.pojo.dto.note.*;
+import com.jacolp.middleware.module.note.biz.application.dto.note.*;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.pojo.vo.note.NoteStatsVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteStatsVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
 import org.jspecify.annotations.NonNull;

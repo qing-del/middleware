@@ -26,6 +26,7 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
+import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dto.TagNoteCountDTO;
 import com.jacolp.pojo.dto.tag.TagAddDTO;
 import com.jacolp.pojo.dto.tag.TagBatchAddDTO;
