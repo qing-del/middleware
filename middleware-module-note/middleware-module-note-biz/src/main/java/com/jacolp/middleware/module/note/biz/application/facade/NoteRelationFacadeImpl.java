@@ -40,6 +40,7 @@ import com.jacolp.middleware.module.note.biz.application.vo.image.ImageSimpleVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.ImageBacklinkVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteBacklinkVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteCheckBindingVO;
+import com.jacolp.middleware.module.note.biz.domain.note.NoteMissingInfo;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteRelationDetailVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.TagBacklinkVO;
 import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
@@ -120,13 +121,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        if (note.getMissingCount() <= 1) {
+        NoteMissingInfo missingInfo = new NoteMissingInfo(note.getMissingInfoMask(), note.getMissingCount());
+        if (missingInfo.shouldRecalculateAfterBind(1)) {
             tryConvertNoteToReady(note);
         } else {
-            note.setMissingCount(Math.max(note.getMissingCount() - 1, 0));
-            if (noteRelationService.isMissingTags(note.getId())) {
-                note.setMissingInfoMask(note.getMissingInfoMask() & ~NoteMissingInfoMask.TAG.getMask());
-            }
+            NoteMissingInfo updated = missingInfo.afterPartialBind(NoteMissingInfoMask.TAG, 1,
+                    noteRelationService.isMissingTags(note.getId()));
+            note.setMissingCount(updated.count());
+            note.setMissingInfoMask(updated.mask());
         }
 
         // 更新笔记状态
@@ -146,13 +148,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        if (NoteConstant.STATUS_READY_TO_CONVERT.equals(note.getStatus())) {
-            note.setStatus(NoteConstant.MISSED_INFO);
+        NoteMissingInfo missingInfo = new NoteMissingInfo(note.getMissingInfoMask(), note.getMissingCount());
+        Short statusAfterUnbind = missingInfo.statusAfterUnbind(note.getStatus());
+        if (!Objects.equals(statusAfterUnbind, note.getStatus())) {
+            note.setStatus(statusAfterUnbind);
         }
-
-        // 更新笔记缺失信息标记位
-        note.setMissingInfoMask(note.getMissingInfoMask() | NoteMissingInfoMask.TAG.getMask());
-        note.setMissingCount(note.getMissingCount() + 1);
+        NoteMissingInfo updated = missingInfo.afterUnbind(NoteMissingInfoMask.TAG);
+        note.setMissingInfoMask(updated.mask());
+        note.setMissingCount(updated.count());
 
         // 更新笔记
         noteCoreService.update(note);
@@ -178,13 +181,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        if (note.getMissingCount() <= 1) {
+        NoteMissingInfo missingInfo = new NoteMissingInfo(note.getMissingInfoMask(), note.getMissingCount());
+        if (missingInfo.shouldRecalculateAfterBind(1)) {
             tryConvertNoteToReady(note);
         } else {
-            note.setMissingCount(Math.max(note.getMissingCount() - 1, 0));
-            if (noteRelationService.isMissingImages(note.getId())) {
-                note.setMissingInfoMask(note.getMissingInfoMask() & ~NoteMissingInfoMask.IMAGE.getMask());
-            }
+            NoteMissingInfo updated = missingInfo.afterPartialBind(NoteMissingInfoMask.IMAGE, 1,
+                    noteRelationService.isMissingImages(note.getId()));
+            note.setMissingCount(updated.count());
+            note.setMissingInfoMask(updated.mask());
         }
 
         // 更新笔记状态
@@ -204,13 +208,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        if (NoteConstant.STATUS_READY_TO_CONVERT.equals(note.getStatus())) {
-            note.setStatus(NoteConstant.MISSED_INFO);
+        NoteMissingInfo missingInfo = new NoteMissingInfo(note.getMissingInfoMask(), note.getMissingCount());
+        Short statusAfterUnbind = missingInfo.statusAfterUnbind(note.getStatus());
+        if (!Objects.equals(statusAfterUnbind, note.getStatus())) {
+            note.setStatus(statusAfterUnbind);
         }
-
-        // 更新笔记缺失信息标记位
-        note.setMissingInfoMask(note.getMissingInfoMask() | NoteMissingInfoMask.IMAGE.getMask());
-        note.setMissingCount(note.getMissingCount() + 1);
+        NoteMissingInfo updated = missingInfo.afterUnbind(NoteMissingInfoMask.IMAGE);
+        note.setMissingInfoMask(updated.mask());
+        note.setMissingCount(updated.count());
 
         // 更新笔记
         noteCoreService.update(note);
@@ -242,13 +247,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        if (note.getMissingCount() <= affectedRow) {
+        NoteMissingInfo missingInfo = new NoteMissingInfo(note.getMissingInfoMask(), note.getMissingCount());
+        if (missingInfo.shouldRecalculateAfterBind(affectedRow)) {
             tryConvertNoteToReady(note);
         } else {
-            note.setMissingCount(Math.max(note.getMissingCount() - affectedRow, 0));
-            if (noteRelationService.isMissingNotes(note.getId())) {
-                note.setMissingInfoMask(note.getMissingInfoMask() & ~NoteMissingInfoMask.NOTE.getMask());
-            }
+            NoteMissingInfo updated = missingInfo.afterPartialBind(NoteMissingInfoMask.NOTE, affectedRow,
+                    noteRelationService.isMissingNotes(note.getId()));
+            note.setMissingCount(updated.count());
+            note.setMissingInfoMask(updated.mask());
         }
 
         // 更新笔记状态
@@ -268,13 +274,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        if (NoteConstant.STATUS_READY_TO_CONVERT.equals(note.getStatus())) {
-            note.setStatus(NoteConstant.MISSED_INFO);
+        NoteMissingInfo missingInfo = new NoteMissingInfo(note.getMissingInfoMask(), note.getMissingCount());
+        Short statusAfterUnbind = missingInfo.statusAfterUnbind(note.getStatus());
+        if (!Objects.equals(statusAfterUnbind, note.getStatus())) {
+            note.setStatus(statusAfterUnbind);
         }
-
-        // 更新笔记缺失信息标记位
-        note.setMissingInfoMask(note.getMissingInfoMask() | NoteMissingInfoMask.NOTE.getMask());
-        note.setMissingCount(note.getMissingCount() + 1);
+        NoteMissingInfo updated = missingInfo.afterUnbind(NoteMissingInfoMask.NOTE);
+        note.setMissingInfoMask(updated.mask());
+        note.setMissingCount(updated.count());
 
         // 更新笔记
         noteCoreService.update(note);

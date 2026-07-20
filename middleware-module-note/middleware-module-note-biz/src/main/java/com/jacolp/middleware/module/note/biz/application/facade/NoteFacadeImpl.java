@@ -21,6 +21,7 @@ import com.jacolp.context.PermissionContext;
 import com.jacolp.middleware.module.system.api.quota.StorageHandler;
 import com.jacolp.middleware.module.note.biz.application.component.JsonOperator;
 import com.jacolp.middleware.module.note.biz.infrastructure.cache.GuestCacheConstant;
+import com.jacolp.middleware.module.note.biz.domain.note.NoteLifecyclePolicy;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TagConstant;
 import com.jacolp.constant.TopicConstant;
@@ -28,7 +29,6 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.middleware.module.system.api.quota.StorageUpdateContext;
 import com.jacolp.middleware.framework.markdown.converter.MarkdownHtmlEngine;
-import com.jacolp.enums.NoteMissingInfoMask;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.middleware.module.system.api.quota.StorageOperationType;
 import com.jacolp.exception.BaseException;
@@ -327,13 +327,12 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 校验信息完整性 — 缺失信息的笔记不允许转换
         NoteStatus noteStatus = NoteStatus.fromCode(note.getStatus());
-        if ((note.getMissingCount() != null && note.getMissingCount() > 0)
-        && NoteMissingInfoMask.isComplete(note.getMissingInfoMask())) {
+        if (NoteLifecyclePolicy.hasBlockingMissingInfo(note.getMissingCount(), note.getMissingInfoMask())) {
             throw new BaseException(NoteConstant.NOTE_MISSING_INFO);
         }
 
         // 检查笔记状态是否可以发生转换
-        if (!noteStatus.canTransitionTo(NoteStatus.CONVERTED)) {
+        if (!NoteLifecyclePolicy.canConvert(noteStatus)) {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
@@ -436,7 +435,7 @@ public class NoteFacadeImpl implements NoteFacade {
         NoteStatus targetStatus = NoteStatus.fromCode(status);
 
         // 使用“状态机“守卫检查是否可以转换
-        if (!currentStatus.canTransitionTo(targetStatus)) {
+        if (!NoteLifecyclePolicy.canTransition(currentStatus, targetStatus)) {
             throw new BaseException(String.format(
                     "无法从 %s 状态转换到 %s 状态",
                     currentStatus.getDesc(),
@@ -444,9 +443,9 @@ public class NoteFacadeImpl implements NoteFacade {
             ));
         }
 
-        if (targetStatus == NoteStatus.PUBLISHED) {
+        if (NoteLifecyclePolicy.requiresAllMappingsPassed(targetStatus)) {
             // 委托 NoteRelationService 做三类映射的通过性校验
-            if (!noteRelationService.allMappingsPassed(noteId)) {
+            if (!NoteLifecyclePolicy.canPublish(targetStatus, noteRelationService.allMappingsPassed(noteId))) {
                 throw new BaseException("存在未通过的映射行，请检查标签、图片、内联笔记映射行！");
             }
         }
