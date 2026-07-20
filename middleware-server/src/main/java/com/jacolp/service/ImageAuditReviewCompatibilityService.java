@@ -8,7 +8,7 @@ import com.jacolp.middleware.module.media.api.MediaAuditApplyApi;
 import com.jacolp.middleware.module.media.api.command.ApplyMediaAuditCommand;
 import com.jacolp.middleware.module.media.api.model.MediaAuditDecision;
 import com.jacolp.pojo.dto.image.ImageAuditReviewDTO;
-import com.jacolp.pojo.entity.ImageAuditRecordEntity;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -22,7 +22,7 @@ public class ImageAuditReviewCompatibilityService {
     @Transactional(rollbackFor = Exception.class)
     public void review(ImageAuditReviewDTO dto) {
         if (dto == null || dto.getAuditId() == null || dto.getAuditId() <= 0) throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
-        ImageAuditRecordEntity record = auditService.getImageAuditRecordById(dto.getAuditId());
+        ImageAuditRecordDO record = auditService.getImageAuditRecordById(dto.getAuditId());
         if (record == null || !AuditStatus.AUDITING.getCode().equals(record.getStatus())) throw new BaseException(ImageConstant.IMAGE_AUDIT_ALREADY_PROCESSED);
         if (!dto.getApproved() && (dto.getRejectReason() == null || dto.getRejectReason().isEmpty())) throw new BaseException(ImageConstant.IMAGE_REJECT_REASON_NOT_EMPTY);
         Short status = dto.getApproved() ? AuditStatus.APPROVED.getCode() : AuditStatus.REJECTED.getCode();

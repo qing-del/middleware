@@ -9,9 +9,9 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.facade.AuditFacade;
 import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
 import com.jacolp.pojo.dto.audit.AuditReviewContext;
-import com.jacolp.pojo.entity.ImageAuditRecordEntity;
-import com.jacolp.pojo.entity.MetaAuditRecordEntity;
-import com.jacolp.pojo.entity.NoteAuditRecordEntity;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.NoteAuditRecordDO;
 import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
 import com.jacolp.middleware.module.note.biz.application.service.NoteRelationService;
 import com.jacolp.middleware.module.note.biz.application.service.TagService;
@@ -47,10 +47,10 @@ public class AuditFacadeImpl implements AuditFacade {
         // 1) 校验请求参数并过滤无效 ID。
         AuditReviewContext context = validateReviewRequest(dto, false);
 
-        List<MetaAuditRecordEntity> pendingRecords = auditService.batchReviewMeta(context);
+        List<MetaAuditRecordDO> pendingRecords = auditService.batchReviewMeta(context);
 
         List<Long> tagIds = pendingRecords.stream()
-                .map(MetaAuditRecordEntity::getTargetId)
+                .map(MetaAuditRecordDO::getTargetId)
                 .filter(id -> id != null)
                 .toList();
         if (!tagIds.isEmpty()) {
@@ -66,10 +66,10 @@ public class AuditFacadeImpl implements AuditFacade {
         // 1) 校验请求参数并过滤无效 ID。
         AuditReviewContext context = validateReviewRequest(dto, false);
 
-        List<ImageAuditRecordEntity> pendingRecords = auditService.batchReviewImage(context);
+        List<ImageAuditRecordDO> pendingRecords = auditService.batchReviewImage(context);
 
         List<Long> imageIds = pendingRecords.stream()
-                .map(ImageAuditRecordEntity::getImageId)
+                .map(ImageAuditRecordDO::getImageId)
                 .filter(id -> id != null)
                 .toList();
         if (!imageIds.isEmpty()) {
@@ -85,10 +85,10 @@ public class AuditFacadeImpl implements AuditFacade {
         // 1) 校验请求参数并过滤无效 ID。
         AuditReviewContext context = validateReviewRequest(dto, true);
 
-        List<NoteAuditRecordEntity> pendingRecords = auditService.batchReviewNote(context);
+        List<NoteAuditRecordDO> pendingRecords = auditService.batchReviewNote(context);
 
         List<Long> noteIds = pendingRecords.stream()
-                .map(NoteAuditRecordEntity::getNoteId)
+                .map(NoteAuditRecordDO::getNoteId)
                 .filter(id -> id != null)
                 .toList();
 

@@ -5,9 +5,9 @@ import com.jacolp.pojo.dto.audit.AuditReviewContext;
 import com.jacolp.pojo.dto.image.ImageAuditListDTO;
 import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
 import com.jacolp.pojo.dto.note.NoteAuditListDTO;
-import com.jacolp.pojo.entity.ImageAuditRecordEntity;
-import com.jacolp.pojo.entity.MetaAuditRecordEntity;
-import com.jacolp.pojo.entity.NoteAuditRecordEntity;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.NoteAuditRecordDO;
 import com.jacolp.result.PageResult;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +46,7 @@ public interface AuditService {
      * @param context 批量审核参数
      * @return 处理的元信息记录实体类列表
      */
-    List<MetaAuditRecordEntity> batchReviewMeta(AuditReviewContext context);
+    List<MetaAuditRecordDO> batchReviewMeta(AuditReviewContext context);
 
     /**
      * 批量审核图片申请。
@@ -55,7 +55,7 @@ public interface AuditService {
      * @param context 批量审核参数
      * @return 实际处理条数
      */
-    List<ImageAuditRecordEntity> batchReviewImage(AuditReviewContext context);
+    List<ImageAuditRecordDO> batchReviewImage(AuditReviewContext context);
 
     /**
      * 批量审核笔记申请。
@@ -64,7 +64,7 @@ public interface AuditService {
      * @param context 批量审核参数
      * @return 实际处理条数
      */
-    List<NoteAuditRecordEntity> batchReviewNote(AuditReviewContext context);
+    List<NoteAuditRecordDO> batchReviewNote(AuditReviewContext context);
 
     // ===== 供其他 Service 调用的内部方法 =====
 
@@ -75,19 +75,19 @@ public interface AuditService {
      * @param record 审核记录
      * @throws RuntimeException 创建失败
      */
-    void createMetaAuditRecord(MetaAuditRecordEntity record);
+    void createMetaAuditRecord(MetaAuditRecordDO record);
 
-    ImageAuditRecordEntity getImageAuditRecordById(Long id);
+    ImageAuditRecordDO getImageAuditRecordById(Long id);
 
     boolean hasPendingImageAudit(Long imageId);
 
-    void createImageAuditRecord(ImageAuditRecordEntity record);
+    void createImageAuditRecord(ImageAuditRecordDO record);
 
-    void updateImageAuditRecord(ImageAuditRecordEntity record);
+    void updateImageAuditRecord(ImageAuditRecordDO record);
 
     boolean hasPendingNoteAudit(Long noteId);
 
-    void createNoteAuditRecord(NoteAuditRecordEntity record);
+    void createNoteAuditRecord(NoteAuditRecordDO record);
 
     /**
      * 撤销标签的审核中申请。

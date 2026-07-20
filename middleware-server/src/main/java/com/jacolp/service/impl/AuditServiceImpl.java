@@ -11,18 +11,18 @@ import org.springframework.transaction.annotation.Transactional;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.ImageAuditMapper;
-import com.jacolp.mapper.MetaAuditMapper;
-import com.jacolp.mapper.NoteAuditMapper;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.MetaAuditMapper;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.NoteAuditMapper;
 import com.jacolp.pojo.dto.image.ImageAuditListDTO;
 import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
 import com.jacolp.pojo.dto.note.NoteAuditListDTO;
-import com.jacolp.pojo.entity.ImageAuditRecordEntity;
-import com.jacolp.pojo.entity.MetaAuditRecordEntity;
-import com.jacolp.pojo.entity.NoteAuditRecordEntity;
-import com.jacolp.pojo.vo.audit.ImageAuditVO;
-import com.jacolp.pojo.vo.audit.MetaAuditVO;
-import com.jacolp.pojo.vo.audit.NoteAuditVO;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO;
+import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.NoteAuditRecordDO;
+import com.jacolp.middleware.module.audit.biz.application.vo.ImageAuditVO;
+import com.jacolp.middleware.module.audit.biz.application.vo.MetaAuditVO;
+import com.jacolp.middleware.module.audit.biz.application.vo.NoteAuditVO;
 import com.jacolp.result.PageResult;
 
 import lombok.extern.slf4j.Slf4j;
@@ -93,17 +93,17 @@ public class AuditServiceImpl implements AuditService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public List<MetaAuditRecordEntity> batchReviewMeta(AuditReviewContext context) {
+    public List<MetaAuditRecordDO> batchReviewMeta(AuditReviewContext context) {
 
 
         // 2) 只拉取待审记录，避免把已处理数据混入本次事务。
-        List<MetaAuditRecordEntity> pendingRecords = metaAuditMapper.selectPendingByIds(context.getIds());
+        List<MetaAuditRecordDO> pendingRecords = metaAuditMapper.selectPendingByIds(context.getIds());
         if (pendingRecords == null || pendingRecords.isEmpty()) {
             return List.of();
         }
 
         // 3) 先批量更新审核表，再同步回写业务主表与映射表。
-        List<Long> reviewIds = pendingRecords.stream().map(MetaAuditRecordEntity::getId).toList();
+        List<Long> reviewIds = pendingRecords.stream().map(MetaAuditRecordDO::getId).toList();
         int affected = metaAuditMapper.batchReviewByIds(reviewIds, context.getStatus(), context.getReviewerUserId(), context.getRejectReason());
 
         validRealAffectedByPendingRecores(pendingRecords.size(), affected);
@@ -120,15 +120,15 @@ public class AuditServiceImpl implements AuditService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public List<ImageAuditRecordEntity> batchReviewImage(AuditReviewContext context) {
+    public List<ImageAuditRecordDO> batchReviewImage(AuditReviewContext context) {
         // 2) 只处理待审核的图片记录。
-        List<ImageAuditRecordEntity> pendingRecords = imageAuditMapper.selectPendingByIds(context.getIds());
+        List<ImageAuditRecordDO> pendingRecords = imageAuditMapper.selectPendingByIds(context.getIds());
         if (pendingRecords == null || pendingRecords.isEmpty()) {
             return List.of();
         }
 
         // 3) 先更新审核表，再批量回写图片与图片映射的审核状态。
-        List<Long> reviewIds = pendingRecords.stream().map(ImageAuditRecordEntity::getId).toList();
+        List<Long> reviewIds = pendingRecords.stream().map(ImageAuditRecordDO::getId).toList();
         int affected = imageAuditMapper.batchReviewByIds(reviewIds, context.getStatus(), context.getReviewerUserId(), context.getRejectReason());
 
         validRealAffectedByPendingRecores(pendingRecords.size(), affected);
@@ -145,15 +145,15 @@ public class AuditServiceImpl implements AuditService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public List<NoteAuditRecordEntity> batchReviewNote(AuditReviewContext context) {
+    public List<NoteAuditRecordDO> batchReviewNote(AuditReviewContext context) {
         // 2) 只处理待审核的笔记记录。
-        List<NoteAuditRecordEntity> pendingRecords = noteAuditMapper.selectPendingByIds(context.getIds());
+        List<NoteAuditRecordDO> pendingRecords = noteAuditMapper.selectPendingByIds(context.getIds());
         if (pendingRecords == null || pendingRecords.isEmpty()) {
             return List.of();
         }
 
         // 3) 先更新审核表，再批量回写笔记与内联映射的审核状态。
-        List<Long> reviewIds = pendingRecords.stream().map(NoteAuditRecordEntity::getId).toList();
+        List<Long> reviewIds = pendingRecords.stream().map(NoteAuditRecordDO::getId).toList();
         int affected = noteAuditMapper.batchReviewByIds(reviewIds, context.getStatus(), context.getReviewerUserId(), context.getRejectReason());
 
         validRealAffectedByPendingRecores(pendingRecords.size(), affected);
@@ -174,7 +174,7 @@ public class AuditServiceImpl implements AuditService {
      * @throws RuntimeException 创建失败
      */
     @Override
-    public void createMetaAuditRecord(MetaAuditRecordEntity record) {
+    public void createMetaAuditRecord(MetaAuditRecordDO record) {
         int affected = metaAuditMapper.insertAuditRecord(record);
         if (affected < 1) {
             throw new RuntimeException("创建审核记录失败");
@@ -182,7 +182,7 @@ public class AuditServiceImpl implements AuditService {
     }
 
     @Override
-    public ImageAuditRecordEntity getImageAuditRecordById(Long id) {
+    public ImageAuditRecordDO getImageAuditRecordById(Long id) {
         return imageAuditMapper.selectById(id);
     }
 
@@ -192,12 +192,12 @@ public class AuditServiceImpl implements AuditService {
     }
 
     @Override
-    public void createImageAuditRecord(ImageAuditRecordEntity record) {
+    public void createImageAuditRecord(ImageAuditRecordDO record) {
         imageAuditMapper.insertAuditRecord(record);
     }
 
     @Override
-    public void updateImageAuditRecord(ImageAuditRecordEntity record) {
+    public void updateImageAuditRecord(ImageAuditRecordDO record) {
         imageAuditMapper.updateAuditRecord(record);
     }
 
@@ -207,7 +207,7 @@ public class AuditServiceImpl implements AuditService {
     }
 
     @Override
-    public void createNoteAuditRecord(NoteAuditRecordEntity record) {
+    public void createNoteAuditRecord(NoteAuditRecordDO record) {
         noteAuditMapper.insertAuditRecord(record);
     }
 
