@@ -1,16 +1,16 @@
 package com.jacolp.controller.admin;
 
 import com.jacolp.facade.AuditFacade;
+import com.jacolp.middleware.module.audit.biz.application.dto.ImageAuditListDTO;
+import com.jacolp.middleware.module.audit.biz.application.dto.MetaAuditListDTO;
+import com.jacolp.middleware.module.audit.biz.application.dto.NoteAuditListDTO;
+import com.jacolp.middleware.module.audit.biz.application.service.AuditQueryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
-import com.jacolp.pojo.dto.image.ImageAuditListDTO;
-import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
-import com.jacolp.pojo.dto.note.NoteAuditListDTO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
-import com.jacolp.service.AuditService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AuditController {
 
     @Autowired private AuditFacade auditFacade;
-    @Autowired private AuditService auditService;
+    @Autowired private AuditQueryService auditQueryService;
 
     @PostMapping("/meta/list")
     @Operation(summary = "分页查询标签审核记录",
@@ -38,7 +38,7 @@ public class AuditController {
                 dto == null ? null : dto.getApplyType(),
                 dto == null ? null : dto.getStatus(),
                 dto == null ? null : dto.getApplicantUserId());
-        return Result.success(auditService.listMetaAudits(dto));
+        return Result.success(auditQueryService.listMetaAudits(dto));
     }
 
     @PostMapping("/image/list")
@@ -49,7 +49,7 @@ public class AuditController {
         log.info("Admin list image audits, status: {}, applicantUserId: {}",
                 dto == null ? null : dto.getStatus(),
                 dto == null ? null : dto.getApplicantUserId());
-        return Result.success(auditService.listImageAudits(dto));
+        return Result.success(auditQueryService.listImageAudits(dto));
     }
 
     @PostMapping("/note/list")
@@ -60,7 +60,7 @@ public class AuditController {
         log.info("Admin list note audits, status: {}, applicantUserId: {}",
                 dto == null ? null : dto.getStatus(),
                 dto == null ? null : dto.getApplicantUserId());
-        return Result.success(auditService.listNoteAudits(dto));
+        return Result.success(auditQueryService.listNoteAudits(dto));
     }
 
     @PutMapping("/meta/review/batch")

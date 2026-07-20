@@ -38,22 +38,16 @@
         SELECT
             a.id,
             a.applicant_user_id,
-            u1.username AS applicant_username,
             2 AS apply_type,
             a.target_id,
-            g.tag_name AS target_name,
             a.apply_reason,
             a.status,
             a.reviewer_user_id,
-            u2.username AS reviewer_username,
             a.reject_reason,
             a.create_time,
             a.review_time,
             a.update_time
         FROM biz_tag_audit_record a
-        LEFT JOIN sys_user u1 ON u1.id = a.applicant_user_id
-        LEFT JOIN sys_user u2 ON u2.id = a.reviewer_user_id
-        LEFT JOIN biz_tag g ON g.id = a.target_id
         <where>
             <if test="status != null">
                 a.status = #{status}

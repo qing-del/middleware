@@ -8,22 +8,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.github.pagehelper.PageHelper;
-import com.github.pagehelper.PageInfo;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.MetaAuditMapper;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.mapper.NoteAuditMapper;
-import com.jacolp.pojo.dto.image.ImageAuditListDTO;
-import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
-import com.jacolp.pojo.dto.note.NoteAuditListDTO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.NoteAuditRecordDO;
-import com.jacolp.middleware.module.audit.biz.application.vo.ImageAuditVO;
-import com.jacolp.middleware.module.audit.biz.application.vo.MetaAuditVO;
-import com.jacolp.middleware.module.audit.biz.application.vo.NoteAuditVO;
-import com.jacolp.result.PageResult;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,18 +32,6 @@ public class AuditServiceImpl implements AuditService {
      * @param dto 查询条件（申请类型、审核状态、申请人、分页参数）
      * @return 分页结果
      */
-    @Override
-    public PageResult listMetaAudits(MetaAuditListDTO dto) {
-        MetaAuditListDTO query = dto == null ? new MetaAuditListDTO() : dto;
-        PageHelper.startPage(query.getPageNumOrDefault(), query.getPageSizeOrDefault());
-        List<MetaAuditVO> records = metaAuditMapper.listByCondition(
-                query.getApplyType(),
-                query.getStatus(),
-                query.getApplicantUserId()
-        );
-        PageInfo<MetaAuditVO> pageInfo = new PageInfo<>(records);
-        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
-    }
 
     /**
      * 分页查询图片审核列表。
@@ -60,14 +39,6 @@ public class AuditServiceImpl implements AuditService {
      * @param dto 查询条件（审核状态、申请人、分页参数）
      * @return 分页结果
      */
-    @Override
-    public PageResult listImageAudits(ImageAuditListDTO dto) {
-        ImageAuditListDTO query = dto == null ? new ImageAuditListDTO() : dto;
-        PageHelper.startPage(query.getPageNumOrDefault(), query.getPageSizeOrDefault());
-        List<ImageAuditVO> records = imageAuditMapper.listByCondition(query.getStatus(), query.getApplicantUserId());
-        PageInfo<ImageAuditVO> pageInfo = new PageInfo<>(records);
-        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
-    }
 
     /**
      * 分页查询笔记审核列表。
@@ -75,14 +46,6 @@ public class AuditServiceImpl implements AuditService {
      * @param dto 查询条件（审核状态、申请人、分页参数）
      * @return 分页结果
      */
-    @Override
-    public PageResult listNoteAudits(NoteAuditListDTO dto) {
-        NoteAuditListDTO query = dto == null ? new NoteAuditListDTO() : dto;
-        PageHelper.startPage(query.getPageNumOrDefault(), query.getPageSizeOrDefault());
-        List<NoteAuditVO> records = noteAuditMapper.listByCondition(query.getStatus(), query.getApplicantUserId());
-        PageInfo<NoteAuditVO> pageInfo = new PageInfo<>(records);
-        return new PageResult(pageInfo.getTotal(), pageInfo.getList());
-    }
 
     /**
      * 批量审核主题/标签申请。

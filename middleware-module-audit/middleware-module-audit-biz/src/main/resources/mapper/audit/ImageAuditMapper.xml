@@ -63,22 +63,15 @@
         SELECT
             a.id,
             a.applicant_user_id,
-            u1.username AS applicant_username,
             a.image_id,
             a.apply_reason,
             a.status,
             a.reviewer_user_id,
-            u2.username AS reviewer_username,
             a.reject_reason,
             a.create_time,
             a.review_time,
-            a.update_time,
-            i.filename,
-            i.oss_url
+            a.update_time
         FROM biz_image_audit_record a
-        LEFT JOIN biz_image i ON i.id = a.image_id
-        LEFT JOIN sys_user u1 ON u1.id = a.applicant_user_id
-        LEFT JOIN sys_user u2 ON u2.id = a.reviewer_user_id
         <where>
             <if test="status != null">a.status = #{status}</if>
             <if test="applicantUserId != null">AND a.applicant_user_id = #{applicantUserId}</if>
@@ -91,22 +84,15 @@
         SELECT
             a.id,
             a.applicant_user_id,
-            u1.username AS applicant_username,
             a.image_id,
             a.apply_reason,
             a.status,
             a.reviewer_user_id,
-            u2.username AS reviewer_username,
             a.reject_reason,
             a.create_time,
             a.review_time,
-            a.update_time,
-            i.filename,
-            i.oss_url
+            a.update_time
         FROM biz_image_audit_record a
-        LEFT JOIN biz_image i ON i.id = a.image_id
-        LEFT JOIN sys_user u1 ON u1.id = a.applicant_user_id
-        LEFT JOIN sys_user u2 ON u2.id = a.reviewer_user_id
         WHERE a.status = 1
         ORDER BY a.update_time DESC, a.id DESC
     </select>

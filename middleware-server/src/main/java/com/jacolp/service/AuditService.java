@@ -2,13 +2,9 @@ package com.jacolp.service;
 
 import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
 import com.jacolp.pojo.dto.audit.AuditReviewContext;
-import com.jacolp.pojo.dto.image.ImageAuditListDTO;
-import com.jacolp.pojo.dto.audit.MetaAuditListDTO;
-import com.jacolp.pojo.dto.note.NoteAuditListDTO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO;
 import com.jacolp.middleware.module.audit.biz.infrastructure.persistence.dataobject.NoteAuditRecordDO;
-import com.jacolp.result.PageResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -21,24 +17,18 @@ public interface AuditService {
      * @param dto 查询条件（申请类型、审核状态、申请人、分页参数）
      * @return 分页结果
      */
-    PageResult listMetaAudits(MetaAuditListDTO dto);
-
     /**
      * 分页查询图片审核列表。
      *
      * @param dto 查询条件（审核状态、申请人、分页参数）
      * @return 分页结果
      */
-    PageResult listImageAudits(ImageAuditListDTO dto);
-
     /**
      * 分页查询笔记审核列表。
      *
      * @param dto 查询条件（审核状态、申请人、分页参数）
      * @return 分页结果
      */
-    PageResult listNoteAudits(NoteAuditListDTO dto);
-
     /**
      * 批量审核标签申请。
      * <p>仅处理审核中记录，并同步回写标签及标签映射状态。</p>
