@@ -18,8 +18,8 @@ import com.jacolp.middleware.framework.markdown.converter.MarkdownHtmlEngine.Fro
 import com.jacolp.middleware.framework.markdown.converter.MarkdownHtmlEngine.HtmlProcessResult;
 import com.jacolp.exception.BaseException;
 import com.jacolp.component.JsonOperator;
-import com.jacolp.mapper.NoteConvertMapper;
-import com.jacolp.pojo.entity.NoteConvertedEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteConvertedDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteConvertMapper;
 import com.jacolp.pojo.vo.note.NoteConvertMetaVO;
 import com.jacolp.pojo.vo.note.NoteConvertResultVO;
 import com.jacolp.service.NoteConvertService;
@@ -56,7 +56,7 @@ public class NoteConvertServiceImpl implements NoteConvertService {
             HtmlProcessResult result = markdownHtmlEngine.process(context.getMarkdownContent());
             FrontMatter meta = result.meta().withFallbackTitle(note.getTitle());
 
-            NoteConvertedEntity converted = buildNoteConvertEntity(note.getId(), meta, result);
+            NoteConvertedDO converted = buildNoteConvertEntity(note.getId(), meta, result);
             int affected = noteConvertMapper.upsertConverted(converted);
             if (affected < 1) {
                 log.error("Note convert failed, noteId: {}", note.getId());
@@ -99,7 +99,7 @@ public class NoteConvertServiceImpl implements NoteConvertService {
      */
     @Override
     public NoteConvertResultVO getNoteConvert(Long noteId) {
-        NoteConvertedEntity converted = null;
+        NoteConvertedDO converted = null;
         if (PermissionContext.isAdmin()) {
             converted = noteConvertMapper.selectByNoteIdWithValidUserId(noteId, null);
         } else {
@@ -117,7 +117,7 @@ public class NoteConvertServiceImpl implements NoteConvertService {
 
     @Override
     public NoteConvertResultVO getPublishedNoteConvert(Long noteId) {
-        NoteConvertedEntity converted = noteConvertMapper.selectPublishedByNoteId(noteId);
+        NoteConvertedDO converted = noteConvertMapper.selectPublishedByNoteId(noteId);
         if (converted == null) {
             throw new BaseException(NoteConstant.NOTE_NOT_CONVERTED);
         }
@@ -127,7 +127,7 @@ public class NoteConvertServiceImpl implements NoteConvertService {
     /**
      * 将库表实体映射为 VO。
      */
-    private NoteConvertResultVO toConvertResultVO(NoteConvertedEntity entity) {
+    private NoteConvertResultVO toConvertResultVO(NoteConvertedDO entity) {
         NoteConvertResultVO resultVO = new NoteConvertResultVO();
         NoteConvertMetaVO metaVO = new NoteConvertMetaVO();
 
@@ -145,8 +145,8 @@ public class NoteConvertServiceImpl implements NoteConvertService {
     /**
      * 构建笔记转换实体。
      */
-    private @NonNull NoteConvertedEntity buildNoteConvertEntity(Long noteId, FrontMatter meta, HtmlProcessResult result) {
-        NoteConvertedEntity converted = new NoteConvertedEntity();
+    private @NonNull NoteConvertedDO buildNoteConvertEntity(Long noteId, FrontMatter meta, HtmlProcessResult result) {
+        NoteConvertedDO converted = new NoteConvertedDO();
         converted.setNoteId(noteId);
         converted.setTitle(meta.title());
         converted.setTagsJson(jsonOperator.toJson(meta.tags()));

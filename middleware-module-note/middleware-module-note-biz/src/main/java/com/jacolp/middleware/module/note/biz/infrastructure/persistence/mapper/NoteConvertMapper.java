@@ -1,6 +1,6 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper;
 
-import com.jacolp.pojo.entity.NoteConvertedEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteConvertedDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -9,7 +9,7 @@ import java.util.List;
 @Mapper
 public interface NoteConvertMapper {
 
-    NoteConvertedEntity selectByNoteId(@Param("noteId") Long noteId);
+    NoteConvertedDO selectByNoteId(@Param("noteId") Long noteId);
 
     int countByNoteId(@Param("noteId") Long noteId);
 
@@ -19,7 +19,7 @@ public interface NoteConvertMapper {
      * @param entity 转换内容实体类
      * @return 插入或更新数量
      */
-    int upsertConverted(NoteConvertedEntity entity);
+    int upsertConverted(NoteConvertedDO entity);
 
     int deleteByNoteId(@Param("noteId") Long noteId);
 
@@ -32,10 +32,10 @@ public interface NoteConvertMapper {
      * @param userId 笔记归属的用户 ID（传入 null 表示不校验）
      * @return 如果不存在 / 笔记不属于用户 -> null
      */
-    NoteConvertedEntity selectByNoteIdWithValidUserId(@Param("noteId") Long noteId, @Param("userId") Long userId);
+    NoteConvertedDO selectByNoteIdWithValidUserId(@Param("noteId") Long noteId, @Param("userId") Long userId);
 
     /**
      * 查询已公开笔记的转换结果。
      */
-    NoteConvertedEntity selectPublishedByNoteId(@Param("noteId") Long noteId);
+    NoteConvertedDO selectPublishedByNoteId(@Param("noteId") Long noteId);
 }
