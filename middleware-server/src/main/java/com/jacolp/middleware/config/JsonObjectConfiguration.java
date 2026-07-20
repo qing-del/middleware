@@ -1,4 +1,4 @@
-package com.jacolp.config;
+package com.jacolp.middleware.config;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;

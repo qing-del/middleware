@@ -1,4 +1,4 @@
-package com.jacolp.config;
+package com.jacolp.middleware.config;
 
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.session.Configuration;

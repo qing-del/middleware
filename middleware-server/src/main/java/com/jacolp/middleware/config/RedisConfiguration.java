@@ -1,4 +1,4 @@
-package com.jacolp.config;
+package com.jacolp.middleware.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
