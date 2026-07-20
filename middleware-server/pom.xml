@@ -60,10 +60,6 @@
 
         <dependency>
             <groupId>com.jacolp</groupId>
-            <artifactId>middleware-pojo</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.jacolp</groupId>
             <artifactId>middleware-module-system-api</artifactId>
         </dependency>
         <dependency>
