@@ -1,14 +1,14 @@
-package com.jacolp.controller.admin;
+package com.jacolp.middleware.module.audit.biz.application.controller.admin;
 
-import com.jacolp.facade.AuditFacade;
+import com.jacolp.middleware.module.audit.biz.application.dto.AuditBatchReviewDTO;
 import com.jacolp.middleware.module.audit.biz.application.dto.ImageAuditListDTO;
 import com.jacolp.middleware.module.audit.biz.application.dto.MetaAuditListDTO;
 import com.jacolp.middleware.module.audit.biz.application.dto.NoteAuditListDTO;
 import com.jacolp.middleware.module.audit.biz.application.service.AuditQueryService;
+import com.jacolp.middleware.module.audit.biz.application.service.AuditReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import com.jacolp.pojo.dto.audit.AuditBatchReviewDTO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
 
@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "Admin-审核管理", description = "标签、图片与笔记的审核记录查询与批量审核接口")
 public class AuditController {
 
-    @Autowired private AuditFacade auditFacade;
+    @Autowired private AuditReviewService auditReviewService;
     @Autowired private AuditQueryService auditQueryService;
 
     @PostMapping("/meta/list")
@@ -71,7 +71,7 @@ public class AuditController {
         log.info("Admin batch review meta audits, idsSize: {}, status: {}",
                 dto == null || dto.getIds() == null ? 0 : dto.getIds().size(),
                 dto == null ? null : dto.getStatus());
-        return Result.success(auditFacade.batchReviewMeta(dto));
+        return Result.success(auditReviewService.batchReviewMeta(dto));
     }
 
     @PutMapping("/image/review/batch")
@@ -82,7 +82,7 @@ public class AuditController {
         log.info("Admin batch review image audits, idsSize: {}, status: {}",
                 dto == null || dto.getIds() == null ? 0 : dto.getIds().size(),
                 dto == null ? null : dto.getStatus());
-        return Result.success(auditFacade.batchReviewImage(dto));
+        return Result.success(auditReviewService.batchReviewImage(dto));
     }
 
     @PutMapping("/note/review/batch")
@@ -93,6 +93,6 @@ public class AuditController {
         log.info("Admin batch review note audits, idsSize: {}, status: {}",
                 dto == null || dto.getIds() == null ? 0 : dto.getIds().size(),
                 dto == null ? null : dto.getStatus());
-        return Result.success(auditFacade.batchReviewNote(dto));
+        return Result.success(auditReviewService.batchReviewNote(dto));
     }
 }
