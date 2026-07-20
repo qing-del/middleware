@@ -2,13 +2,13 @@ package com.jacolp.controller.user;
 
 import com.jacolp.middleware.common.web.annotation.RateLimit;
 import com.jacolp.constant.RateLimitConstant;
-import com.jacolp.pojo.dto.audio.AudioTaskPageQueryDTO;
-import com.jacolp.pojo.dto.audio.AudioTaskSubmitDTO;
-import com.jacolp.pojo.vo.audio.AudioTaskSubmitVO;
-import com.jacolp.pojo.vo.audio.AudioTaskVO;
+import com.jacolp.middleware.module.audio.biz.application.dto.AudioTaskPageQueryDTO;
+import com.jacolp.middleware.module.audio.biz.application.dto.AudioTaskSubmitDTO;
+import com.jacolp.middleware.module.audio.biz.application.service.AudioTaskService;
+import com.jacolp.middleware.module.audio.biz.application.vo.AudioTaskSubmitVO;
+import com.jacolp.middleware.module.audio.biz.application.vo.AudioTaskVO;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
-import com.jacolp.service.AudioTaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;

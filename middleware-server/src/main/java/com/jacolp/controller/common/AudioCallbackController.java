@@ -1,9 +1,9 @@
 package com.jacolp.controller.common;
 
-import com.jacolp.pojo.dto.audio.AudioCallbackFinishDTO;
-import com.jacolp.pojo.dto.audio.AudioCallbackStartDTO;
+import com.jacolp.middleware.module.audio.biz.application.dto.AudioCallbackFinishDTO;
+import com.jacolp.middleware.module.audio.biz.application.dto.AudioCallbackStartDTO;
+import com.jacolp.middleware.module.audio.biz.application.service.AudioTaskService;
 import com.jacolp.result.Result;
-import com.jacolp.service.AudioTaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
