@@ -13,6 +13,7 @@ import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserStorageHandlerDTO;
+import com.jacolp.middleware.module.system.biz.domain.quota.UserQuotaPolicy;
 import com.jacolp.utils.RoleDataComputerUtil;
 import org.springframework.stereotype.Service;
 
@@ -46,7 +47,7 @@ public class UserQuotaApiService implements UserQuotaApi {
     public ConsumeQuotaResult consume(ConsumeQuotaCommand command) {
         Objects.requireNonNull(command, "command must not be null");
         QuotaSnapshot before = getQuota(command.userId(), command.quotaType(), command.quotaDate());
-        if (command.amount() > before.remaining()) {
+        if (!UserQuotaPolicy.canConsume(command.amount(), before.remaining())) {
             return new ConsumeQuotaResult(false, before);
         }
 
@@ -77,7 +78,7 @@ public class UserQuotaApiService implements UserQuotaApi {
             throw new BaseException(UserConstant.NOT_FOUND_USER);
         }
         ApiDailyUsageDO usage = apiDailyUsageMapper.selectByUserIdAndDate(userId, quotaDate);
-        long used = usage == null || usage.getUsedCount() == null ? 0L : usage.getUsedCount();
+        long used = usage == null ? 0L : UserQuotaPolicy.usedOrZero(usage.getUsedCount());
         return new QuotaSnapshot(userId, QuotaType.DAILY_API_CALL,
                 RoleDataComputerUtil.getApiLimit(user.getRoleId()), used, quotaDate);
     }
@@ -95,7 +96,7 @@ public class UserQuotaApiService implements UserQuotaApi {
             }
         }
         return new QuotaSnapshot(userId, QuotaType.STORAGE_BYTES, limit,
-                storage.getUsedStorageBytes() == null ? 0L : storage.getUsedStorageBytes(), null);
+                UserQuotaPolicy.usedOrZero(storage.getUsedStorageBytes()), null);
     }
 
     private int updateStorage(long userId, long deltaBytes) {
@@ -110,10 +111,10 @@ public class UserQuotaApiService implements UserQuotaApi {
             throw new IllegalArgumentException("userId must be positive");
         }
         Objects.requireNonNull(quotaType, "quotaType must not be null");
-        if (quotaType == QuotaType.DAILY_API_CALL && quotaDate == null) {
+        if (UserQuotaPolicy.requiresQuotaDate(quotaType) && quotaDate == null) {
             throw new IllegalArgumentException("quotaDate is required for daily API quota");
         }
-        if (quotaType == QuotaType.STORAGE_BYTES && quotaDate != null) {
+        if (!UserQuotaPolicy.requiresQuotaDate(quotaType) && quotaDate != null) {
             throw new IllegalArgumentException("quotaDate is not applicable to storage quota");
         }
     }

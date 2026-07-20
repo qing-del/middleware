@@ -6,6 +6,7 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO;
 import com.jacolp.middleware.module.system.biz.application.dto.user.UserStorageHandlerDTO;
+import com.jacolp.middleware.module.system.biz.domain.quota.UserQuotaPolicy;
 import com.jacolp.result.Result;
 import com.jacolp.middleware.module.system.api.quota.StorageOperationType;
 import com.jacolp.middleware.module.system.biz.infrastructure.concurrent.LockOperator;
@@ -207,7 +208,9 @@ public class StorageHandlerAspect {
             long actualUsedBytes = computeActualUsedStorage(userId);
 
             // 3. 配额校验（基于实际值）
-            if (actualUsedBytes + requiredBytes > cachedInfo.maxBytes()) {
+            UserQuotaPolicy.StorageDecision decision = UserQuotaPolicy.storageDecision(
+                    actualUsedBytes, requiredBytes, cachedInfo.maxBytes());
+            if (decision.exceedsLimit()) {
                 throw new BaseException(UserConstant.MAX_STORAGE_LIMIT);
             }
 
@@ -272,9 +275,9 @@ public class StorageHandlerAspect {
         }
 
         // 计算新的使用量
-        long newUsedBytes = actualUsedBytes + deltaBytes;
+        UserQuotaPolicy.StorageDecision decision = UserQuotaPolicy.storageDecision(actualUsedBytes, deltaBytes, maxBytes);
         // 存储量溢出检查
-        if (newUsedBytes < 0) {
+        if (decision.underflows()) {
             log.error("Storage underflow, userId: {}", userId);
             throw new BaseException("存储量溢出！");
         }
@@ -326,7 +329,7 @@ public class StorageHandlerAspect {
      * 基于增量更新存储，满足不超卖条件即可成功。
      */
     private void applyDeltaUpdate(Long userId, long deltaBytes, Long maxBytes) {
-        if (deltaBytes == 0) {
+        if (UserQuotaPolicy.isNoStorageDelta(deltaBytes)) {
             return;
         }
 
