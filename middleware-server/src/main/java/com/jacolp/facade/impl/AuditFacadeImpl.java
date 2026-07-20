@@ -13,6 +13,8 @@ import com.jacolp.pojo.entity.ImageAuditRecordEntity;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.pojo.entity.NoteAuditRecordEntity;
 import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteRelationService;
+import com.jacolp.middleware.module.note.biz.application.service.TagService;
 import com.jacolp.service.*;
 import com.jacolp.middleware.module.media.api.MediaAuditApplyApi;
 import com.jacolp.middleware.module.media.api.command.ApplyMediaAuditCommand;

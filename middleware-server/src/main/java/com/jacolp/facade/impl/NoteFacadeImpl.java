@@ -33,7 +33,7 @@ import com.jacolp.enums.NoteStatus;
 import com.jacolp.middleware.module.system.api.quota.StorageOperationType;
 import com.jacolp.exception.BaseException;
 import com.jacolp.facade.NoteFacade;
-import com.jacolp.facade.NoteRelationFacade;
+import com.jacolp.middleware.module.note.biz.application.facade.NoteRelationFacade;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.middleware.module.note.biz.application.dto.note.UploadToInsertNoteDTO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteChangeDiffDO;
@@ -44,18 +44,18 @@ import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobje
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
 import com.jacolp.pojo.vo.note.NoteDiffVO;
-import com.jacolp.pojo.vo.note.NoteEachMappingRowVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteEachMappingRowVO;
 import com.jacolp.pojo.vo.note.NoteEachSimpleVO;
 import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
-import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.middleware.module.note.biz.application.service.NoteChangeDiffService;
 import com.jacolp.middleware.module.note.biz.application.service.NoteContextService;
 import com.jacolp.service.NoteConvertService;
 import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
-import com.jacolp.service.NoteRelationService;
-import com.jacolp.service.TagService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteRelationService;
+import com.jacolp.middleware.module.note.biz.application.service.TagService;
 import com.jacolp.middleware.module.note.biz.application.service.TopicService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -479,7 +479,14 @@ public class NoteFacadeImpl implements NoteFacade {
                 ? List.of() : tagService.getByIds(tagIds).stream().map(TagDO::getTagName).toList());
 
         // 图片简要列表
-        detailVO.setImages(noteRelationFacade.listImageSimpleVOsByNoteId(noteId));
+        detailVO.setImages(noteRelationFacade.listImageSimpleVOsByNoteId(noteId).stream()
+                .map(source -> {
+                    com.jacolp.pojo.vo.image.ImageSimpleVO target =
+                            new com.jacolp.pojo.vo.image.ImageSimpleVO();
+                    BeanUtils.copyProperties(source, target);
+                    return target;
+                })
+                .toList());
 
         // 双链映射
         NoteRelationDetailVO relation = noteRelationFacade.getRelationInfo(noteId);

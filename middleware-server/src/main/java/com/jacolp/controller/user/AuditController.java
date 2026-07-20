@@ -3,7 +3,7 @@ package com.jacolp.controller.user;
 import com.jacolp.result.Result;
 import com.jacolp.middleware.module.media.biz.application.service.MediaImageService;
 import com.jacolp.middleware.module.note.biz.application.service.NoteCoreService;
-import com.jacolp.service.TagService;
+import com.jacolp.middleware.module.note.biz.application.service.TagService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
