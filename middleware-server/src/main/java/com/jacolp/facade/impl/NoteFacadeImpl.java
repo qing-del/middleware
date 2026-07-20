@@ -36,7 +36,7 @@ import com.jacolp.facade.NoteFacade;
 import com.jacolp.facade.NoteRelationFacade;
 import com.jacolp.pojo.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.pojo.dto.note.UploadToInsertNoteDTO;
-import com.jacolp.pojo.entity.NoteChangeDiffEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteChangeDiffDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
@@ -50,7 +50,7 @@ import com.jacolp.pojo.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.pojo.vo.note.NoteRelationDetailVO;
 import com.jacolp.pojo.vo.note.NoteUploadVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
-import com.jacolp.service.NoteChangeDiffService;
+import com.jacolp.middleware.module.note.biz.application.service.NoteChangeDiffService;
 import com.jacolp.middleware.module.note.biz.application.service.NoteContextService;
 import com.jacolp.service.NoteConvertService;
 import com.jacolp.service.NoteCoreService;
@@ -208,7 +208,7 @@ public class NoteFacadeImpl implements NoteFacade {
         noteContextService.update(noteContext);
 
         // 持久化 diff 记录 — 同时保存 scanJson 供确认时复用，避免二次扫描
-        NoteChangeDiffEntity diffEntity = buildNoteChangeDiffEntity(noteId, file.getSize(), diffVO,
+        NoteChangeDiffDO diffEntity = buildNoteChangeDiffEntity(noteId, file.getSize(), diffVO,
                 newScan, existed.getMdFileSize());
         noteChangeDiffService.insert(diffEntity);
 
@@ -240,7 +240,7 @@ public class NoteFacadeImpl implements NoteFacade {
 
         // 检查是否存在待确认 diff，不存在存在即返回报错
         NoteContextDO contextEntity = noteContextService.getByNoteId(noteId);
-        NoteChangeDiffEntity diffEntity = noteChangeDiffService
+        NoteChangeDiffDO diffEntity = noteChangeDiffService
                 .getByNoteIdAndStatus(noteId, NoteConstant.NOTE_DIFF_STATUS_PENDING);
         if (diffEntity == null) {
             throw new BaseException(NoteConstant.NOTE_CHANGE_DIFF_NOT_FOUND);
@@ -302,7 +302,7 @@ public class NoteFacadeImpl implements NoteFacade {
         String newSource = contextEntity.getMarkdownContentNew();
 
         // 获取元信息的新旧列表和构建差异
-        NoteChangeDiffEntity diffEntity = noteChangeDiffService
+        NoteChangeDiffDO diffEntity = noteChangeDiffService
                 .getByNoteIdAndStatus(noteId, NoteConstant.NOTE_DIFF_STATUS_PENDING);
         NoteDiffVO diff = jsonOperator.fromJson(diffEntity.getDiffJson(), NoteDiffVO.class);
 
@@ -602,10 +602,10 @@ public class NoteFacadeImpl implements NoteFacade {
     /**
      * 构建 diffVO。
      */
-    private @NonNull NoteChangeDiffEntity buildNoteChangeDiffEntity(Long noteId, Long fileSize, NoteDiffVO diffVO,
+    private @NonNull NoteChangeDiffDO buildNoteChangeDiffEntity(Long noteId, Long fileSize, NoteDiffVO diffVO,
                                                                     MarkdownHtmlEngine.NoteRelationInfo newScan,
                                                                     Long existedFileSize) {
-        NoteChangeDiffEntity diffEntity = new NoteChangeDiffEntity();
+        NoteChangeDiffDO diffEntity = new NoteChangeDiffDO();
         diffEntity.setNoteId(noteId);
         diffEntity.setStatus(NoteConstant.NOTE_DIFF_STATUS_PENDING);
         diffEntity.setDiffJson(jsonOperator.toJson(diffVO));

@@ -1,6 +1,6 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper;
 
-import com.jacolp.pojo.entity.NoteChangeDiffEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteChangeDiffDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -15,9 +15,9 @@ public interface NoteChangeDiffMapper {
      * @param noteId 笔记ID
      * @return 笔记修改差异
      */
-    NoteChangeDiffEntity selectByNoteId(@Param("noteId") Long noteId);
+    NoteChangeDiffDO selectByNoteId(@Param("noteId") Long noteId);
 
-    int upsertDiff(NoteChangeDiffEntity entity);
+    int upsertDiff(NoteChangeDiffDO entity);
 
     int updateStatus(@Param("noteId") Long noteId, @Param("status") Integer status);
 
@@ -29,5 +29,5 @@ public interface NoteChangeDiffMapper {
     int countByNoteIdAndStatus(Long noteId, Integer status);
 
     @Select("SELECT * FROM biz_note_change_diff WHERE note_id = #{noteId} AND status = #{status}")
-    NoteChangeDiffEntity selectByNoteIdAndStatus(Long noteId, Integer status);
+    NoteChangeDiffDO selectByNoteIdAndStatus(Long noteId, Integer status);
 }

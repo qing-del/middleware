@@ -1,6 +1,6 @@
-package com.jacolp.service;
+package com.jacolp.middleware.module.note.biz.application.service;
 
-import com.jacolp.pojo.entity.NoteChangeDiffEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteChangeDiffDO;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -22,7 +22,7 @@ public interface NoteChangeDiffService {
      * 插入 笔记修改diff记录
      * @param noteChangeDiffEntity 笔记修改记录
      */
-    void insert(NoteChangeDiffEntity noteChangeDiffEntity);
+    void insert(NoteChangeDiffDO noteChangeDiffEntity);
 
     /**
      * 删除 笔记修改diff记录
@@ -37,7 +37,7 @@ public interface NoteChangeDiffService {
      * @throws com.jacolp.exception.BaseException 找不到 diff 记录数据行会报错
      */
     @Select("SELECT * FROM biz_note_change_diff WHERE note_id = #{noteId} AND status = #{noteDiffStatusPending}")
-    NoteChangeDiffEntity getByNoteIdAndStatus(Long noteId, Integer noteDiffStatusPending);
+    NoteChangeDiffDO getByNoteIdAndStatus(Long noteId, Integer noteDiffStatusPending);
 
     /**
      * 更新 笔记修改diff记录

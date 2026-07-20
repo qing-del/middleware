@@ -1,4 +1,4 @@
-package com.jacolp.service.impl;
+package com.jacolp.middleware.module.note.biz.application.service;
 
 import java.util.List;
 
@@ -7,9 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.jacolp.mapper.NoteChangeDiffMapper;
-import com.jacolp.pojo.entity.NoteChangeDiffEntity;
-import com.jacolp.service.NoteChangeDiffService;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteChangeDiffDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteChangeDiffMapper;
 
 /**
  * 笔记变更差异（Diff）管理实现。
@@ -39,7 +38,7 @@ public class NoteChangeDiffServiceImpl implements NoteChangeDiffService {
      * @param noteChangeDiffEntity diff 实体
      */
     @Override
-    public void insert(NoteChangeDiffEntity noteChangeDiffEntity) {
+    public void insert(NoteChangeDiffDO noteChangeDiffEntity) {
         noteChangeDiffMapper.upsertDiff(noteChangeDiffEntity);
     }
 
@@ -55,8 +54,8 @@ public class NoteChangeDiffServiceImpl implements NoteChangeDiffService {
     }
 
     @Override
-    public NoteChangeDiffEntity getByNoteIdAndStatus(Long noteId, Integer noteDiffStatusPending) {
-        NoteChangeDiffEntity diffEntity = noteChangeDiffMapper.selectByNoteIdAndStatus(noteId, noteDiffStatusPending);
+    public NoteChangeDiffDO getByNoteIdAndStatus(Long noteId, Integer noteDiffStatusPending) {
+        NoteChangeDiffDO diffEntity = noteChangeDiffMapper.selectByNoteIdAndStatus(noteId, noteDiffStatusPending);
         if (diffEntity == null) {
             throw new BaseException("变更记录不存在");
         }
