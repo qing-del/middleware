@@ -1,4 +1,4 @@
-package com.jacolp.adapter.api.note;
+package com.jacolp.middleware.module.note.biz.application.api;
 
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
@@ -20,10 +20,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Transitional audit writer preserving the legacy note and relation-status mappings.
+ * Note-owned audit writer preserving the legacy note and relation-status mappings.
  */
 @Component
-public class ServerNoteAuditApplyApiAdapter implements NoteAuditApplyApi {
+public class NoteAuditApplyApiService implements NoteAuditApplyApi {
 
     private static final short NOTE_APPROVED = 5;
     private static final short NOTE_REJECTED = 7;
@@ -38,10 +38,10 @@ public class ServerNoteAuditApplyApiAdapter implements NoteAuditApplyApi {
     private final NoteTagMappingMapper noteTagMappingMapper;
     private final NoteImageMappingMapper noteImageMappingMapper;
 
-    public ServerNoteAuditApplyApiAdapter(NoteMapper noteMapper, TagMapper tagMapper,
-                                          NoteEachMappingMapper noteEachMappingMapper,
-                                          NoteTagMappingMapper noteTagMappingMapper,
-                                          NoteImageMappingMapper noteImageMappingMapper) {
+    public NoteAuditApplyApiService(NoteMapper noteMapper, TagMapper tagMapper,
+                                    NoteEachMappingMapper noteEachMappingMapper,
+                                    NoteTagMappingMapper noteTagMappingMapper,
+                                    NoteImageMappingMapper noteImageMappingMapper) {
         this.noteMapper = noteMapper;
         this.tagMapper = tagMapper;
         this.noteEachMappingMapper = noteEachMappingMapper;

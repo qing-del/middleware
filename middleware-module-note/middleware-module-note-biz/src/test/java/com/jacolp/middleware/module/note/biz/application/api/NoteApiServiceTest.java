@@ -1,4 +1,4 @@
-package com.jacolp.adapter.api.note;
+package com.jacolp.middleware.module.note.biz.application.api;
 
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
@@ -26,7 +26,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class ServerNoteApiAdapterTest {
+class NoteApiServiceTest {
 
     @Test
     void noteSummariesUseOneBatchQueryAndOmitDeletedRows() {
@@ -35,7 +35,7 @@ class ServerNoteApiAdapterTest {
         NoteDO deleted = note(1L, (short) 8);
         when(noteMapper.selectByIds(List.of(2L, 1L))).thenReturn(List.of(visible, deleted));
 
-        Map<Long, NoteSummary> summaries = new ServerNoteReadApiAdapter(noteMapper, mock(TagMapper.class),
+        Map<Long, NoteSummary> summaries = new NoteReadApiService(noteMapper, mock(TagMapper.class),
                 mock(NoteImageMappingMapper.class)).findNoteSummariesByIds(List.of(2L, 1L, 2L));
 
         assertEquals(new NoteSummary(2L, 9L, 3L, "readme.md", NoteLifecycleStatus.APPROVED), summaries.get(2L));
@@ -51,7 +51,7 @@ class ServerNoteApiAdapterTest {
         count.setRefCount(4);
         when(mappingMapper.countByImageIds(List.of(2L, 1L))).thenReturn(List.of(count));
 
-        Map<Long, Long> counts = new ServerNoteReadApiAdapter(mock(NoteMapper.class), mock(TagMapper.class), mappingMapper)
+        Map<Long, Long> counts = new NoteReadApiService(mock(NoteMapper.class), mock(TagMapper.class), mappingMapper)
                 .countMediaReferencesByMediaIds(List.of(2L, 1L, 2L));
 
         assertEquals(Map.of(2L, 4L, 1L, 0L), counts);
@@ -72,7 +72,7 @@ class ServerNoteApiAdapterTest {
         when(mappingMapper.selectActiveByImageIds(List.of(2L, 1L))).thenReturn(List.of(mapping));
         when(noteMapper.selectByIds(List.of(7L))).thenReturn(List.of(note(7L, (short) 6)));
 
-        ServerNoteReadApiAdapter adapter = new ServerNoteReadApiAdapter(
+        NoteReadApiService adapter = new NoteReadApiService(
                 noteMapper, mock(TagMapper.class), mappingMapper);
         Map<Long, List<NoteSummary>> summaries =
                 adapter.findNoteSummariesByMediaIds(List.of(2L, 1L, 2L));
@@ -95,7 +95,7 @@ class ServerNoteApiAdapterTest {
         when(noteMapper.updateStatusByIds(List.of(7L), (short) 5)).thenReturn(1);
         when(eachMapper.updateBySourceNoteIds(List.of(7L), (short) 1)).thenReturn(3);
 
-        var result = new ServerNoteAuditApplyApiAdapter(noteMapper, mock(TagMapper.class), eachMapper,
+        var result = new NoteAuditApplyApiService(noteMapper, mock(TagMapper.class), eachMapper,
                 mock(NoteTagMappingMapper.class), mock(NoteImageMappingMapper.class)).applyNoteAudit(
                         new ApplyNoteAuditCommand(List.of(7L), AuditDecision.APPROVED));
 
@@ -110,7 +110,7 @@ class ServerNoteApiAdapterTest {
         NoteImageMappingMapper imageMapper = mock(NoteImageMappingMapper.class);
         when(imageMapper.updateByImageIds(List.of(7L, 8L), (short) 3)).thenReturn(4);
 
-        var result = new ServerNoteAuditApplyApiAdapter(mock(NoteMapper.class), mock(TagMapper.class),
+        var result = new NoteAuditApplyApiService(mock(NoteMapper.class), mock(TagMapper.class),
                 mock(NoteEachMappingMapper.class), mock(NoteTagMappingMapper.class), imageMapper)
                 .applyMediaRelationAudit(new ApplyMediaRelationAuditCommand(List.of(7L, 8L, 7L), AuditDecision.REJECTED));
 

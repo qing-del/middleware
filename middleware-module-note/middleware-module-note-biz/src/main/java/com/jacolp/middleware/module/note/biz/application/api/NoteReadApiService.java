@@ -1,4 +1,4 @@
-package com.jacolp.adapter.api.note;
+package com.jacolp.middleware.module.note.biz.application.api;
 
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
@@ -22,10 +22,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Transitional batch reader backed only by note-owned legacy mappers.
+ * Note-owned batch reader for cross-module query contracts.
  */
 @Component
-public class ServerNoteReadApiAdapter implements NoteReadApi {
+public class NoteReadApiService implements NoteReadApi {
 
     private static final short NOTE_DELETED = 8;
 
@@ -33,8 +33,8 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
     private final TagMapper tagMapper;
     private final NoteImageMappingMapper noteImageMappingMapper;
 
-    public ServerNoteReadApiAdapter(NoteMapper noteMapper, TagMapper tagMapper,
-                                    NoteImageMappingMapper noteImageMappingMapper) {
+    public NoteReadApiService(NoteMapper noteMapper, TagMapper tagMapper,
+                              NoteImageMappingMapper noteImageMappingMapper) {
         this.noteMapper = noteMapper;
         this.tagMapper = tagMapper;
         this.noteImageMappingMapper = noteImageMappingMapper;
