@@ -140,11 +140,6 @@
             </dependency>
 
             <!-- Legacy reactor artifacts. -->
-            <dependency>
-                <groupId>com.jacolp</groupId>
-                <artifactId>middleware-common-legacy</artifactId>
-                <version>${middleware.version}</version>
-            </dependency>
 
             <!-- Target internal modules. -->
             <dependency>

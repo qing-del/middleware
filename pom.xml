@@ -26,8 +26,6 @@
         <module>middleware-module-audit</module>
         <module>middleware-module-audio</module>
 
-        <!-- Legacy modules kept buildable while code is migrated vertically. -->
-        <module>middleware-common-legacy</module>
         <module>middleware-server</module>
     </modules>
 
