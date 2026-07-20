@@ -1,9 +1,9 @@
 package com.jacolp.adapter.api.note;
 
-import com.jacolp.mapper.NoteEachMappingMapper;
-import com.jacolp.mapper.NoteImageMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
-import com.jacolp.mapper.NoteTagMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteTagMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
 import com.jacolp.middleware.module.note.api.command.ApplyMediaRelationAuditCommand;
@@ -11,9 +11,9 @@ import com.jacolp.middleware.module.note.api.model.AuditDecision;
 import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
 import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
 import com.jacolp.middleware.module.note.api.model.NoteSummary;
-import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.pojo.entity.NoteImageMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.projection.MappingProjections.ImageNoteCount;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -46,7 +46,9 @@ class ServerNoteApiAdapterTest {
     @Test
     void mediaReferenceCountsInitializeUnreferencedIdsToZeroInOneBatchCall() {
         NoteImageMappingMapper mappingMapper = mock(NoteImageMappingMapper.class);
-        ImageNoteCountDTO count = new ImageNoteCountDTO(2L, null, 4);
+        ImageNoteCount count = new ImageNoteCount();
+        count.setImageId(2L);
+        count.setRefCount(4);
         when(mappingMapper.countByImageIds(List.of(2L, 1L))).thenReturn(List.of(count));
 
         Map<Long, Long> counts = new ServerNoteReadApiAdapter(mock(NoteMapper.class), mock(TagMapper.class), mappingMapper)
@@ -60,7 +62,7 @@ class ServerNoteApiAdapterTest {
     void mediaNoteSummariesAndCompatibilityProjectionUseBatchQueries() {
         NoteMapper noteMapper = mock(NoteMapper.class);
         NoteImageMappingMapper mappingMapper = mock(NoteImageMappingMapper.class);
-        NoteImageMappingEntity mapping = new NoteImageMappingEntity();
+        NoteImageMappingDO mapping = new NoteImageMappingDO();
         mapping.setNoteId(7L);
         mapping.setImageId(2L);
         mapping.setNoteTitle("readme.md");

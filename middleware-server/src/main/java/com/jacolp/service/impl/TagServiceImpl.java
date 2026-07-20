@@ -36,7 +36,7 @@ import com.jacolp.pojo.dto.tag.UserTagQueryDTO;
 import com.jacolp.pojo.dto.tag.UserTagRemoveDTO;
 import com.jacolp.pojo.entity.MetaAuditRecordEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.pojo.entity.NoteTagMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.tag.TagBatchAddVO;
 import com.jacolp.pojo.vo.tag.TagStatsVO;
@@ -367,8 +367,8 @@ public class TagServiceImpl implements TagService {
         }
 
         // 检查是否存在重复绑定
-        List<NoteTagMappingEntity> existingMappings = noteRelationService.listTagMappingsByNoteId(noteId);
-        for (NoteTagMappingEntity mapping : existingMappings) {
+        List<NoteTagMappingDO> existingMappings = noteRelationService.listTagMappingsByNoteId(noteId);
+        for (NoteTagMappingDO mapping : existingMappings) {
             if (mapping.getTagId() != null
                     && mapping.getTagId().equals(tag.getId())
                     && NoteConstant.NOT_DELETED.equals(mapping.getIsDeleted())) {
@@ -377,7 +377,7 @@ public class TagServiceImpl implements TagService {
         }
 
         // 创建映射
-        NoteTagMappingEntity mapping = new NoteTagMappingEntity();
+        NoteTagMappingDO mapping = new NoteTagMappingDO();
         mapping.setNoteId(noteId);
         BeanUtils.copyProperties(tag, mapping);
         mapping.setStatus(tag.getAuditStatus());
@@ -403,9 +403,9 @@ public class TagServiceImpl implements TagService {
         }
 
         // 获取映射关系
-        List<NoteTagMappingEntity> mappings = noteRelationService.listTagMappingsByNoteId(noteId);
-        NoteTagMappingEntity targetMapping = null;
-        for (NoteTagMappingEntity mapping : mappings) {
+        List<NoteTagMappingDO> mappings = noteRelationService.listTagMappingsByNoteId(noteId);
+        NoteTagMappingDO targetMapping = null;
+        for (NoteTagMappingDO mapping : mappings) {
             if (mapping.getTagId() != null
                     && mapping.getTagId().equals(tag.getId())
                     && NoteConstant.NOT_DELETED.equals(mapping.getIsDeleted())) {

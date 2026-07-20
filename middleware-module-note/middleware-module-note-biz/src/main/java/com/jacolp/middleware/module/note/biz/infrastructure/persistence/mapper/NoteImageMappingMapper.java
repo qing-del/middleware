@@ -1,24 +1,24 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.jacolp.pojo.vo.image.ImageSimpleVO;
-import com.jacolp.pojo.vo.note.ImageBacklinkVO;
-import com.jacolp.pojo.vo.note.NoteSimpleVO;
-import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
+
+
+import com.jacolp.middleware.module.note.biz.application.vo.note.NoteSimpleVO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.projection.MappingProjections;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import com.jacolp.pojo.entity.NoteImageMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
 import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface NoteImageMappingMapper {
 
-    List<NoteImageMappingEntity> selectByNoteId(@Param("noteId") Long noteId);
+    List<NoteImageMappingDO> selectByNoteId(@Param("noteId") Long noteId);
 
-    NoteImageMappingEntity selectById(@Param("id") Long id);
+    NoteImageMappingDO selectById(@Param("id") Long id);
 
     /**
      * 根据 id 查询笔记图片映射行，并验证用户 id
@@ -26,7 +26,7 @@ public interface NoteImageMappingMapper {
      * @param userId 用户 id（传入null的话不开启校验）
      * @return 笔记图片映射行 （不存在 / 没有所属权的时候返回 null）
      */
-    NoteImageMappingEntity selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
+    NoteImageMappingDO selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
 
     int bindImageById(@Param("id") Long id,
                       @Param("imageId") Long imageId,
@@ -34,7 +34,7 @@ public interface NoteImageMappingMapper {
                       @Param("isCrossUser") Short isCrossUser,
                       @Param("status") Short status);
 
-    int batchBindImageByIds(@Param("mappings") List<NoteImageMappingEntity> mappings);
+    int batchBindImageByIds(@Param("mappings") List<NoteImageMappingDO> mappings);
 
     int unbindImageById(@Param("id") Long id);
 
@@ -45,7 +45,7 @@ public interface NoteImageMappingMapper {
      * @param mappings
      * @return
      */
-    int batchInsertMappings(@Param("mappings") List<NoteImageMappingEntity> mappings);
+    int batchInsertMappings(@Param("mappings") List<NoteImageMappingDO> mappings);
 
     int softDeleteByNoteId(@Param("noteId") Long noteId);
 
@@ -92,9 +92,9 @@ public interface NoteImageMappingMapper {
     @Select("SELECT COUNT(1) FROM biz_note_image_mapping WHERE image_id = #{imageId} AND is_deleted = 0")
     int countByImageId(Long imageId);
 
-    List<ImageNoteCountDTO> countByImageIds(@Param("imageIds") List<Long> imageIds);
+    List<MappingProjections.ImageNoteCount> countByImageIds(@Param("imageIds") List<Long> imageIds);
 
-    List<NoteImageMappingEntity> selectActiveByImageIds(@Param("imageIds") List<Long> imageIds);
+    List<NoteImageMappingDO> selectActiveByImageIds(@Param("imageIds") List<Long> imageIds);
 
     /**
      * 查询引用了指定图片的源笔记列表（图片反向引用）
@@ -102,11 +102,11 @@ public interface NoteImageMappingMapper {
      * @param userId 当前用户 id；传 null 时跳过归属/公开过滤（管理端使用）
      * @return 反向引用列表（包含源笔记标题、状态、跨用户标记等）
      */
-    List<ImageBacklinkVO> selectBacklinksByImageId(@Param("imageId") Long imageId,
+    List<MappingProjections.ImageBacklink> selectBacklinksByImageId(@Param("imageId") Long imageId,
                                                    @Param("userId") Long userId);
 
     /**
      * 查询访客可见的公开笔记图片摘要。
      */
-    List<ImageSimpleVO> selectPublicImagesByNoteId(@Param("noteId") Long noteId);
+    List<MappingProjections.ImageSimple> selectPublicImagesByNoteId(@Param("noteId") Long noteId);
 }

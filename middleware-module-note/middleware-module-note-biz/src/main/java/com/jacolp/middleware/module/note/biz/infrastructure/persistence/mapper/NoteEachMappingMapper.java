@@ -1,20 +1,21 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper;
 
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import com.jacolp.pojo.entity.NoteEachMappingEntity;
-import com.jacolp.pojo.vo.note.NoteBacklinkVO;
-import com.jacolp.pojo.vo.note.NoteEachSimpleVO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteEachMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.projection.MappingProjections;
+
+
 
 @Mapper
 public interface NoteEachMappingMapper {
 
-    List<NoteEachMappingEntity> selectBySourceNoteId(@Param("sourceNoteId") Long sourceNoteId);
+    List<NoteEachMappingDO> selectBySourceNoteId(@Param("sourceNoteId") Long sourceNoteId);
 
-    NoteEachMappingEntity selectById(@Param("id") Long id);
+    NoteEachMappingDO selectById(@Param("id") Long id);
 
     /**
      * 根据 id 查询笔记内联笔记映射行，并验证用户 id
@@ -22,18 +23,18 @@ public interface NoteEachMappingMapper {
      * @param userId 用户 id（传入null的话不开启校验）
      * @return 笔记内联笔记映射行 （不存在 / 没有所属权的时候返回 null）
      */
-    NoteEachMappingEntity selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
+    NoteEachMappingDO selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
 
     int bindNoteBySourceIdAndParseName(@Param("sourceNoteId") Long sourceNoteId,
                                        @Param("parsedNoteName") String parseName,
                                        @Param("targetNoteId") Long targetNoteId,
                                        @Param("status") Short status);
 
-    int batchBindNoteByIds(@Param("mappings") List<NoteEachMappingEntity> mappings);
+    int batchBindNoteByIds(@Param("mappings") List<NoteEachMappingDO> mappings);
 
     int unbindNoteById(@Param("id") Long id);
 
-    int batchInsertMappings(@Param("mappings") List<NoteEachMappingEntity> mappings);
+    int batchInsertMappings(@Param("mappings") List<NoteEachMappingDO> mappings);
 
     int softDeleteBySourceNoteId(@Param("sourceNoteId") Long sourceNoteId);
 
@@ -68,11 +69,11 @@ public interface NoteEachMappingMapper {
      * @param userId 当前用户 id；传 null 时跳过归属/公开过滤（管理端使用）
      * @return 反向引用列表（包含源笔记标题、状态、跨用户标记等）
      */
-    List<NoteBacklinkVO> selectBacklinksByTargetNoteId(@Param("targetNoteId") Long targetNoteId,
+    List<MappingProjections.NoteBacklink> selectBacklinksByTargetNoteId(@Param("targetNoteId") Long targetNoteId,
                                                        @Param("userId") Long userId);
 
     /**
      * 查询访客可见的公开笔记双链摘要。
      */
-    List<NoteEachSimpleVO> selectPublicEachNotesBySourceNoteId(@Param("sourceNoteId") Long sourceNoteId);
+    List<MappingProjections.NoteEachSimple> selectPublicEachNotesBySourceNoteId(@Param("sourceNoteId") Long sourceNoteId);
 }

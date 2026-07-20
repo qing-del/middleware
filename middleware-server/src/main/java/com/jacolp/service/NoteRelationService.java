@@ -10,6 +10,9 @@ import com.jacolp.pojo.dto.note.NoteMissingInfoDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
 import com.jacolp.pojo.entity.*;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteEachMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteBacklinkVO;
@@ -61,35 +64,35 @@ public interface NoteRelationService {
      */
     NoteRelationDetailVO getRelationInfo(
             Long noteId,
-            List<NoteTagMappingEntity> tagMappings, Map<Long, TagDO> tagMap,
-            List<NoteImageMappingEntity> imageMappings, Map<Long, MediaFileSummary> imageMap,
-            List<NoteEachMappingEntity> eachMappings, Map<Long, NoteDO> targetNoteMap);
+            List<NoteTagMappingDO> tagMappings, Map<Long, TagDO> tagMap,
+            List<NoteImageMappingDO> imageMappings, Map<Long, MediaFileSummary> imageMap,
+            List<NoteEachMappingDO> eachMappings, Map<Long, NoteDO> targetNoteMap);
 
     /**
      * 绑定标签关系
      * @param dto
      */
-    NoteTagMappingEntity bindTagMapping(TagMappingBindDTO dto, TagDO targetTag);
+    NoteTagMappingDO bindTagMapping(TagMappingBindDTO dto, TagDO targetTag);
 
     /**
      * 解绑标签关系
      * @param mappingId
      */
-    NoteTagMappingEntity unbindTagMapping(Long mappingId);
+    NoteTagMappingDO unbindTagMapping(Long mappingId);
 
     /**
      * 绑定图片关系
      * @param dto
      * @return 被绑定的 映射行实体
      */
-    NoteImageMappingEntity bindImageMapping(ImageMappingBindDTO dto, MediaFileSummary targetImage);
+    NoteImageMappingDO bindImageMapping(ImageMappingBindDTO dto, MediaFileSummary targetImage);
 
     /**
      * 解绑图片关系
      * @param mappingId
      * @return 被取消绑定的 映射行实体
      */
-    NoteImageMappingEntity unbindImageMapping(Long mappingId);
+    NoteImageMappingDO unbindImageMapping(Long mappingId);
 
     /**
      * 绑定关系
@@ -97,14 +100,14 @@ public interface NoteRelationService {
      * @param targetNote
      * @return 被绑定的 映射行实体
      */
-    NoteEachMappingEntity bindEachMapping(EachMappingBindDTO dto, NoteDO targetNote);
+    NoteEachMappingDO bindEachMapping(EachMappingBindDTO dto, NoteDO targetNote);
 
     /**
      * 解绑关系
      * @param mappingId
      * @return 被取消绑定的 映射行实体
      */
-    NoteEachMappingEntity unbindEachMapping(Long mappingId);
+    NoteEachMappingDO unbindEachMapping(Long mappingId);
 
     /**
      * 检查笔记关系是否完成
@@ -118,28 +121,28 @@ public interface NoteRelationService {
      * @param noteId
      * @return
      */
-    List<NoteTagMappingEntity> listTagMappingsByNoteId(Long noteId);
+    List<NoteTagMappingDO> listTagMappingsByNoteId(Long noteId);
 
     /**
      * 获取笔记图片关系列表
      * @param noteId 笔记 ID
      * @return 图片关系列表
      */
-    List<NoteImageMappingEntity> listImageMappingsByNoteId(Long noteId);
+    List<NoteImageMappingDO> listImageMappingsByNoteId(Long noteId);
 
     /**
      * 获取笔记关系列表
      * @param noteId 笔记 ID
      * @return 笔记关系列表
      */
-    List<NoteEachMappingEntity> listEachMappingsByNoteId(Long noteId);
+    List<NoteEachMappingDO> listEachMappingsByNoteId(Long noteId);
 
     /**
      * 批量插入标签关系
      * @param mappings
      * @return
      */
-    int batchInsertTagMappings(List<NoteTagMappingEntity> mappings);
+    int batchInsertTagMappings(List<NoteTagMappingDO> mappings);
 
     /**
      * 批量删除标签关系
@@ -156,7 +159,7 @@ public interface NoteRelationService {
      * @param tagMap 可供选择的标签
      * @throws BaseException 批量绑定失败
      */
-    void tryBatchBindTagMappings(List<NoteTagMappingEntity> mappings, Map<String, TagDO> tagMap);
+    void tryBatchBindTagMappings(List<NoteTagMappingDO> mappings, Map<String, TagDO> tagMap);
 
     /**
      * 尝试批量绑定图片关系。
@@ -165,7 +168,7 @@ public interface NoteRelationService {
      * @param imageMap 可供选择的图片
      * @throws BaseException 批量绑定失败
      */
-    void tryBatchBindImageMappings(List<NoteImageMappingEntity> mappings, Map<String, MediaFileSummary> imageMap);
+    void tryBatchBindImageMappings(List<NoteImageMappingDO> mappings, Map<String, MediaFileSummary> imageMap);
 
     /**
      * 尝试批量绑定关系。
@@ -174,7 +177,7 @@ public interface NoteRelationService {
      * @param noteMap 可供选择的笔记
      * @throws BaseException 批量绑定失败
      */
-    void tryBatchBindNoteMappings(List<NoteEachMappingEntity> mappings, Map<String, NoteDO> noteMap);
+    void tryBatchBindNoteMappings(List<NoteEachMappingDO> mappings, Map<String, NoteDO> noteMap);
 
     /**
      * 批量更新标签关系状态

@@ -1,6 +1,6 @@
 package com.jacolp.adapter.api.note;
 
-import com.jacolp.mapper.NoteImageMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.middleware.module.note.api.NoteReadApi;
@@ -9,9 +9,9 @@ import com.jacolp.middleware.module.note.api.model.NoteSummary;
 import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
 import com.jacolp.middleware.module.note.api.model.TagReviewStatus;
 import com.jacolp.middleware.module.note.api.model.TagSummary;
-import com.jacolp.pojo.dto.image.ImageNoteCountDTO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.projection.MappingProjections.ImageNoteCount;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.pojo.entity.NoteImageMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import org.springframework.stereotype.Component;
 
@@ -79,7 +79,7 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
         }
         Map<Long, Long> counts = new LinkedHashMap<>();
         ids.forEach(id -> counts.put(id, 0L));
-        for (ImageNoteCountDTO count : noteImageMappingMapper.countByImageIds(ids)) {
+        for (ImageNoteCount count : noteImageMappingMapper.countByImageIds(ids)) {
             if (count.getImageId() != null) {
                 counts.put(count.getImageId(), count.getRefCount() == null ? 0L : count.getRefCount().longValue());
             }
@@ -93,9 +93,9 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
         if (ids.isEmpty()) return Map.of();
         Map<Long, List<NoteSummary>> result = new LinkedHashMap<>();
         ids.forEach(id -> result.put(id, new java.util.ArrayList<>()));
-        List<NoteImageMappingEntity> mappings = noteImageMappingMapper.selectActiveByImageIds(ids);
-        Map<Long, NoteSummary> notes = findNoteSummariesByIds(mappings.stream().map(NoteImageMappingEntity::getNoteId).toList());
-        for (NoteImageMappingEntity mapping : mappings) {
+        List<NoteImageMappingDO> mappings = noteImageMappingMapper.selectActiveByImageIds(ids);
+        Map<Long, NoteSummary> notes = findNoteSummariesByIds(mappings.stream().map(NoteImageMappingDO::getNoteId).toList());
+        for (NoteImageMappingDO mapping : mappings) {
             NoteSummary note = notes.get(mapping.getNoteId());
             if (note != null) result.get(mapping.getImageId()).add(note);
         }
@@ -110,7 +110,7 @@ public class ServerNoteReadApiAdapter implements NoteReadApi {
         if (ids.isEmpty()) return Map.of();
         Map<Long, List<NoteMediaReferenceSummary>> result = new LinkedHashMap<>();
         ids.forEach(id -> result.put(id, new java.util.ArrayList<>()));
-        for (NoteImageMappingEntity mapping : noteImageMappingMapper.selectActiveByImageIds(ids)) {
+        for (NoteImageMappingDO mapping : noteImageMappingMapper.selectActiveByImageIds(ids)) {
             result.get(mapping.getImageId()).add(new NoteMediaReferenceSummary(
                     mapping.getNoteId(), mapping.getNoteTitle(), mapping.getIsCrossUser(),
                     mapping.getStatus(), mapping.getCreateTime()));

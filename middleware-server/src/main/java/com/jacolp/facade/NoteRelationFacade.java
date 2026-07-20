@@ -3,9 +3,9 @@ package com.jacolp.facade;
 import com.jacolp.pojo.dto.image.ImageMappingBindDTO;
 import com.jacolp.pojo.dto.note.EachMappingBindDTO;
 import com.jacolp.pojo.dto.tag.TagMappingBindDTO;
-import com.jacolp.pojo.entity.NoteEachMappingEntity;
-import com.jacolp.pojo.entity.NoteImageMappingEntity;
-import com.jacolp.pojo.entity.NoteTagMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteEachMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
 import com.jacolp.pojo.vo.note.NoteBacklinkVO;
@@ -39,7 +39,7 @@ public interface NoteRelationFacade {
      * 解绑标签关系
      * @param mappingId
      */
-    NoteTagMappingEntity unbindTagMapping(Long mappingId);
+    NoteTagMappingDO unbindTagMapping(Long mappingId);
 
     /**
      * 绑定图片映射关系
@@ -52,7 +52,7 @@ public interface NoteRelationFacade {
      * @param mappingId
      * @return 被取消绑定的 映射行实体
      */
-    NoteImageMappingEntity unbindImageMapping(Long mappingId);
+    NoteImageMappingDO unbindImageMapping(Long mappingId);
 
     /**
      * 绑定笔记映射关系
@@ -65,7 +65,7 @@ public interface NoteRelationFacade {
      * @param mappingId
      * @return 被取消绑定的 映射行实体
      */
-    NoteEachMappingEntity unbindEachMapping(Long mappingId);
+    NoteEachMappingDO unbindEachMapping(Long mappingId);
 
     /**
      * 检查笔记关联信息是否完整

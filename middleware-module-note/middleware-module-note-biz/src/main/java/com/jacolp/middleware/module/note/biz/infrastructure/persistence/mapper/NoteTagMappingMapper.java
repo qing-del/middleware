@@ -1,20 +1,21 @@
-package com.jacolp.mapper;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper;
 
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import com.jacolp.pojo.entity.NoteTagMappingEntity;
-import com.jacolp.pojo.vo.note.TagBacklinkVO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.projection.MappingProjections;
+
 import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface NoteTagMappingMapper {
 
-    List<NoteTagMappingEntity> selectByNoteId(@Param("noteId") Long noteId);
+    List<NoteTagMappingDO> selectByNoteId(@Param("noteId") Long noteId);
 
-    NoteTagMappingEntity selectById(@Param("id") Long id);
+    NoteTagMappingDO selectById(@Param("id") Long id);
 
     /**
      * 根据 id 查询笔记标签映射行，并验证用户 id
@@ -22,7 +23,7 @@ public interface NoteTagMappingMapper {
      * @param userId 用户 id（传入null的话不开启校验）
      * @return 笔记标签映射行 （不存在 / 没有所属权的时候返回 null）
      */
-    NoteTagMappingEntity selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
+    NoteTagMappingDO selectByIdWithValidUserId(@Param("id") Long mappingId, Long userId);
 
     List<Long> selectTagIdsByNoteId(@Param("noteId") Long noteId);
 
@@ -30,11 +31,11 @@ public interface NoteTagMappingMapper {
                     @Param("tagId") Long tagId,
                     @Param("status") Short status);
 
-    int batchBindTagByIds(@Param("mappings") List<NoteTagMappingEntity> mappings);
+    int batchBindTagByIds(@Param("mappings") List<NoteTagMappingDO> mappings);
 
     int unbindTagById(@Param("id") Long id);
 
-    int batchInsertMappings(@Param("mappings") List<NoteTagMappingEntity> mappings);
+    int batchInsertMappings(@Param("mappings") List<NoteTagMappingDO> mappings);
 
     int softDeleteByNoteId(@Param("noteId") Long noteId);
 
@@ -88,7 +89,7 @@ public interface NoteTagMappingMapper {
      * @param userId 当前用户 id；传 null 时跳过归属/公开过滤（管理端使用）
      * @return 反向引用列表（包含源笔记标题、状态、跨用户标记等）
      */
-    List<TagBacklinkVO> selectBacklinksByTagId(@Param("tagId") Long tagId,
+    List<MappingProjections.TagBacklink> selectBacklinksByTagId(@Param("tagId") Long tagId,
                                                @Param("userId") Long userId);
 
     /**

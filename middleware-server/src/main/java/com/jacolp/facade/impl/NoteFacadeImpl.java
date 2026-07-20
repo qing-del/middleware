@@ -39,7 +39,7 @@ import com.jacolp.pojo.dto.note.UploadToInsertNoteDTO;
 import com.jacolp.pojo.entity.NoteChangeDiffEntity;
 import com.jacolp.pojo.entity.NoteContextEntity;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.pojo.entity.NoteTagMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.note.NoteChangeDiffVO;
 import com.jacolp.pojo.vo.note.NoteDetailVO;
@@ -472,7 +472,7 @@ public class NoteFacadeImpl implements NoteFacade {
         // 标签名列表
         List<Long> tagIds = noteRelationService.listTagMappingsByNoteId(noteId)
                 .stream()
-                .map(NoteTagMappingEntity::getTagId)
+                .map(NoteTagMappingDO::getTagId)
                 .filter(Objects::nonNull)
                 .toList();
         detailVO.setTags(tagIds.isEmpty()

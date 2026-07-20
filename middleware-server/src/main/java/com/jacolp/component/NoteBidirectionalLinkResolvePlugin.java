@@ -4,10 +4,10 @@ import com.jacolp.context.NoteImageResolveContext;
 import com.jacolp.middleware.framework.markdown.converter.MarkdownPlugin;
 import com.jacolp.middleware.module.media.api.MediaFileApi;
 import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
-import com.jacolp.mapper.NoteEachMappingMapper;
-import com.jacolp.mapper.NoteImageMappingMapper;
-import com.jacolp.pojo.entity.NoteEachMappingEntity;
-import com.jacolp.pojo.entity.NoteImageMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteEachMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -49,8 +49,8 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
         }
 
         // ---- 批量加载图片映射 ----
-        List<NoteImageMappingEntity> imgMappings = noteImageMappingMapper.selectByNoteId(noteId);
-        Map<String, NoteImageMappingEntity> imageMappingMap = (imgMappings != null && !imgMappings.isEmpty())
+        List<NoteImageMappingDO> imgMappings = noteImageMappingMapper.selectByNoteId(noteId);
+        Map<String, NoteImageMappingDO> imageMappingMap = (imgMappings != null && !imgMappings.isEmpty())
                 ? imgMappings.stream()
                         .filter(m -> m.getParsedImageName() != null)
                         .collect(Collectors.toMap(
@@ -61,7 +61,7 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
 
         // Batch read through the media boundary, avoiding N+1 and persistence leakage.
         ArrayList<Long> imageIds = imageMappingMap.values().stream()
-                .map(NoteImageMappingEntity::getImageId)
+                .map(NoteImageMappingDO::getImageId)
                 .filter(id -> id != null)
                 .distinct()
                 .collect(Collectors.toCollection(ArrayList::new));
@@ -72,8 +72,8 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
         // ---- 批量加载笔记映射 ----
         // Key 设计：normalizeName(parsedNoteName) + "\0" + nullToEmpty(anchor)
         // 这样同一目标笔记的不同锚点链接可以精确命中各自的 mapping 行。
-        List<NoteEachMappingEntity> noteMappings = noteEachMappingMapper.selectBySourceNoteId(noteId);
-        Map<String, NoteEachMappingEntity> noteMappingMap =
+        List<NoteEachMappingDO> noteMappings = noteEachMappingMapper.selectBySourceNoteId(noteId);
+        Map<String, NoteEachMappingDO> noteMappingMap =
                 (noteMappings != null && !noteMappings.isEmpty())
                 ? noteMappings.stream()
                         .filter(m -> m.getParsedNoteName() != null)
@@ -97,9 +97,9 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
      * </ul>
      */
     private String processLinks(String rawMarkdown,
-                                Map<String, NoteImageMappingEntity> imageMappingMap,
+                                Map<String, NoteImageMappingDO> imageMappingMap,
                                 Map<Long, MediaFileSummary> imageMap,
-                                Map<String, NoteEachMappingEntity> noteMappingMap) {
+                                Map<String, NoteEachMappingDO> noteMappingMap) {
         StringBuilder builder = new StringBuilder();
         Matcher matcher = UNIFIED_PATTERN.matcher(rawMarkdown);
         while (matcher.find()) {
@@ -115,7 +115,7 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
             if (!prefix.isEmpty()) {
                 // ![[image]] 图片嵌入
                 String altText = secondary != null ? secondary : primary;
-                NoteImageMappingEntity mapping = imageMappingMap.get(normalizeName(primary));
+                NoteImageMappingDO mapping = imageMappingMap.get(normalizeName(primary));
                 replacement = buildImageReplacement(mapping, altText, imageMap);
             } else {
                 // 提取文件名部分（primary 可能含 #anchor，先拆出 # 之前的 filename）
@@ -165,10 +165,10 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
      * @param filenamePart   笔记文件名部分（可能不含 .md，如 {@code "note"} 或 {@code "note.md"}）
      * @param anchorPart     锚点（如 {@code "cas原理"}），无则 null
      * @param nickname       别名（如 {@code "CAS原理"}），无则 null
-     * @param noteMappingMap 预加载的 (noteName\0anchor) → NoteEachMappingEntity 映射表
+     * @param noteMappingMap 预加载的 (noteName\0anchor) → NoteEachMappingDO 映射表
      */
     private String buildNoteReplacement(String filenamePart, String anchorPart, String nickname,
-                                        Map<String, NoteEachMappingEntity> noteMappingMap) {
+                                        Map<String, NoteEachMappingDO> noteMappingMap) {
         String noteName = stripMarkdownExtension(filenamePart);
 
         // 确定显示文本优先级：别名 > 锚点 > 笔记名
@@ -178,7 +178,7 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
 
         // 查 mapping
         String mapKey = buildNoteMappingKey(noteName, anchorPart);
-        NoteEachMappingEntity mapping = noteMappingMap.get(mapKey);
+        NoteEachMappingDO mapping = noteMappingMap.get(mapKey);
         Long targetNoteId = (mapping != null) ? mapping.getTargetNoteId() : null;
 
         if (targetNoteId != null) {
@@ -204,7 +204,7 @@ public class NoteBidirectionalLinkResolvePlugin implements MarkdownPlugin {
      * 根据 mapping 和 imageMap 构建图片 Markdown 替换串。
      * imageMap 已在调用前批量加载，此方法不触发任何网络 IO。
      */
-    private String buildImageReplacement(NoteImageMappingEntity mapping, String altText,
+    private String buildImageReplacement(NoteImageMappingDO mapping, String altText,
                                          Map<Long, MediaFileSummary> imageMap) {
         if (mapping == null || mapping.getImageId() == null) {
             return "![" + altText + "](#)";

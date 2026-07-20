@@ -31,10 +31,10 @@ import com.jacolp.middleware.module.media.api.MediaFileApi;
 import com.jacolp.middleware.module.media.api.command.MediaFileLookupCommand;
 import com.jacolp.middleware.module.media.api.model.MediaFileSummary;
 import com.jacolp.middleware.module.media.api.model.MediaReviewStatus;
-import com.jacolp.pojo.entity.NoteEachMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteEachMappingDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.pojo.entity.NoteImageMappingEntity;
-import com.jacolp.pojo.entity.NoteTagMappingEntity;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteTagMappingDO;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.pojo.vo.image.ImageSimpleVO;
 import com.jacolp.pojo.vo.note.ImageBacklinkVO;
@@ -66,9 +66,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         }
 
         // 先进行三联映射查询
-        List<NoteTagMappingEntity> tagMappings = noteRelationService.listTagMappingsByNoteId(noteId);
-        List<NoteImageMappingEntity> imageMappings = noteRelationService.listImageMappingsByNoteId(noteId);
-        List<NoteEachMappingEntity> eachMappings = noteRelationService.listEachMappingsByNoteId(noteId);
+        List<NoteTagMappingDO> tagMappings = noteRelationService.listTagMappingsByNoteId(noteId);
+        List<NoteImageMappingDO> imageMappings = noteRelationService.listImageMappingsByNoteId(noteId);
+        List<NoteEachMappingDO> eachMappings = noteRelationService.listEachMappingsByNoteId(noteId);
 
         // 构建缓存
         Map<Long, TagDO> tagMap = buildTagMap(tagMappings);
@@ -89,10 +89,10 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      */
     @Override
     public List<ImageSimpleVO> listImageSimpleVOsByNoteId(Long noteId) {
-        List<NoteImageMappingEntity> mappings = noteRelationService.listImageMappingsByNoteId(noteId);
+        List<NoteImageMappingDO> mappings = noteRelationService.listImageMappingsByNoteId(noteId);
         List<Long> imageIds = mappings
                 .stream()
-                .map(NoteImageMappingEntity::getImageId)
+                .map(NoteImageMappingDO::getImageId)
                 .toList();
 
         Map<Long, MediaFileSummary> imageMap = imageIds.isEmpty()
@@ -110,7 +110,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     @Override
     public void bindTagMapping(TagMappingBindDTO dto) {
         TagDO targetTag = tagService.getByIdAndUserId(dto.getTagId(), BaseContext.getCurrentId());
-        NoteTagMappingEntity mapping = noteRelationService.bindTagMapping(dto, targetTag);
+        NoteTagMappingDO mapping = noteRelationService.bindTagMapping(dto, targetTag);
 
         // 检查是否需要更新笔记状态
         NoteDO note = noteCoreService.getById(mapping.getNoteId());
@@ -134,9 +134,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     }
 
     @Override
-    public NoteTagMappingEntity unbindTagMapping(Long mappingId) {
+    public NoteTagMappingDO unbindTagMapping(Long mappingId) {
         // 尝试解除绑定
-        NoteTagMappingEntity result = noteRelationService.unbindTagMapping(mappingId);
+        NoteTagMappingDO result = noteRelationService.unbindTagMapping(mappingId);
 
         // 检查是否需要更新笔记状态
         NoteDO note = noteCoreService.getById(result.getNoteId());
@@ -168,7 +168,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     public void bindImageMapping(ImageMappingBindDTO dto) {
         MediaFileSummary targetImage = mediaFileApi.findByIds(List.of(dto.getImageId())).get(dto.getImageId());
         if (targetImage == null) throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
-        NoteImageMappingEntity mapping = noteRelationService.bindImageMapping(dto, targetImage);
+        NoteImageMappingDO mapping = noteRelationService.bindImageMapping(dto, targetImage);
 
         // 检查是否需要更新笔记状态
         NoteDO note = noteCoreService.getById(mapping.getNoteId());
@@ -192,9 +192,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     }
 
     @Override
-    public NoteImageMappingEntity unbindImageMapping(Long mappingId) {
+    public NoteImageMappingDO unbindImageMapping(Long mappingId) {
         // 尝试解除绑定
-        NoteImageMappingEntity result = noteRelationService.unbindImageMapping(mappingId);
+        NoteImageMappingDO result = noteRelationService.unbindImageMapping(mappingId);
 
         // 检查是否需要更新笔记状态
         NoteDO note = noteCoreService.getById(result.getNoteId());
@@ -225,7 +225,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     @Override
     public void bindEachMapping(EachMappingBindDTO dto) {
         NoteDO targetNote = noteCoreService.getById(dto.getNoteId());
-        NoteEachMappingEntity mapping = null;
+        NoteEachMappingDO mapping = null;
         int affectedRow = 0;
         try {
             mapping = noteRelationService.bindEachMapping(dto, targetNote);
@@ -256,9 +256,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     }
 
     @Override
-    public NoteEachMappingEntity unbindEachMapping(Long mappingId) {
+    public NoteEachMappingDO unbindEachMapping(Long mappingId) {
         // 尝试解除绑定
-        NoteEachMappingEntity result = noteRelationService.unbindEachMapping(mappingId);
+        NoteEachMappingDO result = noteRelationService.unbindEachMapping(mappingId);
 
         // 检查是否需要更新笔记状态
         NoteDO note = noteCoreService.getById(result.getNoteId());
@@ -412,9 +412,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
     /**
      * 构建简单图片信息列表
      */
-    private static void buildNoteImageSimpleVOList(Long noteId, List<NoteImageMappingEntity> mappings,
+    private static void buildNoteImageSimpleVOList(Long noteId, List<NoteImageMappingDO> mappings,
                                                    Map<Long, MediaFileSummary> imageMap, List<ImageSimpleVO> result) {
-        for (NoteImageMappingEntity mapping : mappings) {
+        for (NoteImageMappingDO mapping : mappings) {
             ImageSimpleVO vo = new ImageSimpleVO();
             vo.setNoteId(noteId);
             vo.setParsedImageName(mapping.getParsedImageName());
@@ -444,7 +444,7 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      */
     private void syncBindableMappings(Long noteId, Long userId, Long topicId) {
         // 同步标签映射
-        List<NoteTagMappingEntity> tagMappings = Optional.ofNullable
+        List<NoteTagMappingDO> tagMappings = Optional.ofNullable
                 (noteRelationService.listTagMappingsByNoteId(noteId)).orElse(List.of());
         Map<String, TagDO> tagMap = getTagEntitiesMap(tagMappings, userId);
         noteRelationService.tryBatchBindTagMappings(tagMappings, tagMap);
@@ -452,13 +452,13 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         if (topicId == null) return;
 
         // 同步图片映射
-        List<NoteImageMappingEntity> imageMappings = Optional.ofNullable
+        List<NoteImageMappingDO> imageMappings = Optional.ofNullable
                 (noteRelationService.listImageMappingsByNoteId(noteId)).orElse(List.of());
         Map<String, MediaFileSummary> imageMap = getImageEntitiesMap(imageMappings, userId, topicId);
         noteRelationService.tryBatchBindImageMappings(imageMappings, imageMap);
 
         // 同步内联笔记映射
-        List<NoteEachMappingEntity> noteMappings = Optional.ofNullable
+        List<NoteEachMappingDO> noteMappings = Optional.ofNullable
                 (noteRelationService.listEachMappingsByNoteId(noteId)).orElse(List.of());
         Map<String, NoteDO> noteMap = getNoteEntitiesMap(noteMappings, userId, topicId);
         noteRelationService.tryBatchBindNoteMappings(noteMappings, noteMap);
@@ -474,14 +474,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      * @param userId   用户 id
      * @return 标签数据对象的 <tagName, TagDO> 的 Map
      */
-    private Map<String, TagDO> getTagEntitiesMap(List<NoteTagMappingEntity> mappings, Long userId) {
+    private Map<String, TagDO> getTagEntitiesMap(List<NoteTagMappingDO> mappings, Long userId) {
         if (mappings.isEmpty()) {
             return Map.of();
         }
 
         List<String> parsedNames = mappings
                 .stream()
-                .map(NoteTagMappingEntity::getParsedTagName)
+                .map(NoteTagMappingDO::getParsedTagName)
                 .filter(StringUtils::hasText)
                 .distinct()
                 .toList();
@@ -515,13 +515,13 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      * @param topicId  话题 id
      * @return 图片摘要的 <imageName, MediaFileSummary> 的 Map
      */
-    private Map<String, MediaFileSummary> getImageEntitiesMap(List<NoteImageMappingEntity> mappings, Long userId, Long topicId) {
+    private Map<String, MediaFileSummary> getImageEntitiesMap(List<NoteImageMappingDO> mappings, Long userId, Long topicId) {
         if (mappings.isEmpty()) {
             return Map.of();
         }
 
         List<String> parsedNames = mappings.stream()
-                .map(NoteImageMappingEntity::getParsedImageName)
+                .map(NoteImageMappingDO::getParsedImageName)
                 .filter(StringUtils::hasText)
                 .distinct()
                 .toList();
@@ -543,14 +543,14 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
      * @param topicId  话题 id
      * @return 笔记实体的 <noteName, NoteDO> 的 Map
      */
-    private Map<String, NoteDO> getNoteEntitiesMap(List<NoteEachMappingEntity> mappings,
+    private Map<String, NoteDO> getNoteEntitiesMap(List<NoteEachMappingDO> mappings,
                                                        Long userId, Long topicId) {
         if (mappings.isEmpty()) {
             return Map.of();
         }
 
         List<String> parsedNames = mappings.stream()
-                .map(NoteEachMappingEntity::getParsedNoteName)
+                .map(NoteEachMappingDO::getParsedNoteName)
                 .filter(StringUtils::hasText)
                 .distinct()
                 .toList();
@@ -574,9 +574,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                 );
     }
 
-    private Map<Long, TagDO> buildTagMap(List<NoteTagMappingEntity> mappings) {
+    private Map<Long, TagDO> buildTagMap(List<NoteTagMappingDO> mappings) {
         List<Long> ids = mappings.stream()
-                .map(NoteTagMappingEntity::getTagId)
+                .map(NoteTagMappingDO::getTagId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -588,9 +588,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
                 .collect(Collectors.toMap(TagDO::getId, tag -> tag, (left, right) -> left));
     }
 
-    private Map<Long, MediaFileSummary> buildImageMap(List<NoteImageMappingEntity> mappings) {
+    private Map<Long, MediaFileSummary> buildImageMap(List<NoteImageMappingDO> mappings) {
         List<Long> ids = mappings.stream()
-                .map(NoteImageMappingEntity::getImageId)
+                .map(NoteImageMappingDO::getImageId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -605,9 +605,9 @@ public class NoteRelationFacadeImpl implements NoteRelationFacade {
         return switch (status) { case WAITING -> 0; case REVIEWING -> 1; case APPROVED -> 2; case REJECTED -> 3; case DELETED -> 4; };
     }
 
-    private Map<Long, NoteDO> buildTargetNoteMap(List<NoteEachMappingEntity> mappings) {
+    private Map<Long, NoteDO> buildTargetNoteMap(List<NoteEachMappingDO> mappings) {
         List<Long> ids = mappings.stream()
-                .map(NoteEachMappingEntity::getTargetNoteId)
+                .map(NoteEachMappingDO::getTargetNoteId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();

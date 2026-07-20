@@ -13,11 +13,13 @@ import com.jacolp.annotation.GuestCacheable;
 import com.jacolp.constant.GuestCacheConstant;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.exception.BaseException;
-import com.jacolp.mapper.NoteEachMappingMapper;
-import com.jacolp.mapper.NoteImageMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
 import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
-import com.jacolp.mapper.NoteTagMappingMapper;
+import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteTagMappingMapper;
 import com.jacolp.pojo.dto.note.PublicNoteQueryDTO;
+import com.jacolp.pojo.vo.image.ImageSimpleVO;
+import com.jacolp.pojo.vo.note.NoteEachSimpleVO;
 import com.jacolp.pojo.vo.note.PublicNoteDetailVO;
 import com.jacolp.pojo.vo.note.PublicNoteListVO;
 import com.jacolp.middleware.module.note.biz.application.vo.note.NoteVO;
@@ -68,8 +70,12 @@ public class PublicNoteServiceImpl implements PublicNoteService {
         PublicNoteDetailVO vo = new PublicNoteDetailVO();
         BeanUtils.copyProperties(note, vo);
         vo.setTags(noteTagMappingMapper.selectPublicTagNamesByNoteId(noteId));
-        vo.setImages(noteImageMappingMapper.selectPublicImagesByNoteId(noteId));
-        vo.setEachNotes(noteEachMappingMapper.selectPublicEachNotesBySourceNoteId(noteId));
+        vo.setImages(noteImageMappingMapper.selectPublicImagesByNoteId(noteId).stream()
+                .map(source -> copy(source, new ImageSimpleVO()))
+                .toList());
+        vo.setEachNotes(noteEachMappingMapper.selectPublicEachNotesBySourceNoteId(noteId).stream()
+                .map(source -> copy(source, new NoteEachSimpleVO()))
+                .toList());
         vo.setConverted(noteConvertService.getPublishedNoteConvert(noteId));
         return vo;
     }
@@ -79,6 +85,11 @@ public class PublicNoteServiceImpl implements PublicNoteService {
         BeanUtils.copyProperties(note, vo);
         vo.setTags(noteTagMappingMapper.selectPublicTagNamesByNoteId(note.getId()));
         return vo;
+    }
+
+    private static <T> T copy(Object source, T target) {
+        BeanUtils.copyProperties(source, target);
+        return target;
     }
 
     private PublicNoteQueryDTO normalizeQuery(PublicNoteQueryDTO dto) {

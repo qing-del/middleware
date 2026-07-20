@@ -1,9 +1,8 @@
-package com.jacolp.pojo.entity;
+package com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-import com.jacolp.pojo.provider.NoteIdProvider;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoteTagMappingEntity implements Serializable, NoteIdProvider {
+public class NoteTagMappingDO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
