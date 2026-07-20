@@ -3,6 +3,8 @@ package com.jacolp.middleware.common.security.interceptor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.middleware.common.security.context.AuthenticationContext;
+import com.jacolp.middleware.common.security.context.SecurityContextBridge;
+import com.jacolp.middleware.common.security.context.SecurityIdentity;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
@@ -44,6 +46,8 @@ public class JwtTokenActiveInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        SecurityContextBridge.clear();
+
         // 1、从请求头中获取令牌
         String[] split = request.getRequestURI().split("/");
         String token = split[split.length - 1];
@@ -51,6 +55,7 @@ public class JwtTokenActiveInterceptor implements HandlerInterceptor {
         // 2、校验令牌
         try {
             if (token == null || token.isBlank()) {
+                SecurityContextBridge.clear();
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 setResult(response, Result.error("未提供认证令牌"));
                 return false;
@@ -64,14 +69,18 @@ public class JwtTokenActiveInterceptor implements HandlerInterceptor {
             // 获取激活信号码
             boolean activeCode = Boolean.parseBoolean(claims.get(SecurityTokenConstants.ACTIVE_SIGN_KEY).toString());
             if (!activeCode) {
+                SecurityContextBridge.clear();
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 setResult(response, Result.error("并激活令牌，无法激活账号"));
                 return false;
             }
 
+            SecurityContextBridge.authenticate(userId, SecurityIdentity.ACTIVATION);
+
             // 3、通过，放行
             return true;
         } catch (Exception ex) {
+            SecurityContextBridge.clear();
             // 4、不通过，响应401状态码
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             log.error("JWT verification failed: {}", ex.getMessage());
@@ -109,5 +118,6 @@ public class JwtTokenActiveInterceptor implements HandlerInterceptor {
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         log.debug("Request completed for admin interceptor");
         AuthenticationContext.clear();
+        SecurityContextBridge.clear();
     }
 }

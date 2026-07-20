@@ -5,6 +5,8 @@ import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
 import com.jacolp.middleware.common.security.context.AuthenticationContext;
 import com.jacolp.middleware.common.security.context.AuthorizationContext;
+import com.jacolp.middleware.common.security.context.SecurityContextBridge;
+import com.jacolp.middleware.common.security.context.SecurityIdentity;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
@@ -49,6 +51,8 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        SecurityContextBridge.clear();
+
         // 计数器
         qpsCounter.increment();
 
@@ -61,6 +65,7 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         // 2、校验令牌
         try {
             if (token == null || token.isBlank()) {
+                SecurityContextBridge.clear();
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return false;
             }
@@ -80,9 +85,11 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
             // 将用户 ID 存入线程上下文
             AuthenticationContext.setCurrentId(userId);
             AuthorizationContext.setAdmin(false);
+            SecurityContextBridge.authenticate(userId, SecurityIdentity.USER);
             // 4、通过，放行
             return true;
         } catch (Exception ex) {
+            SecurityContextBridge.clear();
             // 4、不通过，响应401状态码
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             log.error("JWT verification failed: {}", ex.getMessage());
@@ -120,5 +127,6 @@ public class JwtTokenUserInterceptor implements HandlerInterceptor {
         log.debug("Request completed for user interceptor");
         AuthenticationContext.clear();
         AuthorizationContext.clear();
+        SecurityContextBridge.clear();
     }
 }

@@ -5,6 +5,8 @@ import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
 import com.jacolp.middleware.common.security.context.AuthenticationContext;
 import com.jacolp.middleware.common.security.context.AuthorizationContext;
+import com.jacolp.middleware.common.security.context.SecurityContextBridge;
+import com.jacolp.middleware.common.security.context.SecurityIdentity;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
@@ -50,6 +52,8 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        SecurityContextBridge.clear();
+
         // 计数器
         qpsCounter.increment();
 
@@ -62,6 +66,7 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
         // 2、校验令牌
         try {
             if (token == null || token.isBlank()) {
+                SecurityContextBridge.clear();
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 setResult(response, Result.error("未提供认证令牌"));
                 return false;
@@ -82,9 +87,11 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
             // 设置上下文
             AuthenticationContext.setCurrentId(adminId);
             AuthorizationContext.setAdmin(true);
+            SecurityContextBridge.authenticate(adminId, SecurityIdentity.ADMIN);
 
             return true;
         } catch (Exception ex) {
+            SecurityContextBridge.clear();
             // 4、不通过，响应401状态码
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             log.error("JWT verification failed: {}", ex.getMessage());
@@ -123,5 +130,6 @@ public class JwtTokenAdminInterceptor implements HandlerInterceptor {
         log.debug("Request completed for admin interceptor");
         AuthenticationContext.clear();
         AuthorizationContext.clear();
+        SecurityContextBridge.clear();
     }
 }

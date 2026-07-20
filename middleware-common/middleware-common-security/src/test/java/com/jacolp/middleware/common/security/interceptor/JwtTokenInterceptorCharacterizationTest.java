@@ -3,6 +3,9 @@ package com.jacolp.middleware.common.security.interceptor;
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
 import com.jacolp.middleware.common.security.context.AuthenticationContext;
 import com.jacolp.middleware.common.security.context.AuthorizationContext;
+import com.jacolp.middleware.common.security.context.SecurityContextBridge;
+import com.jacolp.middleware.common.security.context.SecurityIdentity;
+import com.jacolp.middleware.common.security.context.SecurityPrincipal;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
@@ -14,6 +17,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.method.HandlerMethod;
 
@@ -63,6 +68,7 @@ class JwtTokenInterceptorCharacterizationTest {
     void clearContexts() {
         AuthenticationContext.clear();
         AuthorizationContext.clear();
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -74,6 +80,7 @@ class JwtTokenInterceptorCharacterizationTest {
         assertThat(interceptor.preHandle(request, response, handlerMethod)).isFalse();
         assertThat(response.getStatus()).isEqualTo(401);
         assertThat(new String(response.getContentAsByteArray(), StandardCharsets.UTF_8)).isEmpty();
+        assertNoSecurityAuthentication();
         verify(qpsCounter).increment();
     }
 
@@ -85,6 +92,7 @@ class JwtTokenInterceptorCharacterizationTest {
 
         assertThat(interceptor.preHandle(request, response, handlerMethod)).isFalse();
         assertUnauthorizedJson(response, "认证令牌无效或已过期");
+        assertNoSecurityAuthentication();
     }
 
     @Test
@@ -92,11 +100,13 @@ class JwtTokenInterceptorCharacterizationTest {
         JwtTokenUserInterceptor interceptor = userInterceptor();
         String token = userToken(USER_ID);
         when(valueOperations.get(SecurityTokenKeyGenerator.getUserLoginKey(USER_ID))).thenReturn(null);
+        SecurityContextBridge.authenticate(999L, SecurityIdentity.ADMIN);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         assertThat(interceptor.preHandle(bearerRequest(token), response, handlerMethod)).isFalse();
 
         assertUnauthorizedJson(response, "认证令牌无效或已过期");
+        assertNoSecurityAuthentication();
     }
 
     @Test
@@ -110,10 +120,12 @@ class JwtTokenInterceptorCharacterizationTest {
         assertThat(interceptor.preHandle(request, response, handlerMethod)).isTrue();
         assertThat(AuthenticationContext.getCurrentId()).isEqualTo(USER_ID);
         assertThat(AuthorizationContext.isAdmin()).isFalse();
+        assertSecurityAuthentication(USER_ID, SecurityIdentity.USER);
 
         interceptor.afterCompletion(request, response, handlerMethod, null);
         assertThat(AuthenticationContext.getCurrentIdWithoutValidation()).isNull();
         assertThat(AuthorizationContext.isAdmin()).isFalse();
+        assertNoSecurityAuthentication();
     }
 
     @Test
@@ -127,10 +139,12 @@ class JwtTokenInterceptorCharacterizationTest {
         assertThat(interceptor.preHandle(request, response, handlerMethod)).isTrue();
         assertThat(AuthenticationContext.getCurrentId()).isEqualTo(ADMIN_ID);
         assertThat(AuthorizationContext.isAdmin()).isTrue();
+        assertSecurityAuthentication(ADMIN_ID, SecurityIdentity.ADMIN);
 
         interceptor.afterCompletion(request, response, handlerMethod, null);
         assertThat(AuthenticationContext.getCurrentIdWithoutValidation()).isNull();
         assertThat(AuthorizationContext.isAdmin()).isFalse();
+        assertNoSecurityAuthentication();
     }
 
     @Test
@@ -143,6 +157,7 @@ class JwtTokenInterceptorCharacterizationTest {
         assertThat(interceptor.preHandle(bearerRequest(token), response, handlerMethod)).isFalse();
 
         assertUnauthorizedJson(response, "认证令牌已过期");
+        assertNoSecurityAuthentication();
     }
 
     @Test
@@ -163,20 +178,24 @@ class JwtTokenInterceptorCharacterizationTest {
 
         assertThat(interceptor.preHandle(request, response, handlerMethod)).isTrue();
         assertThat(AuthenticationContext.getCurrentId()).isEqualTo(USER_ID);
+        assertSecurityAuthentication(USER_ID, SecurityIdentity.ACTIVATION);
 
         interceptor.afterCompletion(request, response, handlerMethod, null);
         assertThat(AuthenticationContext.getCurrentIdWithoutValidation()).isNull();
+        assertNoSecurityAuthentication();
     }
 
     @Test
     void activeInterceptorRejectsTokenWithoutActivationFlag() throws Exception {
         JwtTokenActiveInterceptor interceptor = activeInterceptor();
         String token = activeToken(USER_ID, false);
+        SecurityContextBridge.authenticate(999L, SecurityIdentity.USER);
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/user/user/active/" + token);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         assertThat(interceptor.preHandle(request, response, handlerMethod)).isFalse();
         assertUnauthorizedJson(response, "并激活令牌，无法激活账号");
+        assertNoSecurityAuthentication();
     }
 
     @Test
@@ -196,6 +215,7 @@ class JwtTokenInterceptorCharacterizationTest {
 
         assertThat(interceptor.preHandle(request, response, handlerMethod)).isFalse();
         assertUnauthorizedJson(response, "认证令牌无效或已过期");
+        assertNoSecurityAuthentication();
     }
 
     @Test
@@ -256,6 +276,20 @@ class JwtTokenInterceptorCharacterizationTest {
         assertThat(new String(response.getContentAsByteArray(), StandardCharsets.UTF_8))
                 .contains("\"code\":0")
                 .contains("\"msg\":\"" + message + "\"");
+    }
+
+    private static void assertSecurityAuthentication(long id, SecurityIdentity identity) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(authentication).isNotNull();
+        assertThat(authentication.isAuthenticated()).isTrue();
+        assertThat(authentication.getPrincipal()).isEqualTo(new SecurityPrincipal(id, identity));
+        assertThat(authentication.getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly(identity.authority());
+    }
+
+    private static void assertNoSecurityAuthentication() {
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     private static final class HandlerTarget {
