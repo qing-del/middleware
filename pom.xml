@@ -28,7 +28,6 @@
 
         <!-- Legacy modules kept buildable while code is migrated vertically. -->
         <module>middleware-common-legacy</module>
-        <module>middleware-pojo</module>
         <module>middleware-server</module>
     </modules>
 

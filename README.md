@@ -25,7 +25,6 @@
 | 模块 | 用途 |
 | --- | --- |
 | `middleware-server` | Spring Boot 主应用 —— Controller / Service / Mapper / Aspect / 定时任务 |
-| `middleware-pojo` | 实体类、DTO、VO 等领域对象 |
 | `middleware-common` | 通用工具、异常类、常量、`Result` / `PageResult`、枚举 |
 | `aliyun-oss-spring-boot-autoconfigure` | 阿里云 OSS 自动装配 |
 | `aliyun-oss-spring-boot-starter` | 阿里云 OSS Starter 入口 |
