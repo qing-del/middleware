@@ -67,3 +67,4 @@ AGENTS.md
 /docker/
 /docker/**
 /frontend/.env.production
+/.agents/
