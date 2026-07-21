@@ -16,10 +16,7 @@ import com.jacolp.middleware.module.system.biz.application.dto.user.UserRegister
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.middleware.module.system.biz.application.vo.user.UserDetailVO;
 import com.jacolp.middleware.module.system.biz.application.vo.user.UserOverviewVO;
-import com.jacolp.middleware.common.security.jwt.JwtProperties;
-import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
-import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
-import com.jacolp.middleware.common.security.token.SecurityTokenKeyGenerator;
+import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.module.system.biz.application.service.UserUserService;
 import com.jacolp.utils.EmailUtil;
 import jakarta.validation.Valid;
@@ -27,7 +24,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -42,8 +38,7 @@ import java.util.Map;
 public class UserUserServiceImpl implements UserUserService {
     @Autowired private UserMapper userMapper;
 
-    @Autowired private StringRedisTemplate redis;
-    @Autowired private JwtProperties jwtProperties;
+    @Autowired private TokenSessionService tokenSessionService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private EmailSenderServiceImpl emailSenderService;
 
@@ -76,19 +71,12 @@ public class UserUserServiceImpl implements UserUserService {
         }
 
         // 将用户ID写入 JWT，后续请求会通过拦截器解析出来
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(SecurityTokenConstants.USER_ID_CLAIM, user.getId());
-        String jwt = JwtTokenSupport.createJWT(jwtProperties.getUserSecretKey(), jwtProperties.getUserTtl(), claims);
-
-        // 将 jwt 存入 Redis
-        redis.opsForValue().set(SecurityTokenKeyGenerator.getUserLoginKey(user.getId()), jwt);
-
-        return jwt;
+        return tokenSessionService.issueUserLoginToken(user.getId());
     }
 
     @Override
     public void logout() {
-        redis.delete(SecurityTokenKeyGenerator.getUserLoginKey(BaseContext.getCurrentId()));
+        tokenSessionService.revokeUserLoginToken(BaseContext.getCurrentId());
     }
 
     @Override
@@ -326,9 +314,7 @@ public class UserUserServiceImpl implements UserUserService {
         }
 
         // 尝试使用 Redis 做用户速率限制
-        String cooldownKey = SecurityTokenKeyGenerator.getActivationEmailCooldownKey(user.getId());
-        Boolean acquired = redis.opsForValue().setIfAbsent(cooldownKey, "1", Duration.ofSeconds(60));
-        if (!Boolean.TRUE.equals(acquired)) {
+        if (!tokenSessionService.acquireActivationEmailCooldown(user.getId())) {
             throw new BaseException(UserConstant.ACTIVATION_EMAIL_SEND_TOO_FREQUENT);
         }
 
@@ -339,16 +325,12 @@ public class UserUserServiceImpl implements UserUserService {
 
     @Override
     public String verifyActivationCode(String code) {
-        String redisKey = SecurityTokenKeyGenerator.getActiveCodeKey(code);
-
-        // 获取用户ID
-        String userIdStr = redis.opsForValue().get(redisKey);
-        if (userIdStr == null) {
+        Long userId = tokenSessionService.findActivationCodeUserId(code);
+        if (userId == null) {
             throw new BaseException("激活码无效或已过期");
         }
-        Long userId = Long.valueOf(userIdStr);
         String result = activeAccount(userId);
-        redis.delete(redisKey);
+        tokenSessionService.deleteActivationCode(code);
         return result;
     }
 
@@ -391,20 +373,12 @@ public class UserUserServiceImpl implements UserUserService {
 
     @Override
     public String verifyEmailChangeCode(String code) {
-        String redisKey = SecurityTokenKeyGenerator.getEmailChangeCodeKey(code);
-        String storedValue = redis.opsForValue().get(redisKey);
-        if (storedValue == null) {
+        TokenSessionService.EmailChangeCode stored = tokenSessionService.findEmailChangeCode(code);
+        if (stored == null) {
             throw new BaseException("验证码无效或已过期");
         }
-
-        int pipeIndex = storedValue.lastIndexOf('|');
-        if (pipeIndex <= 0 || pipeIndex >= storedValue.length() - 1) {
-            redis.delete(redisKey);
-            throw new BaseException("验证码无效或已过期");
-        }
-
-        Long userId = Long.valueOf(storedValue.substring(0, pipeIndex));
-        String newEmail = storedValue.substring(pipeIndex + 1);
+        Long userId = stored.userId();
+        String newEmail = stored.newEmail();
 
         Long currentUserId = BaseContext.getCurrentId();
         if (!userId.equals(currentUserId)) {
@@ -421,7 +395,7 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
         }
 
-        redis.delete(redisKey);
+        tokenSessionService.deleteEmailChangeCode(code);
         log.info("Email changed successfully, userId: {}, newEmail: {}", userId, newEmail);
         return "邮箱修改成功";
     }

@@ -8,10 +8,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
-import com.jacolp.middleware.common.security.jwt.JwtProperties;
-import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
-import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
-import com.jacolp.middleware.common.security.token.SecurityTokenKeyGenerator;
+import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.module.system.biz.application.service.EmailSenderService;
 import com.jacolp.middleware.module.system.biz.application.dto.email.EmailSendDTO;
 import com.jacolp.middleware.module.system.biz.application.dto.email.EmailResultDTO;
@@ -20,7 +17,6 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -37,10 +33,9 @@ public class EmailSenderServiceImpl implements EmailSenderService {
     @Autowired private TemplateEngine templateEngine;
 
     // 配置
-    @Autowired private JwtProperties jwtProperties;
+    @Autowired private TokenSessionService tokenSessionService;
 
     // Mapper & Redis
-    @Autowired private StringRedisTemplate redis;
     @Autowired private UserMapper userMapper;
 
     @Value("${jacolp.base-url}")
@@ -51,30 +46,21 @@ public class EmailSenderServiceImpl implements EmailSenderService {
 
     @Override
     public String sendActivationEmail(UserDO user) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(SecurityTokenConstants.ACTIVE_SIGN_KEY, true);
-        claims.put(SecurityTokenConstants.USER_ID_CLAIM, user.getId());
-        String token = JwtTokenSupport.createJWT(
-                jwtProperties.getActiveSecretKey(),
-                jwtProperties.getActiveTtl(),
-                claims);
+        String token = tokenSessionService.issueActivationToken(user.getId());
 
         String activationUrl = normalizeBaseUrl(baseUrl) + "/activate/" + token;
 
         // 生成 6 位数字激活码并存入 Redis
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
-        redis.opsForValue().set(
-                SecurityTokenKeyGenerator.getActiveCodeKey(code),
-                String.valueOf(user.getId()),
-                Duration.ofMillis(jwtProperties.getActiveCodeTtl()));
+        tokenSessionService.saveActivationCode(code, user.getId());
         log.info("Activation code generated for user: {}", user.getId());
 
         // 设置邮件内容
         Context ctx = new Context();
         ctx.setVariable("username", user.getUsername());
         ctx.setVariable("activationUrl", activationUrl);
-        ctx.setVariable("linkExpiryMinutes", jwtProperties.getActiveTtl() / 60000);
-        ctx.setVariable("codeExpiryMinutes", jwtProperties.getActiveCodeTtl() / 60000);
+        ctx.setVariable("linkExpiryMinutes", tokenSessionService.activationLinkExpiryMinutes());
+        ctx.setVariable("codeExpiryMinutes", tokenSessionService.activationCodeExpiryMinutes());
         ctx.setVariable("activationCode", code);
         // 渲染邮件内容
         String html = templateEngine.process("email/activation", ctx);
@@ -165,10 +151,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
 
         // 存储验证码到 Redis
-        redis.opsForValue().set(
-                SecurityTokenKeyGenerator.getEmailChangeCodeKey(code),
-                user.getId() + "|" + newEmail,
-                Duration.ofMillis(jwtProperties.getActiveTtl()));
+        tokenSessionService.saveEmailChangeCode(code, user.getId(), newEmail);
         log.info("Email change code generated for user: {}, new email: {}", user.getId(), newEmail);
 
         // 构建邮件内容
@@ -176,7 +159,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
         ctx.setVariable("username", user.getUsername());
         ctx.setVariable("newEmail", newEmail);
         ctx.setVariable("verificationCode", code);
-        ctx.setVariable("expiryMinutes", jwtProperties.getActiveTtl() / 60000);
+        ctx.setVariable("expiryMinutes", tokenSessionService.emailChangeCodeExpiryMinutes());
         String html = templateEngine.process("email/email-change", ctx);
 
         // 发送 HTML 邮件
