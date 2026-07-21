@@ -1,123 +1,54 @@
 package com.jacolp.middleware.common.web.config;
 
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
-import com.jacolp.middleware.common.security.interceptor.JwtTokenActiveInterceptor;
-import com.jacolp.middleware.common.security.interceptor.JwtTokenAdminInterceptor;
-import com.jacolp.middleware.common.security.interceptor.JwtTokenUserInterceptor;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.models.GroupedOpenApi;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 @Slf4j
-public class WebMvcConfiguration implements WebMvcConfigurer  {
-    @Autowired private JwtTokenAdminInterceptor jwtTokenAdminInterceptor;
-    @Autowired private JwtTokenUserInterceptor jwtTokenUserInterceptor;
-    @Autowired private JwtTokenActiveInterceptor jwtTokenActiveInterceptor;
+public class WebMvcConfiguration implements WebMvcConfigurer {
 
     @Bean
     public QpsCounter qpsCounter() {
         return new QpsCounter();
     }
 
-    /**
-     * 注册自定义拦截器
-     * @param registry 拦截器注册器
-     */
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        log.info("Start registering custom interceptors...");
-
-        // 管理端拦截器
-        registry.addInterceptor(jwtTokenAdminInterceptor)
-                .addPathPatterns("/admin/**")
-                .excludePathPatterns("/admin/user/login")
-                .excludePathPatterns("/admin/audio/callback/**")
-                .excludePathPatterns(
-                        "/doc.html",
-                        "/webjars/**",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html"
-                );
-
-        // 用户端拦截器
-        registry.addInterceptor(jwtTokenUserInterceptor)
-                .addPathPatterns("/user/**")
-                .excludePathPatterns("/user/user/login")
-                .excludePathPatterns("/user/user/register")
-                .excludePathPatterns("/user/user/active-code")      // 放行使用激活码的接口
-                .excludePathPatterns("/user/user/resend-activation")    // 放行重发重发验证码的端口
-                .excludePathPatterns("/user/user/active/**");   // 将激活接口放行
-
-
-        // 用户激活接口
-        registry.addInterceptor(jwtTokenActiveInterceptor)
-                .addPathPatterns("/user/user/active/**");
-    }
-
-    /**
-     * 创建API信息
-     */
     @Bean
     public OpenAPI customOpenAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("个人SaaS中台项目")
-                        .version("0.0.1")
-                        .description("个人SaaS中台项目接口文档"));
+        return new OpenAPI().info(new Info()
+                .title("个人SaaS中台项目")
+                .version("0.0.1")
+                .description("个人SaaS中台项目接口文档"));
     }
 
-    /**
-     * 创建 admin 部分的接口文档
-     */
     @Bean
     public GroupedOpenApi adminApi() {
-        return GroupedOpenApi.builder()
-                .group("admin 端接口")
-                .packagesToScan("com.jacolp.controller.admin")
-                .build();
+        return GroupedOpenApi.builder().group("admin 端接口")
+                .packagesToScan("com.jacolp.controller.admin").build();
     }
 
-    /**
-     * 创建 user 部分的接口文档
-     */
     @Bean
     public GroupedOpenApi userApi() {
-        return GroupedOpenApi.builder()
-                .group("user 端接口")
-                .packagesToScan("com.jacolp.controller.user")
-                .build();
+        return GroupedOpenApi.builder().group("user 端接口")
+                .packagesToScan("com.jacolp.controller.user").build();
     }
 
-    /**
-     * 创建 guest 部分的接口文档
-     */
     @Bean
     public GroupedOpenApi guestApi() {
-        return GroupedOpenApi.builder()
-                .group("guest 端接口")
-                .packagesToScan("com.jacolp.controller.guest")
-                .build();
+        return GroupedOpenApi.builder().group("guest 端接口")
+                .packagesToScan("com.jacolp.controller.guest").build();
     }
 
-
-    /**
-     * 设置静态资源映射
-     * @param registry 资源处理器注册器
-     */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         log.info("Start setting up static resource mapping...");
         registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
         registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
     }
-
 }
