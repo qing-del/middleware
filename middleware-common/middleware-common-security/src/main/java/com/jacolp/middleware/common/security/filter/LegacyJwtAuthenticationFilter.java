@@ -121,8 +121,6 @@ public final class LegacyJwtAuthenticationFilter extends OncePerRequestFilter {
                         ? "认证令牌已过期" : "认证令牌无效或已过期"));
                 return false;
             }
-            AuthenticationContext.setCurrentId(id);
-            AuthorizationContext.setAdmin(identity == SecurityIdentity.ADMIN);
             SecurityContextBridge.authenticate(id, identity);
             return true;
         } catch (Exception ex) {
@@ -138,7 +136,6 @@ public final class LegacyJwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Claims claims = JwtTokenSupport.parseJWT(jwtProperties.getActiveSecretKey(), token);
             Long userId = Long.valueOf(claims.get(SecurityTokenConstants.USER_ID_CLAIM).toString());
-            AuthenticationContext.setCurrentId(userId);
             boolean activeCode = Boolean.parseBoolean(claims.get(SecurityTokenConstants.ACTIVE_SIGN_KEY).toString());
             if (!activeCode) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

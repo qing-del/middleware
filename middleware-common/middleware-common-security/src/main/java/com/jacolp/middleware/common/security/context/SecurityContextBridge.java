@@ -22,4 +22,26 @@ public final class SecurityContextBridge {
     public static void clear() {
         SecurityContextHolder.clearContext();
     }
+
+    public static Long currentIdOrNull() {
+        SecurityPrincipal principal = principalOrNull();
+        return principal == null ? null : principal.id();
+    }
+
+    /** Returns null when no compatible holder identity exists, so callers can use their legacy fallback. */
+    public static Boolean isAdminOrNull() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof SecurityPrincipal)) {
+            return null;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> SecurityIdentity.ADMIN.authority().equals(authority.getAuthority()));
+    }
+
+    private static SecurityPrincipal principalOrNull() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof SecurityPrincipal principal ? principal : null;
+    }
 }

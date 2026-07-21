@@ -1,6 +1,8 @@
 package com.jacolp.middleware.common.security.filter;
 
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
+import com.jacolp.context.BaseContext;
+import com.jacolp.context.PermissionContext;
 import com.jacolp.middleware.common.security.context.AuthenticationContext;
 import com.jacolp.middleware.common.security.context.AuthorizationContext;
 import com.jacolp.middleware.common.security.context.SecurityIdentity;
@@ -82,8 +84,8 @@ class LegacyJwtAuthenticationFilterTest {
         handlerMethod(request);
         FilterChain chain = mock(FilterChain.class);
         doAnswer(invocation -> {
-            assertThat(AuthenticationContext.getCurrentId()).isEqualTo(USER_ID);
-            assertThat(AuthorizationContext.isAdmin()).isFalse();
+            assertThat(BaseContext.getCurrentId()).isEqualTo(USER_ID);
+            assertThat(PermissionContext.isAdmin()).isFalse();
             assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
                     .isEqualTo(new SecurityPrincipal(USER_ID, SecurityIdentity.USER));
             return null;
@@ -145,7 +147,7 @@ class LegacyJwtAuthenticationFilterTest {
         handlerMethod(valid);
         FilterChain chain = mock(FilterChain.class);
         doAnswer(invocation -> {
-            assertThat(AuthorizationContext.isAdmin()).isTrue();
+            assertThat(PermissionContext.isAdmin()).isTrue();
             assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
                     .isEqualTo(new SecurityPrincipal(7L, SecurityIdentity.ADMIN));
             return null;

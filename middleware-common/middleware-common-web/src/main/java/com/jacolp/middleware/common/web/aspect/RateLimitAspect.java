@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import com.jacolp.middleware.common.security.context.AuthenticationContext;
+import com.jacolp.context.BaseContext;
 import com.jacolp.middleware.common.web.annotation.RateLimit;
 import com.jacolp.middleware.common.web.annotation.RateLimits;
 
@@ -113,7 +113,7 @@ public class RateLimitAspect {
      * @return
      */
     private String buildKey(RateLimit limit, MethodSignature signature) {
-        Long userId = AuthenticationContext.getCurrentIdWithoutValidation();
+        Long userId = BaseContext.getCurrentIdWithoutValid();
         String methodKey = signature.getDeclaringType().getSimpleName() + "." + signature.getName();
         String identity = userId != null ? "user:" + userId : "ip:" + getClientIp();
         return limit.prefix() + ":" + methodKey + ":" + identity + ":" + limit.windowSeconds();
