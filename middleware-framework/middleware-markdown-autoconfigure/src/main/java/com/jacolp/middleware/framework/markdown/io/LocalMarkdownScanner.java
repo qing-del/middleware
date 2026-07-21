@@ -87,8 +87,9 @@ import java.util.stream.Stream;
  *
  * <h3>Spring Boot 装配方式</h3>
  * <p>
- * 本类通过 {@link com.jacolp.MarkdownAutoConfiguration} 中的 {@code @Bean} 方法自动注册。
- * 只要您的项目引入了 {@code flexmark-jacolp-starter} 依赖，就可以直接
+ * 本类通过 {@link com.jacolp.middleware.framework.markdown.MarkdownAutoConfiguration}
+ * 中的 {@code @Bean} 方法自动注册。只要项目引入了
+ * {@code middleware-markdown-starter} 依赖，就可以直接
  * {@code @Autowired} 注入使用，无需任何额外配置。
  * </p>
  */

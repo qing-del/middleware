@@ -1,8 +1,8 @@
-# flexmark-jacolp-autoconfigure
+# middleware-markdown-autoconfigure
 
 基于 [Flexmark-Java](https://github.com/vsch/flexmark-java) 构建的 **Markdown → HTML 解析引擎模块**，专为中文技术笔记（Obsidian 风格）量身打造。
 
-采用**五层解耦架构**，内置 Spring Boot AutoConfiguration，通过配套的 `flexmark-jacolp-starter` 模块即可实现零代码接入。
+采用**五层解耦架构**，内置 Spring Boot AutoConfiguration，通过配套的 `middleware-markdown-starter` 模块即可实现零代码接入。
 
 ---
 
@@ -30,12 +30,12 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         flexmark-jacolp-starter                             │
+│                       middleware-markdown-starter                           │
 │                        （零代码空壳模块，仅声明依赖）                            │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 │ 依赖
 ┌───────────────────────────────▼─────────────────────────────────────────────┐
-│                    flexmark-jacolp-autoconfigure                             │
+│                  middleware-markdown-autoconfigure                          │
 │                                                                             │
 │  MarkdownAutoConfiguration（Spring Bean 注册 & AutoConfiguration 入口）       │
 │         │                                                                   │
@@ -51,17 +51,18 @@
 ### 源码结构
 
 ```
-flexmark-jacolp-autoconfigure/src/main/java/com/jacolp/
-├── MarkdownAutoConfiguration.java    # Spring Boot 自动配置入口
-├── MarkdownProperty.java             # YAML 配置属性绑定（jacolp.markdown.*）
-├── converter/
-│   ├── MarkdownHtmlEngine.java       # 核心解析引擎：Markdown → 结构化 HTML（零 I/O）
-│   ├── MarkdownPlugin.java           # 插件扩展接口：preProcess / postProcess 钩子
-│   └── MarkdownPublishService.java   # 发布门面：编排引擎 + CSS/JS 套壳 + 存储
-└── io/
-    ├── FileStorageService.java       # 存储抽象接口（DIP 设计）
-    ├── LocalFileStorageService.java  # 本地文件系统存储实现
-    └── LocalMarkdownScanner.java     # 全量扫描调度器（手动触发）
+middleware-framework/middleware-markdown-autoconfigure/
+└── src/main/java/com/jacolp/middleware/framework/markdown/
+    ├── MarkdownAutoConfiguration.java    # Spring Boot 自动配置入口
+    ├── MarkdownProperty.java             # YAML 配置属性绑定（jacolp.markdown.*）
+    ├── converter/
+    │   ├── MarkdownHtmlEngine.java       # 核心解析引擎：Markdown → 结构化 HTML（零 I/O）
+    │   ├── MarkdownPlugin.java           # 插件扩展接口：preProcess / postProcess 钩子
+    │   └── MarkdownPublishService.java   # 发布门面：编排引擎 + CSS/JS 套壳 + 存储
+    └── io/
+        ├── FileStorageService.java       # 存储抽象接口（DIP 设计）
+        ├── LocalFileStorageService.java  # 本地文件系统存储实现
+        └── LocalMarkdownScanner.java     # 全量扫描调度器（手动触发）
 ```
 
 **职责分离原则**：
@@ -82,7 +83,7 @@ flexmark-jacolp-autoconfigure/src/main/java/com/jacolp/
 
 - Java **21+**
 - Maven **3.8+**
-- Spring Boot **3.x+**
+- Spring Boot **4.x**
 
 ### 方式一：通过 Starter 零配置引入（推荐）
 
@@ -91,7 +92,7 @@ flexmark-jacolp-autoconfigure/src/main/java/com/jacolp/
 ```xml
 <dependency>
     <groupId>com.jacolp</groupId>
-    <artifactId>flexmark-jacolp-starter</artifactId>
+    <artifactId>middleware-markdown-starter</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 </dependency>
 ```

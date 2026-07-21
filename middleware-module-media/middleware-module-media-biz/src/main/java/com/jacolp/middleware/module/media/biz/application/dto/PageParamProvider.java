@@ -1,6 +1,6 @@
 package com.jacolp.middleware.module.media.biz.application.dto;
 
-/** Temporary local pagination contract until shared transport primitives leave middleware-pojo. */
+/** Media application pagination contract. */
 public interface PageParamProvider {
     int DEFAULT_PAGE = 1;
     int DEFAULT_PAGE_SIZE = 15;
