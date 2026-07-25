@@ -20,6 +20,13 @@ public interface AudioTaskMapper {
      * @return 影响行数，0 表示 CAS 失败（状态已变更）
      */
     int casUpdateStatus(@Param("id") Long id, @Param("expectedStatus") Integer expectedStatus, @Param("newStatus") Integer newStatus, @Param("resultUrl") String resultUrl, @Param("errorMsg") String errorMsg, @Param("completedDate") LocalDate completedDate);
+
+    /**
+     * 查询 PENDING 和 PROCESSING 状态的任务，且创建时间早于指定时间的任务
+     * <p>最大限制返回 500 条数据</p>
+     * @param before
+     * @return
+     */
     List<AudioTaskDO> selectPendingTimeout(@Param("before") LocalDateTime before);
     @Select("SELECT user_id FROM audio_task WHERE id = #{taskId}") Long getUserIdByTaskId(@NotNull(message = "taskId 不能为空") Long taskId);
 }

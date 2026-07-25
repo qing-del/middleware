@@ -22,7 +22,7 @@ public class AudioTaskRetryTask {
     @Autowired private StringRedisTemplate redis;
     @Value("${jacolp.audio.queue-type:redis-stream}") private String queueType = "redis-stream";
 
-    /** 每 5 分钟扫描一次，将卡在 PENDING 超过 10 分钟的任务重新入队。 */
+    /** 每 5 分钟扫描一次，将卡在 PENDING 和 PROCESSOR 超过 10 分钟的任务重新入队。 */
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
     public void retryPendingTasks() {
         LocalDateTime timeout = LocalDateTime.now().minusMinutes(AudioConstant.TASK_TIMEOUT_MINUTES);
