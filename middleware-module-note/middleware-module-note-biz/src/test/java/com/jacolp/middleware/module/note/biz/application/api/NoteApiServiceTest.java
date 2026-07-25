@@ -1,19 +1,21 @@
 package com.jacolp.middleware.module.note.biz.application.api;
 
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteTagMappingMapper;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.TagMapper;
-import com.jacolp.middleware.module.note.api.command.ApplyNoteAuditCommand;
-import com.jacolp.middleware.module.note.api.command.ApplyMediaRelationAuditCommand;
-import com.jacolp.middleware.module.note.api.model.AuditDecision;
-import com.jacolp.middleware.module.note.api.model.NoteLifecycleStatus;
-import com.jacolp.middleware.module.note.api.model.NoteMediaReferenceSummary;
-import com.jacolp.middleware.module.note.api.model.NoteSummary;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.projection.MappingProjections.ImageNoteCount;
+import com.jacolp.module.note.biz.application.api.NoteAuditApplyApiService;
+import com.jacolp.module.note.biz.application.api.NoteReadApiService;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteTagMappingMapper;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.TagMapper;
+import com.jacolp.module.note.api.command.ApplyNoteAuditCommand;
+import com.jacolp.module.note.api.command.ApplyMediaRelationAuditCommand;
+import com.jacolp.module.note.api.model.AuditDecision;
+import com.jacolp.module.note.api.model.NoteLifecycleStatus;
+import com.jacolp.module.note.api.model.NoteMediaReferenceSummary;
+import com.jacolp.module.note.api.model.NoteSummary;
+import com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
+import com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteImageMappingDO;
+import com.jacolp.module.note.biz.infrastructure.persistence.projection.MappingProjections.ImageNoteCount;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;

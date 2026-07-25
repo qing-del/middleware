@@ -9,12 +9,13 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import com.jacolp.module.note.biz.application.service.NoteContextServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.jacolp.exception.BaseException;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteContextMapper;
+import com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteContextDO;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteContextMapper;
 
 class NoteContextServiceImplTest {
 

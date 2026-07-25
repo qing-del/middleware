@@ -1,12 +1,14 @@
 package com.jacolp.middleware.module.system.biz.application.api;
 
-import com.jacolp.middleware.module.system.api.UserProfileApi;
-import com.jacolp.middleware.module.system.api.quota.ConsumeQuotaCommand;
-import com.jacolp.middleware.module.system.api.quota.ConsumeQuotaResult;
-import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.ApiDailyUsageDO;
-import com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO;
-import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.ApiDailyUsageMapper;
-import com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.module.system.api.UserProfileApi;
+import com.jacolp.module.system.api.quota.ConsumeQuotaCommand;
+import com.jacolp.module.system.api.quota.ConsumeQuotaResult;
+import com.jacolp.module.system.biz.application.api.UserProfileApiService;
+import com.jacolp.module.system.biz.application.api.UserQuotaApiService;
+import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.ApiDailyUsageDO;
+import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.module.system.biz.infrastructure.persistence.mapper.ApiDailyUsageMapper;
+import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.utils.RoleDataComputerUtil;
 import org.junit.jupiter.api.Test;
 

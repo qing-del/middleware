@@ -1,9 +1,11 @@
 package com.jacolp.middleware.module.media.biz.application.api;
 
-import com.jacolp.middleware.module.media.api.command.MediaFileLookupCommand;
-import com.jacolp.middleware.module.media.api.model.MediaReviewStatus;
-import com.jacolp.middleware.module.media.biz.infrastructure.persistence.dataobject.ImageDO;
-import com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
+import com.jacolp.module.media.api.command.MediaFileLookupCommand;
+import com.jacolp.module.media.api.model.MediaReviewStatus;
+import com.jacolp.module.media.biz.application.api.MediaFileApiService;
+import com.jacolp.module.media.biz.application.api.MediaUsageApiService;
+import com.jacolp.module.media.biz.infrastructure.persistence.dataobject.ImageDO;
+import com.jacolp.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

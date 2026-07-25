@@ -1,6 +1,7 @@
 package com.jacolp.middleware.module.system.biz.domain.quota;
 
-import com.jacolp.middleware.module.system.api.quota.QuotaType;
+import com.jacolp.module.system.api.quota.QuotaType;
+import com.jacolp.module.system.biz.domain.quota.UserQuotaPolicy;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

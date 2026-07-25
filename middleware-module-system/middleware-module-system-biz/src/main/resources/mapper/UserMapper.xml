@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.jacolp.middleware.module.system.biz.infrastructure.persistence.mapper.UserMapper">
-        <insert id="upsertCreator" parameterType="com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO">
+<mapper namespace="com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper">
+        <insert id="upsertCreator" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
                 INSERT INTO sys_user (id, username, password, email, role_id, status, create_time, update_time)
                 VALUES (#{id}, #{username}, #{password}, #{email}, #{roleId}, #{status}, now(), now())
                 ON DUPLICATE KEY UPDATE
@@ -14,12 +14,12 @@
                 update_time = now()
         </insert>
 
-    <insert id="insertUser" parameterType="com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO" useGeneratedKeys="true" keyProperty="id">
+    <insert id="insertUser" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO sys_user (username, password, email, role_id, status, max_storage_bytes, create_time, update_time)
         VALUES (#{username}, #{password}, #{email}, #{roleId}, #{status}, #{maxStorageBytes}, now(), now())
     </insert>
 
-    <update id="updateById" parameterType="com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO">
+    <update id="updateById" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
                 UPDATE sys_user
                 <set>
                     <if test="username != null and username != ''">
@@ -51,7 +51,7 @@
                 WHERE id = #{id}
         </update>
 
-    <select id="listByCondition" resultType="com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO" parameterType="com.jacolp.middleware.module.system.biz.application.dto.user.UserListDTO">
+    <select id="listByCondition" resultType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO" parameterType="com.jacolp.module.system.biz.application.dto.user.UserListDTO">
                 SELECT
                     u.id,
                     u.username,
@@ -96,7 +96,7 @@
         </foreach>
     </delete>
 
-    <select id="selectByIds" resultType="com.jacolp.middleware.module.system.biz.infrastructure.persistence.dataobject.UserDO">
+    <select id="selectByIds" resultType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
         SELECT id, username, nickname, email, role_id, status, create_time, update_time
         FROM sys_user
         WHERE id IN
@@ -124,7 +124,7 @@
         update_time = now()
     </insert>
 
-    <select id="selectQuoteStorageByIds" resultType="com.jacolp.middleware.module.system.biz.application.dto.user.UserQuoteStorageDTO">
+    <select id="selectQuoteStorageByIds" resultType="com.jacolp.module.system.biz.application.dto.user.UserQuoteStorageDTO">
         SELECT
             id,
             role_id,

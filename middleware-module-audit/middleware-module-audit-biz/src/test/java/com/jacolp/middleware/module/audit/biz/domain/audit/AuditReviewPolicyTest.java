@@ -2,9 +2,10 @@ package com.jacolp.middleware.module.audit.biz.domain.audit;
 
 import com.jacolp.constant.AuditConstant;
 import com.jacolp.enums.AuditStatus;
-import com.jacolp.middleware.module.audit.api.AuditTargetType;
-import com.jacolp.middleware.module.audit.biz.domain.audit.AuditReviewPolicy.Outcome;
-import com.jacolp.middleware.module.audit.biz.domain.audit.AuditReviewPolicy.ReviewMode;
+import com.jacolp.module.audit.api.AuditTargetType;
+import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy;
+import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy.Outcome;
+import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy.ReviewMode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

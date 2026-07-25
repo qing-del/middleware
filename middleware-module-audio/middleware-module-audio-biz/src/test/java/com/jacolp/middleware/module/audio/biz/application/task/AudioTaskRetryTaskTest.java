@@ -1,9 +1,10 @@
 package com.jacolp.middleware.module.audio.biz.application.task;
 
-import com.jacolp.middleware.module.audio.biz.application.constant.AudioConstant;
-import com.jacolp.middleware.module.audio.biz.application.service.AudioTaskService;
-import com.jacolp.middleware.module.audio.biz.infrastructure.persistence.dataobject.AudioTaskDO;
-import com.jacolp.middleware.module.audio.biz.infrastructure.persistence.mapper.AudioTaskMapper;
+import com.jacolp.audio.biz.constant.AudioConstant;
+import com.jacolp.audio.biz.service.AudioTaskService;
+import com.jacolp.audio.biz.task.AudioTaskRetryTask;
+import com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO;
+import com.jacolp.audio.biz.persistence.mapper.AudioTaskMapper;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StreamOperations;

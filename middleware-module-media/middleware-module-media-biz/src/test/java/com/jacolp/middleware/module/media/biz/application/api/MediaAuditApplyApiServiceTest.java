@@ -1,12 +1,13 @@
 package com.jacolp.middleware.module.media.biz.application.api;
 
-import com.jacolp.middleware.module.media.api.command.ApplyMediaAuditCommand;
-import com.jacolp.middleware.module.media.api.model.MediaAuditDecision;
-import com.jacolp.middleware.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
-import com.jacolp.middleware.module.note.api.NoteAuditApplyApi;
-import com.jacolp.middleware.module.note.api.command.ApplyMediaRelationAuditCommand;
-import com.jacolp.middleware.module.note.api.model.AuditDecision;
-import com.jacolp.middleware.module.note.api.model.MediaRelationAuditApplyResult;
+import com.jacolp.module.media.api.command.ApplyMediaAuditCommand;
+import com.jacolp.module.media.api.model.MediaAuditDecision;
+import com.jacolp.module.media.biz.application.api.MediaAuditApplyApiService;
+import com.jacolp.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
+import com.jacolp.module.note.api.NoteAuditApplyApi;
+import com.jacolp.module.note.api.command.ApplyMediaRelationAuditCommand;
+import com.jacolp.module.note.api.model.AuditDecision;
+import com.jacolp.module.note.api.model.MediaRelationAuditApplyResult;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -1,8 +1,9 @@
 package com.jacolp.middleware.module.audio.biz.interfaces.web.common;
 
+import com.jacolp.audio.biz.controller.common.AudioCallbackController;
 import com.jacolp.exception.AuthenticationException;
-import com.jacolp.middleware.module.audio.biz.application.dto.AudioCallbackStartDTO;
-import com.jacolp.middleware.module.audio.biz.application.service.AudioTaskService;
+import com.jacolp.audio.biz.domain.dto.AudioCallbackStartDTO;
+import com.jacolp.audio.biz.service.AudioTaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;

@@ -10,12 +10,13 @@ import static org.mockito.ArgumentMatchers.anyList;
 
 import java.util.List;
 
+import com.jacolp.module.note.biz.application.service.NoteConvertServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.jacolp.exception.BaseException;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteConvertedDO;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteConvertMapper;
+import com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteConvertedDO;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteConvertMapper;
 
 class NoteConvertServiceImplTest {
 

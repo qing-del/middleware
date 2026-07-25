@@ -1,9 +1,11 @@
 package com.jacolp.middleware.framework.markdown;
 
-import com.jacolp.middleware.framework.markdown.converter.MarkdownHtmlEngine;
-import com.jacolp.middleware.framework.markdown.converter.MarkdownPublishService;
-import com.jacolp.middleware.framework.markdown.io.FileStorageService;
-import com.jacolp.middleware.framework.markdown.io.LocalMarkdownScanner;
+import com.jacolp.framework.markdown.MarkdownAutoConfiguration;
+import com.jacolp.framework.markdown.MarkdownProperty;
+import com.jacolp.framework.markdown.converter.MarkdownHtmlEngine;
+import com.jacolp.framework.markdown.converter.MarkdownPublishService;
+import com.jacolp.framework.markdown.io.FileStorageService;
+import com.jacolp.framework.markdown.io.LocalMarkdownScanner;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.jacolp.module.note.biz.application.service.NoteCoreServiceImpl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -17,13 +18,13 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
-import com.jacolp.middleware.module.audit.api.AuditApplicationApi;
-import com.jacolp.middleware.module.audit.api.AuditTargetType;
-import com.jacolp.middleware.module.audit.api.CancelAuditApplicationCommand;
-import com.jacolp.middleware.module.audit.api.CreateAuditApplicationCommand;
-import com.jacolp.middleware.module.audit.api.PendingAuditApplicationQuery;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
-import com.jacolp.middleware.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
+import com.jacolp.module.audit.api.AuditApplicationApi;
+import com.jacolp.module.audit.api.AuditTargetType;
+import com.jacolp.module.audit.api.CancelAuditApplicationCommand;
+import com.jacolp.module.audit.api.CreateAuditApplicationCommand;
+import com.jacolp.module.audit.api.PendingAuditApplicationQuery;
+import com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
+import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 
 class NoteCoreServiceImplTest {
 

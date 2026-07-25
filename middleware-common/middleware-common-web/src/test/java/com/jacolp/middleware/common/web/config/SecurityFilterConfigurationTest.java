@@ -1,12 +1,11 @@
 package com.jacolp.middleware.common.web.config;
 
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
-import com.jacolp.middleware.common.security.context.SecurityIdentity;
 import com.jacolp.middleware.common.security.filter.LegacyJwtAuthenticationFilter;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
+import com.jacolp.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
