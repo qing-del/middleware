@@ -29,6 +29,11 @@ spring:
           max-idle: 8
           min-idle: 0
           max-wait: 100ms
+  rabbitmq:
+    host: ${RABBITMQ_HOST:${jacolp.rabbitmq.host}}
+    port: ${RABBITMQ_PORT:${jacolp.rabbitmq.port}}
+    username: ${RABBITMQ_USERNAME:${jacolp.rabbitmq.username}}
+    password: ${RABBITMQ_PASSWORD:${jacolp.rabbitmq.password}}
   mail:
     host: ${jacolp.mail.host}
     port: ${jacolp.mail.port}
@@ -72,6 +77,7 @@ jacolp:
       enabled: true
   audio:
     callback-token: ${jacolp.audio.callback-token}
+    queue-type: ${AUDIO_QUEUE_TYPE:redis-stream}
   image:
     delete-image-task-time: 60 # 单位是分钟
 
