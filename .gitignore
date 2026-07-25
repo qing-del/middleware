@@ -68,3 +68,4 @@ AGENTS.md
 /docker/**
 /frontend/.env.production
 /.agents/
+/middleware-server/src/main/resources/application-home.yaml
