@@ -2,7 +2,7 @@
 
 基于 Spring Boot 4.x + JDK 21 的多模块中台服务，提供笔记（Markdown）管理、图片对象存储、标签/主题管理、审核工作流、邮件通知，以及基于 Redis Streams 的异步音频生成等能力。前端采用 Vue 3 + Arco Design + Tailwind CSS。
 
-接口分为 **管理端 (`/admin/**`)**、**用户端 (`/user/**`)** 与 **访客端 (`/guest/**`)**：管理端和用户端分别通过 JWT 拦截器鉴权，访客端提供公开笔记阅读能力；另有 **回调接口 (`/common/**`)** 供 Python 音频引擎内网调用。
+接口分为 **管理端 (`/admin/**`)**、**用户端 (`/user/**`)** 与 **访客端 (`/guest/**`)**：管理端和用户端通过无状态 Spring Security Filter 验证 JWT 并写入 `SecurityContext`，访客端提供公开笔记阅读能力；另有 **回调接口 (`/common/**`)** 供 Python 音频引擎内网调用。
 
 ---
 
@@ -24,13 +24,14 @@
 
 | 模块 | 用途 |
 | --- | --- |
-| `middleware-server` | Spring Boot 主应用 —— Controller / Service / Mapper / Aspect / 定时任务 |
-| `middleware-pojo` | 实体类、DTO、VO 等领域对象 |
-| `middleware-common` | 通用工具、异常类、常量、`Result` / `PageResult`、枚举 |
-| `aliyun-oss-spring-boot-autoconfigure` | 阿里云 OSS 自动装配 |
-| `aliyun-oss-spring-boot-starter` | 阿里云 OSS Starter 入口 |
-| `flexmark-jacolp-autoconfigure` | Markdown → HTML 自动装配 |
-| `flexmark-jacolp-starter` | flexmark Markdown 处理 Starter 入口 |
+| `middleware-server` | 运行时纯装配：启动类、基础配置与资源配置；不承载 Controller、Service、Mapper、Aspect 或业务任务 |
+| `middleware-common` | core、web、security 通用能力（结果、异常、Web 支持与认证上下文） |
+| `middleware-framework` | Markdown 与 OSS 的 starter / autoconfigure |
+| `middleware-module-system` | 用户、角色、登录、邮件、配额与监控 |
+| `middleware-module-note` | 笔记、主题、标签、关系与转换 |
+| `middleware-module-media` | 图片与对象存储业务 |
+| `middleware-module-audit` | 审核工作流 |
+| `middleware-module-audio` | 音频任务与 Redis Stream 工作流 |
 
 ### 前端
 
@@ -297,9 +298,9 @@ npm run dev
 ## 十、核心架构要点
 
 ### 10.1 路由与鉴权
-- `/admin/**` 经 `JwtTokenAdminInterceptor`；`/user/**` 经 `JwtTokenUserInterceptor`。
+- 显式 stateless `SecurityFilterChain` 使用 admin、user 与 activation 三类 Filter；`/admin/**` 与 `/user/**` 的公开路径、401 JSON、JWT/Redis 单 Token 与 QPS 合同保持兼容。
 - `/guest/**` 为公开访问入口，用于访客阅读公开笔记。
-- 拦截器解析 token → `JwtUtil.parseJWT` 校验 → 用户 ID 写入 `BaseContext`（ThreadLocal），`afterCompletion` 中清理。
+- Filter 解析 JWT 后将身份与 authority 写入 `SecurityContext`；`BaseContext` / `PermissionContext` 优先从 holder 读取，并保留 legacy fallback。
 
 ### 10.2 角色层级
 - 层级：CREATOR(1) > ADMIN(2) > USER(3) > LEVEL_1_VIP(4)
@@ -332,7 +333,7 @@ npm run dev
 
 | 类 | 用途 | 生命周期 |
 | --- | --- | --- |
-| `BaseContext` | 当前登录用户 ID | 拦截器设置，`afterCompletion` 清除 |
+| `BaseContext` | 当前登录用户 ID | 认证 Filter 写入的 `SecurityContext` holder 优先；兼容 legacy fallback |
 | `StorageUpdateContext` | 业务代码向切面传递存储变更数据（`Map<Long, Long>`） | 切面 `finally` 中清除 |
 | `NoteImageResolveContext` | 笔记图片解析时的当前笔记 ID | 业务方法内清除 |
 

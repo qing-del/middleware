@@ -3,7 +3,6 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-/middleware-server/src/test/
 
 ### STS ###
 .apt_generated
@@ -68,3 +67,5 @@ AGENTS.md
 /docker/
 /docker/**
 /frontend/.env.production
+/.agents/
+/middleware-server/src/main/resources/application-home.yaml

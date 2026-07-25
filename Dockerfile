@@ -1,51 +1,57 @@
 # ============================================================
-# ServerA — Spring Boot 后端镜像
-# 构建: docker build -f docker/serverA/Dockerfile.backend -t middleware-backend .
+# Middleware Spring Boot backend image
 # ============================================================
 
-# ---------- 阶段1: Maven 构建 ----------
+# ---------- Stage 1: Maven build ----------
 FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /build
 
-# 先复制 pom 文件利用 Docker 缓存层
+# Copy every current Maven descriptor first so dependency resolution is cached.
 COPY pom.xml .
-COPY middleware-server/pom.xml middleware-server/
-COPY middleware-pojo/pom.xml middleware-pojo/
+COPY middleware-dependencies/pom.xml middleware-dependencies/
 COPY middleware-common/pom.xml middleware-common/
-COPY aliyun-oss-spring-boot-starter/pom.xml aliyun-oss-spring-boot-starter/
-COPY aliyun-oss-spring-boot-autoconfigure/pom.xml aliyun-oss-spring-boot-autoconfigure/
-COPY flexmark-jacolp-starter/pom.xml flexmark-jacolp-starter/
-COPY flexmark-jacolp-autoconfigure/pom.xml flexmark-jacolp-autoconfigure/
+COPY middleware-common/middleware-common-core/pom.xml middleware-common/middleware-common-core/
+COPY middleware-common/middleware-common-security/pom.xml middleware-common/middleware-common-security/
+COPY middleware-common/middleware-common-web/pom.xml middleware-common/middleware-common-web/
+COPY middleware-framework/pom.xml middleware-framework/
+COPY middleware-framework/middleware-markdown-autoconfigure/pom.xml middleware-framework/middleware-markdown-autoconfigure/
+COPY middleware-framework/middleware-markdown-starter/pom.xml middleware-framework/middleware-markdown-starter/
+COPY middleware-framework/middleware-oss-autoconfigure/pom.xml middleware-framework/middleware-oss-autoconfigure/
+COPY middleware-framework/middleware-oss-starter/pom.xml middleware-framework/middleware-oss-starter/
+COPY middleware-module-audio/pom.xml middleware-module-audio/
+COPY middleware-module-audio/middleware-module-audio-biz/pom.xml middleware-module-audio/middleware-module-audio-biz/
+COPY middleware-module-audit/pom.xml middleware-module-audit/
+COPY middleware-module-audit/middleware-module-audit-api/pom.xml middleware-module-audit/middleware-module-audit-api/
+COPY middleware-module-audit/middleware-module-audit-biz/pom.xml middleware-module-audit/middleware-module-audit-biz/
+COPY middleware-module-media/pom.xml middleware-module-media/
+COPY middleware-module-media/middleware-module-media-api/pom.xml middleware-module-media/middleware-module-media-api/
+COPY middleware-module-media/middleware-module-media-biz/pom.xml middleware-module-media/middleware-module-media-biz/
+COPY middleware-module-note/pom.xml middleware-module-note/
+COPY middleware-module-note/middleware-module-note-api/pom.xml middleware-module-note/middleware-module-note-api/
+COPY middleware-module-note/middleware-module-note-biz/pom.xml middleware-module-note/middleware-module-note-biz/
+COPY middleware-module-system/pom.xml middleware-module-system/
+COPY middleware-module-system/middleware-module-system-api/pom.xml middleware-module-system/middleware-module-system-api/
+COPY middleware-module-system/middleware-module-system-biz/pom.xml middleware-module-system/middleware-module-system-biz/
+COPY middleware-server/pom.xml middleware-server/
 
 RUN mvn dependency:go-offline -B
 
-# 复制源码并构建
-COPY middleware-server/src middleware-server/src/
-COPY middleware-pojo/src middleware-pojo/src/
-COPY middleware-common/src middleware-common/src/
-# COPY aliyun-oss-spring-boot-starter/src aliyun-oss-spring-boot-starter/src/
-COPY aliyun-oss-spring-boot-autoconfigure/src aliyun-oss-spring-boot-autoconfigure/src/
-# COPY flexmark-jacolp-starter/src flexmark-jacolp-starter/src/
-COPY flexmark-jacolp-autoconfigure/src flexmark-jacolp-autoconfigure/src/
+# Copy the current project sources after the dependency cache layer.
+COPY . .
 
 RUN mvn clean package -pl middleware-server -am -DskipTests -B -Dmaven.test.skip=true
 
-# ---------- 阶段2: 运行镜像 ----------
+# ---------- Stage 2: runtime image ----------
 FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# 创建数据目录
 RUN mkdir -p /app/data/markdown/input /app/data/markdown/output
 
-# 复制 jar
 COPY --from=builder /build/middleware-server/target/*.jar app.jar
-
-# 复制 Docker 环境配置文件
 COPY application-docker.yml /app/config/application.yml
 
-# 健康检查 (需要 actuator)
 EXPOSE 8080
 
 ENV JAVA_OPTS="-Xms512m -Xmx1024m"

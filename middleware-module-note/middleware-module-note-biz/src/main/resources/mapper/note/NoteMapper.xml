@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteMapper">
+
+        <resultMap id="NoteEntityMap" type="com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteDO">
+                <id column="id" property="id"/>
+                <result column="user_id" property="userId"/>
+                <result column="topic_id" property="topicId"/>
+                <result column="title" property="title"/>
+                <result column="description" property="description"/>
+                <result column="storage_type" property="storageType"/>
+                <result column="status" property="status"/>
+                <result column="missing_info_mask" property="missingInfoMask"/>
+                <result column="missing_count" property="missingCount"/>
+                <result column="md_file_size" property="mdFileSize"/>
+                <result column="create_time" property="createTime"/>
+                <result column="update_time" property="updateTime"/>
+        </resultMap>
+
+        <resultMap id="NoteVOMap" type="com.jacolp.module.note.biz.application.vo.note.NoteVO">
+                <id column="id" property="id"/>
+                <result column="user_id" property="userId"/>
+                <result column="topic_id" property="topicId"/>
+                <result column="topic_name" property="topicName"/>
+                <result column="title" property="title"/>
+                <result column="description" property="description"/>
+                <result column="storage_type" property="storageType"/>
+                <result column="status" property="status"/>
+                <result column="missing_info_mask" property="missingInfoMask"/>
+                <result column="missing_count" property="missingCount"/>
+                <result column="md_file_size" property="mdFileSize"/>
+                <result column="create_time" property="createTime"/>
+                <result column="update_time" property="updateTime"/>
+        </resultMap>
+
+        <insert id="insertNote" parameterType="com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteDO" useGeneratedKeys="true" keyProperty="id">
+                INSERT INTO biz_note
+                (user_id, topic_id, title, description, storage_type, status, missing_info_mask, missing_count, md_file_size)
+                VALUES
+                (#{userId}, #{topicId}, #{title}, #{description}, #{storageType}, #{status}, #{missingInfoMask}, #{missingCount}, #{mdFileSize})
+        </insert>
+
+        <update id="updateNote" parameterType="com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteDO">
+                UPDATE biz_note
+                <set>
+                        <if test="userId != null">user_id = #{userId},</if>
+                        topic_id = #{topicId},
+                        <if test="title != null">title = #{title},</if>
+                        <if test="description != null">description = #{description},</if>
+                        <if test="storageType != null">storage_type = #{storageType},</if>
+                        <if test="status != null">status = #{status},</if>
+                        <if test="isChanging != null">is_changing = #{isChanging},</if>
+                        <if test="missingInfoMask != null">missing_info_mask = #{missingInfoMask},</if>
+                        <if test="missingCount != null">missing_count = #{missingCount},</if>
+                        <if test="mdFileSize != null">md_file_size = #{mdFileSize},</if>
+                        update_time = NOW(),
+                </set>
+                WHERE id = #{id}
+        </update>
+
+        <select id="selectVoById" resultMap="NoteVOMap">
+                SELECT
+                    n.*,
+                    t.topic_name AS topicName
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                WHERE n.id = #{id}
+        </select>
+
+        <select id="selectByIds" resultMap="NoteEntityMap">
+                SELECT id, user_id, topic_id, title, description,
+                           storage_type, status, missing_info_mask, missing_count, md_file_size,
+                           create_time, update_time
+                FROM biz_note
+                WHERE id IN
+                <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                </foreach>
+        </select>
+
+        <select id="selectByUserIdAndTitles" resultMap="NoteEntityMap">
+                SELECT id, user_id, topic_id, title, description,
+                           storage_type, status, missing_info_mask, missing_count, md_file_size,
+                           create_time, update_time
+                FROM biz_note
+                WHERE user_id = #{userId}
+                  <if test="titles != null">
+                          AND title IN
+                          <foreach collection="titles" item="title" open="(" separator="," close=")">
+                                  #{title}
+                          </foreach>
+                  </if>
+                  AND status != 8
+        </select>
+
+        <!-- 批量查询：命中 (user_id, topic_id, title(30), status) 联合索引 -->
+        <select id="selectByUserIdAndTopicIdAndTitles" resultMap="NoteEntityMap">
+                SELECT id, user_id, topic_id, title, description,
+                           storage_type, status, missing_info_mask, missing_count, md_file_size,
+                           create_time, update_time
+                FROM biz_note
+                WHERE user_id = #{userId}
+                  <choose>
+                          <when test="topicId == null">
+                                  AND topic_id IS NULL
+                          </when>
+                          <otherwise>
+                                  AND topic_id = #{topicId}
+                          </otherwise>
+                  </choose>
+                  AND status != 8
+                  AND title IN
+                <foreach collection="titles" item="title" open="(" separator="," close=")">
+                        #{title}
+                </foreach>
+        </select>
+
+        <select id="selectNoteSimpleByImageId" resultType="com.jacolp.module.note.biz.application.vo.note.NoteSimpleVO">
+                SELECT
+                        m.note_id AS id,
+                        m.note_title AS title,
+                        m.is_cross_user AS isCrossUser,
+                        n.status AS status,
+                        m.create_time AS createTime
+                FROM biz_note_image_mapping m
+                LEFT JOIN biz_note n ON n.id = m.note_id
+                WHERE m.image_id = #{imageId}
+                  AND m.is_deleted = 0
+        </select>
+
+        <select id="countByUserIdAndTopicIdAndTitle" resultType="int">
+                SELECT COUNT(1)
+                FROM biz_note
+                WHERE user_id = #{userId}
+                  <choose>
+                          <when test="topicId == null">
+                                  AND topic_id IS NULL
+                          </when>
+                          <otherwise>
+                                  AND topic_id = #{topicId}
+                          </otherwise>
+                  </choose>
+                  AND title = #{originalFilename}
+                  AND status != 8
+        </select>
+
+        <select id="listByCondition" resultMap="NoteVOMap">
+                SELECT n.id, n.user_id, n.topic_id, t.topic_name, n.title, n.description,
+                           n.storage_type, n.status, n.missing_info_mask, n.missing_count, n.md_file_size,
+                           n.create_time, n.update_time
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                <where>
+                        n.status != 8
+                        <if test="userId != null">AND n.user_id = #{userId}</if>
+                        <choose>
+                                <when test="unclassified != null and unclassified">
+                                        AND n.topic_id IS NULL
+                                </when>
+                                <when test="topicId != null">
+                                        AND n.topic_id = #{topicId}
+                                </when>
+                        </choose>
+                        <if test="title != null and title != ''">AND n.title LIKE CONCAT('%', #{title}, '%')</if>
+                        <if test="status != null">AND n.status = #{status}</if>
+                </where>
+                ORDER BY n.create_time DESC
+        </select>
+
+        <update id="softDeleteByIds">
+                UPDATE biz_note
+                SET status = 8
+                WHERE id IN
+                <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                </foreach>
+        </update>
+
+        <!-- 用户端列表查询：根据 globalScope 控制查询范围 -->
+        <select id="listByUserCondition" resultMap="NoteVOMap">
+                SELECT
+                    n.*,
+                    t.topic_name as topicName
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                <where>
+                        n.status != 8
+                        <choose>
+                                <when test="globalScope">
+                                        AND (n.user_id = #{userId} OR n.status = 6)
+                                </when>
+                                <otherwise>
+                                        AND n.user_id = #{userId}
+                                </otherwise>
+                        </choose>
+                        <choose>
+                                <when test="unclassified != null and unclassified">
+                                        AND n.topic_id IS NULL
+                                </when>
+                                <when test="topicId != null">
+                                        AND n.topic_id = #{topicId}
+                                </when>
+                        </choose>
+                        <if test="title != null and title != ''">AND n.title LIKE CONCAT('%', #{title}, '%')</if>
+                </where>
+                ORDER BY n.create_time DESC
+        </select>
+
+        <select id="listPublicPublished" resultMap="NoteVOMap">
+                SELECT
+                    n.id, n.topic_id, t.topic_name, n.title, n.description,
+                    n.storage_type, n.status, n.missing_info_mask, n.missing_count,
+                    n.md_file_size, n.create_time, n.update_time
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                <where>
+                        n.status = 6
+                        <if test="topicId != null">AND n.topic_id = #{topicId}</if>
+                        <if test="keyword != null and keyword != ''">AND n.title LIKE CONCAT('%', #{keyword}, '%')</if>
+                </where>
+                ORDER BY n.create_time DESC
+        </select>
+
+        <select id="selectPublicPublishedVoById" resultMap="NoteVOMap">
+                SELECT
+                    n.id, n.topic_id, t.topic_name, n.title, n.description,
+                    n.storage_type, n.status, n.missing_info_mask, n.missing_count,
+                    n.md_file_size, n.create_time, n.update_time
+                FROM biz_note n
+                LEFT JOIN biz_topic t ON t.id = n.topic_id
+                WHERE n.id = #{id}
+                  AND n.status = 6
+        </select>
+
+        <update id="updateStatus">
+                UPDATE biz_note
+                SET status = #{status},
+                    update_time = NOW()
+                WHERE id = #{id}
+        </update>
+
+        <update id="updateStatusByIds">
+                UPDATE biz_note
+                SET status = #{status},
+                    update_time = NOW()
+                WHERE id IN
+                <foreach collection="ids" item="id" open="(" separator="," close=")">
+                        #{id}
+                </foreach>
+        </update>
+
+        <update id="updateMissingInfoFields">
+                UPDATE biz_note
+                SET missing_info_mask = #{missingInfoMask},
+                    missing_count = #{missingCount},
+                    update_time = NOW()
+                WHERE id = #{id}
+        </update>
+
+        <update id="updateMissingCount">
+                UPDATE biz_note
+                SET missing_count = #{missingCount},
+                    update_time = NOW()
+                WHERE id = #{id}
+        </update>
+
+        <update id="updateNoteFieldsForCheck">
+                UPDATE biz_note
+                SET status = #{status},
+                    missing_info_mask = #{missingInfoMask},
+                    missing_count = #{missingCount},
+                    update_time = NOW()
+                WHERE id = #{id}
+        </update>
+
+</mapper>

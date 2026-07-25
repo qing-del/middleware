@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.module.audit.biz.infrastructure.persistence.mapper.MetaAuditMapper">
+
+    <resultMap id="MetaAuditRecordMap" type="com.jacolp.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO">
+        <id column="id" property="id"/>
+        <result column="applicant_user_id" property="applicantUserId"/>
+        <result column="apply_type" property="applyType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="apply_reason" property="applyReason"/>
+        <result column="status" property="status"/>
+        <result column="reviewer_user_id" property="reviewerUserId"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="create_time" property="createTime"/>
+        <result column="review_time" property="reviewTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="MetaAuditVOMap" type="com.jacolp.module.audit.biz.application.vo.MetaAuditVO">
+        <id column="id" property="id"/>
+        <result column="applicant_user_id" property="applicantUserId"/>
+        <result column="applicant_username" property="applicantUsername"/>
+        <result column="apply_type" property="applyType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="target_name" property="targetName"/>
+        <result column="apply_reason" property="applyReason"/>
+        <result column="status" property="status"/>
+        <result column="reviewer_user_id" property="reviewerUserId"/>
+        <result column="reviewer_username" property="reviewerUsername"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="create_time" property="createTime"/>
+        <result column="review_time" property="reviewTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="listByCondition" resultMap="MetaAuditVOMap">
+        SELECT
+            a.id,
+            a.applicant_user_id,
+            2 AS apply_type,
+            a.target_id,
+            a.apply_reason,
+            a.status,
+            a.reviewer_user_id,
+            a.reject_reason,
+            a.create_time,
+            a.review_time,
+            a.update_time
+        FROM biz_tag_audit_record a
+        <where>
+            <if test="status != null">
+                a.status = #{status}
+            </if>
+            <if test="applicantUserId != null">
+                AND a.applicant_user_id = #{applicantUserId}
+            </if>
+        </where>
+        ORDER BY a.update_time DESC, a.id DESC
+    </select>
+
+    <select id="selectPendingByIds" resultMap="MetaAuditRecordMap">
+        SELECT id, applicant_user_id, 2 AS apply_type, target_id, apply_reason, status,
+               reviewer_user_id, reject_reason, create_time, review_time, update_time
+        FROM biz_tag_audit_record
+        WHERE status = 1
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectPendingByApplyTypeAndTargetId" resultMap="MetaAuditRecordMap">
+        SELECT id, applicant_user_id, 2 AS apply_type, target_id, apply_reason, status,
+               reviewer_user_id, reject_reason, create_time, review_time, update_time
+        FROM biz_tag_audit_record
+        WHERE status = 1
+          AND target_id = #{targetId}
+        LIMIT 1
+    </select>
+
+    <update id="batchReviewByIds">
+        UPDATE biz_tag_audit_record
+        SET status = #{status},
+            reviewer_user_id = #{reviewerUserId},
+            reject_reason = #{rejectReason},
+            review_time = NOW(),
+            update_time = NOW()
+        WHERE status = 1
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <insert id="insertAuditRecord" parameterType="com.jacolp.module.audit.biz.infrastructure.persistence.dataobject.MetaAuditRecordDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_tag_audit_record (applicant_user_id, target_id, apply_reason, status, create_time)
+        VALUES (#{applicantUserId}, #{targetId}, #{applyReason}, 1, NOW())
+    </insert>
+
+</mapper>
