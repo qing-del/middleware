@@ -22,12 +22,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController("AudioCallbackController")
 @RequestMapping("/common/audio")
-@Slf4j @CrossOrigin("*") @Validated
+@Slf4j
+@CrossOrigin("*")
+@Validated
 @Schema(description = "Common - 音频任务回调")
 @Tag(name = "音频任务", description = "Python 引擎内网回调接口")
 public class AudioCallbackController {
-    @Autowired private AudioTaskService audioTaskService;
-    @Value("${jacolp.audio.callback-token}") private String callbackToken;
+    @Autowired
+    private AudioTaskService audioTaskService;
+    @Value("${jacolp.audio.callback-token}")
+    private String callbackToken;
 
     @GetMapping("/callback/test")
     @Operation(summary = "测试连接接口")

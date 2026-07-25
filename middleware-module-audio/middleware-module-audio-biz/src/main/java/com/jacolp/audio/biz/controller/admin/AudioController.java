@@ -20,11 +20,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController("Admin-AudioController")
 @RequestMapping("/admin/audio")
-@Slf4j @CrossOrigin("*") @Validated
+@Slf4j
+@CrossOrigin("*")
+@Validated
 @Schema(description = "Admin - 音频任务回调")
 @Tag(name = "Admin-音频任务", description = "管理端用于查看音频任务的接口")
 public class AudioController {
-    @Autowired private AudioTaskService audioTaskService;
+    @Autowired
+    private AudioTaskService audioTaskService;
 
     @PostMapping("/list")
     @Operation(summary = "分页查询任务列表", description = "按任务状态、任务创建时间分页查询任务列表。")
