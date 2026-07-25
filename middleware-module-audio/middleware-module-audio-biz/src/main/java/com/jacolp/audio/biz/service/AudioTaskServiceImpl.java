@@ -20,18 +20,13 @@ import com.jacolp.module.system.api.quota.ConsumeQuotaCommand;
 import com.jacolp.module.system.api.quota.ConsumeQuotaResult;
 import com.jacolp.module.system.api.quota.UserQuotaApi;
 import com.jacolp.result.PageResult;
-import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,16 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class AudioTaskServiceImpl implements AudioTaskService {
     @Autowired private AudioTaskMapper audioTaskMapper;
     @Autowired private UserQuotaApi userQuotaApi;
-    @Autowired private StringRedisTemplate redis;
-
-    @PostConstruct
-    public void initStreamGroup() {
-        try { redis.opsForStream().createGroup(AudioConstant.REDIS_STREAM_KEY, AudioConstant.STREAM_GROUP); log.info("Redis Stream group '{}' created", AudioConstant.STREAM_GROUP); }
-        catch (DataAccessException e) {
-            // 消费者组已存在，忽略
-            log.debug("Redis Stream group already exists: {}", e.getMessage());
-        }
-    }
+    @Autowired private AudioTaskPublisher audioTaskPublisher;
+    @Autowired private TransactionAfterCommitExecutor transactionAfterCommitExecutor;
 
     @Override @Transactional(rollbackFor = Exception.class)
     public AudioTaskSubmitVO submitTask(AudioTaskSubmitDTO dto) {
@@ -64,8 +51,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
         task.setStatus(AudioTaskLifecycle.initialStatus());
         audioTaskMapper.insert(task);
         log.info("Audio task created, taskId: {}, userId: {}", task.getId(), userId);
-        // 推入 Redis Stream
-        pushToStream(task);
+        transactionAfterCommitExecutor.execute(() -> audioTaskPublisher.publish(task));
         return new AudioTaskSubmitVO(task.getId(), AudioTaskLifecycle.initialStatus());
     }
 
@@ -112,19 +98,12 @@ public class AudioTaskServiceImpl implements AudioTaskService {
         return new PageResult(page.getTotal(), values);
     }
 
-    @Override public void requeueTask(AudioTaskDO task) { pushToStream(task); }
+    @Override public void requeueTask(AudioTaskDO task) { audioTaskPublisher.publish(task); }
 
     /** 检查用户今日 API 调用次数。 */
     private void checkDailyQuota(Long userId) {
         LocalDate today = LocalDate.now(); ConsumeQuotaResult result = userQuotaApi.consume(ConsumeQuotaCommand.dailyApiCall(userId, 1L, today));
         if (!result.consumed()) throw new RateLimitExceededException(String.format("今日 API 调用次数已达上限（%d 次），请明日再试", result.quota().limit()));
         // 原子递增（并发安全）
-    }
-
-    /** 推送音频任务到 Redis Stream 消息队列。 */
-    private void pushToStream(AudioTaskDO task) {
-        Map<String, String> payload = new HashMap<>();
-        payload.put("taskId", String.valueOf(task.getId())); payload.put("userId", String.valueOf(task.getUserId())); payload.put("speed", task.getSpeed().toPlainString()); payload.put("noiseType", task.getNoiseType()); payload.put("noiseFactor", task.getNoiseFactor().toPlainString()); payload.put("text", task.getSourceText());
-        redis.opsForStream().add(AudioConstant.REDIS_STREAM_KEY, payload); log.debug("Audio task pushed to stream, taskId: {}", task.getId());
     }
 }
