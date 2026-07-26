@@ -22,12 +22,12 @@ public interface AudioTaskMapper {
     int casUpdateStatus(@Param("id") Long id, @Param("expectedStatus") Integer expectedStatus, @Param("newStatus") Integer newStatus, @Param("resultUrl") String resultUrl, @Param("errorMsg") String errorMsg, @Param("completedDate") LocalDate completedDate);
 
     /**
-     * 仅将指定用户的 FAILED 任务恢复为 PENDING，避免重复请求重复投递。
+     * 将指定用户的 FAILED 任务标记为 RETRIED，避免重复创建重试任务。
      *
      * @return 影响行数，0 表示任务不存在、无权限或状态已变更
      */
-    int retryFailedTask(@Param("id") Long id, @Param("userId") Long userId,
-                        @Param("failedStatus") Integer failedStatus, @Param("pendingStatus") Integer pendingStatus);
+    int markTaskRetried(@Param("id") Long id, @Param("userId") Long userId,
+                        @Param("failedStatus") Integer failedStatus, @Param("retriedStatus") Integer retriedStatus);
 
     /**
      * 查询 PENDING 和 PROCESSING 状态的任务，且创建时间早于指定时间的任务

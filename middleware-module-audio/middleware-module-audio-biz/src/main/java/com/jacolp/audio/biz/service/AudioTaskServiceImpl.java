@@ -127,24 +127,29 @@ public class AudioTaskServiceImpl implements AudioTaskService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void retryFailedTask(Long taskId) {
+    public AudioTaskSubmitVO retryFailedTask(Long taskId) {
         Long userId = BaseContext.getCurrentId();
         AudioTaskDO task = audioTaskMapper.selectById(taskId);
         if (task == null || !task.getUserId().equals(userId))
             throw new BaseException("任务不存在或无权访问");
 
-        int updated = audioTaskMapper.retryFailedTask(taskId, userId,
-                AudioTaskLifecycle.Status.FAILED.code(), AudioTaskLifecycle.initialStatus());
+        int updated = audioTaskMapper.markTaskRetried(taskId, userId,
+                AudioTaskLifecycle.Status.FAILED.code(), AudioTaskLifecycle.Status.RETRIED.code());
         if (updated == 0)
             throw new BaseException("仅失败状态的任务可以重试");
 
-        task.setStatus(AudioTaskLifecycle.initialStatus());
-        task.setRetryTime(0);
-        task.setResultUrl(null);
-        task.setErrorMsg(null);
-        task.setCompletedDate(null);
-        transactionAfterCommitExecutor.execute(() -> audioTaskPublisher.publish(task));
-        log.info("Audio task retry requested, taskId: {}, userId: {}", taskId, userId);
+        AudioTaskDO retryTask = new AudioTaskDO();
+        retryTask.setUserId(userId);
+        retryTask.setSourceText(task.getSourceText());
+        retryTask.setSpeed(task.getSpeed());
+        retryTask.setNoiseType(task.getNoiseType());
+        retryTask.setNoiseFactor(task.getNoiseFactor());
+        retryTask.setStatus(AudioTaskLifecycle.initialStatus());
+        audioTaskMapper.insert(retryTask);
+        transactionAfterCommitExecutor.execute(() -> audioTaskPublisher.publish(retryTask));
+        log.info("Audio task retried, sourceTaskId: {}, retryTaskId: {}, userId: {}",
+                taskId, retryTask.getId(), userId);
+        return new AudioTaskSubmitVO(retryTask.getId(), AudioTaskLifecycle.initialStatus());
     }
 
     @Override

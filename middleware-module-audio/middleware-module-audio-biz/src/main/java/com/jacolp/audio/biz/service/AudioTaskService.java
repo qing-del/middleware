@@ -36,9 +36,9 @@ public interface AudioTaskService {
     PageResult listTasks(AudioTaskPageQueryDTO dto);
 
     /**
-     * 将当前用户的失败任务恢复为待处理状态并重新投递。
+     * 复制当前用户的失败任务并重新投递，原任务将标记为已重试。
      */
-    void retryFailedTask(Long taskId);
+    AudioTaskSubmitVO retryFailedTask(Long taskId);
 
     /**
      * 重新加入任务队列。

@@ -7,7 +7,8 @@ public final class AudioTaskLifecycle {
         PENDING(0),
         PROCESSING(1),
         SUCCESS(2),
-        FAILED(-1);
+        FAILED(-1),
+        RETRIED(-2);
 
         private final int code;
 

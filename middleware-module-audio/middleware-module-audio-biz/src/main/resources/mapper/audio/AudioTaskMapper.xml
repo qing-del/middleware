@@ -31,13 +31,9 @@
         WHERE id = #{id} AND status = #{expectedStatus}
     </update>
 
-    <update id="retryFailedTask">
+    <update id="markTaskRetried">
     UPDATE audio_tasks
-    SET status = #{pendingStatus},
-        retry_time = 0,
-        result_url = NULL,
-        error_msg = NULL,
-        completed_date = NULL,
+    SET status = #{retriedStatus},
         update_time = CURRENT_TIMESTAMP
     WHERE id = #{id}
       AND user_id = #{userId}
