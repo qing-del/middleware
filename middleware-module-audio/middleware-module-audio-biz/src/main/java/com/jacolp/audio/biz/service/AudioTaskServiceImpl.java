@@ -126,6 +126,28 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void retryFailedTask(Long taskId) {
+        Long userId = BaseContext.getCurrentId();
+        AudioTaskDO task = audioTaskMapper.selectById(taskId);
+        if (task == null || !task.getUserId().equals(userId))
+            throw new BaseException("任务不存在或无权访问");
+
+        int updated = audioTaskMapper.retryFailedTask(taskId, userId,
+                AudioTaskLifecycle.Status.FAILED.code(), AudioTaskLifecycle.initialStatus());
+        if (updated == 0)
+            throw new BaseException("仅失败状态的任务可以重试");
+
+        task.setStatus(AudioTaskLifecycle.initialStatus());
+        task.setRetryTime(0);
+        task.setResultUrl(null);
+        task.setErrorMsg(null);
+        task.setCompletedDate(null);
+        transactionAfterCommitExecutor.execute(() -> audioTaskPublisher.publish(task));
+        log.info("Audio task retry requested, taskId: {}, userId: {}", taskId, userId);
+    }
+
+    @Override
     public void requeueTask(AudioTaskDO task) {
         audioTaskPublisher.publish(task);
     }

@@ -41,6 +41,14 @@ public class AudioController {
         return Result.success(audioTaskService.submitTask(dto));
     }
 
+    @PostMapping("/retry/{taskId}")
+    @Operation(summary = "重试失败的音频任务", description = "仅允许重试当前用户处于失败状态的任务；任务将重新进入待处理队列。")
+    public Result retry(@Parameter(description = "任务 ID") @PathVariable Long taskId) {
+        log.info("User retry audio task, taskId: {}", taskId);
+        audioTaskService.retryFailedTask(taskId);
+        return Result.success();
+    }
+
     @GetMapping("/status/{taskId}")
     @Operation(summary = "查询音频任务状态", description = "根据 taskId 查询任务当前状态与结果链接，仅能查询当前用户自己的任务。")
     public Result<AudioTaskVO> getStatus(@Parameter(description = "任务ID") @PathVariable Long taskId) {

@@ -30,6 +30,20 @@
         <if test="completedDate != null">, completed_date = #{completedDate}</if>
         WHERE id = #{id} AND status = #{expectedStatus}
     </update>
+
+    <update id="retryFailedTask">
+    UPDATE audio_tasks
+    SET status = #{pendingStatus},
+        retry_time = 0,
+        result_url = NULL,
+        error_msg = NULL,
+        completed_date = NULL,
+        update_time = CURRENT_TIMESTAMP
+    WHERE id = #{id}
+      AND user_id = #{userId}
+      AND status = #{failedStatus}
+    </update>
+
     <select id="selectPendingTimeout" resultType="com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO">
     SELECT *
     FROM audio_tasks
