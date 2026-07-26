@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AudioTaskRetryTask {
     private static final int MAX_STREAM_LENGTH = 2000;
+    private static final String RETRY_EXHAUSTED_ERROR_MESSAGE = "生成失败，请重新尝试！";
     @Autowired private AudioTaskMapper audioTaskMapper;
     @Autowired private AudioTaskService audioTaskService;
     @Autowired private StringRedisTemplate redis;
@@ -37,13 +38,18 @@ public class AudioTaskRetryTask {
             log.debug("No stuck audio tasks found");
             return;
         }
-        log.info("Found {} stuck audio tasks, re-queuing...", stuckTasks.size());
+        log.info("Found {} stuck audio tasks, processing retries...", stuckTasks.size());
         for (AudioTaskDO task : stuckTasks)
             try {
-                audioTaskService.requeueTask(task);
-                log.info("Re-queued stuck audio task, taskId: {}", task.getId());
+                if (audioTaskMapper.incrementRetryTime(task.getId(), timeout) == 1) {
+                    audioTaskService.requeueTask(task);
+                    log.info("Re-queued stuck audio task, taskId: {}", task.getId());
+                } else if (audioTaskMapper.markRetryExhausted(task.getId(), timeout,
+                        RETRY_EXHAUSTED_ERROR_MESSAGE) == 1) {
+                    log.warn("Audio task retry limit exhausted, taskId: {}", task.getId());
+                }
             } catch (Exception e) {
-                log.error("Failed to re-queue audio task, taskId: {}, error: {}", task.getId(), e.getMessage());
+                log.error("Failed to process retry for audio task, taskId: {}, error: {}", task.getId(), e.getMessage());
             }
         // 仅保留最近的数据（防止内存堆积）
         if ("redis-stream".equals(queueType)) {

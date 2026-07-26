@@ -6,11 +6,13 @@
         INSERT INTO audio_tasks (user_id, source_text, speed, noise_type, noise_factor, status)
         VALUES (#{userId}, #{sourceText}, #{speed}, #{noiseType}, #{noiseFactor},#{status})
     </insert>
+
     <select id="selectById" resultType="com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO">
     SELECT *
     FROM audio_tasks
     WHERE id = #{id}
     </select>
+
     <select id="selectByUserId" resultType="com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO">
         SELECT * FROM
         audio_tasks
@@ -20,6 +22,7 @@
         </where>
         ORDER BY create_time DESC
     </select>
+
     <update id="casUpdateStatus">
     UPDATE audio_tasks SET status = #{newStatus}
         <if test="resultUrl != null">, result_url = #{resultUrl}</if>
@@ -30,8 +33,29 @@
     <select id="selectPendingTimeout" resultType="com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO">
     SELECT *
     FROM audio_tasks
-    WHERE status = 0
-       OR status = 1 AND create_time &lt; #{before}
+    WHERE status IN (0, 1)
+      AND update_time &lt; #{before}
     LIMIT 500
     </select>
+
+    <update id="incrementRetryTime">
+    UPDATE audio_tasks
+    SET retry_time = retry_time + 1,
+        update_time = CURRENT_TIMESTAMP
+    WHERE id = #{id}
+      AND status IN (0, 1)
+      AND retry_time &lt; 3
+      AND update_time &lt; #{before}
+    </update>
+
+    <update id="markRetryExhausted">
+    UPDATE audio_tasks
+    SET status = -1,
+        error_msg = #{errorMsg},
+        update_time = CURRENT_TIMESTAMP
+    WHERE id = #{id}
+      AND status IN (0, 1)
+      AND retry_time >= 3
+      AND update_time &lt; #{before}
+    </update>
 </mapper>

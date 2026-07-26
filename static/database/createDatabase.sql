@@ -286,6 +286,7 @@ CREATE TABLE `audio_tasks` (
                                `noise_type`     varchar(32)   NOT NULL COMMENT '背景音枚举(PURE/WHITE_NOISE/PINK_NOISE/BROWN_NOISE/CAFE/AIRPORT/SUBWAY)',
                                `noise_factor`   decimal(3,2)  NOT NULL DEFAULT 0.50 COMMENT '背景音量因子(0.00~2.00, 默认0.50)',
                                `status`         tinyint       NOT NULL DEFAULT 0 COMMENT '状态: 0-待处理(PENDING), 1-处理中(PROCESSING), 2-成功(SUCCESS), -1-失败(FAILED)',
+                               `retry_time`     int           NOT NULL DEFAULT 0 COMMENT '超时重试次数',
                                `result_url`     varchar(255)  DEFAULT NULL COMMENT '成功后音频下载链接',
                                `error_msg`      varchar(500)  DEFAULT NULL COMMENT '失败时的错误信息',
                                `create_time`    datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '任务创建时间',

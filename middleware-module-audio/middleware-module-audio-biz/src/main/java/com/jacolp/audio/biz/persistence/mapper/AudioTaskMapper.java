@@ -28,5 +28,23 @@ public interface AudioTaskMapper {
      * @return
      */
     List<AudioTaskDO> selectPendingTimeout(@Param("before") LocalDateTime before);
+
+    /**
+     * 将任务的 retry_time +1，返回影响行数
+     * @param id 音频任务主键 id
+     * @param before 更新时间早于指定时间的任务才会被更新，避免重复更新
+     * @return
+     */
+    int incrementRetryTime(@Param("id") Long id, @Param("before") LocalDateTime before);
+
+    /**
+     * 最大重试次数耗尽，将任务状态标记为 FAILED，并设置错误信息
+     * @param id 音频任务主键 id
+     * @param before 更新时间早于指定时间的任务才会被更新，避免重复更新
+     * @param errorMsg 错误信息
+     * @return
+     */
+    int markRetryExhausted(@Param("id") Long id, @Param("before") LocalDateTime before,
+                           @Param("errorMsg") String errorMsg);
     @Select("SELECT user_id FROM audio_task WHERE id = #{taskId}") Long getUserIdByTaskId(@NotNull(message = "taskId 不能为空") Long taskId);
 }
