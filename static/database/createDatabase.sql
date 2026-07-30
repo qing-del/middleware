@@ -418,11 +418,17 @@ CREATE TABLE `sys_event_projection_version` (
 
 CREATE TABLE `biz_image_delete_dead_letter` (
     `id`           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `resource_id`  varchar(64)  DEFAULT NULL COMMENT '业务资源ID；遗留数据可为空',
     `image_url`    varchar(1000) NOT NULL COMMENT '待删除图片URL(OSS/R2等完整地址)',
-    `status`       tinyint      NOT NULL DEFAULT 0 COMMENT '删除状态(0:等待删除, 1:删除完成)',
+    `event_id`     varchar(64)  DEFAULT NULL COMMENT '最近一次可靠删除事件ID',
+    `status`       tinyint      NOT NULL DEFAULT 0 COMMENT '0:遗留待迁移, 1:完成, 2:已入队, 3:失败',
     `retry_count`  int          NOT NULL DEFAULT 0 COMMENT '重试次数',
+    `last_error`   varchar(500) DEFAULT NULL COMMENT '脱敏后的最后失败原因',
     `create_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入队时间',
     `update_time`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '状态更新时间',
+    `completed_time` datetime   DEFAULT NULL COMMENT '物理删除完成时间',
     PRIMARY KEY (`id`),
-    KEY `idx_status_update` (`status`, `update_time`)
+    KEY `idx_status_update` (`status`, `update_time`),
+    KEY `idx_delete_event` (`event_id`),
+    KEY `idx_delete_resource` (`resource_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片删除死信队列表';

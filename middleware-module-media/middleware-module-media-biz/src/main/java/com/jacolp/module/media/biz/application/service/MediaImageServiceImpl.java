@@ -10,6 +10,8 @@ import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.framework.oss.AliyunOSSOperator;
+import com.jacolp.middleware.messaging.MediaResourceDeleteEventPublisher;
+import com.jacolp.middleware.messaging.MediaResourceDeleteRequestedEvent;
 import com.jacolp.middleware.messaging.StorageReleasedEvent;
 import com.jacolp.middleware.messaging.StorageReleasedEventPublisher;
 import com.jacolp.module.media.api.model.MediaFileSummary;
@@ -52,11 +54,13 @@ public class MediaImageServiceImpl implements MediaImageService {
     private final TopicQueryApi topicQueryApi;
     private final AuditApplicationApi auditApplicationApi;
     private final StorageReleasedEventPublisher storageReleasedEventPublisher;
+    private final MediaResourceDeleteEventPublisher mediaResourceDeleteEventPublisher;
 
     public MediaImageServiceImpl(ImageMapper imageMapper, ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper,
                                  AliyunOSSOperator aliyunOSSOperator, NoteReadApi noteReadApi,
                                  TopicQueryApi topicQueryApi, AuditApplicationApi auditApplicationApi,
-                                 StorageReleasedEventPublisher storageReleasedEventPublisher) {
+                                 StorageReleasedEventPublisher storageReleasedEventPublisher,
+                                 MediaResourceDeleteEventPublisher mediaResourceDeleteEventPublisher) {
         this.imageMapper = imageMapper;
         this.imageDeleteDeadLetterMapper = imageDeleteDeadLetterMapper;
         this.aliyunOSSOperator = aliyunOSSOperator;
@@ -64,6 +68,7 @@ public class MediaImageServiceImpl implements MediaImageService {
         this.topicQueryApi = topicQueryApi;
         this.auditApplicationApi = auditApplicationApi;
         this.storageReleasedEventPublisher = storageReleasedEventPublisher;
+        this.mediaResourceDeleteEventPublisher = mediaResourceDeleteEventPublisher;
     }
 
     @Override
@@ -154,22 +159,17 @@ public class MediaImageServiceImpl implements MediaImageService {
         if (!inUseImageNames.isEmpty()) throw new BaseException(ImageConstant.IMAGE_IN_USE + "：" + String.join(", ", inUseImageNames));
 
         ImageBatchDeleteVO result = new ImageBatchDeleteVO(new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
-        ArrayList<ImageDeleteDeadLetterDO> deadLetters = new ArrayList<>();
         for (ImageDO image : images) {
             AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
             if (!status.canTransitionTo(AuditStatus.DELETED)) throw new BaseException("审核中的图片不能删除");
         }
         images.forEach(image -> {
-            ImageDeleteDeadLetterDO letter = new ImageDeleteDeadLetterDO(image.getId(), image.getOssUrl(),
-                    ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING, 0, null, null);
-            if (!deadLetters.add(letter)) {
-                result.getFailIds().add(image.getId()); result.getFailFileNames().add(image.getFilename());
-            } else {
-                result.getSuccessIds().add(image.getId()); result.getSuccessFileNames().add(image.getFilename());
-            }
+            result.getSuccessIds().add(image.getId());
+            result.getSuccessFileNames().add(image.getFilename());
         });
-        batchInsertToDeadLetterQueue(deadLetters);
+        List<MediaResourceDeleteRequestedEvent> deleteRequests = trackPhysicalDeletes(images);
         if (imageMapper.deleteByIds(result.getSuccessIds()) < idSet.size()) throw new BaseException("图片删除失败");
+        mediaResourceDeleteEventPublisher.publish(deleteRequests);
         storageReleasedEventPublisher.publish(images.stream()
                 .filter(image -> image.getFileSize() != null && image.getFileSize() > 0)
                 .map(image -> new StorageReleasedEvent(image.getUserId(), "IMAGE",
@@ -276,8 +276,9 @@ public class MediaImageServiceImpl implements MediaImageService {
         AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
         if (!status.canTransitionTo(AuditStatus.DELETED)) throw new BaseException("审核中的图片不能删除");
         if (noteReadApi.countMediaReferencesByMediaIds(List.of(id)).getOrDefault(id, 0L) > 0) throw new BaseException(ImageConstant.IMAGE_IN_USE);
-        if (image.getStorageType() != null && image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) insertToDeadLetterQueue(image);
+        List<MediaResourceDeleteRequestedEvent> deleteRequests = trackPhysicalDeletes(List.of(image));
         if (imageMapper.deleteByIds(List.of(id)) <= 0) throw new BaseException("删除图片失败");
+        mediaResourceDeleteEventPublisher.publish(deleteRequests);
         if (image.getFileSize() != null && image.getFileSize() > 0) {
             storageReleasedEventPublisher.publish(List.of(new StorageReleasedEvent(userId, "IMAGE",
                     String.valueOf(image.getId()), image.getFileSize())));
@@ -325,15 +326,23 @@ public class MediaImageServiceImpl implements MediaImageService {
         image.setAuditStatus(AuditStatus.WAIT.getCode()); image.setUploadTime(LocalDateTime.now());
         return image;
     }
-    private void insertToDeadLetterQueue(ImageDO existed) {
-        ImageDeleteDeadLetterDO deadLetter = new ImageDeleteDeadLetterDO();
-        deadLetter.setImageUrl(existed.getOssUrl()); deadLetter.setStatus(ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_WAITING);
-        deadLetter.setRetryCount(0); deadLetter.setCreateTime(LocalDateTime.now()); deadLetter.setUpdateTime(LocalDateTime.now());
-        batchInsertToDeadLetterQueue(List.of(deadLetter));
-    }
-    private void batchInsertToDeadLetterQueue(List<ImageDeleteDeadLetterDO> deadLetters) {
-        int insertCount = imageDeleteDeadLetterMapper.insertBatch(deadLetters);
-        if (insertCount < deadLetters.size()) { log.error("插入死信队列失败，count: {}, size: {}", insertCount, deadLetters.size()); throw new BaseException("图片删除失败"); }
+    private List<MediaResourceDeleteRequestedEvent> trackPhysicalDeletes(List<ImageDO> images) {
+        List<MediaResourceDeleteRequestedEvent> events = new ArrayList<>();
+        for (ImageDO image : images) {
+            if (!Objects.equals(image.getStorageType(), ImageConstant.STORAGE_TYPE_ALIYUN_OSS)) continue;
+            String objectKey = extractObjectKeyFromUrl(image.getOssUrl());
+            if (objectKey == null) throw new BaseException("图片物理地址无效，无法安全删除");
+            ImageDeleteDeadLetterDO tracking = new ImageDeleteDeadLetterDO();
+            tracking.setResourceId(String.valueOf(image.getId()));
+            tracking.setImageUrl(image.getOssUrl());
+            tracking.setStatus(ImageConstant.IMAGE_DELETE_DEAD_LETTER_STATUS_QUEUED);
+            if (imageDeleteDeadLetterMapper.insert(tracking) != 1 || tracking.getId() == null) {
+                throw new BaseException("图片删除追踪记录创建失败");
+            }
+            events.add(new MediaResourceDeleteRequestedEvent(String.valueOf(image.getId()), objectKey,
+                    tracking.getId()));
+        }
+        return events;
     }
     private static MediaReviewStatus toMediaStatus(Short status) {
         return switch (status) { case 0 -> MediaReviewStatus.WAITING; case 1 -> MediaReviewStatus.REVIEWING; case 2 -> MediaReviewStatus.APPROVED; case 3 -> MediaReviewStatus.REJECTED; case 4 -> MediaReviewStatus.DELETED; default -> throw new IllegalArgumentException("Unsupported legacy media status: " + status); };
