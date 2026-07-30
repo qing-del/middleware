@@ -13,6 +13,7 @@ import com.jacolp.exception.RateLimitExceededException;
 import com.jacolp.audio.biz.constant.AudioConstant;
 import com.jacolp.audio.biz.domain.vo.AudioTaskSubmitVO;
 import com.jacolp.audio.biz.domain.vo.AudioTaskVO;
+import com.jacolp.audio.biz.domain.vo.AudioTaskStatisticsVO;
 import com.jacolp.audio.biz.audio.AudioTaskLifecycle;
 import com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO;
 import com.jacolp.audio.biz.persistence.mapper.AudioTaskMapper;
@@ -160,6 +161,11 @@ public class AudioTaskServiceImpl implements AudioTaskService {
             return vo;
         }).collect(Collectors.toList());
         return new PageResult(page.getTotal(), values);
+    }
+
+    @Override
+    public AudioTaskStatisticsVO getStatistics() {
+        return audioTaskMapper.selectStatistics();
     }
 
     @Override

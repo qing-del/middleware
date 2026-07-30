@@ -2,6 +2,7 @@ package com.jacolp.audio.biz.controller.admin;
 
 import com.jacolp.audio.biz.domain.dto.AudioTaskPageQueryDTO;
 import com.jacolp.audio.biz.domain.vo.AudioTaskVO;
+import com.jacolp.audio.biz.domain.vo.AudioTaskStatisticsVO;
 import com.jacolp.audio.biz.service.AudioTaskService;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
@@ -38,6 +39,12 @@ public class AudioController {
     public Result<PageResult> listTasks(@Parameter(description = "分页参数") @Valid @RequestBody AudioTaskPageQueryDTO queryDTO) {
         log.info("List tasks, page: {}, size: {}", queryDTO.getPageNumOrDefault(), queryDTO.getPageSizeOrDefault());
         return Result.success(audioTaskService.listTasks(queryDTO));
+    }
+
+    @GetMapping("/statistics")
+    @Operation(summary = "查询今日音频任务统计", description = "返回今日成功、今日失败、当前等待和当前处理中的任务数量。")
+    public Result<AudioTaskStatisticsVO> getStatistics() {
+        return Result.success(audioTaskService.getStatistics());
     }
 
     @GetMapping("/{taskId}")

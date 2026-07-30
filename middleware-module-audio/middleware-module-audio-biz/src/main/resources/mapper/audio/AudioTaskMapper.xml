@@ -23,6 +23,19 @@
         ORDER BY create_time DESC
     </select>
 
+    <select id="selectStatistics" resultType="com.jacolp.audio.biz.domain.vo.AudioTaskStatisticsVO">
+        SELECT
+            COUNT(CASE WHEN status = 2
+                AND update_time &gt;= CURRENT_DATE
+                AND update_time &lt; CURRENT_DATE + INTERVAL 1 DAY THEN 1 END) AS todaySuccessCount,
+            COUNT(CASE WHEN status = -1
+                AND update_time &gt;= CURRENT_DATE
+                AND update_time &lt; CURRENT_DATE + INTERVAL 1 DAY THEN 1 END) AS todayFailedCount,
+            COUNT(CASE WHEN status = 0 THEN 1 END) AS pendingCount,
+            COUNT(CASE WHEN status = 1 THEN 1 END) AS processingCount
+        FROM audio_tasks
+    </select>
+
     <update id="cancelTask">
         UPDATE audio_tasks
         SET status = #{cancelledStatus},

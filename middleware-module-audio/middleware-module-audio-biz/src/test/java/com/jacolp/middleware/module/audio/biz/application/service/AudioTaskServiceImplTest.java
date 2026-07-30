@@ -14,6 +14,7 @@ import com.jacolp.audio.biz.domain.dto.AudioCallbackFinishDTO;
 import com.jacolp.audio.biz.domain.dto.AudioTaskSubmitDTO;
 import com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO;
 import com.jacolp.audio.biz.persistence.mapper.AudioTaskMapper;
+import com.jacolp.audio.biz.domain.vo.AudioTaskStatisticsVO;
 import com.jacolp.module.system.api.quota.ConsumeQuotaCommand;
 import com.jacolp.module.system.api.quota.ConsumeQuotaResult;
 import com.jacolp.module.system.api.quota.QuotaSnapshot;
@@ -85,6 +86,15 @@ class AudioTaskServiceImplTest {
         PermissionContext.setAdmin(true);
         assertThat(service.getTask(30L).getSourceText()).isEqualTo("detail text");
         assertThat(service.getTask(30L).getResultUrl()).isEqualTo("https://audio.example/30.mp3");
+    }
+
+    @Test
+    void returnsAudioTaskStatisticsFromPersistence() {
+        AudioTaskStatisticsVO statistics = new AudioTaskStatisticsVO(8L, 3L, 5L, 2L);
+        when(mapper.selectStatistics()).thenReturn(statistics);
+
+        assertThat(service.getStatistics()).isSameAs(statistics);
+        verify(mapper).selectStatistics();
     }
 
     @Test

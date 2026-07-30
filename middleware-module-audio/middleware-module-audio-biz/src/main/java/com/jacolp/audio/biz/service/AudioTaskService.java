@@ -6,6 +6,7 @@ import com.jacolp.audio.biz.domain.dto.AudioTaskPageQueryDTO;
 import com.jacolp.audio.biz.domain.dto.AudioTaskSubmitDTO;
 import com.jacolp.audio.biz.domain.vo.AudioTaskSubmitVO;
 import com.jacolp.audio.biz.domain.vo.AudioTaskVO;
+import com.jacolp.audio.biz.domain.vo.AudioTaskStatisticsVO;
 import com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO;
 import com.jacolp.result.PageResult;
 
@@ -34,6 +35,11 @@ public interface AudioTaskService {
      * 获取任务列表；非管理员仅查询自己的任务。
      */
     PageResult listTasks(AudioTaskPageQueryDTO dto);
+
+    /**
+     * 获取管理端音频任务统计：今日成功、今日失败、当前等待和当前处理中。
+     */
+    AudioTaskStatisticsVO getStatistics();
 
     /**
      * 取消排队中或处理中的任务；普通用户仅能取消自己的任务，管理员可取消任意任务。

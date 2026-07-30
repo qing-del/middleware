@@ -2,6 +2,7 @@ package com.jacolp.audio.biz.persistence.mapper;
 
 import com.jacolp.audio.biz.domain.dto.AudioTaskPageQueryDTO;
 import com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO;
+import com.jacolp.audio.biz.domain.vo.AudioTaskStatisticsVO;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ public interface AudioTaskMapper {
     int insert(AudioTaskDO task);
     AudioTaskDO selectById(Long id);
     List<AudioTaskDO> selectByUserId(@Param("dto") AudioTaskPageQueryDTO dto);
+    AudioTaskStatisticsVO selectStatistics();
 
     int cancelTask(@Param("id") Long id, @Param("userId") Long userId,
                    @Param("cancelledStatus") Integer cancelledStatus);
