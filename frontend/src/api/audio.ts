@@ -28,6 +28,13 @@ export interface AudioTaskPageQueryDTO {
   status?: number
 }
 
+export interface AudioTaskStatisticsVO {
+  todaySuccessCount: number
+  todayFailedCount: number
+  pendingCount: number
+  processingCount: number
+}
+
 export interface AudioTaskSubmitDTO {
   text: string
   speed: number
@@ -49,6 +56,16 @@ export const audioApi = {
       url: '/admin/audio/list',
       method: 'POST',
       data: params
+    })
+  },
+
+  /**
+   * 管理端：查询今日成功/失败和当前等待/处理中的任务统计
+   */
+  adminStatistics() {
+    return request<AudioTaskStatisticsVO>({
+      url: '/admin/audio/statistics',
+      method: 'GET'
     })
   },
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { audioApi, type AudioTaskVO } from '@/api/audio'
+import { computed, onMounted, ref } from 'vue'
+import { audioApi, type AudioTaskStatisticsVO, type AudioTaskVO } from '@/api/audio'
 import { buildResourceUrl } from '@/utils/resourceUrl'
 import { confirmAction, toastError, toastSuccess } from '@/utils/feedback'
 import {
@@ -22,6 +22,44 @@ const sourceContent = ref('')
 const operatingTaskId = ref<number | null>(null)
 const detailLoading = ref(false)
 const selectedTask = ref<AudioTaskVO | null>(null)
+const statisticsLoading = ref(true)
+const statistics = ref<AudioTaskStatisticsVO>({
+  todaySuccessCount: 0,
+  todayFailedCount: 0,
+  pendingCount: 0,
+  processingCount: 0
+})
+
+const statisticCards = computed(() => [
+  {
+    key: 'success',
+    label: '今日生成成功',
+    value: statistics.value.todaySuccessCount,
+    icon: CheckCircle2,
+    iconClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+  },
+  {
+    key: 'failed',
+    label: '今日生成失败',
+    value: statistics.value.todayFailedCount,
+    icon: XCircle,
+    iconClass: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+  },
+  {
+    key: 'pending',
+    label: '当前排队中',
+    value: statistics.value.pendingCount,
+    icon: Clock,
+    iconClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+  },
+  {
+    key: 'processing',
+    label: '当前合成中',
+    value: statistics.value.processingCount,
+    icon: Loader2,
+    iconClass: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+  }
+])
 
 async function openSourceModal(task: AudioTaskVO) {
   sourceTitle.value = '任务 #' + task.id + ' 详情'
@@ -63,6 +101,21 @@ async function fetchTasks() {
   }
 }
 
+async function fetchStatistics() {
+  statisticsLoading.value = true
+  try {
+    statistics.value = await audioApi.adminStatistics()
+  } catch (error) {
+    console.error('Fetch admin audio task statistics failed:', error)
+  } finally {
+    statisticsLoading.value = false
+  }
+}
+
+async function refreshPage() {
+  await Promise.all([fetchTasks(), fetchStatistics()])
+}
+
 async function handleCancelTask(task: AudioTaskVO) {
   const confirmed = await confirmAction({
     title: '取消音频任务',
@@ -77,6 +130,7 @@ async function handleCancelTask(task: AudioTaskVO) {
     await audioApi.adminCancel(task.id)
     const index = tasks.value.findIndex(item => item.id === task.id)
     if (index !== -1) tasks.value[index] = { ...tasks.value[index], status: -3 }
+    await fetchStatistics()
     toastSuccess('任务已取消')
   } catch (error) {
     console.error('Admin cancel audio task failed:', error)
@@ -101,7 +155,7 @@ async function handleDeleteTask(task: AudioTaskVO) {
     await audioApi.adminDelete(task.id)
     if (tasks.value.length === 1 && currentPage.value > 1) currentPage.value -= 1
     toastSuccess('任务及音频资源已删除')
-    await fetchTasks()
+    await Promise.all([fetchTasks(), fetchStatistics()])
   } catch (error) {
     console.error('Admin delete audio task failed:', error)
     toastError('删除任务失败，请稍后再试')
@@ -141,7 +195,7 @@ function handleSearch() {
 }
 
 onMounted(() => {
-  fetchTasks()
+  refreshPage()
 })
 </script>
 
@@ -198,14 +252,37 @@ onMounted(() => {
         <div class="w-px h-8 bg-white/10 mx-2" />
 
         <button 
-          @click="fetchTasks" 
+          @click="refreshPage"
           class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 transition-all border border-white/10"
         >
-          <RotateCcw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+          <RotateCcw class="w-4 h-4" :class="{ 'animate-spin': loading || statisticsLoading }" />
           <span class="text-sm font-bold">刷新</span>
         </button>
       </div>
     </div>
+
+    <!-- 今日任务统计 -->
+    <section aria-label="今日音频任务统计" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <article
+        v-for="card in statisticCards"
+        :key="card.key"
+        class="glass-panel rounded-2xl border border-white/10 p-5 flex items-center justify-between"
+      >
+        <div>
+          <p class="text-xs font-bold tracking-wide text-slate-500">{{ card.label }}</p>
+          <p class="mt-2 text-3xl font-black text-white tabular-nums">
+            {{ statisticsLoading ? '—' : card.value }}
+          </p>
+        </div>
+        <div class="w-12 h-12 rounded-2xl border flex items-center justify-center" :class="card.iconClass">
+          <component
+            :is="card.icon"
+            class="w-6 h-6"
+            :class="{ 'animate-spin': card.key === 'processing' && !statisticsLoading && card.value > 0 }"
+          />
+        </div>
+      </article>
+    </section>
 
     <!-- 列表区 -->
     <div v-if="loading && tasks.length === 0" class="flex flex-col items-center justify-center py-32 space-y-4">
