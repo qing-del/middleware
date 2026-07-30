@@ -39,7 +39,8 @@ class AudioResourceDeletePublisherTest {
         assertThat(payload.getValue()).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "taskId", "50",
                 "userId", "9",
-                "resultUrl", "https://audio.example/50.mp3"));
+                "resultUrl", "https://audio.example/50.mp3",
+                "audioSize", "512"));
     }
 
     @Test
@@ -60,6 +61,7 @@ class AudioResourceDeletePublisherTest {
         assertThat(json.get("taskId").asText()).isEqualTo("50");
         assertThat(json.get("userId").asText()).isEqualTo("9");
         assertThat(json.get("resultUrl").asText()).isEqualTo("https://audio.example/50.mp3");
+        assertThat(json.get("audioSize").asLong()).isEqualTo(512L);
         assertThat(message.getValue().getMessageProperties().getDeliveryMode())
                 .isEqualTo(MessageDeliveryMode.PERSISTENT);
     }
@@ -69,6 +71,7 @@ class AudioResourceDeletePublisherTest {
         task.setId(50L);
         task.setUserId(9L);
         task.setResultUrl("https://audio.example/50.mp3");
+        task.setAudioSize(512L);
         return task;
     }
 }

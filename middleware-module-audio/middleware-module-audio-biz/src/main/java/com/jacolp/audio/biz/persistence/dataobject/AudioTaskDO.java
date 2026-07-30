@@ -23,6 +23,7 @@ public class AudioTaskDO implements Serializable {
     private Integer status;
     private Integer retryTime;
     private String resultUrl;
+    private Long audioSize;
     private String errorMsg;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

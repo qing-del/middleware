@@ -42,6 +42,7 @@
     <update id="casUpdateStatus">
     UPDATE audio_tasks SET status = #{newStatus}
         <if test="resultUrl != null">, result_url = #{resultUrl}</if>
+        <if test="audioSize != null">, audio_size = #{audioSize}</if>
         <if test="errorMsg != null">, error_msg = #{errorMsg}</if>
         <if test="completedDate != null">, completed_date = #{completedDate}</if>
         WHERE id = #{id} AND status = #{expectedStatus}

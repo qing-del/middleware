@@ -35,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class AudioTaskServiceImpl implements AudioTaskService {
+    private static final String STORAGE_INSUFFICIENT_ERROR = "存储空间不足";
+
     @Autowired
     private AudioTaskMapper audioTaskMapper;
     @Autowired
@@ -72,7 +74,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     @Override
     public boolean callbackStart(AudioCallbackStartDTO dto) {
         int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(), AudioTaskLifecycle.callbackStartExpectedStatus(),
-                AudioTaskLifecycle.callbackStartResultStatus(), null, null, null);
+                AudioTaskLifecycle.callbackStartResultStatus(), null, null, null, null);
         if (updated == 0) {
             log.warn("callbackStart CAS failed, taskId: {} (already processed or not found)", dto.getTaskId());
             return false;
@@ -86,19 +88,51 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     public boolean callbackFinish(AudioCallbackFinishDTO dto) {
         if (!AudioTaskLifecycle.isAllowedFinishStatus(dto.getStatus()))
             throw new BaseException("无效的回调状态值: " + dto.getStatus());
-        LocalDate completedDate = AudioTaskLifecycle.shouldSetCompletedDate(dto.getStatus()) ? LocalDate.now() : null;
+        if (dto.getStatus() == AudioTaskLifecycle.Status.SUCCESS.code())
+            return finishSuccessfulTask(dto);
         int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(), AudioTaskLifecycle.callbackFinishExpectedStatus(),
-                dto.getStatus(), dto.getResultUrl(), dto.getErrorMsg(), completedDate);
+                dto.getStatus(), dto.getResultUrl(), null, dto.getErrorMsg(), null);
         if (updated == 0) {
             log.warn("callbackFinish CAS failed, taskId: {} (already processed or not found)", dto.getTaskId());
-            // 更新用户使用额度
-            Long userId = audioTaskMapper.getUserIdByTaskId(dto.getTaskId());
-            LocalDate today = LocalDate.now();
-            // 原子递减（并发安全）
-            if (userId != null) userQuotaApi.rollback(ConsumeQuotaCommand.dailyApiCall(userId, 1L, today));
             return false;
         }
         log.info("Audio task finished, taskId: {}, status: {}", dto.getTaskId(), dto.getStatus());
+        return true;
+    }
+
+    private boolean finishSuccessfulTask(AudioCallbackFinishDTO dto) {
+        if (dto.getAudioSize() == null || dto.getAudioSize() <= 0)
+            throw new BaseException("成功回调必须携带大于 0 的 AudioSize");
+        if (dto.getResultUrl() == null || dto.getResultUrl().isBlank())
+            throw new BaseException("成功回调必须携带 resultUrl");
+
+        AudioTaskDO task = audioTaskMapper.selectById(dto.getTaskId());
+        if (task == null || task.getStatus() == null
+                || task.getStatus() != AudioTaskLifecycle.callbackFinishExpectedStatus()) {
+            log.warn("Successful callback rejected before quota consumption, taskId: {}", dto.getTaskId());
+            return false;
+        }
+
+        ConsumeQuotaCommand storageCommand = ConsumeQuotaCommand.storageBytes(task.getUserId(), dto.getAudioSize());
+        ConsumeQuotaResult storageResult = userQuotaApi.consume(storageCommand);
+        if (!storageResult.consumed()) {
+            audioTaskMapper.casUpdateStatus(dto.getTaskId(), AudioTaskLifecycle.callbackFinishExpectedStatus(),
+                    AudioTaskLifecycle.Status.FAILED.code(), null, null, STORAGE_INSUFFICIENT_ERROR, null);
+            log.warn("Audio task rejected due to insufficient storage, taskId: {}, audioSize: {}, remaining: {}",
+                    dto.getTaskId(), dto.getAudioSize(), storageResult.quota().remaining());
+            return false;
+        }
+
+        int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(),
+                AudioTaskLifecycle.callbackFinishExpectedStatus(), AudioTaskLifecycle.Status.SUCCESS.code(),
+                dto.getResultUrl(), dto.getAudioSize(), null, LocalDate.now());
+        if (updated == 0) {
+            userQuotaApi.rollback(storageCommand);
+            log.warn("Successful callback CAS failed after storage reservation, taskId: {}", dto.getTaskId());
+            return false;
+        }
+        log.info("Audio task finished, taskId: {}, status: {}, audioSize: {}",
+                dto.getTaskId(), dto.getStatus(), dto.getAudioSize());
         return true;
     }
 
@@ -149,6 +183,8 @@ public class AudioTaskServiceImpl implements AudioTaskService {
             throw new BaseException("任务不存在或无权删除");
         if (audioTaskMapper.deleteTask(taskId, userId) == 0)
             throw new BaseException("任务不存在或无权删除");
+        if (task.getAudioSize() != null && task.getAudioSize() > 0)
+            userQuotaApi.rollback(ConsumeQuotaCommand.storageBytes(task.getUserId(), task.getAudioSize()));
         transactionAfterCommitExecutor.execute(() -> audioResourceDeletePublisher.publish(task));
         log.info("Audio task deleted, taskId: {}, ownerUserId: {}, admin: {}",
                 taskId, task.getUserId(), PermissionContext.isAdmin());

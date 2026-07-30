@@ -30,10 +30,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -115,12 +115,17 @@ class AudioTaskServiceImplTest {
         task.setId(40L);
         task.setUserId(9L);
         task.setResultUrl("https://audio.example/40.mp3");
+        task.setAudioSize(300L);
         when(mapper.selectById(40L)).thenReturn(task);
         when(mapper.deleteTask(40L, 9L)).thenReturn(1);
 
         assertThat(service.deleteTask(40L)).isTrue();
 
         verify(mapper).deleteTask(40L, 9L);
+        ArgumentCaptor<ConsumeQuotaCommand> releasedStorage = ArgumentCaptor.forClass(ConsumeQuotaCommand.class);
+        verify(quotaApi).rollback(releasedStorage.capture());
+        assertThat(releasedStorage.getValue().quotaType()).isEqualTo(QuotaType.STORAGE_BYTES);
+        assertThat(releasedStorage.getValue().amount()).isEqualTo(300L);
         verify(deletePublisher).publish(task);
     }
 
@@ -182,22 +187,61 @@ class AudioTaskServiceImplTest {
     }
 
     @Test
-    void callbackFinishRollsBackOnlyWhenCasFails() {
-        AudioCallbackFinishDTO dto = new AudioCallbackFinishDTO(); dto.setTaskId(20L); dto.setStatus(AudioConstant.TASK_STATUS_SUCCESS);
-        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any())).thenReturn(0);
-        when(mapper.getUserIdByTaskId(20L)).thenReturn(7L);
+    void successfulCallbackConsumesStorageAndPersistsAudioSize() {
+        AudioCallbackFinishDTO dto = successfulCallback(20L, 120L);
+        when(mapper.selectById(20L)).thenReturn(processingTask(20L, 7L));
+        when(quotaApi.consume(any())).thenReturn(storageQuotaResult(true, 120L, 1_000L));
+        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
+
+        assertThat(service.callbackFinish(dto)).isTrue();
+
+        ArgumentCaptor<ConsumeQuotaCommand> consumed = ArgumentCaptor.forClass(ConsumeQuotaCommand.class);
+        verify(quotaApi).consume(consumed.capture());
+        assertThat(consumed.getValue().userId()).isEqualTo(7L);
+        assertThat(consumed.getValue().quotaType()).isEqualTo(QuotaType.STORAGE_BYTES);
+        assertThat(consumed.getValue().amount()).isEqualTo(120L);
+        verify(mapper).casUpdateStatus(eq(20L), eq(1), eq(2),
+                eq("https://audio.example/20.mp3"), eq(120L), eq(null), any(LocalDate.class));
+        verify(quotaApi, never()).rollback(any());
+    }
+
+    @Test
+    void insufficientStorageMarksTaskFailedAndReturnsFalse() {
+        AudioCallbackFinishDTO dto = successfulCallback(21L, 120L);
+        when(mapper.selectById(21L)).thenReturn(processingTask(21L, 7L));
+        when(quotaApi.consume(any())).thenReturn(storageQuotaResult(false, 90L, 100L));
+        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
+
+        assertThat(service.callbackFinish(dto)).isFalse();
+
+        verify(mapper).casUpdateStatus(21L, 1, -1, null, null, "存储空间不足", null);
+        verify(quotaApi, never()).rollback(any());
+    }
+
+    @Test
+    void successfulCallbackRollsBackStorageWhenTaskWasConcurrentlyCancelled() {
+        AudioCallbackFinishDTO dto = successfulCallback(22L, 120L);
+        when(mapper.selectById(22L)).thenReturn(processingTask(22L, 7L));
+        when(quotaApi.consume(any())).thenReturn(storageQuotaResult(true, 120L, 1_000L));
+        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any())).thenReturn(0);
 
         assertThat(service.callbackFinish(dto)).isFalse();
 
         ArgumentCaptor<ConsumeQuotaCommand> rollback = ArgumentCaptor.forClass(ConsumeQuotaCommand.class);
         verify(quotaApi).rollback(rollback.capture());
-        assertThat(rollback.getValue().userId()).isEqualTo(7L);
-        assertThat(rollback.getValue().quotaType()).isEqualTo(QuotaType.DAILY_API_CALL);
-        assertThat(rollback.getValue().amount()).isEqualTo(1L);
+        assertThat(rollback.getValue().quotaType()).isEqualTo(QuotaType.STORAGE_BYTES);
+        assertThat(rollback.getValue().amount()).isEqualTo(120L);
+    }
 
-        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any())).thenReturn(1);
-        assertThat(service.callbackFinish(dto)).isTrue();
-        verify(quotaApi, times(1)).rollback(any());
+    @Test
+    void successfulCallbackRequiresAudioSize() {
+        AudioCallbackFinishDTO dto = successfulCallback(23L, null);
+
+        assertThatThrownBy(() -> service.callbackFinish(dto))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining("AudioSize");
+
+        verify(quotaApi, never()).consume(any());
     }
 
     private static AudioTaskSubmitDTO submitDto() {
@@ -208,5 +252,27 @@ class AudioTaskServiceImplTest {
 
     private static ConsumeQuotaResult quotaResult(boolean consumed) {
         return new ConsumeQuotaResult(consumed, new QuotaSnapshot(9L, QuotaType.DAILY_API_CALL, 10L, 0L, LocalDate.now()));
+    }
+
+    private static AudioCallbackFinishDTO successfulCallback(Long taskId, Long audioSize) {
+        AudioCallbackFinishDTO dto = new AudioCallbackFinishDTO();
+        dto.setTaskId(taskId);
+        dto.setStatus(AudioConstant.TASK_STATUS_SUCCESS);
+        dto.setResultUrl("https://audio.example/" + taskId + ".mp3");
+        dto.setAudioSize(audioSize);
+        return dto;
+    }
+
+    private static AudioTaskDO processingTask(Long taskId, Long userId) {
+        AudioTaskDO task = new AudioTaskDO();
+        task.setId(taskId);
+        task.setUserId(userId);
+        task.setStatus(AudioTaskLifecycle.Status.PROCESSING.code());
+        return task;
+    }
+
+    private static ConsumeQuotaResult storageQuotaResult(boolean consumed, long used, long limit) {
+        return new ConsumeQuotaResult(consumed,
+                new QuotaSnapshot(7L, QuotaType.STORAGE_BYTES, limit, used, null));
     }
 }

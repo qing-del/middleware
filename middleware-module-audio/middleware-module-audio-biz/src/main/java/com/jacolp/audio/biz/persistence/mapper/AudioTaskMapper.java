@@ -2,13 +2,11 @@ package com.jacolp.audio.biz.persistence.mapper;
 
 import com.jacolp.audio.biz.domain.dto.AudioTaskPageQueryDTO;
 import com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO;
-import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 @Mapper
 public interface AudioTaskMapper {
@@ -23,7 +21,10 @@ public interface AudioTaskMapper {
      * CAS 更新任务状态，WHERE status = expectedStatus 保证幂等性。
      * @return 影响行数，0 表示 CAS 失败（状态已变更）
      */
-    int casUpdateStatus(@Param("id") Long id, @Param("expectedStatus") Integer expectedStatus, @Param("newStatus") Integer newStatus, @Param("resultUrl") String resultUrl, @Param("errorMsg") String errorMsg, @Param("completedDate") LocalDate completedDate);
+    int casUpdateStatus(@Param("id") Long id, @Param("expectedStatus") Integer expectedStatus,
+                        @Param("newStatus") Integer newStatus, @Param("resultUrl") String resultUrl,
+                        @Param("audioSize") Long audioSize, @Param("errorMsg") String errorMsg,
+                        @Param("completedDate") LocalDate completedDate);
 
     /**
      * 将指定用户的 FAILED 任务标记为 RETRIED，避免重复创建重试任务。
@@ -58,5 +59,4 @@ public interface AudioTaskMapper {
      */
     int markRetryExhausted(@Param("id") Long id, @Param("before") LocalDateTime before,
                            @Param("errorMsg") String errorMsg);
-    @Select("SELECT user_id FROM audio_task WHERE id = #{taskId}") Long getUserIdByTaskId(@NotNull(message = "taskId 不能为空") Long taskId);
 }

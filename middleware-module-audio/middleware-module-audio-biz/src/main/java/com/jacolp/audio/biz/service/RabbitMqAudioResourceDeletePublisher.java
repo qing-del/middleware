@@ -35,6 +35,7 @@ public class RabbitMqAudioResourceDeletePublisher implements AudioResourceDelete
         payload.put("taskId", String.valueOf(task.getId()));
         payload.put("userId", String.valueOf(task.getUserId()));
         payload.put("resultUrl", task.getResultUrl() == null ? "" : task.getResultUrl());
+        payload.put("audioSize", task.getAudioSize() == null ? "0" : String.valueOf(task.getAudioSize()));
 
         MessageProperties properties = new MessageProperties();
         properties.setContentType(MessageProperties.CONTENT_TYPE_JSON);

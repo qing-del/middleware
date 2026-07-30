@@ -39,6 +39,7 @@ public class RedisStreamAudioResourceDeletePublisher implements AudioResourceDel
         payload.put("taskId", String.valueOf(task.getId()));
         payload.put("userId", String.valueOf(task.getUserId()));
         payload.put("resultUrl", task.getResultUrl() == null ? "" : task.getResultUrl());
+        payload.put("audioSize", task.getAudioSize() == null ? "0" : String.valueOf(task.getAudioSize()));
         redis.opsForStream().add(STREAM_KEY, payload);
         log.debug("Audio resource deletion pushed to Redis Stream, taskId: {}", task.getId());
     }
