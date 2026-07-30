@@ -12,6 +12,7 @@ public final class EventTypes {
     public static final String AUDIT_APPLICATION_REJECTED = "audit.application.rejected";
     public static final String AUDIT_APPLICATION_CANCELLED = "audit.application.cancelled";
     public static final String AUDIT_APPLICATION_CANCEL_REJECTED = "audit.application.cancel-rejected";
+    public static final String USER_PROFILE_CHANGED = "user.profile-changed";
 
     private EventTypes() {
     }

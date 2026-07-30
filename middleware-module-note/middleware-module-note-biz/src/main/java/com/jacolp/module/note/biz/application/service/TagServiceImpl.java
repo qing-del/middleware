@@ -254,7 +254,8 @@ public class TagServiceImpl implements TagService {
             throw new BaseException("该标签已有待审核的申请");
         }
         auditEvents.request(new AuditApplicationRequestedEvent(commandId,
-                AuditApplicationRequestedEvent.TargetType.TAG, tagId, userId, null));
+                AuditApplicationRequestedEvent.TargetType.TAG, tagId, userId, null,
+                tag.getTagName(), null));
 
         tagMapper.updateAuditStatusByIds(List.of(tagId), AuditStatus.AUDITING.getCode());
     }

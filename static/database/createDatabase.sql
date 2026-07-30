@@ -431,6 +431,23 @@ CREATE TABLE `sys_async_command_state` (
     KEY `idx_async_command_state_time` (`state`, `update_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Current asynchronous command correlation state';
 
+CREATE TABLE `audit_query_user_projection` (
+    `user_id`     bigint       NOT NULL,
+    `username`    varchar(128) NOT NULL,
+    `nickname`    varchar(128) DEFAULT NULL,
+    `update_time` datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Audit-owned user display projection';
+
+CREATE TABLE `audit_query_subject_projection` (
+    `target_type` varchar(16)   NOT NULL,
+    `target_id`   bigint        NOT NULL,
+    `target_name` varchar(500)   NOT NULL,
+    `target_url`  varchar(1000)  DEFAULT NULL,
+    `update_time` datetime(3)    NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Audit-owned target display projection';
+
 CREATE TABLE `biz_image_delete_dead_letter` (
     `id`           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `resource_id`  varchar(64)  DEFAULT NULL COMMENT '业务资源ID；遗留数据可为空',

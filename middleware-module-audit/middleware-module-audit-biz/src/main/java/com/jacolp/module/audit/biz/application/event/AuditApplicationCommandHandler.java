@@ -11,6 +11,7 @@ import com.jacolp.module.audit.api.CancelAuditApplicationCommand;
 import com.jacolp.module.audit.api.CreateAuditApplicationCommand;
 import com.jacolp.module.audit.api.PendingAuditApplicationQuery;
 import com.jacolp.module.audit.biz.application.api.AuditApplicationApiService;
+import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.AuditQueryProjectionMapper;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,16 +20,21 @@ public class AuditApplicationCommandHandler {
 
     private final AuditApplicationApiService applications;
     private final AuditApplicationEventPublisher events;
+    private final AuditQueryProjectionMapper projections;
 
     public AuditApplicationCommandHandler(AuditApplicationApiService applications,
-                                          AuditApplicationEventPublisher events) {
+                                          AuditApplicationEventPublisher events,
+                                          AuditQueryProjectionMapper projections) {
         this.applications = applications;
         this.events = events;
+        this.projections = projections;
     }
 
     public void create(AuditApplicationRequestedEvent command) {
         AuditTargetType targetType = targetType(command.targetType());
         try {
+            projections.upsertSubject(command.targetType().name(), command.targetId(),
+                    command.targetName(), command.targetUrl());
             if (applications.hasPendingApplication(new PendingAuditApplicationQuery(
                     targetType, command.targetId()))) {
                 rejectCreate(command, "ALREADY_PENDING");

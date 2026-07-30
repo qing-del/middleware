@@ -48,6 +48,7 @@ class TagServiceImplTest {
         org.junit.jupiter.api.Assertions.assertEquals(AuditApplicationRequestedEvent.TargetType.TAG, command.getValue().targetType());
         org.junit.jupiter.api.Assertions.assertEquals(7L, command.getValue().targetId());
         org.junit.jupiter.api.Assertions.assertEquals(9L, command.getValue().applicantUserId());
+        org.junit.jupiter.api.Assertions.assertEquals("tag-7", command.getValue().targetName());
         verify(mapper).updateAuditStatusByIds(List.of(7L), AuditStatus.AUDITING.getCode());
     }
 
@@ -96,6 +97,7 @@ class TagServiceImplTest {
         TagDO tag = new TagDO();
         tag.setId(id);
         tag.setUserId(userId);
+        tag.setTagName("tag-" + id);
         tag.setAuditStatus(status.getCode());
         return tag;
     }

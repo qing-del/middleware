@@ -1,6 +1,5 @@
 package com.jacolp.module.audit.biz.application.service;
 
-import com.jacolp.constant.ImageConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.messaging.AuditReviewedEvent;
@@ -21,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 /** Compatibility endpoint backed by the same outbox event flow as batch review. */
 @Service
 public class ImageAuditReviewCompatibilityService {
+    private static final String IMAGE_NOT_FOUND = "未找到目标图片";
+    private static final String AUDIT_ALREADY_PROCESSED = "该审核记录已处理";
+    private static final String REJECT_REASON_REQUIRED = "拒绝原因不能为空";
+
     private final ImageAuditMapper imageAuditMapper;
     private final OutboxEventPublisher eventPublisher;
 
@@ -33,14 +36,14 @@ public class ImageAuditReviewCompatibilityService {
     @Transactional(rollbackFor = Exception.class)
     public void review(ImageAuditReviewDTO dto) {
         if (dto == null || dto.getAuditId() == null || dto.getAuditId() <= 0) {
-            throw new BaseException(ImageConstant.IMAGE_NOT_FOUND);
+            throw new BaseException(IMAGE_NOT_FOUND);
         }
         ImageAuditRecordDO record = imageAuditMapper.selectById(dto.getAuditId());
         if (record == null || !AuditReviewPolicy.isPending(AuditTargetType.IMAGE, record.getStatus())) {
-            throw new BaseException(ImageConstant.IMAGE_AUDIT_ALREADY_PROCESSED);
+            throw new BaseException(AUDIT_ALREADY_PROCESSED);
         }
         if (!dto.getApproved() && (dto.getRejectReason() == null || dto.getRejectReason().isEmpty())) {
-            throw new BaseException(ImageConstant.IMAGE_REJECT_REASON_NOT_EMPTY);
+            throw new BaseException(REJECT_REASON_REQUIRED);
         }
         Outcome outcome = dto.getApproved() ? Outcome.APPROVED : Outcome.REJECTED;
         record.setStatus(AuditReviewPolicy.resultStatus(AuditTargetType.IMAGE, outcome));
@@ -48,7 +51,7 @@ public class ImageAuditReviewCompatibilityService {
         record.setReviewTime(LocalDateTime.now());
         record.setRejectReason(dto.getApproved() ? null : dto.getRejectReason());
         if (imageAuditMapper.updateAuditRecord(record) != 1) {
-            throw new BaseException(ImageConstant.IMAGE_AUDIT_ALREADY_PROCESSED);
+            throw new BaseException(AUDIT_ALREADY_PROCESSED);
         }
         AuditReviewedEvent event = new AuditReviewedEvent(record.getId(),
                 AuditReviewedEvent.TargetType.IMAGE, record.getImageId(),

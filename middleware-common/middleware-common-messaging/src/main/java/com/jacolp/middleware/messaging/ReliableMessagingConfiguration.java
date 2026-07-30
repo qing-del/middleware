@@ -32,6 +32,8 @@ public class ReliableMessagingConfiguration {
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.SYSTEM_QUEUE, "storage.released");
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.EMAIL_QUEUE, "email.send-requested");
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.MEDIA_DELETE_QUEUE, "media.resource.delete-requested");
+        addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.AUDIT_PROJECTION_QUEUE,
+                "user.profile-changed");
         return new Declarables(declarations);
     }
 

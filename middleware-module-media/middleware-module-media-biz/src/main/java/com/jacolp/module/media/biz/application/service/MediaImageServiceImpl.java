@@ -239,7 +239,8 @@ public class MediaImageServiceImpl implements MediaImageService {
             throw new BaseException("该图片已有处理中的审核命令");
         }
         auditEvents.request(new AuditApplicationRequestedEvent(commandId,
-                AuditApplicationRequestedEvent.TargetType.IMAGE, imageId, userId, null));
+                AuditApplicationRequestedEvent.TargetType.IMAGE, imageId, userId, null,
+                image.getFilename(), image.getOssUrl()));
         image.setAuditStatus(AuditStatus.AUDITING.getCode());
         imageMapper.updateImage(image);
     }

@@ -221,7 +221,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
         }
         auditEvents.request(new AuditApplicationRequestedEvent(commandId,
-                AuditApplicationRequestedEvent.TargetType.NOTE, noteId, userId, null));
+                AuditApplicationRequestedEvent.TargetType.NOTE, noteId, userId, null,
+                note.getTitle(), null));
 
         // 更新笔记状态
         note.setStatus(NoteStatus.PENDING_AUDIT.getCode());

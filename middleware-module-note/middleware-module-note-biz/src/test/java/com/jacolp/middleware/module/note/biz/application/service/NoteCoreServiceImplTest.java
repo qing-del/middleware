@@ -52,6 +52,7 @@ class NoteCoreServiceImplTest {
         org.junit.jupiter.api.Assertions.assertEquals(AuditApplicationRequestedEvent.TargetType.NOTE, command.getValue().targetType());
         org.junit.jupiter.api.Assertions.assertEquals(7L, command.getValue().targetId());
         org.junit.jupiter.api.Assertions.assertEquals(9L, command.getValue().applicantUserId());
+        org.junit.jupiter.api.Assertions.assertEquals("note-7", command.getValue().targetName());
         verify(mapper).updateNote(note);
         org.junit.jupiter.api.Assertions.assertEquals(NoteStatus.PENDING_AUDIT.getCode(), note.getStatus());
     }
@@ -117,6 +118,7 @@ class NoteCoreServiceImplTest {
         NoteDO note = new NoteDO();
         note.setId(id);
         note.setUserId(userId);
+        note.setTitle("note-" + id);
         note.setStatus(status.getCode());
         return note;
     }

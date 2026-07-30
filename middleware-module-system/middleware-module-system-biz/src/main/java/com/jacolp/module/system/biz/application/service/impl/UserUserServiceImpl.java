@@ -17,6 +17,8 @@ import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO
 import com.jacolp.module.system.biz.application.vo.user.UserDetailVO;
 import com.jacolp.module.system.biz.application.vo.user.UserOverviewVO;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.middleware.messaging.UserProfileChangedEvent;
+import com.jacolp.middleware.messaging.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.service.EmailSenderService;
 import com.jacolp.module.system.biz.application.service.UserUserService;
 import com.jacolp.utils.EmailUtil;
@@ -39,6 +41,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Autowired private TokenSessionService tokenSessionService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private EmailSenderService emailSenderService;
+    @Autowired private UserProfileEventPublisher userProfileEvents;
 
     @Override
     public String loginUser(@NotNull @Valid UserLoginDTO userLoginDTO) {
@@ -107,6 +110,7 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException("注册失败");
         }
 
+        publishProfile(user);
         sendActivationEmail(user.getId());
         return "注册成功，请查收邮箱激活账号";
     }
@@ -172,6 +176,7 @@ public class UserUserServiceImpl implements UserUserService {
 
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateCurrentUserProfile(@NotNull @Valid UserProfileUpdateDTO dto) {
         Long userId = BaseContext.getCurrentId();
         UserDO user = userMapper.selectById(userId);
@@ -209,7 +214,13 @@ public class UserUserServiceImpl implements UserUserService {
             log.error("User profile update failed, userId: {}", userId);
             throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
         }
+        publishProfile(user);
         log.info("User profile updated, userId: {}", userId);
+    }
+
+    private void publishProfile(UserDO user) {
+        userProfileEvents.publish(new UserProfileChangedEvent(
+                user.getId(), user.getUsername(), user.getNickname()));
     }
 
     /**
