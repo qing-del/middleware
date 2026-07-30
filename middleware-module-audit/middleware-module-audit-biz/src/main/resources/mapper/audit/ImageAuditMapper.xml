@@ -55,7 +55,7 @@
             </if>
             review_time = NOW()
         </set>
-        WHERE id = #{id}
+        WHERE id = #{id} AND status = 1
     </update>
 
     <!-- 条件查询审核列表（管理员用）-->

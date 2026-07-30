@@ -95,13 +95,33 @@ class ArchitectureBoundaryTest {
         List<String> violations = new ArrayList<>();
         for (Path source : javaFiles(serverMain)) {
             String relative = serverMain.relativize(source).toString().replace('\\', '/');
-            boolean allowed = relative.equals("com/jacolp/middleware/MiddlewareServerApplication.java")
-                    || relative.startsWith("com/jacolp/middleware/config/");
+            boolean allowed = relative.equals("com/jacolp/MiddlewareServerApplication.java")
+                    || relative.startsWith("com/jacolp/config/");
             if (!allowed) {
                 violations.add(source.toString());
             }
         }
         assertNoViolations("server main must contain only the bootstrap class and configuration", violations);
+    }
+
+    @Test
+    void auditReviewServicesDoNotCallOtherModulesWriteApis() throws Exception {
+        Path auditServices = repositoryRoot().resolve(
+                "middleware-module-audit/middleware-module-audit-biz/src/main/java/"
+                        + "com/jacolp/module/audit/biz/application/service");
+        Pattern forbiddenWriteApi = Pattern.compile(
+                "^\\s*import\\s+com\\.jacolp\\.module\\.(?:note|media)\\.api\\."
+                        + "(?:NoteAuditApplyApi|MediaAuditApplyApi|command\\.(?:ApplyNoteAuditCommand|"
+                        + "ApplyTagAuditCommand|ApplyMediaAuditCommand)).*;",
+                Pattern.MULTILINE);
+        List<String> violations = new ArrayList<>();
+        for (Path source : javaFiles(auditServices)) {
+            if (source.getFileName().toString().equals("AuditReviewService.java")
+                    || source.getFileName().toString().equals("ImageAuditReviewCompatibilityService.java")) {
+                collectMatches(source, forbiddenWriteApi, violations);
+            }
+        }
+        assertNoViolations("audit review services must publish events instead of calling source write APIs", violations);
     }
 
     private static Path repositoryRoot() {

@@ -2,7 +2,10 @@ package com.jacolp.middleware.messaging;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.amqp.core.Message;
 import org.springframework.stereotype.Component;
 
@@ -23,10 +26,24 @@ public class EventMessageCodec {
     }
 
     public <T> T payload(EventEnvelope envelope, Class<T> type) {
+        return convert(envelope.payload(), type);
+    }
+
+    public <T> T convert(JsonNode value, Class<T> type) {
         try {
-            return objectMapper.treeToValue(envelope.payload(), type);
+            return objectMapper.treeToValue(value, type);
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("Invalid payload for " + envelope.eventType(), e);
+            throw new IllegalArgumentException("Invalid domain event payload", e);
         }
+    }
+
+    /** Supports both a singular payload and the standard partitioned {items:[...]} payload. */
+    public <T> List<T> payloadItems(EventEnvelope envelope, Class<T> type) {
+        JsonNode items = envelope.payload().get("items");
+        if (items == null) return List.of(convert(envelope.payload(), type));
+        if (!items.isArray()) throw new IllegalArgumentException("Partitioned event items must be an array");
+        List<T> values = new ArrayList<>();
+        items.forEach(item -> values.add(convert(item, type)));
+        return List.copyOf(values);
     }
 }

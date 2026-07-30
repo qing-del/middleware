@@ -404,6 +404,18 @@ CREATE TABLE `sys_event_inbox` (
     KEY `idx_event_inbox_consumer_time` (`consumer_name`, `consumed_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Idempotent domain event consumption records';
 
+CREATE TABLE `sys_event_projection_version` (
+    `id`             bigint       NOT NULL AUTO_INCREMENT,
+    `consumer_name`  varchar(128) NOT NULL,
+    `aggregate_type` varchar(64)  NOT NULL,
+    `aggregate_id`   bigint       NOT NULL,
+    `last_sequence`  bigint       NOT NULL,
+    `update_time`    datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_event_projection_aggregate`
+        (`consumer_name`, `aggregate_type`, `aggregate_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Last applied sequence for ordered event projections';
+
 CREATE TABLE `biz_image_delete_dead_letter` (
     `id`           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `image_url`    varchar(1000) NOT NULL COMMENT '待删除图片URL(OSS/R2等完整地址)',

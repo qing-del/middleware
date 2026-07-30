@@ -3,31 +3,31 @@ package com.jacolp.module.audit.biz.application.service;
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
+import com.jacolp.middleware.messaging.AuditReviewedEvent;
+import com.jacolp.middleware.messaging.EventTypes;
+import com.jacolp.middleware.messaging.OutboxEventPublisher;
+import com.jacolp.module.audit.api.AuditTargetType;
 import com.jacolp.module.audit.biz.application.dto.ImageAuditReviewDTO;
 import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy;
 import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy.Outcome;
-import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy.ReviewMode;
-import com.jacolp.module.audit.api.AuditTargetType;
 import com.jacolp.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
-import com.jacolp.module.media.api.MediaAuditApplyApi;
-import com.jacolp.module.media.api.command.ApplyMediaAuditCommand;
-import com.jacolp.module.media.api.model.MediaAuditDecision;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Compatibility service for the legacy single-image review endpoint. */
+/** Compatibility endpoint backed by the same outbox event flow as batch review. */
 @Service
 public class ImageAuditReviewCompatibilityService {
     private final ImageAuditMapper imageAuditMapper;
-    private final MediaAuditApplyApi mediaAuditApplyApi;
+    private final OutboxEventPublisher eventPublisher;
 
-    public ImageAuditReviewCompatibilityService(ImageAuditMapper imageAuditMapper, MediaAuditApplyApi mediaAuditApplyApi) {
+    public ImageAuditReviewCompatibilityService(ImageAuditMapper imageAuditMapper,
+                                                OutboxEventPublisher eventPublisher) {
         this.imageAuditMapper = imageAuditMapper;
-        this.mediaAuditApplyApi = mediaAuditApplyApi;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -43,16 +43,19 @@ public class ImageAuditReviewCompatibilityService {
             throw new BaseException(ImageConstant.IMAGE_REJECT_REASON_NOT_EMPTY);
         }
         Outcome outcome = dto.getApproved() ? Outcome.APPROVED : Outcome.REJECTED;
-        Short status = AuditReviewPolicy.resultStatus(AuditTargetType.IMAGE, outcome);
-        record.setStatus(status);
+        record.setStatus(AuditReviewPolicy.resultStatus(AuditTargetType.IMAGE, outcome));
         record.setReviewerUserId(BaseContext.getCurrentId());
         record.setReviewTime(LocalDateTime.now());
-        if (!dto.getApproved()) {
-            record.setRejectReason(dto.getRejectReason());
+        record.setRejectReason(dto.getApproved() ? null : dto.getRejectReason());
+        if (imageAuditMapper.updateAuditRecord(record) != 1) {
+            throw new BaseException(ImageConstant.IMAGE_AUDIT_ALREADY_PROCESSED);
         }
-        mediaAuditApplyApi.applyMediaAudit(new ApplyMediaAuditCommand(List.of(record.getImageId()),
-                outcome == Outcome.APPROVED ? MediaAuditDecision.APPROVED : MediaAuditDecision.REJECTED,
-                AuditReviewPolicy.shouldUpdateRelationStatus(ReviewMode.SINGLE_IMAGE_COMPATIBILITY)));
-        imageAuditMapper.updateAuditRecord(record);
+        AuditReviewedEvent event = new AuditReviewedEvent(record.getId(),
+                AuditReviewedEvent.TargetType.IMAGE, record.getImageId(),
+                outcome == Outcome.APPROVED
+                        ? AuditReviewedEvent.Decision.APPROVED : AuditReviewedEvent.Decision.REJECTED,
+                record.getReviewerUserId(), record.getRejectReason(), Instant.now());
+        eventPublisher.publishPartitioned(EventTypes.AUDIT_REVIEWED, EventTypes.AUDIT_REVIEWED,
+                "AUDIT_REVIEW", record.getId(), record.getId().toString(), List.of(event));
     }
 }

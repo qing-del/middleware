@@ -32,3 +32,15 @@ CREATE TABLE IF NOT EXISTS `sys_event_inbox` (
     UNIQUE KEY `uk_event_inbox_consumer` (`event_id`, `consumer_name`),
     KEY `idx_event_inbox_consumer_time` (`consumer_name`, `consumed_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Idempotent domain event consumption records';
+
+CREATE TABLE IF NOT EXISTS `sys_event_projection_version` (
+    `id`             bigint       NOT NULL AUTO_INCREMENT,
+    `consumer_name`  varchar(128) NOT NULL,
+    `aggregate_type` varchar(64)  NOT NULL,
+    `aggregate_id`   bigint       NOT NULL,
+    `last_sequence`  bigint       NOT NULL,
+    `update_time`    datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_event_projection_aggregate`
+        (`consumer_name`, `aggregate_type`, `aggregate_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Last applied sequence for ordered event projections';
