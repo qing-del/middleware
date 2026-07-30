@@ -46,4 +46,11 @@ public class AudioController {
         log.info("Admin query audio task detail, taskId: {}", taskId);
         return Result.success(audioTaskService.getTask(taskId));
     }
+
+    @PostMapping("/cancel/{taskId}")
+    @Operation(summary = "取消音频任务", description = "管理员可取消任意用户处于 PENDING 或 PROCESSING 状态的任务。")
+    public Result<Boolean> cancelTask(
+            @Parameter(description = "任务 ID") @PathVariable Long taskId) {
+        return Result.success(audioTaskService.cancelTask(taskId));
+    }
 }

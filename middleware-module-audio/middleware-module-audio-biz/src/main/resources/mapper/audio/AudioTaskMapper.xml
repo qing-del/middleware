@@ -23,6 +23,16 @@
         ORDER BY create_time DESC
     </select>
 
+    <update id="cancelTask">
+        UPDATE audio_tasks
+        SET status = #{cancelledStatus},
+            error_msg = '任务已取消',
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+          AND status IN (0, 1)
+          <if test="userId != null">AND user_id = #{userId}</if>
+    </update>
+
     <update id="casUpdateStatus">
     UPDATE audio_tasks SET status = #{newStatus}
         <if test="resultUrl != null">, result_url = #{resultUrl}</if>

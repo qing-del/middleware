@@ -27,6 +27,7 @@ class AudioTaskRetryTaskTest {
         when(redis.opsForStream()).thenReturn(stream);
         AudioTaskDO task = new AudioTaskDO(); task.setId(30L);
         when(mapper.selectPendingTimeout(any())).thenReturn(List.of(task));
+        when(mapper.incrementRetryTime(any(), any())).thenReturn(1);
         AudioTaskRetryTask retryTask = new AudioTaskRetryTask();
         ReflectionTestUtils.setField(retryTask, "audioTaskMapper", mapper);
         ReflectionTestUtils.setField(retryTask, "audioTaskService", service);

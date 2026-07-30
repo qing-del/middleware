@@ -128,6 +128,18 @@ public class AudioTaskServiceImpl implements AudioTaskService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public boolean cancelTask(Long taskId) {
+        Long userId = PermissionContext.isAdmin() ? null : BaseContext.getCurrentId();
+        int updated = audioTaskMapper.cancelTask(taskId, userId, AudioTaskLifecycle.cancelledStatus());
+        if (updated == 0)
+            throw new BaseException("任务不存在、无权访问或当前状态不可取消");
+        log.info("Audio task cancelled, taskId: {}, operatorUserId: {}, admin: {}",
+                taskId, BaseContext.getCurrentId(), PermissionContext.isAdmin());
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public AudioTaskSubmitVO retryFailedTask(Long taskId) {
         Long userId = BaseContext.getCurrentId();
         AudioTaskDO task = audioTaskMapper.selectById(taskId);

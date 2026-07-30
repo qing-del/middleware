@@ -15,6 +15,9 @@ public interface AudioTaskMapper {
     int insert(AudioTaskDO task);
     AudioTaskDO selectById(Long id);
     List<AudioTaskDO> selectByUserId(@Param("dto") AudioTaskPageQueryDTO dto);
+
+    int cancelTask(@Param("id") Long id, @Param("userId") Long userId,
+                   @Param("cancelledStatus") Integer cancelledStatus);
     /**
      * CAS 更新任务状态，WHERE status = expectedStatus 保证幂等性。
      * @return 影响行数，0 表示 CAS 失败（状态已变更）

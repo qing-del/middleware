@@ -3,6 +3,7 @@ package com.jacolp.middleware.module.audio.biz.application.service;
 import com.jacolp.audio.biz.service.AudioTaskServiceImpl;
 import com.jacolp.audio.biz.service.AudioTaskPublisher;
 import com.jacolp.audio.biz.service.TransactionAfterCommitExecutor;
+import com.jacolp.audio.biz.audio.AudioTaskLifecycle;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.exception.BaseException;
@@ -80,6 +81,28 @@ class AudioTaskServiceImplTest {
         PermissionContext.setAdmin(true);
         assertThat(service.getTask(30L).getSourceText()).isEqualTo("detail text");
         assertThat(service.getTask(30L).getResultUrl()).isEqualTo("https://audio.example/30.mp3");
+    }
+
+    @Test
+    void cancelScopesUserUpdatesAndLetsAdminOperateAcrossUsers() {
+        when(mapper.cancelTask(31L, 9L, AudioTaskLifecycle.Status.CANCELLED.code())).thenReturn(1);
+
+        assertThat(service.cancelTask(31L)).isTrue();
+        verify(mapper).cancelTask(31L, 9L, AudioTaskLifecycle.Status.CANCELLED.code());
+
+        PermissionContext.setAdmin(true);
+        when(mapper.cancelTask(32L, null, AudioTaskLifecycle.Status.CANCELLED.code())).thenReturn(1);
+        assertThat(service.cancelTask(32L)).isTrue();
+        verify(mapper).cancelTask(32L, null, AudioTaskLifecycle.Status.CANCELLED.code());
+    }
+
+    @Test
+    void cancelRejectsMissingUnauthorizedOrTerminalTask() {
+        when(mapper.cancelTask(33L, 9L, AudioTaskLifecycle.Status.CANCELLED.code())).thenReturn(0);
+
+        assertThatThrownBy(() -> service.cancelTask(33L))
+                .isInstanceOf(BaseException.class)
+                .hasMessageContaining("不可取消");
     }
 
     @Test

@@ -36,6 +36,11 @@ public interface AudioTaskService {
     PageResult listTasks(AudioTaskPageQueryDTO dto);
 
     /**
+     * 取消排队中或处理中的任务；普通用户仅能取消自己的任务，管理员可取消任意任务。
+     */
+    boolean cancelTask(Long taskId);
+
+    /**
      * 复制当前用户的失败任务并重新投递，原任务将标记为已重试。
      */
     AudioTaskSubmitVO retryFailedTask(Long taskId);

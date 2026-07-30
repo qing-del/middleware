@@ -61,4 +61,11 @@ public class AudioController {
         log.info("User list audio tasks, page: {}, size: {}", queryDTO.getPageNum(), queryDTO.getPageSize());
         return Result.success(audioTaskService.listTasks(queryDTO));
     }
+
+    @PostMapping("/cancel/{taskId}")
+    @Operation(summary = "取消音频任务", description = "仅允许取消当前用户处于 PENDING 或 PROCESSING 状态的任务。")
+    public Result<Boolean> cancelTask(
+            @Parameter(description = "任务 ID") @PathVariable Long taskId) {
+        return Result.success(audioTaskService.cancelTask(taskId));
+    }
 }
