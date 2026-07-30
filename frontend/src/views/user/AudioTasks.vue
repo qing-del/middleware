@@ -3,9 +3,10 @@ import { ref, watch } from 'vue'
 import { audioApi, type AudioTaskVO } from '@/api/audio'
 import { useAuthStore } from '@/stores/auth'
 import { buildResourceUrl } from '@/utils/resourceUrl'
+import { toastError, toastSuccess } from '@/utils/feedback'
 import {
   Mic, Clock, CheckCircle2, XCircle, Play,
-  RotateCcw, Calendar, Gauge, Waves, ChevronLeft, ChevronRight, Loader2, Music, FileText, X
+  RotateCcw, Calendar, Gauge, Waves, ChevronLeft, ChevronRight, Loader2, Music, FileText, X, History
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -17,6 +18,7 @@ const pageSize = ref(12)
 const showSourceModal = ref(false)
 const sourceTitle = ref('')
 const sourceContent = ref('')
+const retryingTaskId = ref<number | null>(null)
 
 function openSourceModal(task: AudioTaskVO) {
   sourceTitle.value = '任务 #' + task.id + ' 源文本'
@@ -52,12 +54,27 @@ async function handleRefreshTask(task: AudioTaskVO) {
   }
 }
 
+async function handleRetryTask(task: AudioTaskVO) {
+  retryingTaskId.value = task.id
+  try {
+    const result = await audioApi.retry(task.id)
+    toastSuccess(`重试任务已提交，新任务 ID: ${result.taskId}`)
+    await fetchTasks()
+  } catch (error) {
+    console.error('Retry audio task failed:', error)
+    toastError('重试任务失败，请稍后再试')
+  } finally {
+    retryingTaskId.value = null
+  }
+}
+
 function getStatusInfo(status: number) {
   switch (status) {
     case 0: return { label: '排队中', icon: Clock, cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
     case 1: return { label: '合成中', icon: Loader2, cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20 animate-pulse' }
     case 2: return { label: '已完成', icon: CheckCircle2, cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
     case -1: return { label: '失败', icon: XCircle, cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
+    case -2: return { label: '已重试', icon: History, cls: 'text-violet-400 bg-violet-500/10 border-violet-500/20' }
     default: return { label: '未知', icon: Clock, cls: 'text-slate-400 bg-slate-500/10 border-slate-500/20' }
   }
 }
@@ -202,6 +219,22 @@ watch(
           <template v-else-if="task.status === -1">
             <div class="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-[11px] text-rose-400 font-medium">
               失败原因: {{ task.errorMsg || '系统异常' }}
+            </div>
+            <button
+              type="button"
+              :disabled="retryingTaskId === task.id"
+              class="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition-all shadow-lg shadow-violet-600/20"
+              @click="handleRetryTask(task)"
+            >
+              <Loader2 v-if="retryingTaskId === task.id" class="w-3.5 h-3.5 animate-spin" />
+              <RotateCcw v-else class="w-3.5 h-3.5" />
+              {{ retryingTaskId === task.id ? '正在提交...' : '重试任务' }}
+            </button>
+          </template>
+
+          <template v-else-if="task.status === -2">
+            <div class="bg-violet-500/10 border border-violet-500/20 rounded-xl p-3 text-[11px] text-violet-300 font-medium text-center">
+              已创建新的重试任务
             </div>
           </template>
 

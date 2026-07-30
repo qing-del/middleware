@@ -11,9 +11,10 @@ export interface AudioTaskVO {
   speed: number
   noiseType: string
   noiseFactor: number
-  /** 任务状态：0=排队中, 1=合成中, 2=已完成, -1=失败 */
+  /** 任务状态：0=排队中, 1=合成中, 2=已完成, -1=失败, -2=已重试, -3=已取消 */
   status: number
   resultUrl?: string
+  audioSize?: number
   errorMsg?: string
   userId: number
   createTime: string
@@ -80,6 +81,16 @@ export const audioApi = {
     return request<AudioTaskVO>({
       url: `/user/audio/status/${taskId}`,
       method: 'GET'
+    })
+  },
+
+  /**
+   * 用户端：重试失败的音频任务
+   */
+  retry(taskId: number | string) {
+    return request<AudioTaskSubmitVO>({
+      url: `/user/audio/retry/${taskId}`,
+      method: 'POST'
     })
   }
 }
