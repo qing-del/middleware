@@ -1,7 +1,11 @@
 package com.jacolp.middleware.module.audio.biz.application.service;
 
 import com.jacolp.audio.biz.service.AudioTaskServiceImpl;
+import com.jacolp.audio.biz.service.AudioTaskPublisher;
+import com.jacolp.audio.biz.service.TransactionAfterCommitExecutor;
 import com.jacolp.context.BaseContext;
+import com.jacolp.context.PermissionContext;
+import com.jacolp.exception.BaseException;
 import com.jacolp.exception.RateLimitExceededException;
 import com.jacolp.audio.biz.constant.AudioConstant;
 import com.jacolp.audio.biz.domain.dto.AudioCallbackFinishDTO;
@@ -15,19 +19,16 @@ import com.jacolp.module.system.api.quota.QuotaType;
 import com.jacolp.module.system.api.quota.UserQuotaApi;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.data.redis.core.StreamOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -37,30 +38,52 @@ import static org.mockito.Mockito.when;
 class AudioTaskServiceImplTest {
     private AudioTaskMapper mapper;
     private UserQuotaApi quotaApi;
-    private StringRedisTemplate redis;
-    private StreamOperations stream;
+    private AudioTaskPublisher publisher;
+    private TransactionAfterCommitExecutor afterCommitExecutor;
     private AudioTaskServiceImpl service;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
         mapper = mock(AudioTaskMapper.class);
         quotaApi = mock(UserQuotaApi.class);
-        redis = mock(StringRedisTemplate.class);
-        stream = mock(StreamOperations.class);
-        when(redis.opsForStream()).thenReturn(stream);
+        publisher = mock(AudioTaskPublisher.class);
+        afterCommitExecutor = mock(TransactionAfterCommitExecutor.class);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(afterCommitExecutor).execute(any());
         service = new AudioTaskServiceImpl();
         ReflectionTestUtils.setField(service, "audioTaskMapper", mapper);
         ReflectionTestUtils.setField(service, "userQuotaApi", quotaApi);
-        ReflectionTestUtils.setField(service, "redis", redis);
+        ReflectionTestUtils.setField(service, "audioTaskPublisher", publisher);
+        ReflectionTestUtils.setField(service, "transactionAfterCommitExecutor", afterCommitExecutor);
         BaseContext.setCurrentId(9L);
     }
 
     @AfterEach
-    void clearContext() { BaseContext.remove(); }
+    void clearContext() {
+        BaseContext.remove();
+        PermissionContext.remove();
+    }
 
     @Test
-    void submitConsumesQuotaInsertsPendingTaskAndPublishesSixFieldPayload() {
+    void userCanReadOnlyOwnTaskWhileAdminCanReadAnyTask() {
+        AudioTaskDO task = new AudioTaskDO();
+        task.setId(30L);
+        task.setUserId(7L);
+        task.setSourceText("detail text");
+        task.setResultUrl("https://audio.example/30.mp3");
+        when(mapper.selectById(30L)).thenReturn(task);
+
+        assertThatThrownBy(() -> service.getTask(30L)).isInstanceOf(BaseException.class);
+
+        PermissionContext.setAdmin(true);
+        assertThat(service.getTask(30L).getSourceText()).isEqualTo("detail text");
+        assertThat(service.getTask(30L).getResultUrl()).isEqualTo("https://audio.example/30.mp3");
+    }
+
+    @Test
+    void submitConsumesQuotaInsertsPendingTaskAndPublishesIt() {
         when(quotaApi.consume(any())).thenReturn(quotaResult(true));
         org.mockito.Mockito.doAnswer(invocation -> { invocation.getArgument(0, AudioTaskDO.class).setId(42L); return 1; }).when(mapper).insert(any());
 
@@ -75,9 +98,7 @@ class AudioTaskServiceImplTest {
         verify(mapper).insert(task.capture());
         assertThat(task.getValue().getStatus()).isEqualTo(AudioConstant.TASK_STATUS_PENDING);
         assertThat(task.getValue().getNoiseFactor()).isEqualByComparingTo("0.5");
-        ArgumentCaptor<Map<String, String>> payload = ArgumentCaptor.forClass(Map.class);
-        verify(stream).add(eq(AudioConstant.REDIS_STREAM_KEY), payload.capture());
-        assertThat(payload.getValue()).containsExactlyInAnyOrderEntriesOf(Map.of("taskId", "42", "userId", "9", "speed", "1.2", "noiseType", "PURE", "noiseFactor", "0.5", "text", "hello"));
+        verify(publisher).publish(task.getValue());
     }
 
     @Test
@@ -87,7 +108,7 @@ class AudioTaskServiceImplTest {
         assertThatThrownBy(() -> service.submitTask(submitDto())).isInstanceOf(RateLimitExceededException.class);
 
         verify(mapper, never()).insert(any());
-        verify(stream, never()).add(eq(AudioConstant.REDIS_STREAM_KEY), any(Map.class));
+        verify(publisher, never()).publish(any());
     }
 
     @Test

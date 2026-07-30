@@ -104,7 +104,8 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     public AudioTaskVO getTask(Long taskId) {
         Long userId = BaseContext.getCurrentId();
         AudioTaskDO task = audioTaskMapper.selectById(taskId);
-        if (task == null || !task.getUserId().equals(userId)) throw new BaseException("任务不存在或无权访问");
+        if (task == null || (!PermissionContext.isAdmin() && !task.getUserId().equals(userId)))
+            throw new BaseException("任务不存在或无权访问");
         AudioTaskVO vo = new AudioTaskVO();
         BeanUtils.copyProperties(task, vo);
         return vo;

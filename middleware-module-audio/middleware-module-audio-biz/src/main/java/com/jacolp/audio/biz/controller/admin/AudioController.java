@@ -1,6 +1,7 @@
 package com.jacolp.audio.biz.controller.admin;
 
 import com.jacolp.audio.biz.domain.dto.AudioTaskPageQueryDTO;
+import com.jacolp.audio.biz.domain.vo.AudioTaskVO;
 import com.jacolp.audio.biz.service.AudioTaskService;
 import com.jacolp.result.PageResult;
 import com.jacolp.result.Result;
@@ -13,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,5 +37,13 @@ public class AudioController {
     public Result<PageResult> listTasks(@Parameter(description = "分页参数") @Valid @RequestBody AudioTaskPageQueryDTO queryDTO) {
         log.info("List tasks, page: {}, size: {}", queryDTO.getPageNumOrDefault(), queryDTO.getPageSizeOrDefault());
         return Result.success(audioTaskService.listTasks(queryDTO));
+    }
+
+    @GetMapping("/{taskId}")
+    @Operation(summary = "查询音频任务详情", description = "管理员可查询任意用户的音频任务参数、状态、结果 URL 和失败原因。")
+    public Result<AudioTaskVO> getTask(
+            @Parameter(description = "任务 ID") @PathVariable Long taskId) {
+        log.info("Admin query audio task detail, taskId: {}", taskId);
+        return Result.success(audioTaskService.getTask(taskId));
     }
 }
