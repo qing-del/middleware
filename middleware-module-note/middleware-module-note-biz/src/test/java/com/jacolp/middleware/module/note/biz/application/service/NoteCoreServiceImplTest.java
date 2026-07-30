@@ -18,11 +18,10 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
-import com.jacolp.module.audit.api.AuditApplicationApi;
-import com.jacolp.module.audit.api.AuditTargetType;
-import com.jacolp.module.audit.api.CancelAuditApplicationCommand;
-import com.jacolp.module.audit.api.CreateAuditApplicationCommand;
-import com.jacolp.module.audit.api.PendingAuditApplicationQuery;
+import com.jacolp.middleware.messaging.AsyncCommandStateService;
+import com.jacolp.middleware.messaging.AuditApplicationCancelRequestedEvent;
+import com.jacolp.middleware.messaging.AuditApplicationEventPublisher;
+import com.jacolp.middleware.messaging.AuditApplicationRequestedEvent;
 import com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 
@@ -37,19 +36,20 @@ class NoteCoreServiceImplTest {
     @Test
     void submitAuditCreatesNoteApplicationAndMovesConvertedNoteToPending() {
         NoteMapper mapper = mock(NoteMapper.class);
-        AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
+        AuditApplicationEventPublisher auditApi = mock(AuditApplicationEventPublisher.class);
+        AsyncCommandStateService state = mock(AsyncCommandStateService.class);
         BaseContext.setCurrentId(9L);
         PermissionContext.setAdmin(false);
         NoteDO note = note(7L, 9L, NoteStatus.CONVERTED);
         when(mapper.selectById(7L)).thenReturn(note);
-        when(auditApi.hasPendingApplication(any(PendingAuditApplicationQuery.class))).thenReturn(false);
+        when(state.tryBegin(any(), any(), any(Long.class), any(), any())).thenReturn(true);
         when(mapper.updateNote(note)).thenReturn(1);
 
-        service(mapper, auditApi).submitNoteAudit(7L);
+        service(mapper, auditApi, state).submitNoteAudit(7L);
 
-        ArgumentCaptor<CreateAuditApplicationCommand> command = ArgumentCaptor.forClass(CreateAuditApplicationCommand.class);
-        verify(auditApi).createApplication(command.capture());
-        org.junit.jupiter.api.Assertions.assertEquals(AuditTargetType.NOTE, command.getValue().targetType());
+        ArgumentCaptor<AuditApplicationRequestedEvent> command = ArgumentCaptor.forClass(AuditApplicationRequestedEvent.class);
+        verify(auditApi).request(command.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(AuditApplicationRequestedEvent.TargetType.NOTE, command.getValue().targetType());
         org.junit.jupiter.api.Assertions.assertEquals(7L, command.getValue().targetId());
         org.junit.jupiter.api.Assertions.assertEquals(9L, command.getValue().applicantUserId());
         verify(mapper).updateNote(note);
@@ -59,12 +59,12 @@ class NoteCoreServiceImplTest {
     @Test
     void submitAuditRejectsApprovedStatusBeforeCallingAuditApi() {
         NoteMapper mapper = mock(NoteMapper.class);
-        AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
+        AuditApplicationEventPublisher auditApi = mock(AuditApplicationEventPublisher.class);
         BaseContext.setCurrentId(9L);
         PermissionContext.setAdmin(false);
         when(mapper.selectById(7L)).thenReturn(note(7L, 9L, NoteStatus.APPROVED));
 
-        assertThrows(BaseException.class, () -> service(mapper, auditApi).submitNoteAudit(7L));
+        assertThrows(BaseException.class, () -> service(mapper, auditApi, mock(AsyncCommandStateService.class)).submitNoteAudit(7L));
 
         verifyNoInteractions(auditApi);
         verify(mapper, never()).updateNote(any());
@@ -77,34 +77,39 @@ class NoteCoreServiceImplTest {
         PermissionContext.setAdmin(false);
         when(mapper.selectById(7L)).thenReturn(note(7L, 10L, NoteStatus.CONVERTED));
 
-        assertThrows(BaseException.class, () -> service(mapper, mock(AuditApplicationApi.class)).getById(7L));
+        assertThrows(BaseException.class, () -> service(mapper, mock(AuditApplicationEventPublisher.class),
+                mock(AsyncCommandStateService.class)).getById(7L));
     }
 
     @Test
     void cancelAuditUsesNoteApplicantAndMovesPendingNoteBackToConverted() {
         NoteMapper mapper = mock(NoteMapper.class);
-        AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
+        AuditApplicationEventPublisher auditApi = mock(AuditApplicationEventPublisher.class);
+        AsyncCommandStateService state = mock(AsyncCommandStateService.class);
         BaseContext.setCurrentId(9L);
         PermissionContext.setAdmin(false);
         NoteDO note = note(7L, 9L, NoteStatus.PENDING_AUDIT);
         when(mapper.selectById(7L)).thenReturn(note);
         when(mapper.updateNote(note)).thenReturn(1);
+        when(state.tryBegin(any(), any(), any(Long.class), any(), any())).thenReturn(true);
 
-        service(mapper, auditApi).cancelNoteAudit(7L);
+        service(mapper, auditApi, state).cancelNoteAudit(7L);
 
-        ArgumentCaptor<CancelAuditApplicationCommand> command = ArgumentCaptor.forClass(CancelAuditApplicationCommand.class);
-        verify(auditApi).cancelApplication(command.capture());
-        org.junit.jupiter.api.Assertions.assertEquals(AuditTargetType.NOTE, command.getValue().targetType());
+        ArgumentCaptor<AuditApplicationCancelRequestedEvent> command = ArgumentCaptor.forClass(AuditApplicationCancelRequestedEvent.class);
+        verify(auditApi).cancel(command.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(AuditApplicationRequestedEvent.TargetType.NOTE, command.getValue().targetType());
         org.junit.jupiter.api.Assertions.assertEquals(7L, command.getValue().targetId());
         org.junit.jupiter.api.Assertions.assertEquals(9L, command.getValue().actorUserId());
         org.junit.jupiter.api.Assertions.assertEquals(NoteStatus.CONVERTED.getCode(), note.getStatus());
         verify(mapper).updateNote(note);
     }
 
-    private static NoteCoreServiceImpl service(NoteMapper mapper, AuditApplicationApi auditApi) {
+    private static NoteCoreServiceImpl service(NoteMapper mapper, AuditApplicationEventPublisher auditApi,
+                                               AsyncCommandStateService state) {
         NoteCoreServiceImpl service = new NoteCoreServiceImpl();
         ReflectionTestUtils.setField(service, "noteMapper", mapper);
-        ReflectionTestUtils.setField(service, "auditApplicationApi", auditApi);
+        ReflectionTestUtils.setField(service, "auditEvents", auditApi);
+        ReflectionTestUtils.setField(service, "commandState", state);
         return service;
     }
 

@@ -1,6 +1,7 @@
 package com.jacolp.module.note.biz.application.service;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.jacolp.module.note.biz.application.dto.note.*;
 import org.jspecify.annotations.NonNull;
@@ -22,11 +23,10 @@ import com.jacolp.module.note.biz.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.module.note.biz.application.vo.note.NoteStatsVO;
 import com.jacolp.module.note.biz.application.vo.note.NoteVO;
 import com.jacolp.result.PageResult;
-import com.jacolp.module.audit.api.AuditApplicationApi;
-import com.jacolp.module.audit.api.AuditTargetType;
-import com.jacolp.module.audit.api.CancelAuditApplicationCommand;
-import com.jacolp.module.audit.api.CreateAuditApplicationCommand;
-import com.jacolp.module.audit.api.PendingAuditApplicationQuery;
+import com.jacolp.middleware.messaging.AsyncCommandStateService;
+import com.jacolp.middleware.messaging.AuditApplicationCancelRequestedEvent;
+import com.jacolp.middleware.messaging.AuditApplicationEventPublisher;
+import com.jacolp.middleware.messaging.AuditApplicationRequestedEvent;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,7 +42,8 @@ public class NoteCoreServiceImpl implements NoteCoreService {
 
     @Autowired private NoteMapper noteMapper;
 
-    @Autowired private AuditApplicationApi auditApplicationApi;
+    @Autowired private AuditApplicationEventPublisher auditEvents;
+    @Autowired private AsyncCommandStateService commandState;
 
     @Override
     public void update(NoteDO noteEntity) {
@@ -215,13 +216,12 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        // 检查是否存在待审核申请
-        if (auditApplicationApi.hasPendingApplication(new PendingAuditApplicationQuery(AuditTargetType.NOTE, noteId))) {
+        String commandId = UUID.randomUUID().toString();
+        if (!commandState.tryBegin("NOTE", "NOTE", noteId, commandId, "CREATE_AUDIT")) {
             throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
         }
-
-        auditApplicationApi.createApplication(new CreateAuditApplicationCommand(
-                AuditTargetType.NOTE, noteId, userId, null));
+        auditEvents.request(new AuditApplicationRequestedEvent(commandId,
+                AuditApplicationRequestedEvent.TargetType.NOTE, noteId, userId, null));
 
         // 更新笔记状态
         note.setStatus(NoteStatus.PENDING_AUDIT.getCode());
@@ -248,8 +248,12 @@ public class NoteCoreServiceImpl implements NoteCoreService {
             throw new BaseException(NoteConstant.NOTE_STATUS_NOT_ALLOWED);
         }
 
-        auditApplicationApi.cancelApplication(new CancelAuditApplicationCommand(
-                AuditTargetType.NOTE, noteId, note.getUserId()));
+        String commandId = UUID.randomUUID().toString();
+        if (!commandState.tryBegin("NOTE", "NOTE", noteId, commandId, "CANCEL_AUDIT")) {
+            throw new BaseException(NoteConstant.NOTE_AUDIT_PENDING);
+        }
+        auditEvents.cancel(new AuditApplicationCancelRequestedEvent(commandId,
+                AuditApplicationRequestedEvent.TargetType.NOTE, noteId, note.getUserId()));
 
         // 状态回退到 CONVERTED
         note.setStatus(NoteStatus.CONVERTED.getCode());

@@ -12,6 +12,10 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.framework.oss.AliyunOSSOperator;
 import com.jacolp.middleware.messaging.MediaResourceDeleteEventPublisher;
 import com.jacolp.middleware.messaging.MediaResourceDeleteRequestedEvent;
+import com.jacolp.middleware.messaging.AsyncCommandStateService;
+import com.jacolp.middleware.messaging.AuditApplicationCancelRequestedEvent;
+import com.jacolp.middleware.messaging.AuditApplicationEventPublisher;
+import com.jacolp.middleware.messaging.AuditApplicationRequestedEvent;
 import com.jacolp.middleware.messaging.StorageReleasedEvent;
 import com.jacolp.middleware.messaging.StorageReleasedEventPublisher;
 import com.jacolp.module.media.api.model.MediaFileSummary;
@@ -27,7 +31,6 @@ import com.jacolp.module.note.api.NoteReadApi;
 import com.jacolp.module.note.api.TopicQueryApi;
 import com.jacolp.module.system.api.quota.StorageHandler;
 import com.jacolp.module.system.api.quota.StorageOperationType;
-import com.jacolp.module.audit.api.*;
 import com.jacolp.module.media.biz.application.vo.image.*;
 import com.jacolp.result.PageResult;
 import lombok.extern.slf4j.Slf4j;
@@ -52,13 +55,15 @@ public class MediaImageServiceImpl implements MediaImageService {
     private final AliyunOSSOperator aliyunOSSOperator;
     private final NoteReadApi noteReadApi;
     private final TopicQueryApi topicQueryApi;
-    private final AuditApplicationApi auditApplicationApi;
+    private final AuditApplicationEventPublisher auditEvents;
+    private final AsyncCommandStateService commandState;
     private final StorageReleasedEventPublisher storageReleasedEventPublisher;
     private final MediaResourceDeleteEventPublisher mediaResourceDeleteEventPublisher;
 
     public MediaImageServiceImpl(ImageMapper imageMapper, ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper,
                                  AliyunOSSOperator aliyunOSSOperator, NoteReadApi noteReadApi,
-                                 TopicQueryApi topicQueryApi, AuditApplicationApi auditApplicationApi,
+                                 TopicQueryApi topicQueryApi, AuditApplicationEventPublisher auditEvents,
+                                 AsyncCommandStateService commandState,
                                  StorageReleasedEventPublisher storageReleasedEventPublisher,
                                  MediaResourceDeleteEventPublisher mediaResourceDeleteEventPublisher) {
         this.imageMapper = imageMapper;
@@ -66,7 +71,8 @@ public class MediaImageServiceImpl implements MediaImageService {
         this.aliyunOSSOperator = aliyunOSSOperator;
         this.noteReadApi = noteReadApi;
         this.topicQueryApi = topicQueryApi;
-        this.auditApplicationApi = auditApplicationApi;
+        this.auditEvents = auditEvents;
+        this.commandState = commandState;
         this.storageReleasedEventPublisher = storageReleasedEventPublisher;
         this.mediaResourceDeleteEventPublisher = mediaResourceDeleteEventPublisher;
     }
@@ -219,6 +225,7 @@ public class MediaImageServiceImpl implements MediaImageService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void submitImageAudit(Long imageId) {
         Long userId = BaseContext.getCurrentId();
         validateImageId(imageId);
@@ -227,13 +234,18 @@ public class MediaImageServiceImpl implements MediaImageService {
         if (!image.getUserId().equals(userId)) throw new BaseException("只能申请审核自己的图片");
         AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
         if (!status.canTransitionTo(AuditStatus.AUDITING)) throw new BaseException("该图片已通过审核");
-        if (auditApplicationApi.hasPendingApplication(new PendingAuditApplicationQuery(AuditTargetType.IMAGE, imageId))) throw new BaseException("该图片已有待审核的申请");
-        auditApplicationApi.createApplication(new CreateAuditApplicationCommand(AuditTargetType.IMAGE, imageId, userId, null));
+        String commandId = UUID.randomUUID().toString();
+        if (!commandState.tryBegin("MEDIA", "IMAGE", imageId, commandId, "CREATE_AUDIT")) {
+            throw new BaseException("该图片已有处理中的审核命令");
+        }
+        auditEvents.request(new AuditApplicationRequestedEvent(commandId,
+                AuditApplicationRequestedEvent.TargetType.IMAGE, imageId, userId, null));
         image.setAuditStatus(AuditStatus.AUDITING.getCode());
         imageMapper.updateImage(image);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void cancelImageAudit(Long imageId) {
         Long userId = BaseContext.getCurrentId();
         validateImageId(imageId);
@@ -242,7 +254,12 @@ public class MediaImageServiceImpl implements MediaImageService {
         if (!image.getUserId().equals(userId)) throw new BaseException("只能撤销自己图片的审核申请");
         AuditStatus status = AuditStatus.fromCode(image.getAuditStatus());
         if (!status.canTransitionTo(AuditStatus.WAIT)) throw new BaseException("该图片未处于审核中");
-        auditApplicationApi.cancelApplication(new CancelAuditApplicationCommand(AuditTargetType.IMAGE, imageId, userId));
+        String commandId = UUID.randomUUID().toString();
+        if (!commandState.tryBegin("MEDIA", "IMAGE", imageId, commandId, "CANCEL_AUDIT")) {
+            throw new BaseException("该图片已有处理中的审核命令");
+        }
+        auditEvents.cancel(new AuditApplicationCancelRequestedEvent(commandId,
+                AuditApplicationRequestedEvent.TargetType.IMAGE, imageId, userId));
         image.setAuditStatus(AuditStatus.WAIT.getCode());
         imageMapper.updateImage(image);
     }

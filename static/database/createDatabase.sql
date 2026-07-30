@@ -416,6 +416,21 @@ CREATE TABLE `sys_event_projection_version` (
         (`consumer_name`, `aggregate_type`, `aggregate_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Last applied sequence for ordered event projections';
 
+CREATE TABLE `sys_async_command_state` (
+    `id`             bigint       NOT NULL AUTO_INCREMENT,
+    `owner_module`   varchar(32)  NOT NULL,
+    `aggregate_type` varchar(64)  NOT NULL,
+    `aggregate_id`   bigint       NOT NULL,
+    `command_id`     varchar(64)  NOT NULL,
+    `command_type`   varchar(64)  NOT NULL,
+    `state`          varchar(16)  NOT NULL,
+    `update_time`    datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_async_command_aggregate` (`owner_module`, `aggregate_type`, `aggregate_id`),
+    KEY `idx_async_command_id` (`command_id`),
+    KEY `idx_async_command_state_time` (`state`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Current asynchronous command correlation state';
+
 CREATE TABLE `biz_image_delete_dead_letter` (
     `id`           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `resource_id`  varchar(64)  DEFAULT NULL COMMENT '业务资源ID；遗留数据可为空',
