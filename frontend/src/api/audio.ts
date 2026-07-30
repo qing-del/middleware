@@ -92,5 +92,25 @@ export const audioApi = {
       url: `/user/audio/retry/${taskId}`,
       method: 'POST'
     })
+  },
+
+  /**
+   * 用户端：取消排队中或合成中的音频任务
+   */
+  userCancel(taskId: number | string) {
+    return request<boolean>({
+      url: `/user/audio/cancel/${taskId}`,
+      method: 'POST'
+    })
+  },
+
+  /**
+   * 用户端：删除音频任务及其生成资源
+   */
+  userDelete(taskId: number | string) {
+    return request<boolean>({
+      url: `/user/audio/${taskId}`,
+      method: 'DELETE'
+    })
   }
 }
