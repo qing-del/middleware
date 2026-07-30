@@ -10,6 +10,8 @@ import com.jacolp.context.PermissionContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.framework.oss.AliyunOSSOperator;
+import com.jacolp.middleware.messaging.StorageReleasedEvent;
+import com.jacolp.middleware.messaging.StorageReleasedEventPublisher;
 import com.jacolp.module.media.api.model.MediaFileSummary;
 import com.jacolp.module.media.api.model.MediaReviewStatus;
 import com.jacolp.module.media.biz.application.dto.image.ImageModifyInfoDTO;
@@ -23,7 +25,6 @@ import com.jacolp.module.note.api.NoteReadApi;
 import com.jacolp.module.note.api.TopicQueryApi;
 import com.jacolp.module.system.api.quota.StorageHandler;
 import com.jacolp.module.system.api.quota.StorageOperationType;
-import com.jacolp.module.system.api.quota.StorageUpdateContext;
 import com.jacolp.module.audit.api.*;
 import com.jacolp.module.media.biz.application.vo.image.*;
 import com.jacolp.result.PageResult;
@@ -50,16 +51,19 @@ public class MediaImageServiceImpl implements MediaImageService {
     private final NoteReadApi noteReadApi;
     private final TopicQueryApi topicQueryApi;
     private final AuditApplicationApi auditApplicationApi;
+    private final StorageReleasedEventPublisher storageReleasedEventPublisher;
 
     public MediaImageServiceImpl(ImageMapper imageMapper, ImageDeleteDeadLetterMapper imageDeleteDeadLetterMapper,
                                  AliyunOSSOperator aliyunOSSOperator, NoteReadApi noteReadApi,
-                                 TopicQueryApi topicQueryApi, AuditApplicationApi auditApplicationApi) {
+                                 TopicQueryApi topicQueryApi, AuditApplicationApi auditApplicationApi,
+                                 StorageReleasedEventPublisher storageReleasedEventPublisher) {
         this.imageMapper = imageMapper;
         this.imageDeleteDeadLetterMapper = imageDeleteDeadLetterMapper;
         this.aliyunOSSOperator = aliyunOSSOperator;
         this.noteReadApi = noteReadApi;
         this.topicQueryApi = topicQueryApi;
         this.auditApplicationApi = auditApplicationApi;
+        this.storageReleasedEventPublisher = storageReleasedEventPublisher;
     }
 
     @Override
@@ -139,7 +143,7 @@ public class MediaImageServiceImpl implements MediaImageService {
     }
 
     @Override
-    @StorageHandler(operationType = StorageOperationType.BATCH_DELETE)
+    @Transactional(rollbackFor = Exception.class)
     public ImageBatchDeleteVO deleteImages(List<Long> ids) {
         if (ids == null || ids.isEmpty()) throw new BaseException("待删除的图片 ID 列表不能为空");
         Set<Long> idSet = new LinkedHashSet<>(ids);
@@ -149,8 +153,6 @@ public class MediaImageServiceImpl implements MediaImageService {
         for (ImageDO image : images) if (referenceCounts.getOrDefault(image.getId(), 0L) > 0) inUseImageNames.add(image.getFilename());
         if (!inUseImageNames.isEmpty()) throw new BaseException(ImageConstant.IMAGE_IN_USE + "：" + String.join(", ", inUseImageNames));
 
-        HashMap<Long, Long> userStorageMap = new HashMap<>();
-        StorageUpdateContext.setStorageMap(userStorageMap);
         ImageBatchDeleteVO result = new ImageBatchDeleteVO(new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
         ArrayList<ImageDeleteDeadLetterDO> deadLetters = new ArrayList<>();
         for (ImageDO image : images) {
@@ -165,10 +167,14 @@ public class MediaImageServiceImpl implements MediaImageService {
             } else {
                 result.getSuccessIds().add(image.getId()); result.getSuccessFileNames().add(image.getFilename());
             }
-            userStorageMap.merge(image.getUserId(), image.getFileSize(), Long::sum);
         });
         batchInsertToDeadLetterQueue(deadLetters);
         if (imageMapper.deleteByIds(result.getSuccessIds()) < idSet.size()) throw new BaseException("图片删除失败");
+        storageReleasedEventPublisher.publish(images.stream()
+                .filter(image -> image.getFileSize() != null && image.getFileSize() > 0)
+                .map(image -> new StorageReleasedEvent(image.getUserId(), "IMAGE",
+                        String.valueOf(image.getId()), image.getFileSize()))
+                .toList());
         return result;
     }
 
@@ -260,7 +266,7 @@ public class MediaImageServiceImpl implements MediaImageService {
     }
 
     @Override
-    @StorageHandler(operationType = StorageOperationType.DELETE)
+    @Transactional(rollbackFor = Exception.class)
     public void deleteImage(Long id) {
         Long userId = BaseContext.getCurrentId();
         validateImageId(id);
@@ -272,7 +278,10 @@ public class MediaImageServiceImpl implements MediaImageService {
         if (noteReadApi.countMediaReferencesByMediaIds(List.of(id)).getOrDefault(id, 0L) > 0) throw new BaseException(ImageConstant.IMAGE_IN_USE);
         if (image.getStorageType() != null && image.getStorageType() == ImageConstant.STORAGE_TYPE_ALIYUN_OSS) insertToDeadLetterQueue(image);
         if (imageMapper.deleteByIds(List.of(id)) <= 0) throw new BaseException("删除图片失败");
-        StorageUpdateContext.setStorageMap(Map.of(userId, image.getFileSize()));
+        if (image.getFileSize() != null && image.getFileSize() > 0) {
+            storageReleasedEventPublisher.publish(List.of(new StorageReleasedEvent(userId, "IMAGE",
+                    String.valueOf(image.getId()), image.getFileSize())));
+        }
     }
 
     @Override

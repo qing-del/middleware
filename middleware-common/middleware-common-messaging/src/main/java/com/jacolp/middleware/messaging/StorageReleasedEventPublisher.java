@@ -1,0 +1,23 @@
+package com.jacolp.middleware.messaging;
+
+import java.util.List;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class StorageReleasedEventPublisher {
+    private final OutboxEventPublisher outboxEventPublisher;
+
+    public StorageReleasedEventPublisher(OutboxEventPublisher outboxEventPublisher) {
+        this.outboxEventPublisher = outboxEventPublisher;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void publish(List<StorageReleasedEvent> events) {
+        if (events == null || events.isEmpty()) return;
+        outboxEventPublisher.publishPartitioned(EventTypes.STORAGE_RELEASED, EventTypes.STORAGE_RELEASED,
+                "STORAGE_RESOURCE", events.getFirst().resourceId(), UUID.randomUUID().toString(), events);
+    }
+}
