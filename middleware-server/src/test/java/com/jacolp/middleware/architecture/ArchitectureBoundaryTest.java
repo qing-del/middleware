@@ -32,6 +32,9 @@ class ArchitectureBoundaryTest {
     private static final Pattern DOMAIN_FRAMEWORK_IMPORT = Pattern.compile(
             "^\\s*import\\s+(?:org\\.springframework\\.web\\.|org\\.apache\\.ibatis\\.|org\\.mybatis\\.).*;",
             Pattern.MULTILINE);
+    private static final Pattern RABBIT_TEMPLATE_IMPORT = Pattern.compile(
+            "^\\s*import\\s+org\\.springframework\\.amqp\\.rabbit\\.core\\.RabbitTemplate;",
+            Pattern.MULTILINE);
 
     @Test
     void bizPomsDoNotDependOnOtherBizModules() throws Exception {
@@ -122,6 +125,74 @@ class ArchitectureBoundaryTest {
             }
         }
         assertNoViolations("audit review services must publish events instead of calling source write APIs", violations);
+    }
+
+    @Test
+    void asynchronousWorkflowModulesDoNotDependOnLegacyWriteApis() throws Exception {
+        List<String> violations = new ArrayList<>();
+        for (BizModule module : bizModules(repositoryRoot())) {
+            List<String> dependencies = dependencyArtifactIds(module.pom());
+            if (module.name().equals("audit")) {
+                dependencies.stream()
+                        .filter(id -> id.matches("middleware-module-(?:note|media|system)-api"))
+                        .forEach(id -> violations.add(module.pom() + " -> " + id));
+            }
+            if ((module.name().equals("note") || module.name().equals("media"))
+                    && dependencies.contains("middleware-module-audit-api")) {
+                violations.add(module.pom() + " -> middleware-module-audit-api");
+            }
+
+            Pattern forbiddenImport = switch (module.name()) {
+                case "audit" -> Pattern.compile("^\\s*import\\s+com\\.jacolp\\.module\\.(?:note|media|system)\\.api\\..*;",
+                        Pattern.MULTILINE);
+                case "note", "media" -> Pattern.compile("^\\s*import\\s+com\\.jacolp\\.module\\.audit\\.api\\..*;",
+                        Pattern.MULTILINE);
+                default -> null;
+            };
+            if (forbiddenImport != null) {
+                for (Path source : moduleJavaFiles(module.root())) {
+                    collectMatches(source, forbiddenImport, violations);
+                }
+            }
+        }
+        assertNoViolations("async audit workflows must not retain legacy cross-module write dependencies", violations);
+    }
+
+    @Test
+    void criticalWorkflowModulesPublishOnlyThroughOutboxInfrastructure() throws Exception {
+        List<String> violations = new ArrayList<>();
+        for (BizModule module : bizModules(repositoryRoot())) {
+            if (List.of("audit", "note", "media", "system").contains(module.name())) {
+                for (Path source : moduleJavaFiles(module.root())) {
+                    collectMatches(source, RABBIT_TEMPLATE_IMPORT, violations);
+                }
+            }
+        }
+        assertNoViolations("critical workflows must persist Outbox events instead of using RabbitTemplate directly",
+                violations);
+    }
+
+    @Test
+    void externalSideEffectsStayBehindTheirConsumers() throws Exception {
+        List<String> violations = new ArrayList<>();
+        Path systemSources = repositoryRoot().resolve(
+                "middleware-module-system/middleware-module-system-biz/src/main/java");
+        for (Path source : javaFiles(systemSources)) {
+            String text = Files.readString(source);
+            if (text.contains("org.springframework.mail.javamail.JavaMailSender")
+                    && !source.getFileName().toString().equals("SmtpEmailGateway.java")) {
+                violations.add(source + " -> JavaMailSender");
+            }
+        }
+        Path mediaSources = repositoryRoot().resolve(
+                "middleware-module-media/middleware-module-media-biz/src/main/java");
+        for (Path source : javaFiles(mediaSources)) {
+            if (Files.readString(source).contains("ossOperator.delete(")
+                    && !source.getFileName().toString().equals("MediaResourceDeleteEventHandler.java")) {
+                violations.add(source + " -> ossOperator.delete");
+            }
+        }
+        assertNoViolations("SMTP and OSS deletion must execute only in their dedicated consumers", violations);
     }
 
     private static Path repositoryRoot() {
