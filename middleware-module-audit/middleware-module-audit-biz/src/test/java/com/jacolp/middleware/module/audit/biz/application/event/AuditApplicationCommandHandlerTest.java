@@ -28,14 +28,16 @@ class AuditApplicationCommandHandlerTest {
                 "A note", null);
         when(applications.createApplication(any())).thenReturn(
                 new AuditApplicationResult(19L, AuditTargetType.NOTE, 7L, 9L));
+        AuditQueryProjectionMapper projections = mock(AuditQueryProjectionMapper.class);
+        when(projections.selectUsername(9L)).thenReturn("applicant");
 
-        new AuditApplicationCommandHandler(applications, events,
-                mock(AuditQueryProjectionMapper.class)).create(command);
+        new AuditApplicationCommandHandler(applications, events, projections).create(command);
 
         ArgumentCaptor<AuditApplicationResultEvent> result =
                 ArgumentCaptor.forClass(AuditApplicationResultEvent.class);
         verify(events).result(result.capture());
         assertThat(result.getValue().outcome()).isEqualTo(AuditApplicationResultEvent.Outcome.ACCEPTED);
         assertThat(result.getValue().auditApplicationId()).isEqualTo(19L);
+        verify(projections).upsertRecord("NOTE", 19L, 7L, "applicant", "A note", null);
     }
 }

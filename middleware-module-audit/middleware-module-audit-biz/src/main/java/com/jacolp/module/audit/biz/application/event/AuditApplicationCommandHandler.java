@@ -33,8 +33,6 @@ public class AuditApplicationCommandHandler {
     public void create(AuditApplicationRequestedEvent command) {
         AuditTargetType targetType = targetType(command.targetType());
         try {
-            projections.upsertSubject(command.targetType().name(), command.targetId(),
-                    command.targetName(), command.targetUrl());
             if (applications.hasPendingApplication(new PendingAuditApplicationQuery(
                     targetType, command.targetId()))) {
                 rejectCreate(command, "ALREADY_PENDING");
@@ -42,6 +40,9 @@ public class AuditApplicationCommandHandler {
             }
             AuditApplicationResult created = applications.createApplication(new CreateAuditApplicationCommand(
                     targetType, command.targetId(), command.applicantUserId(), command.applyReason()));
+            projections.upsertRecord(command.targetType().name(), created.auditApplicationId(),
+                    command.targetId(), projections.selectUsername(command.applicantUserId()),
+                    command.targetName(), command.targetUrl());
             events.result(new AuditApplicationResultEvent(command.commandId(), command.targetType(),
                     command.targetId(), AuditApplicationResultEvent.Outcome.ACCEPTED,
                     created.auditApplicationId(), null));

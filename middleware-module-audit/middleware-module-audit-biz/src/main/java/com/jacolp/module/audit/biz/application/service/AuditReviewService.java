@@ -17,6 +17,7 @@ import com.jacolp.module.audit.biz.infrastructure.persistence.dataobject.NoteAud
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.MetaAuditMapper;
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.NoteAuditMapper;
+import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.AuditQueryProjectionMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -35,13 +36,16 @@ public class AuditReviewService {
     private final ImageAuditMapper imageAuditMapper;
     private final NoteAuditMapper noteAuditMapper;
     private final OutboxEventPublisher eventPublisher;
+    private final AuditQueryProjectionMapper projections;
 
     public AuditReviewService(MetaAuditMapper metaAuditMapper, ImageAuditMapper imageAuditMapper,
-                              NoteAuditMapper noteAuditMapper, OutboxEventPublisher eventPublisher) {
+                              NoteAuditMapper noteAuditMapper, OutboxEventPublisher eventPublisher,
+                              AuditQueryProjectionMapper projections) {
         this.metaAuditMapper = metaAuditMapper;
         this.imageAuditMapper = imageAuditMapper;
         this.noteAuditMapper = noteAuditMapper;
         this.eventPublisher = eventPublisher;
+        this.projections = projections;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -52,6 +56,7 @@ public class AuditReviewService {
         List<Long> reviewIds = pendingRecords.stream().map(MetaAuditRecordDO::getId).toList();
         validateAffected(pendingRecords.size(), metaAuditMapper.batchReviewByIds(reviewIds,
                 context.getStatus(), context.getReviewerUserId(), context.getRejectReason()));
+        captureReviewer(AuditTargetType.TAG, reviewIds, context.getReviewerUserId());
         publishReviewed(pendingRecords.stream().map(record -> reviewed(record.getId(),
                 AuditReviewedEvent.TargetType.TAG, record.getTargetId(), context)).toList());
         return pendingRecords.size();
@@ -65,6 +70,7 @@ public class AuditReviewService {
         List<Long> reviewIds = pendingRecords.stream().map(ImageAuditRecordDO::getId).toList();
         validateAffected(pendingRecords.size(), imageAuditMapper.batchReviewByIds(reviewIds,
                 context.getStatus(), context.getReviewerUserId(), context.getRejectReason()));
+        captureReviewer(AuditTargetType.IMAGE, reviewIds, context.getReviewerUserId());
         publishReviewed(pendingRecords.stream().map(record -> reviewed(record.getId(),
                 AuditReviewedEvent.TargetType.IMAGE, record.getImageId(), context)).toList());
         return pendingRecords.size();
@@ -78,6 +84,7 @@ public class AuditReviewService {
         List<Long> reviewIds = pendingRecords.stream().map(NoteAuditRecordDO::getId).toList();
         validateAffected(pendingRecords.size(), noteAuditMapper.batchReviewByIds(reviewIds,
                 context.getStatus(), context.getReviewerUserId(), context.getRejectReason()));
+        captureReviewer(AuditTargetType.NOTE, reviewIds, context.getReviewerUserId());
         publishReviewed(pendingRecords.stream().map(record -> reviewed(record.getId(),
                 AuditReviewedEvent.TargetType.NOTE, record.getNoteId(), context)).toList());
         return pendingRecords.size();
@@ -118,6 +125,13 @@ public class AuditReviewService {
         if (events.isEmpty()) return;
         eventPublisher.publishPartitioned(EventTypes.AUDIT_REVIEWED, EventTypes.AUDIT_REVIEWED,
                 "AUDIT_REVIEW", events.getFirst().auditId(), UUID.randomUUID().toString(), events);
+    }
+
+    private void captureReviewer(AuditTargetType targetType, List<Long> auditIds, long reviewerUserId) {
+        String username = projections.selectUsername(reviewerUserId);
+        for (Long auditId : auditIds) {
+            projections.captureReviewer(targetType.name(), auditId, username);
+        }
     }
 
     private static AuditTargetType toTargetType(AuditReviewedEvent.TargetType targetType) {

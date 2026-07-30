@@ -16,6 +16,7 @@ import com.jacolp.module.audit.biz.infrastructure.persistence.dataobject.NoteAud
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.MetaAuditMapper;
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.NoteAuditMapper;
+import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.AuditQueryProjectionMapper;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +39,7 @@ class AuditReviewServiceTest {
     private ImageAuditMapper imageMapper;
     private NoteAuditMapper noteMapper;
     private OutboxEventPublisher eventPublisher;
+    private AuditQueryProjectionMapper projections;
     private AuditReviewService service;
 
     @BeforeEach
@@ -46,7 +48,9 @@ class AuditReviewServiceTest {
         imageMapper = mock(ImageAuditMapper.class);
         noteMapper = mock(NoteAuditMapper.class);
         eventPublisher = mock(OutboxEventPublisher.class);
-        service = new AuditReviewService(metaMapper, imageMapper, noteMapper, eventPublisher);
+        projections = mock(AuditQueryProjectionMapper.class);
+        when(projections.selectUsername(9L)).thenReturn("reviewer");
+        service = new AuditReviewService(metaMapper, imageMapper, noteMapper, eventPublisher, projections);
         BaseContext.setCurrentId(9L);
     }
 
@@ -65,6 +69,7 @@ class AuditReviewServiceTest {
                 List.of(10L, 10L), AuditStatus.APPROVED.getCode(), null))).isEqualTo(1);
 
         verify(metaMapper).batchReviewByIds(List.of(10L), AuditStatus.APPROVED.getCode(), 9L, null);
+        verify(projections).captureReviewer("TAG", 10L, "reviewer");
         ArgumentCaptor<List<AuditReviewedEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(eventPublisher).publishPartitioned(eq(EventTypes.AUDIT_REVIEWED),
                 eq(EventTypes.AUDIT_REVIEWED), eq("AUDIT_REVIEW"), eq(10L), any(), events.capture());

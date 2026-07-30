@@ -10,6 +10,7 @@ import com.jacolp.module.audit.biz.application.dto.ImageAuditReviewDTO;
 import com.jacolp.module.audit.biz.application.service.ImageAuditReviewCompatibilityService;
 import com.jacolp.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
+import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.AuditQueryProjectionMapper;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,13 +32,16 @@ import static org.mockito.Mockito.when;
 class ImageAuditReviewCompatibilityServiceTest {
     private ImageAuditMapper imageAuditMapper;
     private OutboxEventPublisher eventPublisher;
+    private AuditQueryProjectionMapper projections;
     private ImageAuditReviewCompatibilityService service;
 
     @BeforeEach
     void setUp() {
         imageAuditMapper = mock(ImageAuditMapper.class);
         eventPublisher = mock(OutboxEventPublisher.class);
-        service = new ImageAuditReviewCompatibilityService(imageAuditMapper, eventPublisher);
+        projections = mock(AuditQueryProjectionMapper.class);
+        when(projections.selectUsername(9L)).thenReturn("reviewer");
+        service = new ImageAuditReviewCompatibilityService(imageAuditMapper, eventPublisher, projections);
         BaseContext.setCurrentId(9L);
     }
 
@@ -55,6 +59,7 @@ class ImageAuditReviewCompatibilityServiceTest {
 
         assertThat(record.getStatus()).isEqualTo(AuditStatus.APPROVED.getCode());
         assertThat(record.getReviewerUserId()).isEqualTo(9L);
+        verify(projections).captureReviewer("IMAGE", 10L, "reviewer");
         ArgumentCaptor<List<AuditReviewedEvent>> events = ArgumentCaptor.forClass(List.class);
         verify(eventPublisher).publishPartitioned(eq(EventTypes.AUDIT_REVIEWED),
                 eq(EventTypes.AUDIT_REVIEWED), eq("AUDIT_REVIEW"), eq(10L), eq("10"), events.capture());

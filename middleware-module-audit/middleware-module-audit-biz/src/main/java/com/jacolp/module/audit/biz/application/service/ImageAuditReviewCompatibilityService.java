@@ -11,6 +11,7 @@ import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy;
 import com.jacolp.module.audit.biz.domain.audit.AuditReviewPolicy.Outcome;
 import com.jacolp.module.audit.biz.infrastructure.persistence.dataobject.ImageAuditRecordDO;
 import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.ImageAuditMapper;
+import com.jacolp.module.audit.biz.infrastructure.persistence.mapper.AuditQueryProjectionMapper;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,11 +27,14 @@ public class ImageAuditReviewCompatibilityService {
 
     private final ImageAuditMapper imageAuditMapper;
     private final OutboxEventPublisher eventPublisher;
+    private final AuditQueryProjectionMapper projections;
 
     public ImageAuditReviewCompatibilityService(ImageAuditMapper imageAuditMapper,
-                                                OutboxEventPublisher eventPublisher) {
+                                                OutboxEventPublisher eventPublisher,
+                                                AuditQueryProjectionMapper projections) {
         this.imageAuditMapper = imageAuditMapper;
         this.eventPublisher = eventPublisher;
+        this.projections = projections;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -53,6 +57,8 @@ public class ImageAuditReviewCompatibilityService {
         if (imageAuditMapper.updateAuditRecord(record) != 1) {
             throw new BaseException(AUDIT_ALREADY_PROCESSED);
         }
+        projections.captureReviewer(AuditTargetType.IMAGE.name(), record.getId(),
+                projections.selectUsername(record.getReviewerUserId()));
         AuditReviewedEvent event = new AuditReviewedEvent(record.getId(),
                 AuditReviewedEvent.TargetType.IMAGE, record.getImageId(),
                 outcome == Outcome.APPROVED
