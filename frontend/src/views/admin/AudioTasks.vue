@@ -6,7 +6,7 @@ import { confirmAction, toastError, toastSuccess } from '@/utils/feedback'
 import {
   Clock, CheckCircle2, XCircle, RotateCcw, Calendar,
   ChevronLeft, ChevronRight, Loader2, Music, User, Search, FileText, X,
-  Ban, History, Trash2
+  Ban, History, Trash2, HardDrive, ExternalLink
 } from 'lucide-vue-next'
 
 const loading = ref(true)
@@ -20,11 +20,25 @@ const showSourceModal = ref(false)
 const sourceTitle = ref('')
 const sourceContent = ref('')
 const operatingTaskId = ref<number | null>(null)
+const detailLoading = ref(false)
+const selectedTask = ref<AudioTaskVO | null>(null)
 
-function openSourceModal(task: AudioTaskVO) {
-  sourceTitle.value = '任务 #' + task.id + ' 源文本'
+async function openSourceModal(task: AudioTaskVO) {
+  sourceTitle.value = '任务 #' + task.id + ' 详情'
   sourceContent.value = task.sourceText || ''
+  selectedTask.value = task
   showSourceModal.value = true
+  detailLoading.value = true
+  try {
+    const detail = await audioApi.adminDetail(task.id)
+    selectedTask.value = detail
+    sourceContent.value = detail.sourceText || ''
+  } catch (error) {
+    console.error('Fetch admin audio task detail failed:', error)
+    toastError('获取任务详情失败，当前展示列表中的概要信息')
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 async function fetchTasks() {
@@ -112,6 +126,13 @@ function formatDate(dateStr: string) {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
   return date.toLocaleString()
+}
+
+function formatFileSize(bytes?: number) {
+  if (bytes === undefined || bytes === null) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function handleSearch() {
@@ -252,7 +273,7 @@ onMounted(() => {
                 class="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 text-[10px] font-bold transition-all border border-white/10"
               >
                 <FileText class="w-3.5 h-3.5" />
-                查看文本
+                查看详情
               </button>
             </div>
           </div>
@@ -261,6 +282,9 @@ onMounted(() => {
         <!-- 结果区 -->
         <div class="p-5 pt-0 mt-auto">
           <template v-if="task.status === 2 && task.resultUrl">
+            <p v-if="task.audioSize !== undefined" class="mb-2 text-center text-[10px] font-medium text-slate-500">
+              文件大小 {{ formatFileSize(task.audioSize) }}
+            </p>
             <a
               :href="buildResourceUrl(task.resultUrl)"
               target="_blank"
@@ -344,7 +368,7 @@ onMounted(() => {
       </Transition>
       <Transition name="modal-panel">
         <div v-if="showSourceModal" class="fixed inset-0 z-[60] flex items-center justify-center px-4 pointer-events-none">
-          <div class="glass-panel modal-card relative z-10 max-w-2xl w-full max-h-[80vh] rounded-2xl overflow-hidden flex flex-col pointer-events-auto">
+          <div class="glass-panel modal-card relative z-10 max-w-3xl w-full max-h-[85vh] rounded-2xl overflow-hidden flex flex-col pointer-events-auto">
             <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400">
@@ -357,7 +381,56 @@ onMounted(() => {
               </button>
             </div>
             <div class="flex-1 overflow-y-auto p-6">
-              <pre class="text-sm text-slate-300 font-mono whitespace-pre-wrap break-all">{{ sourceContent }}</pre>
+              <div v-if="detailLoading" class="flex items-center justify-center gap-3 py-16 text-slate-400">
+                <Loader2 class="w-5 h-5 animate-spin" />
+                正在加载任务详情...
+              </div>
+              <div v-else-if="selectedTask" class="space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div class="rounded-xl border border-white/5 bg-black/20 p-3">
+                    <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">用户</p>
+                    <p class="mt-1 text-sm font-bold text-sky-300">#{{ selectedTask.userId }}</p>
+                  </div>
+                  <div class="rounded-xl border border-white/5 bg-black/20 p-3">
+                    <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">状态</p>
+                    <p class="mt-1 text-sm font-bold text-slate-200">{{ getStatusInfo(selectedTask.status).label }}</p>
+                  </div>
+                  <div class="rounded-xl border border-white/5 bg-black/20 p-3">
+                    <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">语速 / 背景因子</p>
+                    <p class="mt-1 text-sm font-bold text-slate-200">{{ selectedTask.speed.toFixed(1) }}x / {{ selectedTask.noiseFactor.toFixed(1) }}</p>
+                  </div>
+                  <div class="rounded-xl border border-white/5 bg-black/20 p-3">
+                    <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">音频大小</p>
+                    <p class="mt-1 flex items-center gap-1.5 text-sm font-bold text-slate-200">
+                      <HardDrive class="w-3.5 h-3.5 text-rose-300" />
+                      {{ formatFileSize(selectedTask.audioSize) }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-3 text-xs text-slate-400">
+                  <p>创建时间：{{ formatDate(selectedTask.createTime) }}</p>
+                  <p>完成日期：{{ selectedTask.completedDate || '-' }}</p>
+                  <p>背景音：{{ selectedTask.noiseType }}</p>
+                  <a
+                    v-if="selectedTask.resultUrl"
+                    :href="buildResourceUrl(selectedTask.resultUrl)"
+                    target="_blank"
+                    class="inline-flex items-center gap-1.5 text-rose-300 hover:text-rose-200"
+                  >
+                    打开结果音频 <ExternalLink class="w-3.5 h-3.5" />
+                  </a>
+                </div>
+
+                <div v-if="selectedTask.errorMsg" class="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
+                  {{ selectedTask.errorMsg }}
+                </div>
+
+                <div>
+                  <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">源文本</p>
+                  <pre class="rounded-xl border border-white/5 bg-black/20 p-4 text-sm text-slate-300 font-mono whitespace-pre-wrap break-all">{{ sourceContent }}</pre>
+                </div>
+              </div>
             </div>
           </div>
         </div>

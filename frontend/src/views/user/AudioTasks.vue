@@ -135,6 +135,13 @@ function formatDate(dateStr: string) {
   return date.toLocaleString()
 }
 
+function formatFileSize(bytes?: number) {
+  if (bytes === undefined || bytes === null) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 watch(
   () => authStore.user?.id,
   () => {
@@ -255,6 +262,9 @@ watch(
         <div class="p-5 pt-0 mt-auto">
           <template v-if="task.status === 2 && task.resultUrl">
             <audio controls :src="buildResourceUrl(task.resultUrl)" class="w-full h-10 rounded-lg filter invert hue-rotate-180 opacity-70 hover:opacity-100 transition-opacity"></audio>
+            <p v-if="task.audioSize !== undefined" class="mt-2 text-center text-[10px] font-medium text-slate-500">
+              文件大小 {{ formatFileSize(task.audioSize) }}
+            </p>
             <a
               :href="buildResourceUrl(task.resultUrl)"
               download

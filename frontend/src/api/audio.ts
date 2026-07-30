@@ -53,6 +53,16 @@ export const audioApi = {
   },
 
   /**
+   * 管理端：查询任意用户的音频任务详情
+   */
+  adminDetail(taskId: number | string) {
+    return request<AudioTaskVO>({
+      url: `/admin/audio/${taskId}`,
+      method: 'GET'
+    })
+  },
+
+  /**
    * 管理端：取消任意用户排队中或合成中的音频任务
    */
   adminCancel(taskId: number | string) {
