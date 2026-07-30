@@ -2,6 +2,7 @@ package com.jacolp.middleware.module.audio.biz.application.service;
 
 import com.jacolp.audio.biz.service.AudioTaskServiceImpl;
 import com.jacolp.audio.biz.service.AudioTaskPublisher;
+import com.jacolp.audio.biz.service.AudioResourceDeletePublisher;
 import com.jacolp.audio.biz.service.TransactionAfterCommitExecutor;
 import com.jacolp.audio.biz.audio.AudioTaskLifecycle;
 import com.jacolp.context.BaseContext;
@@ -40,6 +41,7 @@ class AudioTaskServiceImplTest {
     private AudioTaskMapper mapper;
     private UserQuotaApi quotaApi;
     private AudioTaskPublisher publisher;
+    private AudioResourceDeletePublisher deletePublisher;
     private TransactionAfterCommitExecutor afterCommitExecutor;
     private AudioTaskServiceImpl service;
 
@@ -48,6 +50,7 @@ class AudioTaskServiceImplTest {
         mapper = mock(AudioTaskMapper.class);
         quotaApi = mock(UserQuotaApi.class);
         publisher = mock(AudioTaskPublisher.class);
+        deletePublisher = mock(AudioResourceDeletePublisher.class);
         afterCommitExecutor = mock(TransactionAfterCommitExecutor.class);
         doAnswer(invocation -> {
             invocation.getArgument(0, Runnable.class).run();
@@ -57,6 +60,7 @@ class AudioTaskServiceImplTest {
         ReflectionTestUtils.setField(service, "audioTaskMapper", mapper);
         ReflectionTestUtils.setField(service, "userQuotaApi", quotaApi);
         ReflectionTestUtils.setField(service, "audioTaskPublisher", publisher);
+        ReflectionTestUtils.setField(service, "audioResourceDeletePublisher", deletePublisher);
         ReflectionTestUtils.setField(service, "transactionAfterCommitExecutor", afterCommitExecutor);
         BaseContext.setCurrentId(9L);
     }
@@ -103,6 +107,49 @@ class AudioTaskServiceImplTest {
         assertThatThrownBy(() -> service.cancelTask(33L))
                 .isInstanceOf(BaseException.class)
                 .hasMessageContaining("不可取消");
+    }
+
+    @Test
+    void userDeletesOwnTaskAndPublishesCleanupAfterDeletion() {
+        AudioTaskDO task = new AudioTaskDO();
+        task.setId(40L);
+        task.setUserId(9L);
+        task.setResultUrl("https://audio.example/40.mp3");
+        when(mapper.selectById(40L)).thenReturn(task);
+        when(mapper.deleteTask(40L, 9L)).thenReturn(1);
+
+        assertThat(service.deleteTask(40L)).isTrue();
+
+        verify(mapper).deleteTask(40L, 9L);
+        verify(deletePublisher).publish(task);
+    }
+
+    @Test
+    void deleteRejectsTaskOwnedByAnotherUserWithoutPublishing() {
+        AudioTaskDO task = new AudioTaskDO();
+        task.setId(41L);
+        task.setUserId(7L);
+        when(mapper.selectById(41L)).thenReturn(task);
+
+        assertThatThrownBy(() -> service.deleteTask(41L)).isInstanceOf(BaseException.class);
+
+        verify(mapper, never()).deleteTask(any(), any());
+        verify(deletePublisher, never()).publish(any());
+    }
+
+    @Test
+    void adminDeletesAnyUsersTaskWithoutOwnerSqlFilter() {
+        AudioTaskDO task = new AudioTaskDO();
+        task.setId(42L);
+        task.setUserId(7L);
+        when(mapper.selectById(42L)).thenReturn(task);
+        when(mapper.deleteTask(42L, null)).thenReturn(1);
+        PermissionContext.setAdmin(true);
+
+        assertThat(service.deleteTask(42L)).isTrue();
+
+        verify(mapper).deleteTask(42L, null);
+        verify(deletePublisher).publish(task);
     }
 
     @Test

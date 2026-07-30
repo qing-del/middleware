@@ -41,6 +41,11 @@ public interface AudioTaskService {
     boolean cancelTask(Long taskId);
 
     /**
+     * 删除任务，并在事务提交后通知 Python 清理对应资源。
+     */
+    boolean deleteTask(Long taskId);
+
+    /**
      * 复制当前用户的失败任务并重新投递，原任务将标记为已重试。
      */
     AudioTaskSubmitVO retryFailedTask(Long taskId);

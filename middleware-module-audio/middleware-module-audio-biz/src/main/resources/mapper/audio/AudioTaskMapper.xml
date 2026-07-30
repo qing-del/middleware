@@ -33,6 +33,12 @@
           <if test="userId != null">AND user_id = #{userId}</if>
     </update>
 
+    <delete id="deleteTask">
+        DELETE FROM audio_tasks
+        WHERE id = #{id}
+        <if test="userId != null">AND user_id = #{userId}</if>
+    </delete>
+
     <update id="casUpdateStatus">
     UPDATE audio_tasks SET status = #{newStatus}
         <if test="resultUrl != null">, result_url = #{resultUrl}</if>

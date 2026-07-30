@@ -42,6 +42,8 @@ public class AudioTaskServiceImpl implements AudioTaskService {
     @Autowired
     private AudioTaskPublisher audioTaskPublisher;
     @Autowired
+    private AudioResourceDeletePublisher audioResourceDeletePublisher;
+    @Autowired
     private TransactionAfterCommitExecutor transactionAfterCommitExecutor;
 
     @Override
@@ -135,6 +137,21 @@ public class AudioTaskServiceImpl implements AudioTaskService {
             throw new BaseException("任务不存在、无权访问或当前状态不可取消");
         log.info("Audio task cancelled, taskId: {}, operatorUserId: {}, admin: {}",
                 taskId, BaseContext.getCurrentId(), PermissionContext.isAdmin());
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean deleteTask(Long taskId) {
+        Long userId = PermissionContext.isAdmin() ? null : BaseContext.getCurrentId();
+        AudioTaskDO task = audioTaskMapper.selectById(taskId);
+        if (task == null || (userId != null && !task.getUserId().equals(userId)))
+            throw new BaseException("任务不存在或无权删除");
+        if (audioTaskMapper.deleteTask(taskId, userId) == 0)
+            throw new BaseException("任务不存在或无权删除");
+        transactionAfterCommitExecutor.execute(() -> audioResourceDeletePublisher.publish(task));
+        log.info("Audio task deleted, taskId: {}, ownerUserId: {}, admin: {}",
+                taskId, task.getUserId(), PermissionContext.isAdmin());
         return true;
     }
 

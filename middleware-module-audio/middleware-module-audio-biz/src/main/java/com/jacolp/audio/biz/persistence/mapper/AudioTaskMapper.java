@@ -18,6 +18,7 @@ public interface AudioTaskMapper {
 
     int cancelTask(@Param("id") Long id, @Param("userId") Long userId,
                    @Param("cancelledStatus") Integer cancelledStatus);
+    int deleteTask(@Param("id") Long id, @Param("userId") Long userId);
     /**
      * CAS 更新任务状态，WHERE status = expectedStatus 保证幂等性。
      * @return 影响行数，0 表示 CAS 失败（状态已变更）

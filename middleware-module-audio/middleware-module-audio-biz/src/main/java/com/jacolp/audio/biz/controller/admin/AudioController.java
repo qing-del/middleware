@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,5 +53,12 @@ public class AudioController {
     public Result<Boolean> cancelTask(
             @Parameter(description = "任务 ID") @PathVariable Long taskId) {
         return Result.success(audioTaskService.cancelTask(taskId));
+    }
+
+    @DeleteMapping("/{taskId}")
+    @Operation(summary = "删除音频任务", description = "管理员可删除任意用户的任务，并通过 MQ 通知 Python 清理对应资源。")
+    public Result<Boolean> deleteTask(
+            @Parameter(description = "任务 ID") @PathVariable Long taskId) {
+        return Result.success(audioTaskService.deleteTask(taskId));
     }
 }
