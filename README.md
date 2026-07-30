@@ -1,5 +1,7 @@
 # CORE NODE
 
+Architecture reference: [Reliable cross-module domain events](docs/architecture/reliable-domain-events.md).
+
 基于 Spring Boot 4.x + JDK 21 的多模块中台服务，提供笔记（Markdown）管理、图片对象存储、标签/主题管理、审核工作流、邮件通知，以及基于 Redis Streams 的异步音频生成等能力。前端采用 Vue 3 + Arco Design + Tailwind CSS。
 
 接口分为 **管理端 (`/admin/**`)**、**用户端 (`/user/**`)** 与 **访客端 (`/guest/**`)**：管理端和用户端通过无状态 Spring Security Filter 验证 JWT 并写入 `SecurityContext`，访客端提供公开笔记阅读能力；另有 **回调接口 (`/common/**`)** 供 Python 音频引擎内网调用。
