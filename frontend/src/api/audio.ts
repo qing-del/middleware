@@ -53,6 +53,26 @@ export const audioApi = {
   },
 
   /**
+   * 管理端：取消任意用户排队中或合成中的音频任务
+   */
+  adminCancel(taskId: number | string) {
+    return request<boolean>({
+      url: `/admin/audio/cancel/${taskId}`,
+      method: 'POST'
+    })
+  },
+
+  /**
+   * 管理端：删除任意用户的音频任务及其生成资源
+   */
+  adminDelete(taskId: number | string) {
+    return request<boolean>({
+      url: `/admin/audio/${taskId}`,
+      method: 'DELETE'
+    })
+  },
+
+  /**
    * 用户端：提交音频生成任务
    */
   generate(data: AudioTaskSubmitDTO) {

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { audioApi, type AudioTaskVO } from '@/api/audio'
 import { buildResourceUrl } from '@/utils/resourceUrl'
+import { confirmAction, toastError, toastSuccess } from '@/utils/feedback'
 import {
   Clock, CheckCircle2, XCircle, RotateCcw, Calendar,
-  ChevronLeft, ChevronRight, Loader2, Music, User, Search, FileText, X
+  ChevronLeft, ChevronRight, Loader2, Music, User, Search, FileText, X,
+  Ban, History, Trash2
 } from 'lucide-vue-next'
 
 const loading = ref(true)
@@ -13,9 +15,11 @@ const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(12)
 const filterUserId = ref<number | undefined>()
+const filterStatus = ref<number | undefined>()
 const showSourceModal = ref(false)
 const sourceTitle = ref('')
 const sourceContent = ref('')
+const operatingTaskId = ref<number | null>(null)
 
 function openSourceModal(task: AudioTaskVO) {
   sourceTitle.value = '任务 #' + task.id + ' 源文本'
@@ -33,7 +37,8 @@ async function fetchTasks() {
     const res = await audioApi.adminList({
       pageNum: currentPage.value,
       pageSize: pageSize.value,
-      userId: filterUserId.value
+      userId: filterUserId.value,
+      status: filterStatus.value
     })
     tasks.value = res.records
     total.value = res.total
@@ -44,12 +49,61 @@ async function fetchTasks() {
   }
 }
 
+async function handleCancelTask(task: AudioTaskVO) {
+  const confirmed = await confirmAction({
+    title: '取消音频任务',
+    content: `确定取消用户 #${task.userId} 的任务 #${task.id} 吗？`,
+    okText: '确认取消',
+    danger: true
+  })
+  if (!confirmed) return
+
+  operatingTaskId.value = task.id
+  try {
+    await audioApi.adminCancel(task.id)
+    const index = tasks.value.findIndex(item => item.id === task.id)
+    if (index !== -1) tasks.value[index] = { ...tasks.value[index], status: -3 }
+    toastSuccess('任务已取消')
+  } catch (error) {
+    console.error('Admin cancel audio task failed:', error)
+    toastError('取消任务失败，任务状态可能已发生变化')
+    await fetchTasks()
+  } finally {
+    operatingTaskId.value = null
+  }
+}
+
+async function handleDeleteTask(task: AudioTaskVO) {
+  const confirmed = await confirmAction({
+    title: '删除音频任务',
+    content: `确定删除用户 #${task.userId} 的任务 #${task.id} 吗？任务记录和音频资源将一并清理。`,
+    okText: '确认删除',
+    danger: true
+  })
+  if (!confirmed) return
+
+  operatingTaskId.value = task.id
+  try {
+    await audioApi.adminDelete(task.id)
+    if (tasks.value.length === 1 && currentPage.value > 1) currentPage.value -= 1
+    toastSuccess('任务及音频资源已删除')
+    await fetchTasks()
+  } catch (error) {
+    console.error('Admin delete audio task failed:', error)
+    toastError('删除任务失败，请稍后再试')
+  } finally {
+    operatingTaskId.value = null
+  }
+}
+
 function getStatusInfo(status: number) {
   switch (status) {
     case 0: return { label: '排队中', icon: Clock, cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' }
     case 1: return { label: '合成中', icon: Loader2, cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20 animate-pulse' }
     case 2: return { label: '已完成', icon: CheckCircle2, cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' }
     case -1: return { label: '失败', icon: XCircle, cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' }
+    case -2: return { label: '已重试', icon: History, cls: 'text-violet-400 bg-violet-500/10 border-violet-500/20' }
+    case -3: return { label: '已取消', icon: Ban, cls: 'text-slate-400 bg-slate-500/10 border-slate-500/20' }
     default: return { label: '未知', icon: Clock, cls: 'text-slate-400 bg-slate-500/10 border-slate-500/20' }
   }
 }
@@ -64,8 +118,6 @@ function handleSearch() {
   currentPage.value = 1
   fetchTasks()
 }
-
-import { onMounted } from 'vue'
 
 onMounted(() => {
   fetchTasks()
@@ -87,6 +139,20 @@ onMounted(() => {
       </div>
       
       <div class="flex items-center gap-4">
+        <select
+          v-model="filterStatus"
+          class="bg-black/20 border border-white/10 rounded-xl py-2.5 px-4 text-sm text-slate-200 outline-none focus:border-rose-500/50 focus:ring-4 focus:ring-rose-500/5 transition-all"
+          @change="handleSearch"
+        >
+          <option :value="undefined">全部状态</option>
+          <option :value="0">排队中</option>
+          <option :value="1">合成中</option>
+          <option :value="2">已完成</option>
+          <option :value="-1">失败</option>
+          <option :value="-2">已重试</option>
+          <option :value="-3">已取消</option>
+        </select>
+
         <!-- 用户筛选 -->
         <div class="relative group">
           <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -215,6 +281,30 @@ onMounted(() => {
               Processing...
             </div>
           </template>
+
+          <div class="mt-3 grid gap-2" :class="task.status === 0 || task.status === 1 ? 'grid-cols-2' : 'grid-cols-1'">
+            <button
+              v-if="task.status === 0 || task.status === 1"
+              type="button"
+              :disabled="operatingTaskId === task.id"
+              class="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-amber-300 text-xs font-bold transition-all border border-amber-500/20"
+              @click="handleCancelTask(task)"
+            >
+              <Loader2 v-if="operatingTaskId === task.id" class="w-3.5 h-3.5 animate-spin" />
+              <Ban v-else class="w-3.5 h-3.5" />
+              取消任务
+            </button>
+            <button
+              type="button"
+              :disabled="operatingTaskId === task.id"
+              class="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-rose-300 text-xs font-bold transition-all border border-rose-500/20"
+              @click="handleDeleteTask(task)"
+            >
+              <Loader2 v-if="operatingTaskId === task.id" class="w-3.5 h-3.5 animate-spin" />
+              <Trash2 v-else class="w-3.5 h-3.5" />
+              删除任务
+            </button>
+          </div>
         </div>
       </div>
     </div>
