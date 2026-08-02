@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.base;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;

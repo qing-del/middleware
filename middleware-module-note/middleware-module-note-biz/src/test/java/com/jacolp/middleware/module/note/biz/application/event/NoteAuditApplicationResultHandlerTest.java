@@ -1,8 +1,8 @@
 package com.jacolp.middleware.module.note.biz.application.event;
 
-import com.jacolp.middleware.messaging.AsyncCommandStateService;
-import com.jacolp.middleware.messaging.AuditApplicationRequestedEvent;
-import com.jacolp.middleware.messaging.AuditApplicationResultEvent;
+import com.jacolp.middleware.messaging.service.AsyncCommandStateService;
+import com.jacolp.middleware.messaging.event.AuditApplicationRequestedEvent;
+import com.jacolp.middleware.messaging.event.AuditApplicationResultEvent;
 import com.jacolp.module.note.biz.application.event.NoteAuditApplicationResultHandler;
 import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.module.note.biz.infrastructure.persistence.mapper.TagMapper;

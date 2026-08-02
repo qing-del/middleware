@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.event;
 
 public record UserProfileChangedEvent(long userId, String username, String nickname) {
     public UserProfileChangedEvent {

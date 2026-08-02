@@ -1,6 +1,6 @@
 package com.jacolp.module.system.biz.application.event;
 
-import com.jacolp.middleware.messaging.StorageReleasedEvent;
+import com.jacolp.middleware.messaging.event.StorageReleasedEvent;
 import com.jacolp.module.system.api.quota.UserQuotaApi;
 import java.util.List;
 import org.springframework.stereotype.Service;

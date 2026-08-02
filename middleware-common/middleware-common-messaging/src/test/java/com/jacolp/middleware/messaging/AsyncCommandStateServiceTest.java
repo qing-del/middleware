@@ -1,5 +1,6 @@
 package com.jacolp.middleware.messaging;
 
+import com.jacolp.middleware.messaging.service.AsyncCommandStateService;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;

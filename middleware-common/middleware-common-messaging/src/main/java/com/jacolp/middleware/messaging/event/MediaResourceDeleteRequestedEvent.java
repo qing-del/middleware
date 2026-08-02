@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.event;
 
 /** Requests physical deletion after the media database transaction has committed. */
 public record MediaResourceDeleteRequestedEvent(String resourceId, String objectKey, long trackingId) {

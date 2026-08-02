@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.event;
 
 /** One independently retryable email command. Never include credentials in its content. */
 public record EmailSendRequestedEvent(String recipient, String subject, String htmlContent,

@@ -17,8 +17,8 @@ import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO
 import com.jacolp.module.system.biz.application.vo.user.UserDetailVO;
 import com.jacolp.module.system.biz.application.vo.user.UserOverviewVO;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
-import com.jacolp.middleware.messaging.UserProfileChangedEvent;
-import com.jacolp.middleware.messaging.UserProfileEventPublisher;
+import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
+import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.service.EmailSenderService;
 import com.jacolp.module.system.biz.application.service.UserUserService;
 import com.jacolp.utils.EmailUtil;

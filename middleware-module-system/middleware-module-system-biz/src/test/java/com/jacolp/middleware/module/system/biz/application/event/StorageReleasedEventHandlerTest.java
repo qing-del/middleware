@@ -1,6 +1,6 @@
 package com.jacolp.middleware.module.system.biz.application.event;
 
-import com.jacolp.middleware.messaging.StorageReleasedEvent;
+import com.jacolp.middleware.messaging.event.StorageReleasedEvent;
 import com.jacolp.module.system.api.quota.UserQuotaApi;
 import com.jacolp.module.system.biz.application.event.StorageReleasedEventHandler;
 import java.util.List;

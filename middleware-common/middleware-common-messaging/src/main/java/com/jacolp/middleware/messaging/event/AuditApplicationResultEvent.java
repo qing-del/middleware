@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.event;
 
 public record AuditApplicationResultEvent(String commandId,
         AuditApplicationRequestedEvent.TargetType targetType, long targetId,

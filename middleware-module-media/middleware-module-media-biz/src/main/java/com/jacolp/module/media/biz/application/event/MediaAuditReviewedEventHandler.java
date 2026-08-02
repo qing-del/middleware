@@ -1,7 +1,7 @@
 package com.jacolp.module.media.biz.application.event;
 
-import com.jacolp.middleware.messaging.AuditReviewedEvent;
-import com.jacolp.middleware.messaging.EventSequenceGuard;
+import com.jacolp.middleware.messaging.event.AuditReviewedEvent;
+import com.jacolp.middleware.messaging.base.EventSequenceGuard;
 import com.jacolp.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
 import java.util.List;
 import org.springframework.stereotype.Service;

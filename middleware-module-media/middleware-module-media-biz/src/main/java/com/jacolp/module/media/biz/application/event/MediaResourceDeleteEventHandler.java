@@ -2,7 +2,7 @@ package com.jacolp.module.media.biz.application.event;
 
 import com.jacolp.constant.ImageConstant;
 import com.jacolp.framework.oss.AliyunOSSOperator;
-import com.jacolp.middleware.messaging.MediaResourceDeleteRequestedEvent;
+import com.jacolp.middleware.messaging.event.MediaResourceDeleteRequestedEvent;
 import com.jacolp.module.media.biz.infrastructure.persistence.mapper.ImageDeleteDeadLetterMapper;
 import java.util.List;
 import org.springframework.stereotype.Service;

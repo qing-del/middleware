@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.constant;
 
 /** Public business event names. Values are wire contracts and must remain stable. */
 public final class EventTypes {

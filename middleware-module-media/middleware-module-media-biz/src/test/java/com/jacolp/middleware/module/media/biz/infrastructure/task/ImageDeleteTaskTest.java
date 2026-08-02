@@ -1,8 +1,8 @@
 package com.jacolp.middleware.module.media.biz.infrastructure.task;
 
 import com.jacolp.constant.ImageConstant;
-import com.jacolp.middleware.messaging.MediaResourceDeleteEventPublisher;
-import com.jacolp.middleware.messaging.MediaResourceDeleteRequestedEvent;
+import com.jacolp.middleware.messaging.pulisher.MediaResourceDeleteEventPublisher;
+import com.jacolp.middleware.messaging.event.MediaResourceDeleteRequestedEvent;
 import com.jacolp.module.media.biz.infrastructure.persistence.dataobject.ImageDeleteDeadLetterDO;
 import com.jacolp.module.media.biz.infrastructure.persistence.mapper.ImageDeleteDeadLetterMapper;
 import com.jacolp.module.media.biz.infrastructure.task.ImageDeleteTask;

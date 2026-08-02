@@ -3,8 +3,8 @@ package com.jacolp.module.system.biz.application.service.impl;
 import java.util.List;
 
 import com.jacolp.middleware.common.security.token.TokenSessionService;
-import com.jacolp.middleware.messaging.UserProfileChangedEvent;
-import com.jacolp.middleware.messaging.UserProfileEventPublisher;
+import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
+import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.annotation.RequireValidRole;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserListDTO;

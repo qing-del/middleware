@@ -1,5 +1,7 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.pulisher;
 
+import com.jacolp.middleware.messaging.constant.EventTypes;
+import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,13 +1,13 @@
 package com.jacolp.middleware.module.media.biz.application.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jacolp.middleware.messaging.EventEnvelope;
-import com.jacolp.middleware.messaging.EventMessageCodec;
-import com.jacolp.middleware.messaging.EventRetryPublisher;
-import com.jacolp.middleware.messaging.EventTopology;
-import com.jacolp.middleware.messaging.EventTypes;
-import com.jacolp.middleware.messaging.InboxService;
-import com.jacolp.middleware.messaging.MediaResourceDeleteRequestedEvent;
+import com.jacolp.middleware.messaging.base.EventEnvelope;
+import com.jacolp.middleware.messaging.tools.EventMessageCodec;
+import com.jacolp.middleware.messaging.pulisher.EventRetryPublisher;
+import com.jacolp.middleware.messaging.constant.EventTopology;
+import com.jacolp.middleware.messaging.constant.EventTypes;
+import com.jacolp.middleware.messaging.service.InboxService;
+import com.jacolp.middleware.messaging.event.MediaResourceDeleteRequestedEvent;
 import com.jacolp.module.media.biz.application.event.MediaResourceDeleteEventHandler;
 import com.jacolp.module.media.biz.application.event.MediaResourceDeleteEventListener;
 import java.time.Instant;
@@ -18,7 +18,6 @@ import org.springframework.amqp.core.Message;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 

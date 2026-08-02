@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.constant;
 
 /** Central RabbitMQ names; business code must not duplicate literal topology names. */
 public final class EventTopology {

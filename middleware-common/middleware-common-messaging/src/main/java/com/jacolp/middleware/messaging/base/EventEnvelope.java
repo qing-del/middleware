@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.base;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;

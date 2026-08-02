@@ -1,6 +1,9 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.pulisher;
 
 import java.util.Objects;
+
+import com.jacolp.middleware.messaging.constant.EventTopology;
+import com.jacolp.middleware.messaging.config.ReliableMessagingProperties;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageDeliveryMode;

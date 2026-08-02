@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.base;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,6 +19,12 @@ public class OutboxRepository {
         this.transactionTemplate = transactionTemplate;
     }
 
+    /**
+     * Inserts an outbox record.
+     * @param envelope the event envelope
+     * @param routingKey the routing key
+     * @param serializedEnvelope the serialized event envelope
+     */
     public void insert(EventEnvelope envelope, String routingKey, String serializedEnvelope) {
         jdbcTemplate.update("""
                 INSERT INTO sys_event_outbox
@@ -28,11 +34,21 @@ public class OutboxRepository {
                 """, envelope.eventId(), envelope.eventType(), routingKey, serializedEnvelope);
     }
 
+    /**
+     * Claims a batch of outbox records for processing.
+     * @param claimant the claimant identity
+     * @param limit the maximum number of records to claim
+     * @param claimSeconds the number of seconds to claim the records for
+     * @return the claimed records
+     */
     public List<OutboxRecord> claimBatch(String claimant, int limit, long claimSeconds) {
         List<OutboxRecord> claimed = transactionTemplate.execute(status -> {
+            // 将 PROCESSING 状态且 claim_until（归属权） 已过期的记录重置为 RETRY
             jdbcTemplate.update("""
                     UPDATE sys_event_outbox
-                    SET status = 'RETRY', claimed_by = NULL, claim_until = NULL,
+                    SET status = 'RETRY', 
+                        claimed_by = NULL, 
+                        claim_until = NULL,
                         next_retry_time = NOW()
                     WHERE status = 'PROCESSING' AND claim_until < NOW()
                     """);
@@ -47,8 +63,8 @@ public class OutboxRepository {
             if (rows.isEmpty()) {
                 return List.of();
             }
-            String placeholders = String.join(",", Collections.nCopies(rows.size(), "?"));
-            Object[] parameters = new Object[rows.size() + 2];
+            String placeholders = String.join(",", Collections.nCopies(rows.size(), "?"));  // 有多少个 rows 就有多少个占位符
+            Object[] parameters = new Object[rows.size() + 2];  // 将 + 2 加进去是因为需要放置 claimant 和 claimSeconds
             parameters[0] = claimant;
             parameters[1] = claimSeconds;
             for (int i = 0; i < rows.size(); i++) {
@@ -56,7 +72,8 @@ public class OutboxRepository {
             }
             jdbcTemplate.update("""
                     UPDATE sys_event_outbox
-                    SET status = 'PROCESSING', claimed_by = ?,
+                    SET status = 'PROCESSING',
+                        claimed_by = ?,
                         claim_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
                     WHERE id IN (%s)
                     """.formatted(placeholders), parameters);
@@ -65,6 +82,12 @@ public class OutboxRepository {
         return claimed == null ? List.of() : claimed;
     }
 
+    /**
+     * Marks the outbox record as published, only if it is currently claimed by the given claimant.
+     * @param id the outbox record ID
+     * @param claimant the claimant identity
+     * @return true if the record was marked as published, false otherwise
+     */
     public boolean markPublished(long id, String claimant) {
         return jdbcTemplate.update("""
                 UPDATE sys_event_outbox
@@ -74,6 +97,16 @@ public class OutboxRepository {
                 """, id, claimant) == 1;
     }
 
+    /**
+     * Marks the outbox record as failed, only if it is currently claimed by the given claimant.
+     * @param id the outbox record ID
+     * @param claimant the claimant identity
+     * @param retryCount the number of retries
+     * @param nextRetry the time when the record will be retried
+     * @param error the error message
+     * @param dead true if the record is dead, false otherwise
+     * @return true if the record was marked as failed, false otherwise
+     */
     public boolean markFailed(long id, String claimant, int retryCount, LocalDateTime nextRetry,
                               String error, boolean dead) {
         return jdbcTemplate.update("""
@@ -84,12 +117,23 @@ public class OutboxRepository {
                 """, dead ? "DEAD" : "RETRY", retryCount, nextRetry, truncate(error), id, claimant) == 1;
     }
 
+    /**
+     * Maps a row from the outbox table to an OutboxRecord.
+     * @param rs the result set
+     * @param rowNum the row number
+     * @return the outbox record
+     */
     private static OutboxRecord mapRecord(ResultSet rs, int rowNum) throws SQLException {
         return new OutboxRecord(rs.getLong("id"), rs.getString("event_id"), rs.getString("event_type"),
                 rs.getString("routing_key"), rs.getString("payload"), rs.getInt("retry_count"),
                 rs.getTimestamp("create_time").toLocalDateTime());
     }
 
+    /**
+     * Truncates an error message to 2000 characters.
+     * @param error the error message
+     * @return the truncated error message
+     */
     private static String truncate(String error) {
         if (error == null) return null;
         return error.length() <= 2000 ? error : error.substring(0, 2000);

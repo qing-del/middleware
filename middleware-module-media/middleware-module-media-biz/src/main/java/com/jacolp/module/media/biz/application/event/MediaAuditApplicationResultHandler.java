@@ -1,8 +1,8 @@
 package com.jacolp.module.media.biz.application.event;
 
-import com.jacolp.middleware.messaging.AsyncCommandStateService;
-import com.jacolp.middleware.messaging.AuditApplicationRequestedEvent;
-import com.jacolp.middleware.messaging.AuditApplicationResultEvent;
+import com.jacolp.middleware.messaging.service.AsyncCommandStateService;
+import com.jacolp.middleware.messaging.event.AuditApplicationRequestedEvent;
+import com.jacolp.middleware.messaging.event.AuditApplicationResultEvent;
 import com.jacolp.module.media.biz.infrastructure.persistence.mapper.ImageMapper;
 import org.springframework.stereotype.Service;
 

@@ -1,7 +1,8 @@
 package com.jacolp.module.note.biz.application.event;
 
-import com.jacolp.middleware.messaging.AsyncCommandStateService;
-import com.jacolp.middleware.messaging.AuditApplicationResultEvent;
+import com.jacolp.middleware.messaging.event.AuditApplicationRequestedEvent;
+import com.jacolp.middleware.messaging.service.AsyncCommandStateService;
+import com.jacolp.middleware.messaging.event.AuditApplicationResultEvent;
 import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteMapper;
 import com.jacolp.module.note.biz.infrastructure.persistence.mapper.TagMapper;
 import org.springframework.stereotype.Service;
@@ -23,10 +24,10 @@ public class NoteAuditApplicationResultHandler {
     }
 
     public void apply(AuditApplicationResultEvent event) {
-        if (event.targetType() == com.jacolp.middleware.messaging.AuditApplicationRequestedEvent.TargetType.IMAGE) return;
+        if (event.targetType() == AuditApplicationRequestedEvent.TargetType.IMAGE) return;
         if (!commandState.completeIfCurrent("NOTE", event.targetType().name(),
                 event.targetId(), event.commandId())) return;
-        if (event.targetType() == com.jacolp.middleware.messaging.AuditApplicationRequestedEvent.TargetType.NOTE) {
+        if (event.targetType() == AuditApplicationRequestedEvent.TargetType.NOTE) {
             if (event.outcome() == AuditApplicationResultEvent.Outcome.REJECTED) {
                 noteMapper.updateStatusIfCurrent(event.targetId(), NOTE_PENDING, NOTE_CONVERTED);
             } else if (event.outcome() == AuditApplicationResultEvent.Outcome.CANCEL_REJECTED) {

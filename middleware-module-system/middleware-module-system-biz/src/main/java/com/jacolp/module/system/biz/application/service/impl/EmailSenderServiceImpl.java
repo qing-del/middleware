@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-import com.jacolp.middleware.messaging.EmailSendEventPublisher;
-import com.jacolp.middleware.messaging.EmailSendRequestedEvent;
+import com.jacolp.middleware.messaging.pulisher.EmailSendEventPublisher;
+import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.middleware.common.security.token.TokenSessionService;

@@ -2,8 +2,8 @@ package com.jacolp.middleware.module.system.biz.application.service.impl;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.context.BaseContext;
-import com.jacolp.middleware.messaging.UserProfileChangedEvent;
-import com.jacolp.middleware.messaging.UserProfileEventPublisher;
+import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
+import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;

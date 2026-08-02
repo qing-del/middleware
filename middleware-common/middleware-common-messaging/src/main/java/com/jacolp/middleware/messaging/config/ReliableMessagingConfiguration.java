@@ -1,7 +1,9 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.config;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import com.jacolp.middleware.messaging.constant.EventTopology;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Declarable;
 import org.springframework.amqp.core.Declarables;

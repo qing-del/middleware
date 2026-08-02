@@ -1,7 +1,7 @@
 package com.jacolp.middleware.module.note.biz.application.event;
 
-import com.jacolp.middleware.messaging.AuditReviewedEvent;
-import com.jacolp.middleware.messaging.EventSequenceGuard;
+import com.jacolp.middleware.messaging.event.AuditReviewedEvent;
+import com.jacolp.middleware.messaging.base.EventSequenceGuard;
 import com.jacolp.module.note.biz.application.event.NoteAuditReviewedEventHandler;
 import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteEachMappingMapper;
 import com.jacolp.module.note.biz.infrastructure.persistence.mapper.NoteImageMappingMapper;

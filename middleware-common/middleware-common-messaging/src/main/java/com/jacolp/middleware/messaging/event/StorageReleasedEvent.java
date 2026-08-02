@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.event;
 
 /** Storage release is a business fact emitted only after the owning resource is deleted. */
 public record StorageReleasedEvent(long userId, String resourceType, String resourceId, long releasedBytes) {

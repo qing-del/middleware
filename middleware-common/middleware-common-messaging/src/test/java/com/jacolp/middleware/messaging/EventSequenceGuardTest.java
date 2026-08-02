@@ -1,5 +1,6 @@
 package com.jacolp.middleware.messaging;
 
+import com.jacolp.middleware.messaging.base.EventSequenceGuard;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 

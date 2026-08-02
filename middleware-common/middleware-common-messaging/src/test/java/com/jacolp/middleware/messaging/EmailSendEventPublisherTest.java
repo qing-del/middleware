@@ -1,6 +1,11 @@
 package com.jacolp.middleware.messaging;
 
 import java.util.List;
+
+import com.jacolp.middleware.messaging.constant.EventTypes;
+import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.middleware.messaging.pulisher.EmailSendEventPublisher;
+import com.jacolp.middleware.messaging.pulisher.OutboxEventPublisher;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

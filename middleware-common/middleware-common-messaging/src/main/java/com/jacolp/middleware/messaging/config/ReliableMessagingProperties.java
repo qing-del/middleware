@@ -1,4 +1,4 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.config;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;

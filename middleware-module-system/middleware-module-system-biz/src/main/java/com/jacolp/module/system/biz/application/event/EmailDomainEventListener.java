@@ -1,12 +1,12 @@
 package com.jacolp.module.system.biz.application.event;
 
-import com.jacolp.middleware.messaging.EmailSendRequestedEvent;
-import com.jacolp.middleware.messaging.EventEnvelope;
-import com.jacolp.middleware.messaging.EventMessageCodec;
-import com.jacolp.middleware.messaging.EventRetryPublisher;
-import com.jacolp.middleware.messaging.EventTopology;
-import com.jacolp.middleware.messaging.EventTypes;
-import com.jacolp.middleware.messaging.InboxService;
+import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.middleware.messaging.base.EventEnvelope;
+import com.jacolp.middleware.messaging.tools.EventMessageCodec;
+import com.jacolp.middleware.messaging.pulisher.EventRetryPublisher;
+import com.jacolp.middleware.messaging.constant.EventTopology;
+import com.jacolp.middleware.messaging.constant.EventTypes;
+import com.jacolp.middleware.messaging.service.InboxService;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;

@@ -1,7 +1,9 @@
-package com.jacolp.middleware.messaging;
+package com.jacolp.middleware.messaging.service;
 
 import java.util.Objects;
 import java.util.function.Consumer;
+
+import com.jacolp.middleware.messaging.base.EventEnvelope;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;

@@ -1,8 +1,8 @@
 package com.jacolp.middleware.module.system.biz.application.service.impl;
 
 import com.jacolp.middleware.common.security.token.TokenSessionService;
-import com.jacolp.middleware.messaging.EmailSendEventPublisher;
-import com.jacolp.middleware.messaging.EmailSendRequestedEvent;
+import com.jacolp.middleware.messaging.pulisher.EmailSendEventPublisher;
+import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
 import com.jacolp.module.system.biz.application.dto.email.EmailResultDTO;
 import com.jacolp.module.system.biz.application.dto.email.EmailSendDTO;
 import com.jacolp.module.system.biz.application.service.impl.EmailSenderServiceImpl;
