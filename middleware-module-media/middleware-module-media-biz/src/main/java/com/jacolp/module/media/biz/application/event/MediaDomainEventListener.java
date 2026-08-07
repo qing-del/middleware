@@ -1,7 +1,6 @@
 package com.jacolp.module.media.biz.application.event;
 
 import com.jacolp.middleware.messaging.event.AuditReviewedEvent;
-import com.jacolp.middleware.messaging.event.AuditApplicationResultEvent;
 import com.jacolp.middleware.messaging.base.EventEnvelope;
 import com.jacolp.middleware.messaging.tools.EventMessageCodec;
 import com.jacolp.middleware.messaging.pulisher.EventRetryPublisher;
@@ -18,16 +17,13 @@ public class MediaDomainEventListener {
     private final InboxService inboxService;
     private final EventRetryPublisher retryPublisher;
     private final MediaAuditReviewedEventHandler auditReviewedHandler;
-    private final MediaAuditApplicationResultHandler applicationResultHandler;
 
     public MediaDomainEventListener(EventMessageCodec codec, InboxService inboxService,
-            EventRetryPublisher retryPublisher, MediaAuditReviewedEventHandler auditReviewedHandler,
-            MediaAuditApplicationResultHandler applicationResultHandler) {
+            EventRetryPublisher retryPublisher, MediaAuditReviewedEventHandler auditReviewedHandler) {
         this.codec = codec;
         this.inboxService = inboxService;
         this.retryPublisher = retryPublisher;
         this.auditReviewedHandler = auditReviewedHandler;
-        this.applicationResultHandler = applicationResultHandler;
     }
 
     @RabbitListener(queues = EventTopology.MEDIA_QUEUE)
@@ -37,20 +33,10 @@ public class MediaDomainEventListener {
             if (EventTypes.AUDIT_REVIEWED.equals(envelope.eventType())) {
                 inboxService.consume(envelope, MediaAuditReviewedEventHandler.CONSUMER_NAME,
                         ignored -> auditReviewedHandler.apply(codec.payloadItems(envelope, AuditReviewedEvent.class)));
-            } else if (isApplicationResult(envelope.eventType())) {
-                inboxService.consume(envelope, "media.audit-application-result",
-                        ignored -> applicationResultHandler.apply(
-                                codec.payload(envelope, AuditApplicationResultEvent.class)));
             } else throw new IllegalArgumentException("Unsupported media event type: " + envelope.eventType());
         } catch (RuntimeException failure) {
             retryPublisher.retryOrDeadLetter(EventTopology.MEDIA_QUEUE, message, failure);
         }
     }
 
-    private static boolean isApplicationResult(String type) {
-        return EventTypes.AUDIT_APPLICATION_ACCEPTED.equals(type)
-                || EventTypes.AUDIT_APPLICATION_REJECTED.equals(type)
-                || EventTypes.AUDIT_APPLICATION_CANCELLED.equals(type)
-                || EventTypes.AUDIT_APPLICATION_CANCEL_REJECTED.equals(type);
-    }
 }

@@ -1,9 +1,8 @@
 package com.jacolp.middleware.messaging.config;
 
+import com.jacolp.middleware.messaging.constant.EventTopology;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.jacolp.middleware.messaging.constant.EventTopology;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Declarable;
 import org.springframework.amqp.core.Declarables;
@@ -23,24 +22,14 @@ public class ReliableMessagingConfiguration {
         TopicExchange exchange = new TopicExchange(EventTopology.EXCHANGE, true, false);
         List<Declarable> declarations = new ArrayList<>();
         declarations.add(exchange);
-        // “笔记”模块所需要用于“审核”的队列
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.NOTE_QUEUE,
-                "audit.reviewed", "audit.application.accepted", "audit.application.rejected",
-                "audit.application.cancelled", "audit.application.cancel-rejected");
-        // “媒体”模块所需要用于“审核”的队列
+                "audit.reviewed");
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.MEDIA_QUEUE,
-                "audit.reviewed", "audit.application.accepted", "audit.application.rejected",
-                "audit.application.cancelled", "audit.application.cancel-rejected");
-        // 使用审核的模块
-        addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.AUDIT_QUEUE,
-                "audit.application.requested", "audit.application.cancel-requested");
-        // 用户存储额释放 MQ QUEUE
+                "audit.reviewed");
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.SYSTEM_QUEUE, "storage.released");
-        // 管理员发送邮件 QUEUE
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.EMAIL_QUEUE, "email.send-requested");
-        // 媒体数据-图片 删除异步任务 MQ  保证最终一致性
-        addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.MEDIA_DELETE_QUEUE, "media.resource.delete-requested");
-
+        addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.MEDIA_DELETE_QUEUE,
+                "media.resource.delete-requested");
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.AUDIT_PROJECTION_QUEUE,
                 "user.profile-changed");
         return new Declarables(declarations);

@@ -5,6 +5,7 @@ import lombok.Getter;
 /** Shared lifecycle for independently owned auditable resources. */
 @Getter
 public enum AuditStatus {
+    CANCELLED((short) 5, "\u5df2\u64a4\u9500"),
     WAIT((short) 0, "待审核"),
     AUDITING((short) 1, "审核中"),
     APPROVED((short) 2, "已通过"),

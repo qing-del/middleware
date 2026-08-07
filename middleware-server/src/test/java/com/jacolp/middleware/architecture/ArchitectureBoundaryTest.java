@@ -128,7 +128,7 @@ class ArchitectureBoundaryTest {
     }
 
     @Test
-    void asynchronousWorkflowModulesDoNotDependOnLegacyWriteApis() throws Exception {
+    void auditModuleDoesNotDependOnOwnerModules() throws Exception {
         List<String> violations = new ArrayList<>();
         for (BizModule module : bizModules(repositoryRoot())) {
             List<String> dependencies = dependencyArtifactIds(module.pom());
@@ -137,15 +137,8 @@ class ArchitectureBoundaryTest {
                         .filter(id -> id.matches("middleware-module-(?:note|media|system)-api"))
                         .forEach(id -> violations.add(module.pom() + " -> " + id));
             }
-            if ((module.name().equals("note") || module.name().equals("media"))
-                    && dependencies.contains("middleware-module-audit-api")) {
-                violations.add(module.pom() + " -> middleware-module-audit-api");
-            }
-
             Pattern forbiddenImport = switch (module.name()) {
                 case "audit" -> Pattern.compile("^\\s*import\\s+com\\.jacolp\\.module\\.(?:note|media|system)\\.api\\..*;",
-                        Pattern.MULTILINE);
-                case "note", "media" -> Pattern.compile("^\\s*import\\s+com\\.jacolp\\.module\\.audit\\.api\\..*;",
                         Pattern.MULTILINE);
                 default -> null;
             };
@@ -155,7 +148,7 @@ class ArchitectureBoundaryTest {
                 }
             }
         }
-        assertNoViolations("async audit workflows must not retain legacy cross-module write dependencies", violations);
+        assertNoViolations("audit module must not depend on owner modules", violations);
     }
 
     @Test

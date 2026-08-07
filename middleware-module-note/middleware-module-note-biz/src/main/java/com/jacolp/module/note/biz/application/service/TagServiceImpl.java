@@ -5,14 +5,13 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.jacolp.context.PermissionContext;
-import com.jacolp.middleware.messaging.service.AsyncCommandStateService;
-import com.jacolp.middleware.messaging.event.AuditApplicationCancelRequestedEvent;
-import com.jacolp.middleware.messaging.pulisher.AuditApplicationEventPublisher;
-import com.jacolp.middleware.messaging.event.AuditApplicationRequestedEvent;
+import com.jacolp.module.audit.api.AuditApplicationApi;
+import com.jacolp.module.audit.api.AuditTargetType;
+import com.jacolp.module.audit.api.CancelAuditApplicationCommand;
+import com.jacolp.module.audit.api.CreateAuditApplicationCommand;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -55,8 +54,7 @@ public class TagServiceImpl implements TagService {
     @Autowired private TagMapper tagMapper;
 
     // 来自其他模块的 Mapper
-    @Autowired private AuditApplicationEventPublisher auditEvents;
-    @Autowired private AsyncCommandStateService commandState;
+    @Autowired private AuditApplicationApi auditApi;
     @Autowired private NoteCoreService noteCoreService;
     @Autowired private NoteRelationService noteRelationService;
 
@@ -249,15 +247,12 @@ public class TagServiceImpl implements TagService {
         if (!status.canTransitionTo(AuditStatus.AUDITING)) {
             throw new BaseException("该标签已通过审核");
         }
-        String commandId = UUID.randomUUID().toString();
-        if (!commandState.tryBegin("NOTE", "TAG", tagId, commandId, "CREATE_AUDIT")) {
+        if (tagMapper.updateAuditStatusIfCurrent(tagId, status.getCode(), AuditStatus.AUDITING.getCode()) != 1) {
             throw new BaseException("该标签已有待审核的申请");
         }
-        auditEvents.request(new AuditApplicationRequestedEvent(commandId,
-                AuditApplicationRequestedEvent.TargetType.TAG, tagId, userId, null,
-                tag.getTagName(), null));
+        auditApi.createApplication(new CreateAuditApplicationCommand(AuditTargetType.TAG, tagId, userId,
+                null, tag.getTagName(), null));
 
-        tagMapper.updateAuditStatusByIds(List.of(tagId), AuditStatus.AUDITING.getCode());
     }
 
     /**
@@ -278,13 +273,11 @@ public class TagServiceImpl implements TagService {
             throw new BaseException("该标签未处于审核中");
         }
 
-        String commandId = UUID.randomUUID().toString();
-        if (!commandState.tryBegin("NOTE", "TAG", tagId, commandId, "CANCEL_AUDIT")) {
+        auditApi.cancelApplication(new CancelAuditApplicationCommand(AuditTargetType.TAG, tagId, userId));
+        if (tagMapper.updateAuditStatusIfCurrent(tagId, AuditStatus.AUDITING.getCode(),
+                AuditStatus.WAIT.getCode()) != 1) {
             throw new BaseException("该标签已有处理中的审核命令");
         }
-        auditEvents.cancel(new AuditApplicationCancelRequestedEvent(commandId,
-                AuditApplicationRequestedEvent.TargetType.TAG, tagId, userId));
-        tagMapper.updateAuditStatusByIds(List.of(tagId), AuditStatus.WAIT.getCode());
     }
 
     /**
