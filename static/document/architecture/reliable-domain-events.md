@@ -1,6 +1,6 @@
 # Reliable cross-module domain events
 
-The audit, note, media, and system modules use a shared transactional Outbox/Inbox layer for cross-module commands and side effects. Business code writes its aggregate changes and `sys_event_outbox` row in the same MySQL transaction. It does not wait for RabbitMQ, SMTP, or OSS.
+The audit, note, media, and system modules use a shared transactional Outbox/Inbox layer for cross-module event propagation and side effects. Business code writes its aggregate changes and `sys_event_outbox` row in the same MySQL transaction. It does not wait for RabbitMQ, SMTP, or OSS. Audit application creation and cancellation are the exception: they call the audit module's API synchronously inside the caller's transaction (see "Audit application state transitions").
 
 ## Topology and contracts
 
@@ -13,10 +13,6 @@ All messages use the durable topic exchange `middleware.domain.events`, persiste
 | `storage.released` | Note, Media | `middleware.system.events` / `system.storage-released` | Release storage quota after logical deletion |
 | `media.resource.delete-requested` | Media | `middleware.media.resource-delete` / `media.resource-delete` | Delete an OSS object and complete the legacy deletion tracking row |
 | `email.send-requested` | System | `middleware.system.email` / `system.email-send` | Render and send activation, verification, and administrator email |
-| `audit.application.requested` | Note, Media | `middleware.audit.commands` / `audit.application-command` | Create an audit-owned application |
-| `audit.application.cancel-requested` | Note, Media | `middleware.audit.commands` / `audit.application-command` | Cancel an audit-owned pending application |
-| `audit.application.accepted`, `audit.application.rejected` | Audit | Note and Media event queues | Correlate a create command and complete or compensate source state |
-| `audit.application.cancelled`, `audit.application.cancel-rejected` | Audit | Note and Media event queues | Correlate a cancel command and complete or compensate source state |
 | `user.profile-changed` | System | `middleware.audit.projections` / `audit.user-profile-projection` | Maintain the current username lookup used only when freezing a new audit snapshot |
 
 Every main queue has `<queue>.retry` and `<queue>.dlq`. Note and Media have independent queues, so an IMAGE review is delivered to both owners and failure in either consumer cannot suppress the other.
@@ -32,18 +28,13 @@ Every main queue has `<queue>.retry` and `<queue>.dlq`. Note and Media have inde
 
 No public event carries another module's database status code. Wire decisions are business values such as `APPROVED`, `REJECTED`, and `DELETED`; each owner maps them to its local state.
 
-## State transitions
+## Audit application state transitions
 
-Audit application commands are correlated in `sys_async_command_state` by owner, aggregate type, and aggregate ID:
+Audit application creation and cancellation are synchronous and transactional: the owner module calls `AuditApplicationApi` inside the same database transaction as its own state change, so both sides commit or roll back together. No Outbox round-trip is involved.
 
-```text
-ready --tryBegin(commandId)--> PENDING --matching result--> COMPLETED
-                                  |                         |
-                                  +--other command denied---+
-                                  +--stale result ignored----+
-```
-
-The source aggregate moves to its existing pending/auditing equivalent in the same transaction as the command Outbox row. Accepted/cancelled results keep the intended state; rejected results compensate it. Conditional updates and the command ID prevent an out-of-order result from overwriting a later request.
+- Submit: the owner CASes its target status to pending (`UPDATE ... SET status = pending WHERE id = ? AND status = expected`), then `createApplication` inserts the audit record with pending status and freezes the display snapshot. The guarded status update serializes concurrent submits — exactly one caller wins.
+- Cancel: `cancelApplication` first runs a guarded UPDATE on the audit record (`status = pending -> cancelled`, must affect exactly one row), then the owner CASes its target status back to the pre-pending state. The row-level guard serializes cancel against review: the loser affects 0 rows and its whole transaction rolls back, so the target status and the audit record can never diverge.
+- Review is unchanged: the guarded record update (`pending -> approved/rejected`) commits, then `audit.reviewed` is published through the Outbox and each owner applies the decision with a conditional update on its target status.
 
 Audit list display data is historical. `audit_query_record_projection` is keyed by `(target_type, audit_id)`: applicant and target fields are frozen when the application is created, and reviewer username is frozen when review completes. `20260730_audit_query_projection.sql` backfills old records once; runtime list queries join only audit-owned tables. Missing legacy snapshots are tolerated and return null display fields rather than triggering synchronous owner-module calls.
 
@@ -58,8 +49,7 @@ SMTP and OSS calls happen only in their dedicated consumers. Inbox identity supp
 1. Check `sys_event_outbox` by `status`, `retry_count`, and `next_retry_time`. `PENDING`/claimed rows during a RabbitMQ outage are expected; old claimed rows become eligible after `claim-seconds`.
 2. Check each `<queue>.dlq`, the `x-last-error` header, and application logs. Repair the underlying data or dependency before replaying a DLQ message to its main queue.
 3. Check `sys_event_inbox` by `event_id` and `consumer_name` before assuming a replay should mutate data.
-4. For command/result issues, compare `correlationId` and `command_id` in `sys_async_command_state`; stale results are deliberately ignored.
-5. For image deletion, inspect `biz_image_delete_dead_letter` together with the media deletion queue and DLQ.
-6. For an audit display mismatch, inspect `audit_query_record_projection`. Do not repair it by reintroducing synchronous calls in `AuditQueryService`.
+4. For image deletion, inspect `biz_image_delete_dead_letter` together with the media deletion queue and DLQ.
+5. For an audit display mismatch, inspect `audit_query_record_projection`. Do not repair it by reintroducing synchronous calls in `AuditQueryService`.
 
 Important tuning properties are `batch-size`, `shard-size`, `poll-delay-ms`, `claim-seconds`, `confirm-timeout-ms`, `retry-queue-delay-ms`, `max-retries`, `initial-backoff`, `max-backoff`, and `max-payload-bytes` under `jacolp.messaging`.
