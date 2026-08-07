@@ -49,7 +49,7 @@ public class AuditApplicationApiService implements AuditApplicationApi {
     @Override
     public AuditApplicationResult createApplication(CreateAuditApplicationCommand command) {
         if (hasPendingApplication(new PendingAuditApplicationQuery(command.targetType(), command.targetId()))) {
-            throw new BaseException("The target already has a pending audit application");
+            throw new BaseException("该对象已有待审核的申请");
         }
         return switch (command.targetType()) {
             case TAG -> createTagApplication(command);
