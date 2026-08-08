@@ -102,6 +102,7 @@ jacolp:
   aliyun:
     oss:
       keep-live-time: 45  # 单位是秒
+      keep-live-enabled: ${OSS_KEEP_LIVE_ENABLED:false}
       enabled: true
   audio:
     callback-token: ${jacolp.audio.callback-token}

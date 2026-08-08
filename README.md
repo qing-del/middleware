@@ -344,7 +344,7 @@ npm run dev
 
 | 任务 | 默认周期 | 用途 |
 | --- | --- | --- |
-| `AliyunOSSClientKeepLiveTask` | 45 s | 阿里云 OSS 客户端保活 |
+| `AliyunOSSClientKeepLiveTask` | 45 s | 阿里云 OSS 客户端保活；默认关闭，通过 `OSS_KEEP_LIVE_ENABLED=true` 显式启用 |
 | `ImageDeleteTask` | 60 min | 处理图片删除死信队列 |
 | `NoteCleanupTask` | 24 h | 物理清理已软删除的笔记映射记录 |
 | `CleanAspectLockTask` | 60 min | 清理存储切面中的空闲用户锁 |
