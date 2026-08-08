@@ -25,6 +25,7 @@ import com.jacolp.result.PageResult;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +67,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
         task.setNoiseType(dto.getNoiseType());
         task.setNoiseFactor(dto.getNoiseFactor() != null ? dto.getNoiseFactor() : BigDecimal.valueOf(AudioConstant.DEFAULT_NOISE_FACTOR));
         task.setStatus(AudioTaskLifecycle.initialStatus());
+        task.setRetryTime(0);
         audioTaskMapper.insert(task);
         log.info("Audio task created, taskId: {}, userId: {}", task.getId(), userId);
         transactionAfterCommitExecutor.execute(() -> audioTaskPublisher.publish(task));
@@ -74,7 +76,8 @@ public class AudioTaskServiceImpl implements AudioTaskService {
 
     @Override
     public boolean callbackStart(AudioCallbackStartDTO dto) {
-        int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(), AudioTaskLifecycle.callbackStartExpectedStatus(),
+        int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(), dto.getAttempt(),
+                AudioTaskLifecycle.callbackStartExpectedStatus(),
                 AudioTaskLifecycle.callbackStartResultStatus(), null, null, null, null);
         if (updated == 0) {
             log.warn("callbackStart CAS failed, taskId: {} (already processed or not found)", dto.getTaskId());
@@ -91,7 +94,8 @@ public class AudioTaskServiceImpl implements AudioTaskService {
             throw new BaseException("无效的回调状态值: " + dto.getStatus());
         if (dto.getStatus() == AudioTaskLifecycle.Status.SUCCESS.code())
             return finishSuccessfulTask(dto);
-        int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(), AudioTaskLifecycle.callbackFinishExpectedStatus(),
+        int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(), dto.getAttempt(),
+                AudioTaskLifecycle.callbackFinishExpectedStatus(),
                 dto.getStatus(), dto.getResultUrl(), null, dto.getErrorMsg(), null);
         if (updated == 0) {
             log.warn("callbackFinish CAS failed, taskId: {} (already processed or not found)", dto.getTaskId());
@@ -109,7 +113,8 @@ public class AudioTaskServiceImpl implements AudioTaskService {
 
         AudioTaskDO task = audioTaskMapper.selectById(dto.getTaskId());
         if (task == null || task.getStatus() == null
-                || task.getStatus() != AudioTaskLifecycle.callbackFinishExpectedStatus()) {
+                || task.getStatus() != AudioTaskLifecycle.callbackFinishExpectedStatus()
+                || !Objects.equals(task.getRetryTime(), dto.getAttempt())) {
             log.warn("Successful callback rejected before quota consumption, taskId: {}", dto.getTaskId());
             return false;
         }
@@ -117,14 +122,15 @@ public class AudioTaskServiceImpl implements AudioTaskService {
         ConsumeQuotaCommand storageCommand = ConsumeQuotaCommand.storageBytes(task.getUserId(), dto.getAudioSize());
         ConsumeQuotaResult storageResult = userQuotaApi.consume(storageCommand);
         if (!storageResult.consumed()) {
-            audioTaskMapper.casUpdateStatus(dto.getTaskId(), AudioTaskLifecycle.callbackFinishExpectedStatus(),
+            audioTaskMapper.casUpdateStatus(dto.getTaskId(), dto.getAttempt(),
+                    AudioTaskLifecycle.callbackFinishExpectedStatus(),
                     AudioTaskLifecycle.Status.FAILED.code(), null, null, STORAGE_INSUFFICIENT_ERROR, null);
             log.warn("Audio task rejected due to insufficient storage, taskId: {}, audioSize: {}, remaining: {}",
                     dto.getTaskId(), dto.getAudioSize(), storageResult.quota().remaining());
             return false;
         }
 
-        int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(),
+        int updated = audioTaskMapper.casUpdateStatus(dto.getTaskId(), dto.getAttempt(),
                 AudioTaskLifecycle.callbackFinishExpectedStatus(), AudioTaskLifecycle.Status.SUCCESS.code(),
                 dto.getResultUrl(), dto.getAudioSize(), null, LocalDate.now());
         if (updated == 0) {
@@ -217,6 +223,7 @@ public class AudioTaskServiceImpl implements AudioTaskService {
         retryTask.setNoiseType(task.getNoiseType());
         retryTask.setNoiseFactor(task.getNoiseFactor());
         retryTask.setStatus(AudioTaskLifecycle.initialStatus());
+        retryTask.setRetryTime(0);
         audioTaskMapper.insert(retryTask);
         transactionAfterCommitExecutor.execute(() -> audioTaskPublisher.publish(retryTask));
         log.info("Audio task retried, sourceTaskId: {}, retryTaskId: {}, userId: {}",

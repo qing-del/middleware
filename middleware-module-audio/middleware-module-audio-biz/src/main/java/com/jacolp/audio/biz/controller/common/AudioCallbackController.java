@@ -44,7 +44,8 @@ public class AudioCallbackController {
     @Operation(summary = "回调 A：任务开始处理", description = "Python 消费者从 Redis 取出任务后调用，将任务状态从 PENDING 更新为 PROCESSING。（前端不用对接）")
     public Result<Boolean> callbackStart(@RequestBody @Valid AudioCallbackStartDTO dto, HttpServletRequest request) {
         validateCallbackToken(request);
-        log.info("Audio callback start, taskId: {}", dto.getTaskId());
+        log.info("Audio callback start, taskId: {}, attempt: {}",
+                dto.getTaskId(), dto.getAttempt());
         return Result.success(audioTaskService.callbackStart(dto));
     }
 
@@ -52,7 +53,8 @@ public class AudioCallbackController {
     @Operation(summary = "回调 B：任务完成/失败", description = "Python 引擎生成完成或异常时调用，更新任务最终状态。返回 data=true 表示 DB 更新成功，false 时 Python 端应删除本地文件。（前端不用对接）")
     public Result<Boolean> callbackFinish(@RequestBody @Valid AudioCallbackFinishDTO dto, HttpServletRequest request) {
         validateCallbackToken(request);
-        log.info("Audio callback finish, taskId: {}, status: {}", dto.getTaskId(), dto.getStatus());
+        log.info("Audio callback finish, taskId: {}, attempt: {}, status: {}",
+                dto.getTaskId(), dto.getAttempt(), dto.getStatus());
         return Result.success(audioTaskService.callbackFinish(dto));
     }
 

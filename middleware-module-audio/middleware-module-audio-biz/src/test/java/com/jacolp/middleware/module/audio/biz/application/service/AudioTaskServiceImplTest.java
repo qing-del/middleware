@@ -11,6 +11,7 @@ import com.jacolp.exception.BaseException;
 import com.jacolp.exception.RateLimitExceededException;
 import com.jacolp.audio.biz.constant.AudioConstant;
 import com.jacolp.audio.biz.domain.dto.AudioCallbackFinishDTO;
+import com.jacolp.audio.biz.domain.dto.AudioCallbackStartDTO;
 import com.jacolp.audio.biz.domain.dto.AudioTaskSubmitDTO;
 import com.jacolp.audio.biz.persistence.dataobject.AudioTaskDO;
 import com.jacolp.audio.biz.persistence.mapper.AudioTaskMapper;
@@ -182,8 +183,23 @@ class AudioTaskServiceImplTest {
         ArgumentCaptor<AudioTaskDO> task = ArgumentCaptor.forClass(AudioTaskDO.class);
         verify(mapper).insert(task.capture());
         assertThat(task.getValue().getStatus()).isEqualTo(AudioConstant.TASK_STATUS_PENDING);
+        assertThat(task.getValue().getRetryTime()).isZero();
         assertThat(task.getValue().getNoiseFactor()).isEqualByComparingTo("0.5");
         verify(publisher).publish(task.getValue());
+    }
+
+    @Test
+    void callbackStartUsesAttemptAsPartOfCompareAndSet() {
+        AudioCallbackStartDTO dto = new AudioCallbackStartDTO();
+        dto.setTaskId(19L);
+        dto.setAttempt(2);
+        when(mapper.casUpdateStatus(19L, 2, 0, 1,
+                null, null, null, null)).thenReturn(1);
+
+        assertThat(service.callbackStart(dto)).isTrue();
+
+        verify(mapper).casUpdateStatus(19L, 2, 0, 1,
+                null, null, null, null);
     }
 
     @Test
@@ -201,7 +217,7 @@ class AudioTaskServiceImplTest {
         AudioCallbackFinishDTO dto = successfulCallback(20L, 120L);
         when(mapper.selectById(20L)).thenReturn(processingTask(20L, 7L));
         when(quotaApi.consume(any())).thenReturn(storageQuotaResult(true, 120L, 1_000L));
-        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
+        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         assertThat(service.callbackFinish(dto)).isTrue();
 
@@ -210,7 +226,7 @@ class AudioTaskServiceImplTest {
         assertThat(consumed.getValue().userId()).isEqualTo(7L);
         assertThat(consumed.getValue().quotaType()).isEqualTo(QuotaType.STORAGE_BYTES);
         assertThat(consumed.getValue().amount()).isEqualTo(120L);
-        verify(mapper).casUpdateStatus(eq(20L), eq(1), eq(2),
+        verify(mapper).casUpdateStatus(eq(20L), eq(0), eq(1), eq(2),
                 eq("https://audio.example/20.mp3"), eq(120L), eq(null), any(LocalDate.class));
         verify(quotaApi, never()).rollback(any());
     }
@@ -220,11 +236,12 @@ class AudioTaskServiceImplTest {
         AudioCallbackFinishDTO dto = successfulCallback(21L, 120L);
         when(mapper.selectById(21L)).thenReturn(processingTask(21L, 7L));
         when(quotaApi.consume(any())).thenReturn(storageQuotaResult(false, 90L, 100L));
-        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
+        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         assertThat(service.callbackFinish(dto)).isFalse();
 
-        verify(mapper).casUpdateStatus(21L, 1, -1, null, null, "存储空间不足", null);
+        verify(mapper).casUpdateStatus(21L, 0, 1, -1,
+                null, null, "存储空间不足", null);
         verify(quotaApi, never()).rollback(any());
     }
 
@@ -233,7 +250,7 @@ class AudioTaskServiceImplTest {
         AudioCallbackFinishDTO dto = successfulCallback(22L, 120L);
         when(mapper.selectById(22L)).thenReturn(processingTask(22L, 7L));
         when(quotaApi.consume(any())).thenReturn(storageQuotaResult(true, 120L, 1_000L));
-        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any())).thenReturn(0);
+        when(mapper.casUpdateStatus(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(0);
 
         assertThat(service.callbackFinish(dto)).isFalse();
 
@@ -241,6 +258,21 @@ class AudioTaskServiceImplTest {
         verify(quotaApi).rollback(rollback.capture());
         assertThat(rollback.getValue().quotaType()).isEqualTo(QuotaType.STORAGE_BYTES);
         assertThat(rollback.getValue().amount()).isEqualTo(120L);
+    }
+
+    @Test
+    void staleSuccessfulCallbackIsRejectedBeforeStorageConsumption() {
+        AudioCallbackFinishDTO dto = successfulCallback(24L, 120L);
+        dto.setAttempt(0);
+        AudioTaskDO newerAttempt = processingTask(24L, 7L);
+        newerAttempt.setRetryTime(1);
+        when(mapper.selectById(24L)).thenReturn(newerAttempt);
+
+        assertThat(service.callbackFinish(dto)).isFalse();
+
+        verify(quotaApi, never()).consume(any());
+        verify(mapper, never()).casUpdateStatus(any(), any(), any(), any(),
+                any(), any(), any(), any());
     }
 
     @Test
@@ -267,6 +299,7 @@ class AudioTaskServiceImplTest {
     private static AudioCallbackFinishDTO successfulCallback(Long taskId, Long audioSize) {
         AudioCallbackFinishDTO dto = new AudioCallbackFinishDTO();
         dto.setTaskId(taskId);
+        dto.setAttempt(0);
         dto.setStatus(AudioConstant.TASK_STATUS_SUCCESS);
         dto.setResultUrl("https://audio.example/" + taskId + ".mp3");
         dto.setAudioSize(audioSize);
@@ -278,6 +311,7 @@ class AudioTaskServiceImplTest {
         task.setId(taskId);
         task.setUserId(userId);
         task.setStatus(AudioTaskLifecycle.Status.PROCESSING.code());
+        task.setRetryTime(0);
         return task;
     }
 

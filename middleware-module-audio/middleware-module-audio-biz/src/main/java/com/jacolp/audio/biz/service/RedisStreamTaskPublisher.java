@@ -35,12 +35,14 @@ public class RedisStreamTaskPublisher implements AudioTaskPublisher {
     public void publish(AudioTaskDO task) {
         Map<String, String> payload = new HashMap<>();
         payload.put("taskId", String.valueOf(task.getId()));
+        payload.put("attempt", String.valueOf(task.getRetryTime() == null ? 0 : task.getRetryTime()));
         payload.put("userId", String.valueOf(task.getUserId()));
         payload.put("speed", task.getSpeed().toPlainString());
         payload.put("noiseType", task.getNoiseType());
         payload.put("noiseFactor", task.getNoiseFactor().toPlainString());
         payload.put("text", task.getSourceText());
         redis.opsForStream().add(AudioConstant.REDIS_STREAM_KEY, payload);
-        log.debug("Audio task pushed to Redis Stream, taskId: {}", task.getId());
+        log.debug("Audio task pushed to Redis Stream, taskId: {}, attempt: {}",
+                task.getId(), payload.get("attempt"));
     }
 }

@@ -20,10 +20,12 @@ public interface AudioTaskMapper {
                    @Param("cancelledStatus") Integer cancelledStatus);
     int deleteTask(@Param("id") Long id, @Param("userId") Long userId);
     /**
-     * CAS 更新任务状态，WHERE status = expectedStatus 保证幂等性。
+     * CAS 更新任务状态，WHERE status = expectedStatus AND retry_time = attempt
+     * 保证同一任务不同处理轮次之间互不覆盖。
      * @return 影响行数，0 表示 CAS 失败（状态已变更）
      */
-    int casUpdateStatus(@Param("id") Long id, @Param("expectedStatus") Integer expectedStatus,
+    int casUpdateStatus(@Param("id") Long id, @Param("attempt") Integer attempt,
+                        @Param("expectedStatus") Integer expectedStatus,
                         @Param("newStatus") Integer newStatus, @Param("resultUrl") String resultUrl,
                         @Param("audioSize") Long audioSize, @Param("errorMsg") String errorMsg,
                         @Param("completedDate") LocalDate completedDate);
@@ -45,12 +47,12 @@ public interface AudioTaskMapper {
     List<AudioTaskDO> selectPendingTimeout(@Param("before") LocalDateTime before);
 
     /**
-     * 将任务的 retry_time +1，返回影响行数
+     * 原子地为超时任务准备下一轮处理：重置为 PENDING 并将 retry_time +1。
      * @param id 音频任务主键 id
      * @param before 更新时间早于指定时间的任务才会被更新，避免重复更新
      * @return
      */
-    int incrementRetryTime(@Param("id") Long id, @Param("before") LocalDateTime before);
+    int prepareRetry(@Param("id") Long id, @Param("before") LocalDateTime before);
 
     /**
      * 最大重试次数耗尽，将任务状态标记为 FAILED，并设置错误信息

@@ -28,7 +28,7 @@ public class AudioTaskRetryTask {
     private String queueType = "redis-stream";
 
     /**
-     * 每 5 分钟扫描一次，将卡在 PENDING 和 PROCESSOR 超过 10 分钟的任务重新入队。
+     * 每 5 分钟扫描一次，将卡在 PENDING 和 PROCESSING 超过 10 分钟的任务重新入队。
      */
     @Scheduled(fixedRate = 5, timeUnit = TimeUnit.MINUTES)
     public void retryPendingTasks() {
@@ -41,9 +41,14 @@ public class AudioTaskRetryTask {
         log.info("Found {} stuck audio tasks, processing retries...", stuckTasks.size());
         for (AudioTaskDO task : stuckTasks)
             try {
-                if (audioTaskMapper.incrementRetryTime(task.getId(), timeout) == 1) {
-                    audioTaskService.requeueTask(task);
-                    log.info("Re-queued stuck audio task, taskId: {}", task.getId());
+                if (audioTaskMapper.prepareRetry(task.getId(), timeout) == 1) {
+                    AudioTaskDO retryTask = audioTaskMapper.selectById(task.getId());
+                    if (retryTask == null) {
+                        throw new IllegalStateException("Audio task disappeared after retry preparation");
+                    }
+                    audioTaskService.requeueTask(retryTask);
+                    log.info("Re-queued stuck audio task, taskId: {}, attempt: {}",
+                            retryTask.getId(), retryTask.getRetryTime());
                 } else if (audioTaskMapper.markRetryExhausted(task.getId(), timeout,
                         RETRY_EXHAUSTED_ERROR_MESSAGE) == 1) {
                     log.warn("Audio task retry limit exhausted, taskId: {}", task.getId());

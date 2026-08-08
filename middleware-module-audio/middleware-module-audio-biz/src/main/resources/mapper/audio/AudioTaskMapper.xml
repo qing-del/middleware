@@ -58,7 +58,9 @@
         <if test="audioSize != null">, audio_size = #{audioSize}</if>
         <if test="errorMsg != null">, error_msg = #{errorMsg}</if>
         <if test="completedDate != null">, completed_date = #{completedDate}</if>
-        WHERE id = #{id} AND status = #{expectedStatus}
+        WHERE id = #{id}
+          AND status = #{expectedStatus}
+          AND retry_time = #{attempt}
     </update>
 
     <update id="markTaskRetried">
@@ -78,9 +80,14 @@
     LIMIT 500
     </select>
 
-    <update id="incrementRetryTime">
+    <update id="prepareRetry">
     UPDATE audio_tasks
-    SET retry_time = retry_time + 1,
+    SET status = 0,
+        retry_time = retry_time + 1,
+        result_url = NULL,
+        audio_size = NULL,
+        error_msg = NULL,
+        completed_date = NULL,
         update_time = CURRENT_TIMESTAMP
     WHERE id = #{id}
       AND status IN (0, 1)

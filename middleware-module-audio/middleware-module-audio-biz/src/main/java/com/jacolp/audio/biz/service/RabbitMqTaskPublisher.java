@@ -33,6 +33,7 @@ public class RabbitMqTaskPublisher implements AudioTaskPublisher {
     public void publish(AudioTaskDO task) {
         Map<String, String> payload = new LinkedHashMap<>();
         payload.put("taskId", String.valueOf(task.getId()));
+        payload.put("attempt", String.valueOf(task.getRetryTime() == null ? 0 : task.getRetryTime()));
         payload.put("userId", String.valueOf(task.getUserId()));
         payload.put("speed", task.getSpeed().toPlainString());
         payload.put("noiseType", task.getNoiseType());
@@ -44,7 +45,8 @@ public class RabbitMqTaskPublisher implements AudioTaskPublisher {
         properties.setContentEncoding(StandardCharsets.UTF_8.name());
         properties.setDeliveryMode(MessageDeliveryMode.PERSISTENT);
         rabbitTemplate.send(EXCHANGE, ROUTING_KEY, new Message(toJson(payload), properties));
-        log.debug("Audio task pushed to RabbitMQ, taskId: {}", task.getId());
+        log.debug("Audio task pushed to RabbitMQ, taskId: {}, attempt: {}",
+                task.getId(), payload.get("attempt"));
     }
 
     private byte[] toJson(Map<String, String> payload) {
