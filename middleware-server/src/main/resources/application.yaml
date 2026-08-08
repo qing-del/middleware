@@ -54,6 +54,17 @@ spring:
             port: 465
             class: javax.net.ssl.SSLSocketFactory
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
 jacolp:
   messaging:
     enabled: ${MESSAGING_ENABLED:true}
