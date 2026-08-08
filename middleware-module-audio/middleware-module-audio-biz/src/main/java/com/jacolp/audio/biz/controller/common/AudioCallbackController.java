@@ -41,7 +41,7 @@ public class AudioCallbackController {
     }
 
     @PostMapping("/callback/start")
-    @Operation(summary = "回调 A：任务开始处理", description = "Python 消费者从 Redis 取出任务后调用，将任务状态从 PENDING 更新为 PROCESSING。（前端不用对接）")
+    @Operation(summary = "回调 A：任务开始处理", description = "Python 消费者从当前启用的队列取出任务后调用，携带处理轮次并将任务状态从 PENDING 更新为 PROCESSING。（前端不用对接）")
     public Result<Boolean> callbackStart(@RequestBody @Valid AudioCallbackStartDTO dto, HttpServletRequest request) {
         validateCallbackToken(request);
         log.info("Audio callback start, taskId: {}, attempt: {}",

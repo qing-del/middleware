@@ -85,6 +85,7 @@ echo %OSS_ACCESS_KEY_SECRET%
 | `jacolp.cloudflare.*` | Cloudflare R2（S3 兼容对象存储，通过 `\${CLOUDFLARE_ACCOUNT_ID}` 环境变量注入） |
 | `jacolp.mail.*` | SMTP 主机 / 端口 / 发件邮箱 / 授权码 |
 | `jacolp.audio.callback-token` | 音频引擎回调认证令牌 |
+| `jacolp.audio.queue-type` | 音频生成与删除队列：`redis-stream`（默认）或 `rabbitmq`，可由 `AUDIO_QUEUE_TYPE` 注入 |
 
 本地开发可直接使用 `middleware-server/src/main/resources/application-dev.yaml` 中的默认值。
 
@@ -249,7 +250,7 @@ npm run dev
 
 ## 九、音频生成业务架构
 
-音频生成采用 **Java（生产者）→ MySQL（任务兜底）→ Redis Streams（队列派发）→ Python FastAPI（消费者 / 音频引擎）→ Nginx（资源代理）** 的异步链路。
+音频生成采用 **Java（生产者）→ MySQL（任务兜底）→ Redis Streams 或 RabbitMQ（队列派发）→ Python FastAPI（消费者 / 音频引擎）→ Nginx（资源代理）** 的异步链路。`AUDIO_QUEUE_TYPE` 选择 `redis-stream`（默认）或 `rabbitmq`，同一 Java 实例只启用一种实现。
 
 > 使用 docker 部署的时候需要将 `/data/drills/audio/` 挂载到宿主机，并配置 Nginx 静态资源代理。
 > 然后将 Redis 的端口 6379 映射到宿主机，并配置 Redis 密码（建议使用强密码）。（或者使用 Cloudflare 的 Tunnel 的端口映射方式）
@@ -257,12 +258,12 @@ npm run dev
 ### 9.1 流程概览
 
 1. 用户调用 `POST /user/audio/generate` 提交文本、语速、背景音类型、噪音因子。
-2. Java 端落库 `audio_tasks`（状态 `0-待处理`），将精简任务（`taskId / userId / speed / noiseType / noiseFactor / text`）推入 Redis Stream `stream:audio:tasks`。
-3. Python 消费者从 Consumer Group 读取任务：
-   - 通过 `POST /common/audio/callback/start`（携带 `X-Callback-Token` 头）回调通知 Java 任务进入处理中（状态 `1`）；
+2. Java 端落库 `audio_tasks`（状态 `0-待处理`），将精简任务（`taskId / attempt / userId / speed / noiseType / noiseFactor / text`）推入所选队列。新任务 `attempt=0`，每次自动超时重试递增。
+3. Python 消费者从当前启用的 Redis Consumer Group 或 RabbitMQ Queue 读取任务：
+   - 通过 `POST /common/audio/callback/start`（携带 `X-Callback-Token` 头）回传 `taskId + attempt`，通知 Java 本轮任务进入处理中（状态 `1`）；
    - 调用 Edge-TTS 生成人声 → 通过 FFmpeg `volume` 滤镜挂载 `noiseFactor` 后与背景噪音混音 → 输出 `final_{taskId}.mp3`；
    - 将文件移至 Nginx 暴露目录（如 `/data/drills/audio/`）；
-   - 通过 `POST /common/audio/callback/finish` 回调提交结果（成功 `2` / 失败 `-1`）；
+   - 通过 `POST /common/audio/callback/finish` 原样回传 `attempt` 并提交结果（成功 `2` / 失败 `-1`）；
    - 若 Java 响应 `data == false`，Python **必须立即 `os.remove` 删除本地文件**回收空间。
 4. 用户轮询 `GET /user/audio/status/{taskId}` 获取最终状态与下载链接。
 
