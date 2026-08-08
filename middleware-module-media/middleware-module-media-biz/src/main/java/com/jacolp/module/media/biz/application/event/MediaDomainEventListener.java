@@ -11,6 +11,10 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * 媒体模块领域事件监听器：目前只消费 audit.reviewed（审核结果），
+ * 把过审/拒绝决策异步应用到图片的审核状态（Inbox 去重 + 失败重试/死信）。
+ */
 @Component
 public class MediaDomainEventListener {
     private final EventMessageCodec codec;

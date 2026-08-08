@@ -11,6 +11,11 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * 笔记模块领域事件监听器：目前只消费 audit.reviewed（审核结果）。
+ * 审核通过/拒绝已由审核模块同步写入审核记录，这里负责把决策异步应用到
+ * 笔记、标签及其关联关系的本地状态（Inbox 去重 + 失败重试/死信）。
+ */
 @Component
 public class NoteDomainEventListener {
     private final EventMessageCodec codec;

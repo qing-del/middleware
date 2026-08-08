@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 用户资料变更事件发布器：供审核模块维护审核列表的用户名展示投影。 */
 @Service
 public class UserProfileEventPublisher {
     private final OutboxEventPublisher outbox;

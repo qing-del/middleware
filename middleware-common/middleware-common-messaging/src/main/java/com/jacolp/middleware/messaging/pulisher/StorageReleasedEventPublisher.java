@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 存储额度释放事件发布器：对象逻辑删除后异步释放用户存储配额。 */
 @Service
 public class StorageReleasedEventPublisher {
     private final OutboxEventPublisher outboxEventPublisher;

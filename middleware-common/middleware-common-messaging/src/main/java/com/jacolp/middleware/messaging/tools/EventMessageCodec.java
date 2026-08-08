@@ -11,6 +11,11 @@ import com.jacolp.middleware.messaging.base.EventEnvelope;
 import org.springframework.amqp.core.Message;
 import org.springframework.stereotype.Component;
 
+/**
+ * 事件编解码器：负责 RabbitMQ 消息 {@link Message} 与 {@link EventEnvelope} 之间的 JSON 转换，
+ * 并提供从 envelope 中取出单个 payload（{@link #payload}）或分片批量 payload
+ * （{@link #payloadItems}，兼容标准 {items:[...]} 分片格式）的能力。
+ */
 @Component
 public class EventMessageCodec {
     private final ObjectMapper objectMapper;

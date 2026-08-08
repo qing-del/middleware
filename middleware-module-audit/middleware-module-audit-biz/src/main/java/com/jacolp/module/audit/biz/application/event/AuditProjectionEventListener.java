@@ -12,6 +12,10 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+/**
+ * 审核模块投影监听器：消费 user.profile-changed，
+ * 维护 audit_query_user_projection（用户名/昵称），供审核列表展示快照使用。
+ */
 @Component
 public class AuditProjectionEventListener {
     private final EventMessageCodec codec;

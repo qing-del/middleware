@@ -10,6 +10,10 @@ import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
+/**
+ * 消费失败重试器：把失败消息转发到 <queue>.retry 重试队列（TTL 到期后重新回到主队列），
+ * 超过最大重试次数后转发到 <queue>.dlq 死信队列；调用方应在该方法返回成功后才 ACK。
+ */
 @Component
 public class EventRetryPublisher {
     public static final String RETRY_COUNT_HEADER = "x-application-retry-count";

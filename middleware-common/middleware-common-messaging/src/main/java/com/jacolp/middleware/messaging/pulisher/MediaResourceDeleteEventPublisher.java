@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 媒体资源删除事件发布器：删除 OSS 对象为异步任务，通过 Outbox 保证最终一致。 */
 @Service
 public class MediaResourceDeleteEventPublisher {
     private final OutboxEventPublisher outboxEventPublisher;

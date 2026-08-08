@@ -22,19 +22,26 @@ public class ReliableMessagingConfiguration {
         TopicExchange exchange = new TopicExchange(EventTopology.EXCHANGE, true, false);
         List<Declarable> declarations = new ArrayList<>();
         declarations.add(exchange);
+        // 笔记模块队列：消费审核结果事件（audit.reviewed），异步应用过审/拒绝到笔记、标签及关联关系
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.NOTE_QUEUE,
                 "audit.reviewed");
+        // 媒体模块队列：消费审核结果事件（audit.reviewed），异步应用过审/拒绝到图片
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.MEDIA_QUEUE,
                 "audit.reviewed");
+        // 系统模块队列：用户存储额释放（storage.released）
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.SYSTEM_QUEUE, "storage.released");
+        // 系统模块队列：管理员发送邮件（email.send-requested）
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.EMAIL_QUEUE, "email.send-requested");
+        // 媒体数据-图片 删除异步任务队列，保证最终一致性
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.MEDIA_DELETE_QUEUE,
                 "media.resource.delete-requested");
+        // 审核模块投影队列：用户资料变更（user.profile-changed），维护审核列表展示快照
         addQueue(declarations, exchange, properties.getRetryQueueDelayMs(), EventTopology.AUDIT_PROJECTION_QUEUE,
                 "user.profile-changed");
         return new Declarables(declarations);
     }
 
+    /** 每个主队列自动配套 <queue>.retry 重试队列（TTL 到期回到主队列）与 <queue>.dlq 死信队列。 */
     private static void addQueue(List<Declarable> declarations, TopicExchange exchange,
                                  long retryDelayMs, String queueName, String... routingKeys) {
         Queue main = QueueBuilder.durable(queueName)

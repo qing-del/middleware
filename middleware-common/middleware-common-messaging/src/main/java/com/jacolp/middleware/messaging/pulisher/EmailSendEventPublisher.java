@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 邮件发送事件发布器：在调用方事务内写入 Outbox，由 OutboxRelay 异步投递。 */
 @Service
 public class EmailSendEventPublisher {
     private final OutboxEventPublisher outboxEventPublisher;
