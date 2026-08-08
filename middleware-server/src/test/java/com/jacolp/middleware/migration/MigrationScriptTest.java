@@ -32,6 +32,35 @@ class MigrationScriptTest {
                 .isLessThan(refactorMigration.indexOf("ADD COLUMN `audio_size`"));
     }
 
+    @Test
+    void zeroStatusAuditRowsShouldBeBackedUpAndResolvedFromOwnerState()
+            throws IOException {
+        String migration = readMigration("20260807_sync_audit_submit_cancel.sql");
+
+        assertThat(migration)
+                .contains("CREATE TABLE IF NOT EXISTS `audit_zero_status_migration_backup`")
+                .contains("`previous_status`")
+                .contains("`resolved_status`")
+                .contains("`resolution_reason`")
+                .contains("LEFT JOIN `biz_tag` t ON t.`id` = r.`target_id`")
+                .contains("LEFT JOIN `biz_image` i ON i.`id` = r.`image_id`")
+                .contains("t.`audit_status` = 1")
+                .contains("i.`audit_status` = 1")
+                .contains("active.`status` = 1")
+                .contains("SELECT MAX(latest.`id`)")
+                .contains("'RESTORED_ACTIVE_APPLICATION'")
+                .contains("JOIN `audit_zero_status_migration_backup` b")
+                .contains("SET r.`status` = b.`resolved_status`")
+                .contains("table_name = 'sys_async_command_state'")
+                .contains("PREPARE archive_async_command_state")
+                .contains("Archived async command correlation state retained")
+                .doesNotContain("UPDATE `biz_tag_audit_record` SET `status` = 5 WHERE `status` = 0")
+                .doesNotContain("UPDATE `biz_image_audit_record` SET `status` = 5 WHERE `status` = 0")
+                .doesNotContain("DROP TABLE IF EXISTS `sys_async_command_state`");
+        assertThat(migration.indexOf("audit_zero_status_migration_backup"))
+                .isLessThan(migration.indexOf("SET r.`status` = b.`resolved_status`"));
+    }
+
     private static String readMigration(String fileName) throws IOException {
         Path migration = MIGRATION_DIRECTORY.resolve(fileName);
         assertThat(migration)
