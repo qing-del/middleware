@@ -16,8 +16,24 @@ CREATE TABLE IF NOT EXISTS `sys_async_command_state` (
 
 
 -- Audio task management and storage accounting upgrade.
-ALTER TABLE `audio_tasks`
-    ADD COLUMN `audio_size` bigint DEFAULT NULL COMMENT '成功后音频文件大小（字节）' AFTER `result_url`;
+-- The historical 20260519 bootstrap script now creates this column for new
+-- environments. Existing installations that applied the older bootstrap still
+-- need this upgrade, so make the migration safe for both schemas.
+SET @audio_size_column_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'audio_tasks'
+      AND column_name = 'audio_size'
+);
+SET @audio_size_upgrade_sql = IF(
+    @audio_size_column_exists = 0,
+    'ALTER TABLE `audio_tasks` ADD COLUMN `audio_size` bigint DEFAULT NULL COMMENT ''成功后音频文件大小（字节）'' AFTER `result_url`',
+    'SELECT 1'
+);
+PREPARE audio_size_upgrade FROM @audio_size_upgrade_sql;
+EXECUTE audio_size_upgrade;
+DEALLOCATE PREPARE audio_size_upgrade;
 
 ALTER TABLE `audio_tasks`
     MODIFY COLUMN `status` tinyint NOT NULL DEFAULT 0
