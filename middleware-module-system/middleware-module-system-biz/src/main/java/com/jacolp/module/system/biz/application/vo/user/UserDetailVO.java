@@ -34,8 +34,8 @@ public class UserDetailVO implements Serializable {
     @Schema(description = "邮箱地址")
     private String email;
 
-    /** 角色ID：1-创建者，2-管理员，3-普通用户，4-VIP用户 */
-    @Schema(description = "角色ID：1-创建者，2-管理员，3-普通用户，4-VIP用户")
+    /** 角色ID：1-创建者，2-管理员，3-普通用户 */
+    @Schema(description = "角色ID：1-创建者，2-管理员，3-普通用户")
     private Long roleId;
 
     /** 账号状态：2-未激活，1-正常，0-禁用，-1-已删除 */

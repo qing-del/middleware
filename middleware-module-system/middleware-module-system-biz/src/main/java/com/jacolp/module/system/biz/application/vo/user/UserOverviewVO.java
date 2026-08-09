@@ -25,7 +25,7 @@ public class UserOverviewVO implements Serializable {
     @Schema(description = "Email")
     private String email;
 
-    @Schema(description = "Role id: 1-creator, 2-admin, 3-user, 4-vip")
+    @Schema(description = "Role id: 1-creator, 2-admin, 3-user")
     private Long roleId;
 
     @Schema(description = "Status: 2-unactivated, 1-active, 0-disabled, -1-deleted")
