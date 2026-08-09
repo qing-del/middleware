@@ -155,6 +155,9 @@ CREATE TABLE `sys_permission` (
 
 -- SAS 7.0.6 JsonMapper-compatible settings. user/admin refresh-token rotation
 -- is enabled by reuse-refresh-tokens=false. core_agent does not list refresh_token.
+-- user/admin remain disabled until Phase 3 provisions their credentials;
+-- core_agent remains disabled until Phase 4 registers its redirect URI and flow.
+-- authorization_client is a disabled reserved client in the first release.
 INSERT INTO `oauth2_registered_client` (
     `id`, `client_id`, `client_name`, `client_authentication_methods`,
     `authorization_grant_types`, `redirect_uris`, `post_logout_redirect_uris`,
@@ -172,7 +175,7 @@ INSERT INTO `oauth2_registered_client` (
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-proof-key":false,"settings.client.require-authorization-consent":false}',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.reuse-refresh-tokens":false,"settings.token.x509-certificate-bound-access-tokens":false,"settings.token.id-token-signature-algorithm":["org.springframework.security.oauth2.jose.jws.SignatureAlgorithm","RS256"],"settings.token.access-token-time-to-live":["java.time.Duration","PT3H"],"settings.token.access-token-format":{"@class":"org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat","value":"self-contained"},"settings.token.refresh-token-time-to-live":["java.time.Duration","PT72H"],"settings.token.authorization-code-time-to-live":["java.time.Duration","PT5M"],"settings.token.device-code-time-to-live":["java.time.Duration","PT5M"]}',
     '*:read,*:write',
-    'active',
+    'disabled',
     '0.0.0.0/0'
 ),
 (
@@ -187,7 +190,7 @@ INSERT INTO `oauth2_registered_client` (
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-proof-key":false,"settings.client.require-authorization-consent":false}',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.reuse-refresh-tokens":false,"settings.token.x509-certificate-bound-access-tokens":false,"settings.token.id-token-signature-algorithm":["org.springframework.security.oauth2.jose.jws.SignatureAlgorithm","RS256"],"settings.token.access-token-time-to-live":["java.time.Duration","PT3H"],"settings.token.access-token-format":{"@class":"org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat","value":"self-contained"},"settings.token.refresh-token-time-to-live":["java.time.Duration","PT72H"],"settings.token.authorization-code-time-to-live":["java.time.Duration","PT5M"],"settings.token.device-code-time-to-live":["java.time.Duration","PT5M"]}',
     '*:read,*:manage',
-    'active',
+    'disabled',
     '0.0.0.0/0'
 ),
 (
@@ -202,7 +205,7 @@ INSERT INTO `oauth2_registered_client` (
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-proof-key":true,"settings.client.require-authorization-consent":true}',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.reuse-refresh-tokens":true,"settings.token.x509-certificate-bound-access-tokens":false,"settings.token.id-token-signature-algorithm":["org.springframework.security.oauth2.jose.jws.SignatureAlgorithm","RS256"],"settings.token.access-token-time-to-live":["java.time.Duration","PT1H"],"settings.token.access-token-format":{"@class":"org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat","value":"self-contained"},"settings.token.refresh-token-time-to-live":["java.time.Duration","PT1H"],"settings.token.authorization-code-time-to-live":["java.time.Duration","PT5M"],"settings.token.device-code-time-to-live":["java.time.Duration","PT5M"]}',
     'note:read,sys:read',
-    'active',
+    'disabled',
     '0.0.0.0/0'
 ),
 (
