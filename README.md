@@ -292,9 +292,9 @@ npm run dev
 
 ### 9.5 任务状态
 
-`0`-排队中、`1`-合成中、`2`-已完成、`-1`-失败。
+`0`-排队中、`1`-合成中、`2`-已完成、`-1`-失败、`-2`-已由新任务重试、`-3`-已取消。
 
-完整接口规范见 [音频生成业务接口规范](static/document/音频生成业务接口规范.md)。
+Python 对接以 [2026-08-09 最新对接文档](static/document/python-audio-module/音频模块-Python服务器对接文档-20260809.md)为准；完整业务接口见 [音频生成业务接口规范](static/document/python-audio-module/音频生成业务接口规范.md)。
 
 ---
 
@@ -358,7 +358,9 @@ npm run dev
 - [admin 端接口.md](static/document/admin%20端接口.md)
 - [user 端接口.md](static/document/user%20端接口.md)
 - [guest 端接口.md](static/document/guest%20端接口.md)
-- [音频生成业务接口规范.md](static/document/音频生成业务接口规范.md)
+- [Python 音频模块文档索引](static/document/python-audio-module/README.md)
+- [音频模块 Python 服务器对接文档（2026-08-09）](static/document/python-audio-module/音频模块-Python服务器对接文档-20260809.md)
+- [音频生成业务接口规范.md](static/document/python-audio-module/音频生成业务接口规范.md)
 
 ---
 
