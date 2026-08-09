@@ -3,13 +3,14 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper">
         <insert id="upsertCreator" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
-                INSERT INTO sys_user (id, username, password, email, role_id, status, create_time, update_time)
-                VALUES (#{id}, #{username}, #{password}, #{email}, #{roleId}, #{status}, now(), now())
+                INSERT INTO sys_user (id, username, password, email, role_id, grant_types, status, create_time, update_time)
+                VALUES (#{id}, #{username}, #{password}, #{email}, #{roleId}, #{grantTypes}, #{status}, now(), now())
                 ON DUPLICATE KEY UPDATE
                 username = #{username},
                 password = #{password},
                 email = #{email},
                 role_id = #{roleId},
+                grant_types = #{grantTypes},
                 status = #{status},
                 update_time = now()
         </insert>
@@ -37,6 +38,9 @@
                     <if test="roleId != null">
                         role_id = #{roleId},
                     </if>
+                    <if test="grantTypes != null and grantTypes != ''">
+                        grant_types = #{grantTypes},
+                    </if>
                     <if test="status != null">
                         status = #{status},
                     </if>
@@ -58,6 +62,7 @@
                     u.nickname,
                     u.email,
                     u.role_id,
+                    u.grant_types,
                     u.max_storage_bytes,
                     u.used_storage_bytes,
                     u.status,
@@ -97,7 +102,7 @@
     </delete>
 
     <select id="selectByIds" resultType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
-        SELECT id, username, nickname, email, role_id, status, create_time, update_time
+        SELECT id, username, nickname, email, role_id, grant_types, status, create_time, update_time
         FROM sys_user
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">

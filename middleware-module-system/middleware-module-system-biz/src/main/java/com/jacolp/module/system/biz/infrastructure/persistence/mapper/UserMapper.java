@@ -23,7 +23,7 @@ public interface UserMapper {
     @Select("select * from sys_user where email = #{email}")
     UserDO selectByEmail(String email);
 
-    @Select("select id, username, nickname, email, role_id, status from sys_user where role_id = #{roleId}")
+    @Select("select id, username, nickname, email, role_id, grant_types, status from sys_user where role_id = #{roleId}")
     List<UserDO> selectByRoleId(Integer roleId);
 
     int upsertCreator(UserDO user);

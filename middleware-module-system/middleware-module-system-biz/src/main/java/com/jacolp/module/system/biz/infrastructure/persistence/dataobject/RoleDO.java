@@ -20,6 +20,7 @@ public class RoleDO implements Serializable {
     private Long id;
     private String roleName;
     private String roleCode;
+    private Integer rank;
     private Integer dailyApiLimit;
     private Long maxStorageBytes;
     private LocalDateTime createTime;

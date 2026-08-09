@@ -23,6 +23,7 @@ public class UserDO implements Serializable {
     private String nickname;
     private String email;
     private Long roleId;
+    private String grantTypes;
     private Integer status;
     private Long maxStorageBytes;
     private Long usedStorageBytes;

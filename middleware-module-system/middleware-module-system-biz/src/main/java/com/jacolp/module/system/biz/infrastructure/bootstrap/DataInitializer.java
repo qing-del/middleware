@@ -24,6 +24,8 @@ import java.util.List;
  * 固定改动 id 为 1 的账号
  */
 public class DataInitializer implements CommandLineRunner {
+    private static final String CREATOR_GRANT_TYPES = "admin_password,agent_client";
+
     @Value("${jacolp.admin.username}")
     private String adminUsername;
 
@@ -68,6 +70,7 @@ public class DataInitializer implements CommandLineRunner {
         creator.setPassword(passwordEncoder.encode(adminPassword));
         creator.setEmail(adminEmail);
         creator.setRoleId(RoleConstant.CREATOR);
+        creator.setGrantTypes(CREATOR_GRANT_TYPES);
         creator.setStatus(UserConstant.ACTIVE_STATUS);
         creator.setMaxStorageBytes(RoleDataComputerUtil.getStorage(RoleConstant.CREATOR));
         int count = userMapper.upsertCreator(creator);
