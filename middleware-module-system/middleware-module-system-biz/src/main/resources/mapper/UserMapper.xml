@@ -16,8 +16,8 @@
         </insert>
 
     <insert id="insertUser" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO sys_user (username, password, email, role_id, status, max_storage_bytes, create_time, update_time)
-        VALUES (#{username}, #{password}, #{email}, #{roleId}, #{status}, #{maxStorageBytes}, now(), now())
+        INSERT INTO sys_user (username, password, email, role_id, grant_types, status, max_storage_bytes, create_time, update_time)
+        VALUES (#{username}, #{password}, #{email}, #{roleId}, #{grantTypes}, #{status}, #{maxStorageBytes}, now(), now())
     </insert>
 
     <update id="updateById" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
@@ -111,11 +111,11 @@
     </select>
 
     <insert id="upsertUser">
-        insert into sys_user (id, username, nickname, email, role_id, max_storage_bytes,
+        insert into sys_user (id, username, nickname, email, role_id, grant_types, max_storage_bytes,
                               used_storage_bytes, status, create_time, update_time)
         values
         <foreach collection="users" item="user" separator=",">
-            (#{user.id}, #{user.username}, #{user.nickname}, #{user.email}, #{user.roleId}, #{user.maxStorageBytes},
+            (#{user.id}, #{user.username}, #{user.nickname}, #{user.email}, #{user.roleId}, #{user.grantTypes}, #{user.maxStorageBytes},
             #{user.usedStorageBytes}, #{user.status}, now(), now())
         </foreach>
         on duplicate key update
@@ -123,6 +123,7 @@
         nickname = values(nickname),
         email = values(email),
         role_id = values(role_id),
+        grant_types = values(grant_types),
         max_storage_bytes = values(max_storage_bytes),
         used_storage_bytes = values(used_storage_bytes),
         status = values(status),

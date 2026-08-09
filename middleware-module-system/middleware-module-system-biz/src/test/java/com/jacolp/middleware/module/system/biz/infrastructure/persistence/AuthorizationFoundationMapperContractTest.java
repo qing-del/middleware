@@ -31,8 +31,9 @@ class AuthorizationFoundationMapperContractTest {
                 .contains("<if test=\"grantTypes != null and grantTypes != ''\">")
                 .contains("u.grant_types")
                 .contains("role_id, grant_types, status")
-                .doesNotContain("INSERT INTO sys_user (username, password, email, role_id, grant_types")
-                .doesNotContain("insert into sys_user (id, username, nickname, email, role_id, grant_types");
+                .contains("INSERT INTO sys_user (username, password, email, role_id, grant_types")
+                .contains("insert into sys_user (id, username, nickname, email, role_id, grant_types")
+                .contains("grant_types = values(grant_types)");
     }
 
     @Test

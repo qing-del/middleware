@@ -5,6 +5,7 @@ import java.util.List;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
+import com.jacolp.module.system.biz.application.authorization.UserGrantTypePolicy;
 import com.jacolp.module.system.biz.application.annotation.RequireValidRole;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserListDTO;
@@ -117,6 +118,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         // 构建更新实体，仅设置非空字段（updateById 的 XML 使用 <if> 动态判断）
         UserDO user = new UserDO();
         BeanUtils.copyProperties(dto, user);
+        if (dto.getRoleId() != null) {
+            user.setGrantTypes(UserGrantTypePolicy.forRoleId(dto.getRoleId()));
+        }
 
         // 处理密码修改：无需旧密码，直接覆盖
         if (StringUtils.hasText(dto.getNewPassword())) {
@@ -175,6 +179,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         user.setNickname(StringUtils.hasText(dto.getNickname()) ? dto.getNickname() : dto.getUsername());
         user.setEmail(dto.getEmail());
         user.setRoleId(dto.getRoleId());
+        user.setGrantTypes(UserGrantTypePolicy.forRoleId(user.getRoleId()));
         Integer status = dto.getStatus();
         user.setStatus(status != null ? status : UserConstant.ACTIVE_STATUS);
         user.setMaxStorageBytes(dto.getMaxStorageBytes() != null
