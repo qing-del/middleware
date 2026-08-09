@@ -1,5 +1,6 @@
 package com.jacolp.module.system.biz.infrastructure.persistence.repository;
 
+import com.jacolp.module.system.biz.application.authorization.model.RolePermissionMetadata;
 import com.jacolp.module.system.biz.application.port.out.RolePermissionMetadataRepository;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.RolePermissionDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.RolePermissionMapper;
@@ -20,14 +21,16 @@ public class MyBatisRolePermissionMetadataRepository implements RolePermissionMe
     private final RolePermissionMapper rolePermissionMapper;
 
     @Override
-    public List<RolePermissionDO> findByRoleIds(Collection<Long> roleIds) {
+    public List<RolePermissionMetadata> findByRoleIds(Collection<Long> roleIds) {
         List<Long> normalizedRoleIds = normalizeRoleIds(roleIds);
-        return normalizedRoleIds.isEmpty() ? List.of() : rolePermissionMapper.selectByRoleIds(normalizedRoleIds);
+        return normalizedRoleIds.isEmpty() ? List.of() : rolePermissionMapper.selectByRoleIds(normalizedRoleIds).stream()
+                .map(MyBatisRolePermissionMetadataRepository::toMetadata)
+                .toList();
     }
 
     @Override
-    public int insert(RolePermissionDO rolePermission) {
-        return rolePermissionMapper.insert(rolePermission);
+    public int insert(RolePermissionMetadata rolePermission) {
+        return rolePermissionMapper.insert(toDataObject(rolePermission));
     }
 
     @Override
@@ -41,5 +44,18 @@ public class MyBatisRolePermissionMetadataRepository implements RolePermissionMe
                 .distinct()
                 .sorted()
                 .toList();
+    }
+
+    private static RolePermissionMetadata toMetadata(RolePermissionDO rolePermission) {
+        return new RolePermissionMetadata(rolePermission.getRoleId(), rolePermission.getPermId(),
+                rolePermission.getGrantTime());
+    }
+
+    private static RolePermissionDO toDataObject(RolePermissionMetadata rolePermission) {
+        RolePermissionDO dataObject = new RolePermissionDO();
+        dataObject.setRoleId(rolePermission.roleId());
+        dataObject.setPermId(rolePermission.permId());
+        dataObject.setGrantTime(rolePermission.grantTime());
+        return dataObject;
     }
 }

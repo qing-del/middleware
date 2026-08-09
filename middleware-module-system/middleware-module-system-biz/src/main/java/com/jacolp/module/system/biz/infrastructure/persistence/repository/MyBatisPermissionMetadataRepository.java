@@ -1,5 +1,6 @@
 package com.jacolp.module.system.biz.infrastructure.persistence.repository;
 
+import com.jacolp.module.system.biz.application.authorization.model.PermissionMetadata;
 import com.jacolp.module.system.biz.application.port.out.PermissionMetadataRepository;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.PermissionDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.PermissionMapper;
@@ -21,24 +22,27 @@ public class MyBatisPermissionMetadataRepository implements PermissionMetadataRe
     private final PermissionMapper permissionMapper;
 
     @Override
-    public Optional<PermissionDO> findByCode(String code) {
-        return code == null ? Optional.empty() : Optional.ofNullable(permissionMapper.selectByCode(code));
+    public Optional<PermissionMetadata> findByCode(String code) {
+        return code == null ? Optional.empty() : Optional.ofNullable(permissionMapper.selectByCode(code))
+                .map(MyBatisPermissionMetadataRepository::toMetadata);
     }
 
     @Override
-    public List<PermissionDO> findActiveByRoleIds(Collection<Long> roleIds) {
+    public List<PermissionMetadata> findActiveByRoleIds(Collection<Long> roleIds) {
         List<Long> normalizedRoleIds = normalizeRoleIds(roleIds);
-        return normalizedRoleIds.isEmpty() ? List.of() : permissionMapper.selectActiveByRoleIds(normalizedRoleIds);
+        return normalizedRoleIds.isEmpty() ? List.of() : permissionMapper.selectActiveByRoleIds(normalizedRoleIds).stream()
+                .map(MyBatisPermissionMetadataRepository::toMetadata)
+                .toList();
     }
 
     @Override
-    public int insert(PermissionDO permission) {
-        return permissionMapper.insert(permission);
+    public int insert(PermissionMetadata permission) {
+        return permissionMapper.insert(toDataObject(permission));
     }
 
     @Override
-    public int updateById(PermissionDO permission) {
-        return permissionMapper.updateById(permission);
+    public int updateById(PermissionMetadata permission) {
+        return permissionMapper.updateById(toDataObject(permission));
     }
 
     @Override
@@ -52,5 +56,25 @@ public class MyBatisPermissionMetadataRepository implements PermissionMetadataRe
                 .distinct()
                 .sorted()
                 .toList();
+    }
+
+    private static PermissionMetadata toMetadata(PermissionDO permission) {
+        return new PermissionMetadata(permission.getId(), permission.getCode(), permission.getOauthScope(),
+                permission.getResource(), permission.getAction(), permission.getStatus(), permission.getDescription(),
+                permission.getCreateTime(), permission.getUpdateTime());
+    }
+
+    private static PermissionDO toDataObject(PermissionMetadata permission) {
+        PermissionDO dataObject = new PermissionDO();
+        dataObject.setId(permission.id());
+        dataObject.setCode(permission.code());
+        dataObject.setOauthScope(permission.oauthScope());
+        dataObject.setResource(permission.resource());
+        dataObject.setAction(permission.action());
+        dataObject.setStatus(permission.status());
+        dataObject.setDescription(permission.description());
+        dataObject.setCreateTime(permission.createTime());
+        dataObject.setUpdateTime(permission.updateTime());
+        return dataObject;
     }
 }

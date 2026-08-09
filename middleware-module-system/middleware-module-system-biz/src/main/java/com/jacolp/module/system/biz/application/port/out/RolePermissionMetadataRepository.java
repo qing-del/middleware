@@ -1,6 +1,6 @@
 package com.jacolp.module.system.biz.application.port.out;
 
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.RolePermissionDO;
+import com.jacolp.module.system.biz.application.authorization.model.RolePermissionMetadata;
 
 import java.util.Collection;
 import java.util.List;
@@ -10,13 +10,13 @@ import java.util.List;
  */
 public interface RolePermissionMetadataRepository {
 
-    List<RolePermissionDO> findByRoleIds(Collection<Long> roleIds);
+    List<RolePermissionMetadata> findByRoleIds(Collection<Long> roleIds);
 
-    default List<RolePermissionDO> findByRoleId(Long roleId) {
+    default List<RolePermissionMetadata> findByRoleId(Long roleId) {
         return roleId == null ? List.of() : findByRoleIds(List.of(roleId));
     }
 
-    int insert(RolePermissionDO rolePermission);
+    int insert(RolePermissionMetadata rolePermission);
 
     int deleteByRoleIdAndPermId(Long roleId, Long permId);
 }

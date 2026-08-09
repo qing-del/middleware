@@ -1,5 +1,9 @@
 package com.jacolp.middleware.module.system.biz.infrastructure.persistence;
 
+import com.jacolp.module.system.biz.application.authorization.model.PermissionMetadata;
+import com.jacolp.module.system.biz.application.authorization.model.RolePermissionMetadata;
+import com.jacolp.module.system.biz.application.port.out.PermissionMetadataRepository;
+import com.jacolp.module.system.biz.application.port.out.RolePermissionMetadataRepository;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.PermissionDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.RolePermissionDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.PermissionMapper;
@@ -12,17 +16,26 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class RbacMetadataPersistenceTest {
+
+    @Test
+    void applicationPortsExposeOnlyApplicationMetadataModels() {
+        assertNoInfrastructurePersistenceType(PermissionMetadataRepository.class);
+        assertNoInfrastructurePersistenceType(RolePermissionMetadataRepository.class);
+    }
 
     @Test
     void mapperXmlDefinesTheRbacMetadataStatementsAndStableBatchOrdering() throws Exception {
@@ -51,12 +64,12 @@ class RbacMetadataPersistenceTest {
     void permissionAdapterUsesOneSortedBatchQueryForDirectActiveRolePermissions() {
         PermissionMapper mapper = mock(PermissionMapper.class);
         MyBatisPermissionMetadataRepository repository = new MyBatisPermissionMetadataRepository(mapper);
-        PermissionDO permission = new PermissionDO();
-        permission.setCode("note:read");
-        when(mapper.selectActiveByRoleIds(List.of(1L, 3L))).thenReturn(List.of(permission));
+        PermissionDO permissionDataObject = permissionDataObject();
+        PermissionMetadata permissionMetadata = permissionMetadata();
+        when(mapper.selectActiveByRoleIds(List.of(1L, 3L))).thenReturn(List.of(permissionDataObject));
 
         assertThat(repository.findActiveByRoleIds(Arrays.asList(3L, null, 1L, 3L)))
-                .containsExactly(permission);
+                .containsExactly(permissionMetadata);
         verify(mapper).selectActiveByRoleIds(List.of(1L, 3L));
 
         assertThat(repository.findActiveByRoleIds(List.of())).isEmpty();
@@ -67,21 +80,20 @@ class RbacMetadataPersistenceTest {
     void permissionAdapterDelegatesCatalogueQueriesAndWritesWithoutPermissionCalculation() {
         PermissionMapper mapper = mock(PermissionMapper.class);
         MyBatisPermissionMetadataRepository repository = new MyBatisPermissionMetadataRepository(mapper);
-        PermissionDO permission = new PermissionDO();
-        permission.setId(7L);
-        permission.setCode("note:read");
-        when(mapper.selectByCode("note:read")).thenReturn(permission);
-        when(mapper.insert(permission)).thenReturn(1);
-        when(mapper.updateById(permission)).thenReturn(1);
+        PermissionDO permissionDataObject = permissionDataObject();
+        PermissionMetadata permissionMetadata = permissionMetadata();
+        when(mapper.selectByCode("note:read")).thenReturn(permissionDataObject);
+        when(mapper.insert(any(PermissionDO.class))).thenReturn(1);
+        when(mapper.updateById(any(PermissionDO.class))).thenReturn(1);
         when(mapper.deleteById(7L)).thenReturn(1);
 
-        assertThat(repository.findByCode("note:read")).contains(permission);
-        assertThat(repository.insert(permission)).isEqualTo(1);
-        assertThat(repository.updateById(permission)).isEqualTo(1);
+        assertThat(repository.findByCode("note:read")).contains(permissionMetadata);
+        assertThat(repository.insert(permissionMetadata)).isEqualTo(1);
+        assertThat(repository.updateById(permissionMetadata)).isEqualTo(1);
         assertThat(repository.deleteById(7L)).isEqualTo(1);
         verify(mapper).selectByCode("note:read");
-        verify(mapper).insert(permission);
-        verify(mapper).updateById(permission);
+        verify(mapper).insert(permissionDataObject);
+        verify(mapper).updateById(permissionDataObject);
         verify(mapper).deleteById(7L);
     }
 
@@ -89,18 +101,17 @@ class RbacMetadataPersistenceTest {
     void rolePermissionAdapterUsesOneSortedBatchQueryAndDelegatesRelationWrites() {
         RolePermissionMapper mapper = mock(RolePermissionMapper.class);
         MyBatisRolePermissionMetadataRepository repository = new MyBatisRolePermissionMetadataRepository(mapper);
-        RolePermissionDO rolePermission = new RolePermissionDO();
-        rolePermission.setRoleId(2L);
-        rolePermission.setPermId(3L);
-        when(mapper.selectByRoleIds(List.of(1L, 2L))).thenReturn(List.of(rolePermission));
-        when(mapper.insert(rolePermission)).thenReturn(1);
+        RolePermissionDO rolePermissionDataObject = rolePermissionDataObject();
+        RolePermissionMetadata rolePermissionMetadata = rolePermissionMetadata();
+        when(mapper.selectByRoleIds(List.of(1L, 2L))).thenReturn(List.of(rolePermissionDataObject));
+        when(mapper.insert(any(RolePermissionDO.class))).thenReturn(1);
         when(mapper.deleteByRoleIdAndPermId(2L, 3L)).thenReturn(1);
 
-        assertThat(repository.findByRoleIds(List.of(2L, 1L, 2L))).containsExactly(rolePermission);
-        assertThat(repository.insert(rolePermission)).isEqualTo(1);
+        assertThat(repository.findByRoleIds(List.of(2L, 1L, 2L))).containsExactly(rolePermissionMetadata);
+        assertThat(repository.insert(rolePermissionMetadata)).isEqualTo(1);
         assertThat(repository.deleteByRoleIdAndPermId(2L, 3L)).isEqualTo(1);
         verify(mapper).selectByRoleIds(List.of(1L, 2L));
-        verify(mapper).insert(rolePermission);
+        verify(mapper).insert(rolePermissionDataObject);
         verify(mapper).deleteByRoleIdAndPermId(2L, 3L);
     }
 
@@ -114,5 +125,49 @@ class RbacMetadataPersistenceTest {
 
     private static String content(String resourcePath) throws Exception {
         return new ClassPathResource(resourcePath).getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    private static void assertNoInfrastructurePersistenceType(Class<?> portType) {
+        for (Method method : portType.getDeclaredMethods()) {
+            assertThat(method.getGenericReturnType().getTypeName()).doesNotContain(".infrastructure.persistence.");
+            for (java.lang.reflect.Type parameterType : method.getGenericParameterTypes()) {
+                assertThat(parameterType.getTypeName()).doesNotContain(".infrastructure.persistence.");
+            }
+        }
+    }
+
+    private static PermissionDO permissionDataObject() {
+        PermissionDO permission = new PermissionDO();
+        permission.setId(7L);
+        permission.setCode("note:read");
+        permission.setOauthScope("legacy-note-read");
+        permission.setResource("note");
+        permission.setAction("read");
+        permission.setStatus("active");
+        permission.setDescription("Read notes");
+        permission.setCreateTime(LocalDateTime.of(2026, 8, 10, 1, 2, 3));
+        permission.setUpdateTime(LocalDateTime.of(2026, 8, 10, 1, 2, 4));
+        return permission;
+    }
+
+    private static PermissionMetadata permissionMetadata() {
+        PermissionDO permission = permissionDataObject();
+        return new PermissionMetadata(permission.getId(), permission.getCode(), permission.getOauthScope(),
+                permission.getResource(), permission.getAction(), permission.getStatus(), permission.getDescription(),
+                permission.getCreateTime(), permission.getUpdateTime());
+    }
+
+    private static RolePermissionDO rolePermissionDataObject() {
+        RolePermissionDO rolePermission = new RolePermissionDO();
+        rolePermission.setRoleId(2L);
+        rolePermission.setPermId(3L);
+        rolePermission.setGrantTime(LocalDateTime.of(2026, 8, 10, 1, 2, 3));
+        return rolePermission;
+    }
+
+    private static RolePermissionMetadata rolePermissionMetadata() {
+        RolePermissionDO rolePermission = rolePermissionDataObject();
+        return new RolePermissionMetadata(rolePermission.getRoleId(), rolePermission.getPermId(),
+                rolePermission.getGrantTime());
     }
 }
