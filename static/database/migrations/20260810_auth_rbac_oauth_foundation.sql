@@ -66,6 +66,10 @@ JOIN `sys_role` user_role ON user_role.`role_code` = 'USER'
 SET u.`role_id` = user_role.`id`
 WHERE u.`role_id` = vip.`id`;
 
+-- The preflight rejects an existing sys_role_perm table, so no persisted role
+-- permission relation can still reference VIP in this migration baseline.
+DELETE FROM `sys_role` WHERE `role_code` = 'VIP';
+
 ALTER TABLE `sys_role`
     ADD COLUMN `rank` int unsigned DEFAULT NULL COMMENT '角色等级；数值越小等级越高' AFTER `role_code`;
 
@@ -95,8 +99,6 @@ SET u.`grant_types` = CASE r.`role_code`
     ELSE u.`grant_types`
 END;
 
--- The role-permission table is created before removal so any unexpected residual
--- VIP relation is explicitly cleared in the same forward migration.
 CREATE TABLE `sys_role_perm` (
     `role_id` bigint NOT NULL COMMENT '角色ID',
     `perm_id` bigint NOT NULL COMMENT '权限ID',
@@ -104,13 +106,6 @@ CREATE TABLE `sys_role_perm` (
     PRIMARY KEY (`role_id`, `perm_id`),
     KEY `idx_sys_role_perm_perm_id` (`perm_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';
-
-DELETE rp
-FROM `sys_role_perm` rp
-JOIN `sys_role` vip ON vip.`id` = rp.`role_id`
-WHERE vip.`role_code` = 'VIP';
-
-DELETE FROM `sys_role` WHERE `role_code` = 'VIP';
 
 -- Spring Authorization Server 7.0.6 JDBC RegisteredClient schema plus the
 -- application-owned auto-approve, status, and allowed-IP metadata.
