@@ -308,8 +308,8 @@ Python 对接以 [2026-08-09 最新对接文档](static/document/python-audio-mo
 ### 10.2 角色层级
 
 - 当前角色：CREATOR、ADMIN、USER。
-- 角色层级以 `sys_role.rank` 为准；数值越小等级越高，不依赖角色 ID。
-- `@RequireSuperiorRole` 由 `SuperiorRoleAspect` 拦截，约束操作者只能处理低于自身等级的账号。
+- 目标角色等级以 `sys_role.rank` 为准；数值越小等级越高，不依赖角色 ID。
+- 当前 `@RequireSuperiorRole` / `SuperiorRoleAspect` 仍使用 legacy `roleId` 比较；计划在 Phase 5 切换为 `rank` 比较。
 
 ### 10.3 审核工作流
 `isPass` 字段：`0`-待审核、`1`-已通过、`2`-已拒绝。
