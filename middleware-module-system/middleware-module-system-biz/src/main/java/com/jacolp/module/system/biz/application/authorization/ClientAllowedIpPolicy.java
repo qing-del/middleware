@@ -61,6 +61,21 @@ public final class ClientAllowedIpPolicy {
         return allowedCidrs.stream().anyMatch(cidr -> cidr.matches(address));
     }
 
+    static byte[] canonicalSocketAddress(String remoteAddress) {
+        try {
+            if (remoteAddress == null || remoteAddress.trim().isEmpty() || remoteAddress.indexOf('/') >= 0) {
+                throw invalidRemoteAddress();
+            }
+            Address address = Address.parse(remoteAddress.trim());
+            byte[] identity = new byte[address.bytes.length + 1];
+            identity[0] = (byte) address.family.byteLength;
+            System.arraycopy(address.bytes, 0, identity, 1, address.bytes.length);
+            return identity;
+        } catch (IllegalArgumentException exception) {
+            throw invalidRemoteAddress();
+        }
+    }
+
     private static IllegalArgumentException invalidConfiguration() {
         return new IllegalArgumentException(INVALID_CONFIGURATION);
     }
