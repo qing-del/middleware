@@ -27,10 +27,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/** Lua argument and CAS semantics are unit-tested here; real Redis contention coverage is deferred to Phase 7. */
 class RedisOAuth2TokenStateStoreTest {
     private static final String FP = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8";
     private static final String OTHER_FP = "BBECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8";
     private static final String JTI = "AAECAwQFBgcICQoLDA0ODw";
+    private static final String NEXT_JTI = "BAECAwQFBgcICQoLDA0ODw";
     private final OAuth2TokenStateCodec codec = new OAuth2TokenStateCodec();
     private final Instant now = Instant.parse("2026-08-10T00:00:00Z");
 
@@ -105,6 +107,90 @@ class RedisOAuth2TokenStateStoreTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void compareAndRotatesOnlyWhenOldRefreshAndSessionPointerStillMatch() {
+        RefreshTokenState nextRefresh = nextRefresh();
+        OAuth2SessionState nextSession = nextSession(nextRefresh);
+
+        assertThat(store.rotate(FP, nextRefresh, nextSession)).isTrue();
+
+        ArgumentCaptor<RedisScript<Long>> scriptCaptor = ArgumentCaptor.forClass((Class) RedisScript.class);
+        ArgumentCaptor<Object[]> argumentsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(redis).execute(scriptCaptor.capture(),
+                eq(List.of("user:refresh:" + FP, "user:refresh:" + OTHER_FP, "user:session:core_agent:1")),
+                argumentsCaptor.capture());
+        assertThat(argumentsCaptor.getValue()).containsExactly(
+                FP,
+                "120000",
+                "schema_version", "1",
+                "fingerprint", OTHER_FP,
+                "verifier_hash", nextRefresh.verifierHash(),
+                "user_id", "1",
+                "client_id", "core_agent",
+                "granted_scopes", "note:read",
+                "issued_at_epoch_millis", Long.toString(now.toEpochMilli()),
+                "expires_at_epoch_millis", Long.toString(nextRefresh.expiresAt().toEpochMilli()),
+                "120000",
+                "schema_version", "1",
+                "user_id", "1",
+                "client_id", "core_agent",
+                "current_access_jti", NEXT_JTI,
+                "access_expires_at_epoch_millis", Long.toString(nextSession.accessExpiresAt().toEpochMilli()),
+                "current_refresh_fingerprint", OTHER_FP,
+                "refresh_expires_at_epoch_millis", Long.toString(nextRefresh.expiresAt().toEpochMilli()));
+        String script = scriptCaptor.getValue().getScriptAsString();
+        int firstMutation = script.indexOf("redis.call('DEL'");
+        assertThat(script.indexOf("redis.call('HGET', KEYS[3], 'current_refresh_fingerprint')")).isLessThan(firstMutation);
+        assertThat(script.indexOf("redis.call('HGET', KEYS[1], 'fingerprint')")).isLessThan(firstMutation);
+        assertThat(script.indexOf("HSET")).isGreaterThan(firstMutation);
+        assertThat(script).contains("KEYS[1]", "KEYS[2]", "KEYS[3]", "PEXPIRE").doesNotContain("access_token", "refresh_token");
+    }
+
+    @Test
+    void returnsFalseWhenCompareAndRotateDoesNotMatch() {
+        RefreshTokenState nextRefresh = nextRefresh();
+        doReturn(0L).when(redis).execute(any(RedisScript.class), anyList(), any(Object[].class));
+        assertThat(store.rotate(FP, nextRefresh, nextSession(nextRefresh))).isFalse();
+    }
+
+    @Test
+    void onlyFirstCompetingCompareAndRotateCanSucceed() {
+        RefreshTokenState nextRefresh = nextRefresh();
+        OAuth2SessionState nextSession = nextSession(nextRefresh);
+        doReturn(1L, 0L).when(redis).execute(any(RedisScript.class), anyList(), any(Object[].class));
+
+        assertThat(store.rotate(FP, nextRefresh, nextSession)).isTrue();
+        assertThat(store.rotate(FP, nextRefresh, nextSession)).isFalse();
+    }
+
+    @Test
+    void failsFastWhenRotationLuaReturnsUnexpectedResult() {
+        RefreshTokenState nextRefresh = nextRefresh();
+        OAuth2SessionState nextSession = nextSession(nextRefresh);
+        doReturn(2L).when(redis).execute(any(RedisScript.class), anyList(), any(Object[].class));
+        assertThatIllegalStateException().isThrownBy(() -> store.rotate(FP, nextRefresh, nextSession));
+        doReturn((Object) null).when(redis).execute(any(RedisScript.class), anyList(), any(Object[].class));
+        assertThatIllegalStateException().isThrownBy(() -> store.rotate(FP, nextRefresh, nextSession));
+    }
+
+    @Test
+    void rejectsInvalidNextRotationStateBeforeRunningLua() {
+        RefreshTokenState nextRefresh = nextRefresh();
+        OAuth2SessionState nextSession = nextSession(nextRefresh);
+        OAuth2SessionState wrongFingerprint = new OAuth2SessionState(1, "core_agent", NEXT_JTI, now.plusSeconds(30), FP, nextRefresh.expiresAt());
+        OAuth2SessionState lateAccess = new OAuth2SessionState(1, "core_agent", NEXT_JTI, nextRefresh.expiresAt().plusMillis(1), OTHER_FP, nextRefresh.expiresAt());
+        RefreshTokenState expired = new RefreshTokenState(OTHER_FP, nextRefresh.verifierHash(), 1, "core_agent", List.of(), now.minusSeconds(1), now);
+
+        assertThatIllegalArgumentException().isThrownBy(() -> store.rotate(FP, refresh, session));
+        assertThatIllegalArgumentException().isThrownBy(() -> store.rotate("bad", nextRefresh, nextSession));
+        assertThatIllegalArgumentException().isThrownBy(() -> store.rotate(FP, nextRefresh, wrongFingerprint));
+        assertThatIllegalArgumentException().isThrownBy(() -> store.rotate(FP, nextRefresh, lateAccess));
+        assertThatIllegalArgumentException().isThrownBy(() -> store.rotate(FP, expired,
+                new OAuth2SessionState(1, "core_agent", NEXT_JTI, now, OTHER_FP, now)));
+        verify(redis, org.mockito.Mockito.never()).execute(any(RedisScript.class), anyList(), any(Object[].class));
+    }
+
+    @Test
     void failsFastWhenLuaDoesNotAcknowledgeReplacement() {
         doReturn(0L).when(redis).execute(any(RedisScript.class), anyList(), any(Object[].class));
         assertThatIllegalStateException().isThrownBy(() -> store.replaceCurrentSession(refresh, session));
@@ -155,5 +241,13 @@ class RedisOAuth2TokenStateStoreTest {
         Map<Object, Object> result = new LinkedHashMap<>();
         result.putAll(values);
         return result;
+    }
+
+    private RefreshTokenState nextRefresh() {
+        return new RefreshTokenState(OTHER_FP, BCrypt.hashpw("next", BCrypt.gensalt()), 1, "core_agent", List.of("note:read"), now, now.plusSeconds(120));
+    }
+
+    private OAuth2SessionState nextSession(RefreshTokenState nextRefresh) {
+        return new OAuth2SessionState(1, "core_agent", NEXT_JTI, now.plusSeconds(30), nextRefresh.fingerprint(), nextRefresh.expiresAt());
     }
 }

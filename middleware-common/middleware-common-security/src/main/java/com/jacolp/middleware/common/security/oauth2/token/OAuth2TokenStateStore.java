@@ -12,6 +12,14 @@ public interface OAuth2TokenStateStore {
      */
     void replaceCurrentSession(RefreshTokenState refreshState, OAuth2SessionState sessionState);
 
+    /**
+     * Atomically replaces the current refresh session only when it still references {@code expectedOldFingerprint}.
+     *
+     * @return {@code true} when the compare-and-rotate succeeded, or {@code false} when the old refresh/session
+     * pointer no longer matches
+     */
+    boolean rotate(String expectedOldFingerprint, RefreshTokenState nextRefreshState, OAuth2SessionState nextSessionState);
+
     Optional<RefreshTokenState> findRefreshByFingerprint(String fingerprint);
     Optional<OAuth2SessionState> findSession(String clientId, long userId);
     void deleteRefresh(String fingerprint);

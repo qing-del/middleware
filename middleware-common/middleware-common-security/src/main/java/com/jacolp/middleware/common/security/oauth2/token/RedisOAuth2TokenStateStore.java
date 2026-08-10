@@ -22,6 +22,7 @@ public final class RedisOAuth2TokenStateStore implements OAuth2TokenStateStore {
     private static final Pattern FP = Pattern.compile("[A-Za-z0-9_-]{43}");
     private static final Pattern CLIENT = Pattern.compile("[A-Za-z0-9_-]{1,100}");
     private static final RedisScript<Long> REPLACE_CURRENT_SESSION = replaceCurrentSessionScript();
+    private static final RedisScript<Long> ROTATE_CURRENT_SESSION = rotateCurrentSessionScript();
 
     private final StringRedisTemplate redis;
     private final OAuth2TokenStateCodec codec;
@@ -44,17 +45,37 @@ public final class RedisOAuth2TokenStateStore implements OAuth2TokenStateStore {
         validateIssuanceState(refreshState, sessionState);
 
         long ttlMillis = positiveTtlMillis(refreshState.expiresAt());
-        Map<String, String> refreshValues = codec.encode(refreshState);
-        Map<String, String> sessionValues = codec.encode(sessionState);
-        List<Object> arguments = new ArrayList<>(2 + refreshValues.size() * 2 + sessionValues.size() * 2);
-        appendHashArguments(arguments, ttlMillis, codec.refreshFieldNames(), refreshValues);
-        appendHashArguments(arguments, ttlMillis, codec.sessionFieldNames(), sessionValues);
+        Object[] arguments = stateWriteArguments(ttlMillis, refreshState, sessionState);
         Long outcome = redis.execute(REPLACE_CURRENT_SESSION,
                 List.of(refreshKey(refreshState.fingerprint()), sessionKey(sessionState.clientId(), sessionState.userId())),
-                arguments.toArray());
+                arguments);
         if (!Long.valueOf(1L).equals(outcome)) {
             throw new IllegalStateException("OAuth2 session replacement failed");
         }
+    }
+
+    @Override
+    public boolean rotate(String expectedOldFingerprint, RefreshTokenState nextRefreshState, OAuth2SessionState nextSessionState) {
+        validateFingerprint(expectedOldFingerprint);
+        Objects.requireNonNull(nextRefreshState, "nextRefreshState must not be null");
+        Objects.requireNonNull(nextSessionState, "nextSessionState must not be null");
+        if (expectedOldFingerprint.equals(nextRefreshState.fingerprint())) {
+            throw new IllegalArgumentException("next refresh fingerprint must differ from expected old fingerprint");
+        }
+        validateIssuanceState(nextRefreshState, nextSessionState);
+
+        long ttlMillis = positiveTtlMillis(nextRefreshState.expiresAt());
+        Object[] stateArguments = stateWriteArguments(ttlMillis, nextRefreshState, nextSessionState);
+        List<Object> arguments = new ArrayList<>(stateArguments.length + 1);
+        arguments.add(expectedOldFingerprint);
+        arguments.addAll(List.of(stateArguments));
+        Long outcome = redis.execute(ROTATE_CURRENT_SESSION,
+                List.of(refreshKey(expectedOldFingerprint), refreshKey(nextRefreshState.fingerprint()),
+                        sessionKey(nextSessionState.clientId(), nextSessionState.userId())),
+                arguments.toArray());
+        if (Long.valueOf(1L).equals(outcome)) return true;
+        if (Long.valueOf(0L).equals(outcome)) return false;
+        throw new IllegalStateException("OAuth2 refresh rotation failed");
     }
 
     @Override
@@ -87,6 +108,13 @@ public final class RedisOAuth2TokenStateStore implements OAuth2TokenStateStore {
         return script;
     }
 
+    private static RedisScript<Long> rotateCurrentSessionScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("oauth2/token/rotate-current-session.lua"));
+        script.setResultType(Long.class);
+        return script;
+    }
+
     private void validateIssuanceState(RefreshTokenState refreshState, OAuth2SessionState sessionState) {
         if (refreshState.userId() != sessionState.userId()
                 || !refreshState.clientId().equals(sessionState.clientId())
@@ -103,6 +131,15 @@ public final class RedisOAuth2TokenStateStore implements OAuth2TokenStateStore {
         long ttlMillis = Duration.between(clock.instant(), expiresAt).toMillis();
         if (ttlMillis <= 0) throw new IllegalArgumentException("refresh and session TTL must be positive");
         return ttlMillis;
+    }
+
+    private Object[] stateWriteArguments(long ttlMillis, RefreshTokenState refreshState, OAuth2SessionState sessionState) {
+        Map<String, String> refreshValues = codec.encode(refreshState);
+        Map<String, String> sessionValues = codec.encode(sessionState);
+        List<Object> arguments = new ArrayList<>(2 + refreshValues.size() * 2 + sessionValues.size() * 2);
+        appendHashArguments(arguments, ttlMillis, codec.refreshFieldNames(), refreshValues);
+        appendHashArguments(arguments, ttlMillis, codec.sessionFieldNames(), sessionValues);
+        return arguments.toArray();
     }
 
     private static void appendHashArguments(List<Object> arguments, long ttlMillis, List<String> fields, Map<String, String> values) {
