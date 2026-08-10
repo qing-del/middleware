@@ -30,9 +30,9 @@ class OAuth2EmailLoginCodePropertiesTest {
     }
 
     @Test
-    void bindsStricterDurationsAndLimits() {
+    void bindsWholeMinuteOneToTenMinuteTtlsAndStricterLimits() {
         runner.withPropertyValues(
-                        "jacolp.oauth2.email-code.code-ttl=PT5M",
+                        "jacolp.oauth2.email-code.code-ttl=PT1M",
                         "jacolp.oauth2.email-code.issue-cooldown=PT2M",
                         "jacolp.oauth2.email-code.issue-window=PT2H",
                         "jacolp.oauth2.email-code.max-issues-per-window=3",
@@ -41,6 +41,7 @@ class OAuth2EmailLoginCodePropertiesTest {
                     assertThat(context).hasNotFailed();
                     OAuth2EmailLoginCodeProperties properties =
                             context.getBean(OAuth2EmailLoginCodeProperties.class);
+                    assertThat(properties.getCodeTtl()).isEqualTo(Duration.ofMinutes(1));
                     assertThat(properties.getMaxIssuesPerWindow()).isEqualTo(3);
                     assertThat(properties.getMaxFailedAttempts()).isEqualTo(2);
                 });
@@ -50,6 +51,7 @@ class OAuth2EmailLoginCodePropertiesTest {
     void rejectsEveryWiderBoundary() {
         for (String property : new String[]{
                 "code-ttl=PT0S",
+                "code-ttl=PT30S",
                 "code-ttl=PT11M",
                 "issue-cooldown=PT59S",
                 "issue-window=PT59M",
@@ -69,12 +71,15 @@ class OAuth2EmailLoginCodePropertiesTest {
     }
 
     @Test
-    void settersRejectNullAndValidationRejectsNegativeValues() {
+    void settersRejectNullAndValidationRejectsInvalidCodeTtls() {
         OAuth2EmailLoginCodeProperties properties = new OAuth2EmailLoginCodeProperties();
 
         assertThatThrownBy(() -> properties.setCodeTtl(null)).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> properties.setMaxIssuesPerWindow(null)).isInstanceOf(NullPointerException.class);
         properties.setCodeTtl(Duration.ofSeconds(-1));
+        assertThatIllegalArgumentException().isThrownBy(properties::validate);
+
+        properties.setCodeTtl(Duration.ofSeconds(Long.MAX_VALUE));
         assertThatIllegalArgumentException().isThrownBy(properties::validate);
     }
 

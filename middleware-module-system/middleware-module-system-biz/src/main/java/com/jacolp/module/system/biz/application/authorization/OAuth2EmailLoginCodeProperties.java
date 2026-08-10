@@ -63,11 +63,23 @@ public class OAuth2EmailLoginCodeProperties {
 
     @PostConstruct
     void validate() {
-        if (codeTtl.isZero() || codeTtl.isNegative() || codeTtl.compareTo(MAX_CODE_TTL) > 0
+        if (!isValidCodeTtl(codeTtl)
                 || issueCooldown.compareTo(MIN_ISSUE_COOLDOWN) < 0 || issueWindow.compareTo(MIN_ISSUE_WINDOW) < 0
                 || issueWindow.compareTo(issueCooldown) < 0 || maxIssuesPerWindow < 1 || maxIssuesPerWindow > 5
                 || maxFailedAttempts < 1 || maxFailedAttempts > 5) {
             throw new IllegalArgumentException("Invalid OAuth2 email-code policy");
+        }
+    }
+
+    private static boolean isValidCodeTtl(Duration ttl) {
+        if (ttl.isZero() || ttl.isNegative() || ttl.compareTo(MAX_CODE_TTL) > 0) {
+            return false;
+        }
+        try {
+            long milliseconds = ttl.toMillis();
+            return milliseconds > 0 && milliseconds % 60_000L == 0;
+        } catch (ArithmeticException exception) {
+            return false;
         }
     }
 
