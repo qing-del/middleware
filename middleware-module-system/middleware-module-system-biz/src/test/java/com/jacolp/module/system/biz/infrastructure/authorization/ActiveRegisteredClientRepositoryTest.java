@@ -3,6 +3,8 @@ package com.jacolp.module.system.biz.infrastructure.authorization;
 import com.jacolp.module.system.biz.application.authorization.model.OAuth2RegisteredClientMetadata;
 import com.jacolp.module.system.biz.application.port.out.OAuth2RegisteredClientMetadataRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -28,6 +30,21 @@ class ActiveRegisteredClientRepositoryTest {
 
     private static final String USER_ID = "e7cf5b30-8e43-4db2-bc53-000000000001";
     private static final String USER_CLIENT_ID = "user";
+
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withBean(OAuth2RegisteredClientMetadataRepository.class,
+                    () -> mock(OAuth2RegisteredClientMetadataRepository.class))
+            .withBean(JdbcOperations.class, () -> mock(JdbcOperations.class))
+            .withBean(ActiveRegisteredClientRepository.class);
+
+    @Test
+    void springUsesTheProductionConstructorAndRegistersOnlyOneSasRepositoryBean() {
+        contextRunner.run(context -> {
+            assertThat(context).hasSingleBean(RegisteredClientRepository.class);
+            assertThat(context.getBean(RegisteredClientRepository.class))
+                    .isInstanceOf(ActiveRegisteredClientRepository.class);
+        });
+    }
 
     @Test
     void activeInternalClientReturnsTheCompleteSasMappingWithOneLookupPerRepository() {

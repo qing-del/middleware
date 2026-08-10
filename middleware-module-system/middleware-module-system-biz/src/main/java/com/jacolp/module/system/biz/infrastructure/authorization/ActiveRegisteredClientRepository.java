@@ -2,6 +2,7 @@ package com.jacolp.module.system.biz.infrastructure.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.OAuth2RegisteredClientMetadata;
 import com.jacolp.module.system.biz.application.port.out.OAuth2RegisteredClientMetadataRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -26,6 +27,7 @@ public class ActiveRegisteredClientRepository implements RegisteredClientReposit
     private final OAuth2RegisteredClientMetadataRepository metadataRepository;
     private final RegisteredClientRepository sasDelegate;
 
+    @Autowired
     public ActiveRegisteredClientRepository(OAuth2RegisteredClientMetadataRepository metadataRepository,
                                             JdbcOperations jdbcOperations) {
         this(metadataRepository, sasRepository(jdbcOperations));
