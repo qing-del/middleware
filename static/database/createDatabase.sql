@@ -108,10 +108,10 @@ CREATE TABLE `sys_permission` (
     KEY `idx_sys_permission_resource_action_status` (`resource`, `action`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统权限目录';
 
--- SAS 7.0.6 JsonMapper-compatible settings. user/admin refresh-token rotation
+-- SAS 7.0.4 JsonMapper-compatible settings. user/admin refresh-token rotation
 -- is enabled by reuse-refresh-tokens=false. core_agent does not list refresh_token.
 -- user/admin remain disabled until Phase 3 provisions their credentials;
--- core_agent remains disabled until Phase 4 registers its redirect URI and flow.
+-- core_agent remains disabled until Phase 4 enables its registered redirect flow.
 -- authorization_client is a disabled reserved client in the first release.
 INSERT INTO `oauth2_registered_client` (
     `id`, `client_id`, `client_name`, `client_authentication_methods`,
@@ -154,7 +154,7 @@ INSERT INTO `oauth2_registered_client` (
     'CORE AGENT',
     'none',
     'agent_client,authorization_code',
-    NULL,
+    'http://127.0.0.1:9090/oauth/callback',
     NULL,
     'note:read,note:write,sys:read,media:read',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-proof-key":true,"settings.client.require-authorization-consent":true}',
