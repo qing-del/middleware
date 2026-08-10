@@ -51,6 +51,8 @@ class EmailLoginCodeIssueRateLimitRequestTest {
                 request(Duration.ofMinutes(1), Duration.ofHours(1), 0));
         assertThatIllegalArgumentException().isThrownBy(() ->
                 request(Duration.ofMinutes(1), Duration.ofHours(1), 6));
+        assertThatIllegalArgumentException().isThrownBy(() ->
+                request(Duration.ofSeconds(Long.MAX_VALUE), Duration.ofSeconds(Long.MAX_VALUE), 1));
     }
 
     @Test

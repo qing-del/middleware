@@ -21,11 +21,23 @@ public record EmailLoginCodeIssueRateLimitRequest(
                 || maxIssues == null || maxIssues < 1 || maxIssues > 5) {
             throw new IllegalArgumentException("Invalid email-code issue rate-limit request");
         }
+        requirePositiveMilliseconds(cooldown);
+        requirePositiveMilliseconds(window);
     }
 
     @Override
     public String toString() {
         return "EmailLoginCodeIssueRateLimitRequest[cooldown=" + cooldown + ", window=" + window
                 + ", maxIssues=" + maxIssues + ']';
+    }
+
+    private static void requirePositiveMilliseconds(Duration duration) {
+        try {
+            if (duration.toMillis() <= 0) {
+                throw new IllegalArgumentException("Invalid email-code issue rate-limit request");
+            }
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("Invalid email-code issue rate-limit request", exception);
+        }
     }
 }
