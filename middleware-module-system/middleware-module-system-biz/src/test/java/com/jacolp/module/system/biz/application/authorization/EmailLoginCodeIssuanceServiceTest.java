@@ -1,6 +1,8 @@
 package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeIssueRequest;
+import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeState;
+import com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.module.system.biz.application.authorization.model.InternalRegisteredClientPolicy;
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeDeliveryPort;
@@ -10,6 +12,8 @@ import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeIssueRate
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeProtector;
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeStateStore;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -19,12 +23,14 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.inOrder;
 
 class EmailLoginCodeIssuanceServiceTest {
 
@@ -194,6 +200,42 @@ class EmailLoginCodeIssuanceServiceTest {
         org.mockito.Mockito.doThrow(error).when(errorDelivery.delivery).deliver(any());
         assertThatThrownBy(() -> errorDelivery.service.issue(request())).isSameAs(error);
         verify(errorDelivery.states).delete("user", 7L);
+    }
+
+    @Test
+    void validIssuePersistsAndDeliversTheClearedIdentityInOrder() {
+        Fixture fixture = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        when(fixture.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(fixture.account));
+        InternalAuthenticatedAccount cleared = new InternalAuthenticatedAccount(
+                7L, "Cleared", "Alice@Example.Test", 3L, "USER", 3);
+        when(fixture.eligibility.resolve(any(), any())).thenReturn(cleared);
+        ArgumentCaptor<EmailLoginCodeState> state = ArgumentCaptor.forClass(EmailLoginCodeState.class);
+        ArgumentCaptor<com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeDeliveryRequest> delivery =
+                ArgumentCaptor.forClass(com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeDeliveryRequest.class);
+
+        fixture.service.issue(request());
+
+        verify(fixture.states).replace(state.capture());
+        verify(fixture.delivery).deliver(delivery.capture());
+        assertThat(state.getValue().userId()).isEqualTo(7L);
+        assertThat(state.getValue().failedAttempts()).isZero();
+        assertThat(state.getValue().issuedAt()).isEqualTo(Instant.EPOCH);
+        assertThat(state.getValue().expiresAt()).isEqualTo(Instant.EPOCH.plus(Duration.ofMinutes(10)));
+        assertThat(state.getValue().toString()).doesNotContain("alice", "012345", "$2a$");
+        assertThat(delivery.getValue().email()).isEqualTo("Alice@Example.Test");
+        assertThat(delivery.getValue().username()).isEqualTo("Cleared");
+        assertThat(delivery.getValue().rawCode()).isEqualTo("012345");
+        assertThat(delivery.getValue().ttl()).isEqualTo(Duration.ofMinutes(10));
+        InOrder order = inOrder(fixture.resolver, fixture.limiter, fixture.generator, fixture.protector,
+                fixture.accounts, fixture.eligibility, fixture.states, fixture.delivery);
+        order.verify(fixture.resolver).resolve("user", "email-code");
+        order.verify(fixture.limiter).tryAcquire(any());
+        order.verify(fixture.generator).generate();
+        order.verify(fixture.protector).protect("012345");
+        order.verify(fixture.accounts).findByEmail("alice@example.test");
+        order.verify(fixture.eligibility).resolve(any(), any());
+        order.verify(fixture.states).replace(any());
+        order.verify(fixture.delivery).deliver(any());
     }
 
 
