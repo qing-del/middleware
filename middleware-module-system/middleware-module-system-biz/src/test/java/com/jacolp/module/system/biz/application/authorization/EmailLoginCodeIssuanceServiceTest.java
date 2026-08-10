@@ -97,6 +97,45 @@ class EmailLoginCodeIssuanceServiceTest {
                 .satisfies(error -> org.assertj.core.api.Assertions.assertThat(error.getSuppressed()).containsExactly(smtpFailure));
     }
 
+    @Test
+    void ipAndResolverRejectionsStopBeforeRateAndLookup() {
+        Fixture ipDenied = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        InternalRegisteredClientPolicy deniedPolicy = new InternalRegisteredClientPolicy("id", "user", "email-code",
+                Set.of("note:read"), Set.of("note:read"), "198.51.100.0/24", Duration.ofHours(3), Duration.ofHours(72));
+        when(ipDenied.resolver.resolve("user", "email-code")).thenReturn(deniedPolicy);
+        assertThatThrownBy(() -> ipDenied.service.issue(request())).isInstanceOf(EmailLoginCodeIssuanceRejectedException.class);
+        verify(ipDenied.limiter, never()).tryAcquire(any());
+        verify(ipDenied.generator, never()).generate();
+
+        Fixture resolverFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        IllegalStateException failure = new IllegalStateException("resolver");
+        when(resolverFailure.resolver.resolve("user", "email-code")).thenThrow(failure);
+        assertThatThrownBy(() -> resolverFailure.service.issue(request())).isSameAs(failure);
+        verify(resolverFailure.limiter, never()).tryAcquire(any());
+    }
+
+    @Test
+    void emailMismatchAndEligibilityRejectionDoNotStoreOrDeliver() {
+        Fixture mismatch = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount wrongEmail =
+                new com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount(
+                        7L, "alice", "$2a$10$" + "b".repeat(53), "other@example.test", 3L, "", 1);
+        when(mismatch.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(wrongEmail));
+        mismatch.service.issue(request());
+        verify(mismatch.generator).generate();
+        verify(mismatch.protector).protect("012345");
+        verify(mismatch.eligibility, never()).resolve(any(), any());
+        verify(mismatch.states, never()).replace(any());
+
+        Fixture rejected = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        when(rejected.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(rejected.account));
+        when(rejected.eligibility.resolve(any(), any())).thenThrow(new InternalAccountAuthenticationRejectedException());
+        rejected.service.issue(request());
+        verify(rejected.states, never()).replace(any());
+        verify(rejected.delivery, never()).deliver(any());
+    }
+
+
     private static EmailLoginCodeIssueRequest request() {
         return new EmailLoginCodeIssueRequest("user", "alice@example.test", "192.0.2.1");
     }
@@ -126,12 +165,14 @@ class EmailLoginCodeIssuanceServiceTest {
                         7L, "alice", "alice@example.test", 3L, "USER", 3));
         return new Fixture(new EmailLoginCodeIssuanceService(resolver, fingerprint, limiter, accounts, generator,
                 protector, eligibility, states, delivery, properties, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC)),
-                accounts, generator, protector, states, delivery, account);
+                resolver, limiter, accounts, generator, protector, eligibility, states, delivery, account);
     }
 
-    private record Fixture(EmailLoginCodeIssuanceService service, AuthorizationAccountRepository accounts,
+    private record Fixture(EmailLoginCodeIssuanceService service, InternalRegisteredClientPolicyResolver resolver,
+                           EmailLoginCodeIssueRateLimiter limiter, AuthorizationAccountRepository accounts,
                            EmailLoginCodeGenerator generator, EmailLoginCodeProtector protector,
-                           EmailLoginCodeStateStore states, EmailLoginCodeDeliveryPort delivery,
+                           InternalAccountEligibilityService eligibility, EmailLoginCodeStateStore states,
+                           EmailLoginCodeDeliveryPort delivery,
                            com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount account) {
     }
 }
