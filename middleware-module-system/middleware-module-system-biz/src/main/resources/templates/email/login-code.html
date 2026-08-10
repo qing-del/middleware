@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>CoreNode 登录验证码</title></head>
+<body>
+<p th:text="'你好，' + ${username}">你好</p>
+<p>你的 CoreNode 登录验证码是：</p>
+<p><strong th:text="${verificationCode}">000000</strong></p>
+<p>验证码将在 <span th:text="${expiryMinutes}">10</span> 分钟后失效。请勿向任何人透露该验证码。</p>
+</body>
+</html>
