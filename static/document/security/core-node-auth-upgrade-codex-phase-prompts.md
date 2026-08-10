@@ -360,7 +360,7 @@
 - frontend/ 改造
 - middleware-open-api-agent 业务接口
 - Agent 实际数据读取 API
-- OAuth 管理后台
+- OAuth 管理后台，以及仅 creator 管理 registered OAuth client 的 endpoint/DTO、client secret 生命周期、审计和启停安全规则
 - OIDC
 - 社交登录
 - 多设备 Session
@@ -390,7 +390,7 @@
 4. 数据库验证项
 5. Redis 验证项
 6. 安全边界验证项
-7. 仍未完成但明确属于“前端后续计划 / Agent API 后续计划”的事项
+7. 仍未完成但明确属于“前端后续计划 / Agent API 后续计划 / OAuth client 管理独立阶段”的事项
 8. 是否满足“后端授权升级第一阶段完成”的结论
 
 如果存在任何会影响后端正式切换的未决问题，立即停止并列出问题，不要用假设填补。
