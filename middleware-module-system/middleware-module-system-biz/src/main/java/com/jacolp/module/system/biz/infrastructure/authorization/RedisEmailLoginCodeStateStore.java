@@ -4,10 +4,17 @@ import com.jacolp.module.system.biz.application.authorization.EmailLoginCodeStat
 import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeState;
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeStateStore;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Repository;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,15 +28,23 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
 
     private final StringRedisTemplate redis;
     private final EmailLoginCodeStateCodec codec;
+    private final Clock clock;
+    private final DefaultRedisScript<Long> replaceScript;
 
     @Autowired
     public RedisEmailLoginCodeStateStore(StringRedisTemplate redis) {
-        this(redis, new EmailLoginCodeStateCodec());
+        this(redis, new EmailLoginCodeStateCodec(), Clock.systemUTC(), replaceScript());
     }
 
-    RedisEmailLoginCodeStateStore(StringRedisTemplate redis, EmailLoginCodeStateCodec codec) {
+    RedisEmailLoginCodeStateStore(
+            StringRedisTemplate redis,
+            EmailLoginCodeStateCodec codec,
+            Clock clock,
+            DefaultRedisScript<Long> replaceScript) {
         this.redis = Objects.requireNonNull(redis, "redis");
         this.codec = Objects.requireNonNull(codec, "codec");
+        this.clock = Objects.requireNonNull(clock, "clock");
+        this.replaceScript = Objects.requireNonNull(replaceScript, "replaceScript");
     }
 
     @Override
@@ -56,6 +71,49 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
     @Override
     public void delete(String clientId, Long userId) {
         redis.delete(key(clientId, userId));
+    }
+
+    @Override
+    public void replace(EmailLoginCodeState state) {
+        Objects.requireNonNull(state, "state");
+        Instant now = clock.instant();
+        if (state.issuedAt().isAfter(now)) {
+            throw invalid();
+        }
+        long ttlMilliseconds = ttlMilliseconds(now, state.expiresAt());
+        Map<String, String> encoded = codec.encode(state);
+        List<Object> arguments = new ArrayList<>(1 + encoded.size() * 2);
+        arguments.add(Long.toString(ttlMilliseconds));
+        for (String fieldName : codec.fieldNames()) {
+            arguments.add(fieldName);
+            arguments.add(encoded.get(fieldName));
+        }
+        Long result = redis.execute(
+                replaceScript,
+                List.of(key(state.clientId(), state.userId())),
+                arguments.toArray());
+        if (result == null || result != 1L) {
+            throw new IllegalStateException("Invalid email-code state replace result");
+        }
+    }
+
+    private static long ttlMilliseconds(Instant now, Instant expiresAt) {
+        try {
+            long ttlMilliseconds = Duration.between(now, expiresAt).toMillis();
+            if (ttlMilliseconds <= 0) {
+                throw invalid();
+            }
+            return ttlMilliseconds;
+        } catch (ArithmeticException exception) {
+            throw invalid();
+        }
+    }
+
+    private static DefaultRedisScript<Long> replaceScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("lua/email_login_code_state_replace.lua"));
+        script.setResultType(Long.class);
+        return script;
     }
 
     private static String key(String clientId, Long userId) {

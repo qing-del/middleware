@@ -4,10 +4,12 @@ import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCo
 
 import java.util.Optional;
 
-/** Read/delete port for protected email-code challenge state. */
+/** Read/replace/delete port for protected email-code challenge state. */
 public interface EmailLoginCodeStateStore {
 
     Optional<EmailLoginCodeState> find(String clientId, Long userId);
+
+    void replace(EmailLoginCodeState state);
 
     void delete(String clientId, Long userId);
 }
