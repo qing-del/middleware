@@ -1,6 +1,7 @@
 package com.jacolp.middleware.common.security.oauth2.token;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,6 +57,37 @@ public final class OAuth2RefreshTokenSessionService {
         if (session.isEmpty() || !matchesCurrentSession(refreshState, session.get())) return Optional.empty();
         return Optional.of(new VerifiedRefreshToken(refreshState.fingerprint(), refreshState.userId(), refreshState.clientId(),
                 refreshState.grantedScopes(), refreshState.expiresAt()));
+    }
+
+    /**
+     * Rotates a refresh session only after re-verifying the caller's raw refresh token and current session pointer.
+     * The verified identity is internal to this method and cannot be supplied by a caller.
+     */
+    public Optional<IssuedRefreshToken> rotate(String currentRawToken, AccessTokenSessionReference nextAccessToken,
+                                               Duration nextRefreshTtl) {
+        nextAccessToken = Objects.requireNonNull(nextAccessToken, "nextAccessToken must not be null");
+        nextRefreshTtl = Objects.requireNonNull(nextRefreshTtl, "nextRefreshTtl must not be null");
+        if (nextRefreshTtl.isZero() || nextRefreshTtl.isNegative()) {
+            throw new IllegalArgumentException("nextRefreshTtl must be positive");
+        }
+
+        Optional<VerifiedRefreshToken> verified = verify(currentRawToken);
+        if (verified.isEmpty()) return Optional.empty();
+        Instant issuedAt = clock.instant();
+        Instant nextRefreshExpiresAt = issuedAt.plus(nextRefreshTtl);
+        if (nextAccessToken.expiresAt().isAfter(nextRefreshExpiresAt)) {
+            throw new IllegalArgumentException("access expiry must not exceed refresh expiry");
+        }
+
+        String nextRawToken = tokenGenerator.newOpaqueToken();
+        OpaqueTokenProtection protection = tokenProtector.protect(nextRawToken);
+        VerifiedRefreshToken current = verified.get();
+        RefreshTokenState nextRefreshState = new RefreshTokenState(protection.fingerprint(), protection.verifierHash(),
+                current.userId(), current.clientId(), current.grantedScopes(), issuedAt, nextRefreshExpiresAt);
+        OAuth2SessionState nextSessionState = new OAuth2SessionState(current.userId(), current.clientId(),
+                nextAccessToken.jti(), nextAccessToken.expiresAt(), protection.fingerprint(), nextRefreshExpiresAt);
+        if (!stateStore.rotate(current.fingerprint(), nextRefreshState, nextSessionState)) return Optional.empty();
+        return Optional.of(new IssuedRefreshToken(nextRawToken, nextRefreshExpiresAt));
     }
 
     private static boolean matchesCurrentSession(RefreshTokenState refreshState, OAuth2SessionState sessionState) {
