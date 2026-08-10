@@ -40,6 +40,18 @@ class EmailLoginCodeIssuanceServiceTest {
     }
 
     @Test
+    void windowLimitAlsoDoesNotLookupOrGenerateAndNullDecisionFailsClosed() {
+        Fixture limited = fixture(EmailLoginCodeIssueRateLimitDecision.WINDOW_LIMIT);
+        limited.service.issue(request());
+        verify(limited.accounts, never()).findByEmail(any());
+        verify(limited.generator, never()).generate();
+
+        Fixture malformed = fixture(null);
+        assertThatThrownBy(() -> malformed.service.issue(request())).isInstanceOf(IllegalStateException.class);
+        verify(malformed.accounts, never()).findByEmail(any());
+    }
+
+    @Test
     void missingAccountStillGeneratesAndProtectsOnceButDoesNotStoreOrDeliver() {
         Fixture fixture = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
         when(fixture.accounts.findByEmail("alice@example.test")).thenReturn(Optional.empty());
@@ -62,6 +74,27 @@ class EmailLoginCodeIssuanceServiceTest {
         assertThatThrownBy(() -> fixture.service.issue(request())).isSameAs(failure);
         verify(fixture.states).replace(any());
         verify(fixture.states).delete("user", 7L);
+    }
+
+    @Test
+    void replaceFailureDoesNotDeliverOrDeleteAndCleanupFailureSuppressesSmtpFailure() {
+        Fixture replaceFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        when(replaceFailure.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(replaceFailure.account));
+        IllegalStateException stateFailure = new IllegalStateException("state");
+        org.mockito.Mockito.doThrow(stateFailure).when(replaceFailure.states).replace(any());
+        assertThatThrownBy(() -> replaceFailure.service.issue(request())).isSameAs(stateFailure);
+        verify(replaceFailure.delivery, never()).deliver(any());
+        verify(replaceFailure.states, never()).delete(any(), any());
+
+        Fixture cleanupFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        when(cleanupFailure.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(cleanupFailure.account));
+        IllegalStateException smtpFailure = new IllegalStateException("smtp");
+        IllegalStateException deleteFailure = new IllegalStateException("delete");
+        org.mockito.Mockito.doThrow(smtpFailure).when(cleanupFailure.delivery).deliver(any());
+        org.mockito.Mockito.doThrow(deleteFailure).when(cleanupFailure.states).delete("user", 7L);
+        assertThatThrownBy(() -> cleanupFailure.service.issue(request()))
+                .isSameAs(deleteFailure)
+                .satisfies(error -> org.assertj.core.api.Assertions.assertThat(error.getSuppressed()).containsExactly(smtpFailure));
     }
 
     private static EmailLoginCodeIssueRequest request() {
