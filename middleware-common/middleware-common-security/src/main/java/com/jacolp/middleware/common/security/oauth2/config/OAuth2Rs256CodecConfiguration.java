@@ -2,6 +2,7 @@ package com.jacolp.middleware.common.security.oauth2.config;
 
 import com.jacolp.middleware.common.security.oauth2.jwt.RequiredAudienceJwtValidator;
 import com.jacolp.middleware.common.security.oauth2.jwt.AccessTokenBlacklistJwtValidator;
+import com.jacolp.middleware.common.security.oauth2.key.PublicJwkSetProvider;
 import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
 import com.jacolp.middleware.common.security.oauth2.key.RsaPemKeyMaterialLoader;
 import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
@@ -38,6 +39,11 @@ public class OAuth2Rs256CodecConfiguration {
     RsaKeyMaterial oauth2Rs256KeyMaterial(OAuth2Rs256Properties properties) {
         return new RsaPemKeyMaterialLoader().load(
                 properties.getPrivateKeyLocation(), properties.getPublicKeyLocation());
+    }
+
+    @Bean
+    PublicJwkSetProvider publicJwkSetProvider(RsaKeyMaterial keyMaterial) {
+        return new PublicJwkSetProvider(keyMaterial);
     }
 
     @Bean

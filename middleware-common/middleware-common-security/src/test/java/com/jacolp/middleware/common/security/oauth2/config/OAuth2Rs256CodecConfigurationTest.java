@@ -1,5 +1,6 @@
 package com.jacolp.middleware.common.security.oauth2.config;
 
+import com.jacolp.middleware.common.security.oauth2.key.PublicJwkSetProvider;
 import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenSessionReference;
@@ -83,6 +84,7 @@ class OAuth2Rs256CodecConfigurationTest {
     void disabledConfigurationCreatesNoKeyOrCodecBeans() {
         contextRunner.run(context -> {
             assertThat(context.getBeansOfType(RsaKeyMaterial.class)).isEmpty();
+            assertThat(context.getBeansOfType(PublicJwkSetProvider.class)).isEmpty();
             assertThat(context.getBeansOfType(JwtEncoder.class)).isEmpty();
             assertThat(context.getBeansOfType(JwtDecoder.class)).isEmpty();
             assertThat(context.getBeansOfType(SecureOAuth2TokenGenerator.class)).isEmpty();
@@ -113,6 +115,8 @@ class OAuth2Rs256CodecConfigurationTest {
                     .containsEntry("alg", "RS256")
                     .containsEntry("kid", keyMaterial.keyId());
             assertThat(decoded.getAudience()).containsExactly("core-node-api");
+            assertThat(context.getBean(PublicJwkSetProvider.class).publicJwkSet().getKeyByKeyId(keyMaterial.keyId()))
+                    .isNotNull();
         });
     }
 
