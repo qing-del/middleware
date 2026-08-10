@@ -99,6 +99,7 @@ class RedisEmailLoginCodeStateStoreConsumeTest {
                 new EmailLoginCodeStateCodec(),
                 Clock.fixed(Instant.EPOCH, ZoneOffset.UTC),
                 new DefaultRedisScript<>(),
-                consumeScript);
+                consumeScript,
+                new DefaultRedisScript<>());
     }
 }

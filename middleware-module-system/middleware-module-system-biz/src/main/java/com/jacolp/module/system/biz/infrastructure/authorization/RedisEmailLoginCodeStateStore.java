@@ -2,6 +2,7 @@ package com.jacolp.module.system.biz.infrastructure.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.EmailLoginCodeStateCodec;
 import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeState;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeFailureDecision;
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeStateStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -33,10 +34,11 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
     private final Clock clock;
     private final DefaultRedisScript<Long> replaceScript;
     private final DefaultRedisScript<Long> consumeScript;
+    private final DefaultRedisScript<Long> recordFailureScript;
 
     @Autowired
     public RedisEmailLoginCodeStateStore(StringRedisTemplate redis) {
-        this(redis, new EmailLoginCodeStateCodec(), Clock.systemUTC(), replaceScript(), consumeScript());
+        this(redis, new EmailLoginCodeStateCodec(), Clock.systemUTC(), replaceScript(), consumeScript(), recordFailureScript());
     }
 
     RedisEmailLoginCodeStateStore(
@@ -44,12 +46,14 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
             EmailLoginCodeStateCodec codec,
             Clock clock,
             DefaultRedisScript<Long> replaceScript,
-            DefaultRedisScript<Long> consumeScript) {
+            DefaultRedisScript<Long> consumeScript,
+            DefaultRedisScript<Long> recordFailureScript) {
         this.redis = Objects.requireNonNull(redis, "redis");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.replaceScript = Objects.requireNonNull(replaceScript, "replaceScript");
         this.consumeScript = Objects.requireNonNull(consumeScript, "consumeScript");
+        this.recordFailureScript = Objects.requireNonNull(recordFailureScript, "recordFailureScript");
     }
 
     @Override
@@ -120,6 +124,33 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
         throw new IllegalStateException("Invalid email-code state consume result");
     }
 
+    @Override
+    public EmailLoginCodeFailureDecision recordFailure(
+            String clientId,
+            Long userId,
+            String expectedVerifierHash,
+            Integer maxFailedAttempts) {
+        if (expectedVerifierHash == null || !BCRYPT.matcher(expectedVerifierHash).matches()
+                || maxFailedAttempts == null || maxFailedAttempts < 1 || maxFailedAttempts > 5) {
+            throw invalid();
+        }
+        Long result = redis.execute(
+                recordFailureScript,
+                List.of(key(clientId, userId)),
+                expectedVerifierHash,
+                maxFailedAttempts.toString());
+        if (Long.valueOf(1L).equals(result)) {
+            return EmailLoginCodeFailureDecision.RECORDED;
+        }
+        if (Long.valueOf(2L).equals(result)) {
+            return EmailLoginCodeFailureDecision.INVALIDATED;
+        }
+        if (Long.valueOf(0L).equals(result)) {
+            return EmailLoginCodeFailureDecision.STALE;
+        }
+        throw new IllegalStateException("Invalid email-code state failure result");
+    }
+
     private static long ttlMilliseconds(Instant now, Instant expiresAt) {
         try {
             long ttlMilliseconds = Duration.between(now, expiresAt).toMillis();
@@ -142,6 +173,13 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
     private static DefaultRedisScript<Long> consumeScript() {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
         script.setLocation(new ClassPathResource("lua/email_login_code_state_consume.lua"));
+        script.setResultType(Long.class);
+        return script;
+    }
+
+    private static DefaultRedisScript<Long> recordFailureScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("lua/email_login_code_state_record_failure.lua"));
         script.setResultType(Long.class);
         return script;
     }

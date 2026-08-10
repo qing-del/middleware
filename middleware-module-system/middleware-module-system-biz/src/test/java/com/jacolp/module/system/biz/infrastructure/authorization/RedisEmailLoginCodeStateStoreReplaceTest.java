@@ -124,6 +124,7 @@ class RedisEmailLoginCodeStateStoreReplaceTest {
                 new EmailLoginCodeStateCodec(),
                 Clock.fixed(now, ZoneOffset.UTC),
                 script,
+                new DefaultRedisScript<>(),
                 new DefaultRedisScript<>());
     }
 
