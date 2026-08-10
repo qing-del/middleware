@@ -3,21 +3,21 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper">
         <insert id="upsertCreator" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
-                INSERT INTO sys_user (id, username, password, email, role_id, grant_types, status, create_time, update_time)
-                VALUES (#{id}, #{username}, #{password}, #{email}, #{roleId}, #{grantTypes}, #{status}, now(), now())
+                INSERT INTO sys_user (id, username, password, email, role_id, extra_grant_types, status, create_time, update_time)
+                VALUES (#{id}, #{username}, #{password}, #{email}, #{roleId}, #{extraGrantTypes}, #{status}, now(), now())
                 ON DUPLICATE KEY UPDATE
                 username = #{username},
                 password = #{password},
                 email = #{email},
                 role_id = #{roleId},
-                grant_types = #{grantTypes},
+                extra_grant_types = #{extraGrantTypes},
                 status = #{status},
                 update_time = now()
         </insert>
 
     <insert id="insertUser" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO sys_user (username, password, email, role_id, grant_types, status, max_storage_bytes, create_time, update_time)
-        VALUES (#{username}, #{password}, #{email}, #{roleId}, #{grantTypes}, #{status}, #{maxStorageBytes}, now(), now())
+        INSERT INTO sys_user (username, password, email, role_id, extra_grant_types, status, max_storage_bytes, create_time, update_time)
+        VALUES (#{username}, #{password}, #{email}, #{roleId}, #{extraGrantTypes}, #{status}, #{maxStorageBytes}, now(), now())
     </insert>
 
     <update id="updateById" parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
@@ -38,8 +38,8 @@
                     <if test="roleId != null">
                         role_id = #{roleId},
                     </if>
-                    <if test="grantTypes != null and grantTypes != ''">
-                        grant_types = #{grantTypes},
+                    <if test="extraGrantTypes != null">
+                        extra_grant_types = #{extraGrantTypes},
                     </if>
                     <if test="status != null">
                         status = #{status},
@@ -62,7 +62,7 @@
                     u.nickname,
                     u.email,
                     u.role_id,
-                    u.grant_types,
+                    u.extra_grant_types,
                     u.max_storage_bytes,
                     u.used_storage_bytes,
                     u.status,
@@ -102,7 +102,7 @@
     </delete>
 
     <select id="selectByIds" resultType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO">
-        SELECT id, username, nickname, email, role_id, grant_types, status, create_time, update_time
+        SELECT id, username, nickname, email, role_id, extra_grant_types, status, create_time, update_time
         FROM sys_user
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
@@ -111,11 +111,11 @@
     </select>
 
     <insert id="upsertUser">
-        insert into sys_user (id, username, nickname, email, role_id, grant_types, max_storage_bytes,
+        insert into sys_user (id, username, nickname, email, role_id, extra_grant_types, max_storage_bytes,
                               used_storage_bytes, status, create_time, update_time)
         values
         <foreach collection="users" item="user" separator=",">
-            (#{user.id}, #{user.username}, #{user.nickname}, #{user.email}, #{user.roleId}, #{user.grantTypes}, #{user.maxStorageBytes},
+            (#{user.id}, #{user.username}, #{user.nickname}, #{user.email}, #{user.roleId}, #{user.extraGrantTypes}, #{user.maxStorageBytes},
             #{user.usedStorageBytes}, #{user.status}, now(), now())
         </foreach>
         on duplicate key update
@@ -123,7 +123,7 @@
         nickname = values(nickname),
         email = values(email),
         role_id = values(role_id),
-        grant_types = values(grant_types),
+        extra_grant_types = values(extra_grant_types),
         max_storage_bytes = values(max_storage_bytes),
         used_storage_bytes = values(used_storage_bytes),
         status = values(status),

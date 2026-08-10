@@ -5,7 +5,7 @@ import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
-import com.jacolp.module.system.biz.application.authorization.UserGrantTypePolicy;
+import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserRegisterDTO;
@@ -33,7 +33,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class UserGrantTypeWritePathTest {
+class UserExtraGrantTypeWritePathTest {
 
     @AfterEach
     void clearContext() {
@@ -41,21 +41,18 @@ class UserGrantTypeWritePathTest {
     }
 
     @Test
-    void fixedPolicyMapsOnlyTheThreeSupportedRoles() {
-        assertThat(UserGrantTypePolicy.forRoleId(RoleConstant.USER))
-                .isEqualTo("password,user_password,agent_client");
-        assertThat(UserGrantTypePolicy.forRoleId(RoleConstant.ADMIN))
-                .isEqualTo("admin_password,agent_client");
-        assertThat(UserGrantTypePolicy.forRoleId(RoleConstant.CREATOR))
-                .isEqualTo("admin_password,agent_client");
-        assertThatThrownBy(() -> UserGrantTypePolicy.forRoleId(99L))
+    void roleDirectoryPolicyWritesNoExtraGrantForTheThreeSupportedRoles() {
+        assertThat(UserExtraGrantTypePolicy.forRoleId(RoleConstant.USER)).isEmpty();
+        assertThat(UserExtraGrantTypePolicy.forRoleId(RoleConstant.ADMIN)).isEmpty();
+        assertThat(UserExtraGrantTypePolicy.forRoleId(RoleConstant.CREATOR)).isEmpty();
+        assertThatThrownBy(() -> UserExtraGrantTypePolicy.forRoleId(99L))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> UserGrantTypePolicy.forRoleId(null))
+        assertThatThrownBy(() -> UserExtraGrantTypePolicy.forRoleId(null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void userRegistrationWritesTheUserGrantSetExplicitly() {
+    void userRegistrationWritesNoExplicitExtraGrant() {
         UserMapper userMapper = mock(UserMapper.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         TokenSessionService tokenSessionService = mock(TokenSessionService.class);
@@ -86,11 +83,11 @@ class UserGrantTypeWritePathTest {
         service.register(dto);
 
         assertThat(inserted.get().getRoleId()).isEqualTo(RoleConstant.USER);
-        assertThat(inserted.get().getGrantTypes()).isEqualTo("password,user_password,agent_client");
+        assertThat(inserted.get().getExtraGrantTypes()).isEmpty();
     }
 
     @Test
-    void adminCreateAndRoleChangeWriteTheGrantSetForTheirTargetRole() {
+    void adminCreateAndRoleChangeExplicitlyClearExtraGrantsForTheirTargetRole() {
         UserMapper userMapper = mock(UserMapper.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         UserProfileEventPublisher userProfileEvents = mock(UserProfileEventPublisher.class);
@@ -117,7 +114,7 @@ class UserGrantTypeWritePathTest {
 
         ArgumentCaptor<UserDO> inserted = ArgumentCaptor.forClass(UserDO.class);
         verify(userMapper).insertUser(inserted.capture());
-        assertThat(inserted.getValue().getGrantTypes()).isEqualTo("admin_password,agent_client");
+        assertThat(inserted.getValue().getExtraGrantTypes()).isEmpty();
 
         when(userMapper.updateById(any(UserDO.class))).thenReturn(1);
         when(userMapper.selectById(2L)).thenReturn(user(2L, RoleConstant.USER));
@@ -129,11 +126,11 @@ class UserGrantTypeWritePathTest {
 
         ArgumentCaptor<UserDO> updated = ArgumentCaptor.forClass(UserDO.class);
         verify(userMapper).updateById(updated.capture());
-        assertThat(updated.getValue().getGrantTypes()).isEqualTo("password,user_password,agent_client");
+        assertThat(updated.getValue().getExtraGrantTypes()).isEmpty();
     }
 
     @Test
-    void creatorBootstrapWritesThePrivilegedGrantSetExplicitly() throws Exception {
+    void creatorBootstrapWritesNoExplicitExtraGrant() throws Exception {
         UserMapper userMapper = mock(UserMapper.class);
         RoleMapper roleMapper = mock(RoleMapper.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
@@ -155,7 +152,7 @@ class UserGrantTypeWritePathTest {
         ArgumentCaptor<UserDO> creator = ArgumentCaptor.forClass(UserDO.class);
         verify(userMapper).upsertCreator(creator.capture());
         assertThat(creator.getValue().getRoleId()).isEqualTo(RoleConstant.CREATOR);
-        assertThat(creator.getValue().getGrantTypes()).isEqualTo("admin_password,agent_client");
+        assertThat(creator.getValue().getExtraGrantTypes()).isEmpty();
     }
 
     private static UserDO user(Long id, Long roleId) {

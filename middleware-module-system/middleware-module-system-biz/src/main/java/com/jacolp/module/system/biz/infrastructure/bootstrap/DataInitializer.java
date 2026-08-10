@@ -2,7 +2,7 @@ package com.jacolp.module.system.biz.infrastructure.bootstrap;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.module.system.biz.application.authorization.UserGrantTypePolicy;
+import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.RoleDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.RoleMapper;
@@ -69,7 +69,7 @@ public class DataInitializer implements CommandLineRunner {
         creator.setPassword(passwordEncoder.encode(adminPassword));
         creator.setEmail(adminEmail);
         creator.setRoleId(RoleConstant.CREATOR);
-        creator.setGrantTypes(UserGrantTypePolicy.forRoleId(creator.getRoleId()));
+        creator.setExtraGrantTypes(UserExtraGrantTypePolicy.forRoleId(creator.getRoleId()));
         creator.setStatus(UserConstant.ACTIVE_STATUS);
         creator.setMaxStorageBytes(RoleDataComputerUtil.getStorage(RoleConstant.CREATOR));
         int count = userMapper.upsertCreator(creator);

@@ -11,29 +11,36 @@ import org.springframework.core.io.ClassPathResource;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AuthorizationFoundationMapperContractTest {
 
     @Test
-    void userGrantTypesAreMappedSafelyAcrossExistingReadAndWritePaths() throws Exception {
-        assertThat(field(UserDO.class, "grantTypes").getType()).isEqualTo(String.class);
+    void userExtraGrantTypesAreMappedSafelyAcrossExistingReadAndWritePaths() throws Exception {
+        assertThat(field(UserDO.class, "extraGrantTypes").getType()).isEqualTo(String.class);
+        assertThat(Arrays.stream(UserDO.class.getDeclaredFields()).map(Field::getName))
+                .doesNotContain("grantTypes");
 
         Method byRoleId = UserMapper.class.getMethod("selectByRoleId", Integer.class);
         assertThat(byRoleId.getAnnotation(Select.class).value())
-                .containsExactly("select id, username, nickname, email, role_id, grant_types, status from sys_user where role_id = #{roleId}");
+                .containsExactly("select id, username, nickname, email, role_id, extra_grant_types, status from sys_user where role_id = #{roleId}");
 
         String mapperXml = new ClassPathResource("mapper/UserMapper.xml")
                 .getContentAsString(StandardCharsets.UTF_8);
         assertThat(mapperXml)
-                .contains("INSERT INTO sys_user (id, username, password, email, role_id, grant_types, status")
-                .contains("<if test=\"grantTypes != null and grantTypes != ''\">")
-                .contains("u.grant_types")
-                .contains("role_id, grant_types, status")
-                .contains("INSERT INTO sys_user (username, password, email, role_id, grant_types")
-                .contains("insert into sys_user (id, username, nickname, email, role_id, grant_types")
-                .contains("grant_types = values(grant_types)");
+                .contains("INSERT INTO sys_user (id, username, password, email, role_id, extra_grant_types, status")
+                .contains("<if test=\"extraGrantTypes != null\">")
+                .contains("u.extra_grant_types")
+                .contains("role_id, extra_grant_types, status")
+                .contains("INSERT INTO sys_user (username, password, email, role_id, extra_grant_types")
+                .contains("insert into sys_user (id, username, nickname, email, role_id, extra_grant_types")
+                .contains("extra_grant_types = values(extra_grant_types)")
+                .doesNotContain("grantTypes")
+                .doesNotContain("extraGrantTypes != null and extraGrantTypes != ''");
+        assertThat(Pattern.compile("(?<!extra_)grant_types").matcher(mapperXml).find()).isFalse();
     }
 
     @Test

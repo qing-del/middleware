@@ -3,7 +3,7 @@ package com.jacolp.module.system.biz.application.service.impl;
 import com.jacolp.module.system.biz.infrastructure.security.PasswordEncoder;
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.module.system.biz.application.authorization.UserGrantTypePolicy;
+import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.exception.NotFindUserException;
@@ -102,7 +102,7 @@ public class UserUserServiceImpl implements UserUserService {
         user.setNickname(userRegisterDTO.getUsername());    // 默认昵称为用户名
         user.setEmail(userRegisterDTO.getEmail());  // 设置邮箱
         user.setRoleId(RoleConstant.USER);
-        user.setGrantTypes(UserGrantTypePolicy.forRoleId(user.getRoleId()));
+        user.setExtraGrantTypes(UserExtraGrantTypePolicy.forRoleId(user.getRoleId()));
         user.setStatus(UserConstant.UNACTIVE_STATUS);   // 默认用户状态为未激活
         user.setMaxStorageBytes(RoleConstant.USER_MAX_STORAGE_BYTES);   // 默认用户存储空间为 100MB
 
