@@ -135,6 +135,67 @@ class EmailLoginCodeIssuanceServiceTest {
         verify(rejected.delivery, never()).deliver(any());
     }
 
+    @Test
+    void nullLookupAndNullAccountEmailFailClosedAfterProtecting() {
+        Fixture nullLookup = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        when(nullLookup.accounts.findByEmail("alice@example.test")).thenReturn(null);
+        assertThatThrownBy(() -> nullLookup.service.issue(request())).isInstanceOf(IllegalStateException.class);
+        verify(nullLookup.generator).generate();
+        verify(nullLookup.protector).protect("012345");
+        verify(nullLookup.states, never()).replace(any());
+
+        Fixture nullEmail = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount account =
+                new com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount(
+                        7L, "alice", "$2a$10$" + "b".repeat(53), null, 3L, "", 1);
+        when(nullEmail.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(account));
+        nullEmail.service.issue(request());
+        verify(nullEmail.eligibility, never()).resolve(any(), any());
+        verify(nullEmail.states, never()).replace(any());
+        verify(nullEmail.delivery, never()).deliver(any());
+    }
+
+    @Test
+    void invalidClearedIdentitiesFailClosedWithoutStateOrDelivery() {
+        for (com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount cleared :
+                new com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount[]{
+                        null,
+                        new com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount(
+                                8L, "alice", "alice@example.test", 3L, "USER", 3),
+                        new com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount(
+                                7L, "alice", "other@example.test", 3L, "USER", 3)}) {
+            Fixture fixture = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+            when(fixture.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(fixture.account));
+            when(fixture.eligibility.resolve(any(), any())).thenReturn(cleared);
+            assertThatThrownBy(() -> fixture.service.issue(request())).isInstanceOf(IllegalStateException.class);
+            verify(fixture.states, never()).replace(any());
+            verify(fixture.delivery, never()).deliver(any());
+        }
+    }
+
+    @Test
+    void dependencyFailuresPropagateWithoutLaterSideEffectsAndDeliveryErrorCleansUp() {
+        Fixture limiterFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        IllegalStateException limiterError = new IllegalStateException("limiter");
+        when(limiterFailure.limiter.tryAcquire(any())).thenThrow(limiterError);
+        assertThatThrownBy(() -> limiterFailure.service.issue(request())).isSameAs(limiterError);
+        verify(limiterFailure.generator, never()).generate();
+
+        Fixture eligibilityFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        when(eligibilityFailure.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(eligibilityFailure.account));
+        IllegalStateException eligibilityError = new IllegalStateException("eligibility");
+        when(eligibilityFailure.eligibility.resolve(any(), any())).thenThrow(eligibilityError);
+        assertThatThrownBy(() -> eligibilityFailure.service.issue(request())).isSameAs(eligibilityError);
+        verify(eligibilityFailure.states, never()).replace(any());
+
+        Fixture errorDelivery = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        when(errorDelivery.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(errorDelivery.account));
+        AssertionError error = new AssertionError("smtp");
+        org.mockito.Mockito.doThrow(error).when(errorDelivery.delivery).deliver(any());
+        assertThatThrownBy(() -> errorDelivery.service.issue(request())).isSameAs(error);
+        verify(errorDelivery.states).delete("user", 7L);
+    }
+
 
     private static EmailLoginCodeIssueRequest request() {
         return new EmailLoginCodeIssueRequest("user", "alice@example.test", "192.0.2.1");
