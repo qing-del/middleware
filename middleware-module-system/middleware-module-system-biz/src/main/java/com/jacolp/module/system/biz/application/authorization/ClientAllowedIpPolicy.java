@@ -195,7 +195,7 @@ public final class ClientAllowedIpPolicy {
             boolean compressed = compressedAt >= 0;
             String leftValue = compressed ? value.substring(0, compressedAt) : value;
             String rightValue = compressed ? value.substring(compressedAt + 2) : "";
-            List<Integer> left = parseIpv6Side(leftValue, !compressed || rightValue.isEmpty());
+            List<Integer> left = parseIpv6Side(leftValue, !compressed);
             List<Integer> right = compressed ? parseIpv6Side(rightValue, true) : List.of();
             int groupCount = left.size() + right.size();
             if ((compressed && groupCount >= 8) || (!compressed && groupCount != 8)) {

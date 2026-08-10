@@ -26,6 +26,15 @@ class ClientAllowedIpPolicyTest {
     }
 
     @Test
+    void ipv6AllowsAnEmbeddedIpv4TailOnlyAtTheEndOfTheEntireLiteral() {
+        assertThat(ClientAllowedIpPolicy.parse("::ffff:192.0.2.1/128").allows("::ffff:192.0.2.1")).isTrue();
+        assertThat(ClientAllowedIpPolicy.parse("2001:db8::192.0.2.1/128").allows("2001:db8::192.0.2.1"))
+                .isTrue();
+        assertThat(ClientAllowedIpPolicy.parse("2001:db8:0:0:0:0:192.0.2.1/128")
+                .allows("2001:db8:0:0:0:0:192.0.2.1")).isTrue();
+    }
+
+    @Test
     void matchesAnyConfiguredCidrButNeverMatchesAcrossAddressFamilies() {
         ClientAllowedIpPolicy policy = ClientAllowedIpPolicy.parse("192.0.2.0/24, 2001:db8::/64");
 
@@ -58,6 +67,8 @@ class ClientAllowedIpPolicyTest {
         assertInvalidConfiguration("192.0.2.1/24,192.0.2.2/24");
         assertInvalidConfiguration("2001:db8:::1/64");
         assertInvalidConfiguration("2001:db8::1::2/64");
+        assertInvalidConfiguration("192.0.2.1::/64");
+        assertInvalidConfiguration("2001:db8:192.0.2.1::/64");
     }
 
     @Test
@@ -70,6 +81,8 @@ class ClientAllowedIpPolicyTest {
         assertInvalidRemote(policy, "192.0.2.1/24");
         assertInvalidRemote(policy, "999.0.2.1");
         assertInvalidRemote(policy, "2001:db8:::1");
+        assertInvalidRemote(policy, "192.0.2.1::");
+        assertInvalidRemote(policy, "2001:db8:192.0.2.1::");
     }
 
     private static void assertInvalidConfiguration(String allowedIps) {
