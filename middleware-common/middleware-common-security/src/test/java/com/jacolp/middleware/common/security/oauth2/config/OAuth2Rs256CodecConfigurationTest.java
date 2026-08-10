@@ -5,6 +5,8 @@ import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueReques
 import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
 import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
 import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
+import com.jacolp.middleware.common.security.oauth2.token.AccessTokenBlacklistStore;
+import com.jacolp.middleware.common.security.oauth2.jwt.AccessTokenBlacklistJwtValidator;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -15,6 +17,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -38,6 +42,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
 
 class OAuth2Rs256CodecConfigurationTest {
 
@@ -70,6 +75,8 @@ class OAuth2Rs256CodecConfigurationTest {
             assertThat(context.getBeansOfType(JwtDecoder.class)).isEmpty();
             assertThat(context.getBeansOfType(SecureOAuth2TokenGenerator.class)).isEmpty();
             assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).isEmpty();
+            assertThat(context.getBeansOfType(AccessTokenBlacklistStore.class)).isEmpty();
+            assertThat(context.getBeansOfType(AccessTokenBlacklistJwtValidator.class)).isEmpty();
         });
     }
 
@@ -107,6 +114,21 @@ class OAuth2Rs256CodecConfigurationTest {
             assertThat(decoded.getClaimAsStringList("roles")).containsExactly("USER");
             assertThat(decoded.getClaimAsStringList("scope")).containsExactly("*:read", "note:read");
             assertThat(Duration.between(issued.issuedAt(), issued.expiresAt())).isEqualTo(Duration.ofMinutes(5));
+        });
+    }
+
+    @Test
+    void enabledConfigurationRejectsBlacklistedOrUnavailableJti() {
+        enabledContext().run(context -> {
+            StringRedisTemplate redis = context.getBean(StringRedisTemplate.class);
+            IssuedAccessToken issued = context.getBean(Rs256AccessTokenIssuer.class).issue(
+                    new AccessTokenIssueRequest(1, "client", "password", "alice", "USER", Set.of(), Duration.ofMinutes(5)));
+            JwtDecoder decoder = context.getBean(JwtDecoder.class);
+            assertThat(decoder.decode(issued.tokenValue()).getId()).isEqualTo(issued.jti());
+            when(redis.hasKey("user:blacklist:access:" + issued.jti())).thenReturn(true);
+            assertThatThrownBy(() -> decoder.decode(issued.tokenValue())).isInstanceOf(JwtException.class);
+            when(redis.hasKey("user:blacklist:access:" + issued.jti())).thenThrow(new IllegalStateException("redis down"));
+            assertThatThrownBy(() -> decoder.decode(issued.tokenValue())).isInstanceOf(JwtException.class);
         });
     }
 
@@ -164,7 +186,7 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     private ApplicationContextRunner enabledContext() {
-        return contextRunner.withPropertyValues(
+        return contextRunner.withUserConfiguration(RedisConfiguration.class).withPropertyValues(
                 "jacolp.oauth2.rs256.enabled=true",
                 "jacolp.oauth2.rs256.private-key-location=" + privateKey.toUri(),
                 "jacolp.oauth2.rs256.public-key-location=" + publicKey.toUri());
@@ -188,7 +210,7 @@ class OAuth2Rs256CodecConfigurationTest {
                 .audience(List.of(audience))
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
-                .id("test-jti")
+                .id("AAECAwQFBgcICQoLDA0ODw")
                 .build();
     }
 
@@ -224,5 +246,13 @@ class OAuth2Rs256CodecConfigurationTest {
     @Configuration(proxyBeanMethods = false)
     @EnableConfigurationProperties(OAuth2Rs256Properties.class)
     static class PropertiesConfiguration {
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class RedisConfiguration {
+        @Bean
+        StringRedisTemplate stringRedisTemplate() {
+            return mock(StringRedisTemplate.class);
+        }
     }
 }
