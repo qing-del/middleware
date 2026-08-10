@@ -1,0 +1,151 @@
+package com.jacolp.module.system.biz.infrastructure.persistence;
+
+import com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount;
+import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.module.system.biz.infrastructure.persistence.repository.MyBatisAuthorizationAccountRepository;
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Method;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+
+class AuthorizationAccountPersistenceTest {
+
+    @Test
+    void applicationPortDoesNotExposeInfrastructureTypes() {
+        for (Method method : AuthorizationAccountRepository.class.getDeclaredMethods()) {
+            assertThat(method.getGenericReturnType().getTypeName()).doesNotContain(".infrastructure.persistence.");
+            for (java.lang.reflect.Type parameterType : method.getGenericParameterTypes()) {
+                assertThat(parameterType.getTypeName()).doesNotContain(".infrastructure.persistence.");
+            }
+        }
+    }
+
+    @Test
+    void findByIdMapsAllAuthorizationAccountFieldsAndTreatsMissingRowsAsEmpty() {
+        UserMapper mapper = mock(UserMapper.class);
+        MyBatisAuthorizationAccountRepository repository = new MyBatisAuthorizationAccountRepository(mapper);
+        UserDO user = user(7L, "alice", "alice@example.test");
+        when(mapper.selectById(7L)).thenReturn(user);
+        when(mapper.selectById(8L)).thenReturn(null);
+
+        assertThat(repository.findById(7L)).contains(account(user));
+        assertThat(repository.findById(8L)).isEmpty();
+        assertThat(repository.findById(null)).isEmpty();
+
+        verify(mapper).selectById(7L);
+        verify(mapper).selectById(8L);
+        verifyNoMoreInteractions(mapper);
+    }
+
+    @Test
+    void findByUsernameMapsAllAuthorizationAccountFieldsAndTreatsMissingRowsAsEmpty() {
+        UserMapper mapper = mock(UserMapper.class);
+        MyBatisAuthorizationAccountRepository repository = new MyBatisAuthorizationAccountRepository(mapper);
+        UserDO user = user(7L, "alice", "alice@example.test");
+        when(mapper.selectByUsername("alice")).thenReturn(user);
+        when(mapper.selectByUsername("missing")).thenReturn(null);
+
+        assertThat(repository.findByUsername("alice")).contains(account(user));
+        assertThat(repository.findByUsername("missing")).isEmpty();
+        assertThat(repository.findByUsername(null)).isEmpty();
+
+        verify(mapper).selectByUsername("alice");
+        verify(mapper).selectByUsername("missing");
+        verifyNoMoreInteractions(mapper);
+    }
+
+    @Test
+    void findByEmailMapsAllAuthorizationAccountFieldsAndTreatsMissingRowsAsEmpty() {
+        UserMapper mapper = mock(UserMapper.class);
+        MyBatisAuthorizationAccountRepository repository = new MyBatisAuthorizationAccountRepository(mapper);
+        UserDO user = user(7L, "alice", "alice@example.test");
+        when(mapper.selectByEmail("alice@example.test")).thenReturn(user);
+        when(mapper.selectByEmail("missing@example.test")).thenReturn(null);
+
+        assertThat(repository.findByEmail("alice@example.test")).contains(account(user));
+        assertThat(repository.findByEmail("missing@example.test")).isEmpty();
+        assertThat(repository.findByEmail(null)).isEmpty();
+
+        verify(mapper).selectByEmail("alice@example.test");
+        verify(mapper).selectByEmail("missing@example.test");
+        verifyNoMoreInteractions(mapper);
+    }
+
+    @Test
+    void modelAllowsTheSchemaDefaultEmptyExtraGrantTypesButDoesNotLeakPasswordHash() {
+        AuthorizationAccount account = new AuthorizationAccount(7L, "alice", "stored-secret", "alice@example.test",
+                3L, "", 1);
+
+        assertThat(account.toString()).doesNotContain("stored-secret");
+    }
+
+    @Test
+    void modelRejectsInvalidSecurityFields() {
+        assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(null, "alice", "hash",
+                "alice@example.test", 3L, "", 1));
+        assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(7L, " ", "hash",
+                "alice@example.test", 3L, "", 1));
+        assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(7L, "alice", " ",
+                "alice@example.test", 3L, "", 1));
+        assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(7L, "alice", "hash", " ",
+                3L, "", 1));
+        assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(7L, "alice", "hash",
+                "alice@example.test", 0L, "", 1));
+        assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(7L, "alice", "hash",
+                "alice@example.test", 3L, null, 1));
+        assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(7L, "alice", "hash",
+                "alice@example.test", 3L, "", null));
+    }
+
+    @Test
+    void nullLookupArgumentsDoNotCallMapper() {
+        UserMapper mapper = mock(UserMapper.class);
+        MyBatisAuthorizationAccountRepository repository = new MyBatisAuthorizationAccountRepository(mapper);
+
+        assertThat(repository.findById(null)).isEmpty();
+        assertThat(repository.findByUsername(null)).isEmpty();
+        assertThat(repository.findByEmail(null)).isEmpty();
+
+        verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void mapperFailuresPropagateInsteadOfBeingTreatedAsAMissingAccount() {
+        UserMapper mapper = mock(UserMapper.class);
+        MyBatisAuthorizationAccountRepository repository = new MyBatisAuthorizationAccountRepository(mapper);
+        IllegalStateException failure = new IllegalStateException("database unavailable");
+        when(mapper.selectByUsername("alice")).thenThrow(failure);
+
+        assertThatThrownBy(() -> repository.findByUsername("alice")).isSameAs(failure);
+
+        verify(mapper).selectByUsername("alice");
+        verifyNoMoreInteractions(mapper);
+    }
+
+    private static UserDO user(Long id, String username, String email) {
+        UserDO user = new UserDO();
+        user.setId(id);
+        user.setUsername(username);
+        user.setPassword("stored-secret");
+        user.setEmail(email);
+        user.setRoleId(3L);
+        user.setExtraGrantTypes("");
+        user.setStatus(1);
+        return user;
+    }
+
+    private static AuthorizationAccount account(UserDO user) {
+        return new AuthorizationAccount(user.getId(), user.getUsername(), user.getPassword(), user.getEmail(),
+                user.getRoleId(), user.getExtraGrantTypes(), user.getStatus());
+    }
+}
