@@ -75,6 +75,7 @@ public class EmailLoginCodeAuthenticator {
         if (!requestedFingerprint.equals(state.emailFingerprint())) {
             dummyReject(request.rawCode());
         }
+        boolean codeMatches = protector.matches(request.rawCode(), state.verifierHash());
         Instant now = clock.instant();
         if (state.issuedAt().isAfter(now)) {
             stateStore.delete(policy.clientId(), account.userId());
@@ -84,7 +85,7 @@ public class EmailLoginCodeAuthenticator {
             stateStore.delete(policy.clientId(), account.userId());
             throw rejected();
         }
-        if (!protector.matches(request.rawCode(), state.verifierHash())) {
+        if (!codeMatches) {
             EmailLoginCodeFailureDecision decision = stateStore.recordFailure(
                     policy.clientId(), account.userId(), state.verifierHash(), properties.getMaxFailedAttempts());
             if (decision == null) {

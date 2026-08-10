@@ -66,6 +66,25 @@ class EmailLoginCodeAuthenticatorTest {
         verify(fixture.protector).matches("012345", null);
     }
 
+    @Test
+    void futureAndExpiredStatesMatchOnceThenDeleteWithoutFailureOrConsumption() {
+        for (EmailLoginCodeState state : new EmailLoginCodeState[]{
+                state(Instant.EPOCH.plusSeconds(1), Instant.EPOCH.plus(Duration.ofMinutes(10))),
+                state(Instant.EPOCH.minus(Duration.ofMinutes(10)), Instant.EPOCH)}) {
+            Fixture fixture = fixture();
+            when(fixture.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(fixture.account));
+            when(fixture.states.find("user", 7L)).thenReturn(Optional.of(state));
+            when(fixture.protector.matches("012345", state.verifierHash())).thenReturn(false);
+
+            assertThatThrownBy(() -> fixture.authenticator.authenticate(fixture.policy, request()))
+                    .isInstanceOf(RuntimeException.class);
+            verify(fixture.protector).matches("012345", state.verifierHash());
+            verify(fixture.states).delete("user", 7L);
+            org.mockito.Mockito.verify(fixture.states, org.mockito.Mockito.never()).recordFailure(any(), any(), any(), any());
+            org.mockito.Mockito.verify(fixture.states, org.mockito.Mockito.never()).consume(any(), any(), any());
+        }
+    }
+
     private static EmailLoginCodeAuthenticationRequest request() {
         return new EmailLoginCodeAuthenticationRequest("alice@example.test", "012345");
     }
@@ -81,12 +100,16 @@ class EmailLoginCodeAuthenticatorTest {
         AuthorizationAccount account = new AuthorizationAccount(7L, "alice", "$2a$10$" + "b".repeat(53),
                 "alice@example.test", 3L, "", 1);
         String fingerprint = new EmailLoginBindingFingerprint().email("alice@example.test");
-        EmailLoginCodeState state = new EmailLoginCodeState("user", 7L, fingerprint, "$2a$10$" + "a".repeat(53),
-                0, Instant.EPOCH, Instant.EPOCH.plus(Duration.ofMinutes(10)));
+        EmailLoginCodeState state = state(Instant.EPOCH, Instant.EPOCH.plus(Duration.ofMinutes(10)));
         InternalAuthenticatedAccount cleared = new InternalAuthenticatedAccount(7L, "alice", "alice@example.test", 3L, "USER", 3);
         return new Fixture(new EmailLoginCodeAuthenticator(accounts, protector, states, eligibility,
                 new EmailLoginBindingFingerprint(), properties, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC)),
                 accounts, protector, states, eligibility, policy, account, state, cleared);
+    }
+
+    private static EmailLoginCodeState state(Instant issuedAt, Instant expiresAt) {
+        String fingerprint = new EmailLoginBindingFingerprint().email("alice@example.test");
+        return new EmailLoginCodeState("user", 7L, fingerprint, "$2a$10$" + "a".repeat(53), 0, issuedAt, expiresAt);
     }
 
     private record Fixture(EmailLoginCodeAuthenticator authenticator, AuthorizationAccountRepository accounts,
