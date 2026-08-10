@@ -88,6 +88,9 @@ class EmailLoginCodeIssuanceServiceTest {
         com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount account =
                 new com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount(
                         7L, "alice", "$2a$10$" + "b".repeat(53), "alice@example.test", 3L, "", 1);
+        when(eligibility.resolve(eq(policy), eq(account))).thenReturn(
+                new com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount(
+                        7L, "alice", "alice@example.test", 3L, "USER", 3));
         return new Fixture(new EmailLoginCodeIssuanceService(resolver, fingerprint, limiter, accounts, generator,
                 protector, eligibility, states, delivery, properties, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC)),
                 accounts, generator, protector, states, delivery, account);

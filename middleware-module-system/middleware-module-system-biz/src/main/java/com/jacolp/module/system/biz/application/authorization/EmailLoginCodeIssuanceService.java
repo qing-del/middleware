@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -115,10 +114,16 @@ public class EmailLoginCodeIssuanceService {
         if (account.email() == null || !emailFingerprint.equals(fingerprint.email(account.email()))) {
             return;
         }
+        com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount clearedAccount;
         try {
-            eligibilityService.resolve(policy, account);
+            clearedAccount = eligibilityService.resolve(policy, account);
         } catch (InternalAccountAuthenticationRejectedException exception) {
             return;
+        }
+        if (clearedAccount == null || !account.userId().equals(clearedAccount.userId())
+                || clearedAccount.email() == null
+                || !emailFingerprint.equals(fingerprint.email(clearedAccount.email()))) {
+            throw new IllegalStateException("Email-code account identity is inconsistent");
         }
 
         Instant issuedAt = clock.instant();
@@ -128,15 +133,14 @@ public class EmailLoginCodeIssuanceService {
         } catch (RuntimeException exception) {
             throw new IllegalStateException("Invalid email-code issuance expiry", exception);
         }
-        String canonicalEmail = account.email().trim().toLowerCase(Locale.ROOT);
-        EmailLoginCodeState state = new EmailLoginCodeState(policy.clientId(), account.userId(), emailFingerprint,
+        EmailLoginCodeState state = new EmailLoginCodeState(policy.clientId(), clearedAccount.userId(), emailFingerprint,
                 verifierHash, 0, issuedAt, expiresAt);
         stateStore.replace(state);
         try {
-            deliveryPort.deliver(new EmailLoginCodeDeliveryRequest(policy.clientId(), account.userId(), canonicalEmail,
-                    account.username(), rawCode, properties.getCodeTtl()));
+            deliveryPort.deliver(new EmailLoginCodeDeliveryRequest(policy.clientId(), clearedAccount.userId(),
+                    clearedAccount.email(), clearedAccount.username(), rawCode, properties.getCodeTtl()));
         } catch (RuntimeException | Error deliveryFailure) {
-            cleanupAfterDeliveryFailure(policy.clientId(), account.userId(), deliveryFailure);
+            cleanupAfterDeliveryFailure(policy.clientId(), clearedAccount.userId(), deliveryFailure);
         }
     }
 

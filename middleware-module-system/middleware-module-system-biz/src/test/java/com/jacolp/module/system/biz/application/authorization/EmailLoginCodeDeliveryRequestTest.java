@@ -30,6 +30,8 @@ class EmailLoginCodeDeliveryRequestTest {
         assertThatIllegalArgumentException().isThrownBy(() -> new EmailLoginCodeDeliveryRequest(
                 "user", 7L, " ", "alice", "012345", Duration.ofMinutes(1)));
         assertThatIllegalArgumentException().isThrownBy(() -> new EmailLoginCodeDeliveryRequest(
+                "user", 7L, "alice @example.test", "alice", "012345", Duration.ofMinutes(1)));
+        assertThatIllegalArgumentException().isThrownBy(() -> new EmailLoginCodeDeliveryRequest(
                 "user", 7L, "alice@example.test", " ", "012345", Duration.ofMinutes(1)));
         assertThatIllegalArgumentException().isThrownBy(() -> new EmailLoginCodeDeliveryRequest(
                 "user", 7L, "alice@example.test", "alice", "12345", Duration.ofMinutes(1)));

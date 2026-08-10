@@ -17,7 +17,7 @@ public record EmailLoginCodeDeliveryRequest(
     public EmailLoginCodeDeliveryRequest {
         if ((!"user".equals(clientId) && !"admin".equals(clientId))
                 || userId == null || userId <= 0
-                || email == null || email.isBlank() || email.length() > 100
+                || !isValidEmail(email)
                 || username == null || username.isBlank() || username.length() > 100
                 || rawCode == null || !CODE.matcher(rawCode).matches()
                 || ttl == null || ttl.isZero() || ttl.isNegative() || ttl.compareTo(Duration.ofMinutes(10)) > 0) {
@@ -37,5 +37,11 @@ public record EmailLoginCodeDeliveryRequest(
     public String toString() {
         return "EmailLoginCodeDeliveryRequest[clientId=" + clientId + ", userId=" + userId
                 + ", username=" + username + ", ttl=" + ttl + ']';
+    }
+
+    private static boolean isValidEmail(String email) {
+        return email != null && !email.isBlank() && email.length() <= 100
+                && email.codePoints().noneMatch(codePoint -> Character.isWhitespace(codePoint)
+                || Character.isSpaceChar(codePoint) || Character.isISOControl(codePoint));
     }
 }
