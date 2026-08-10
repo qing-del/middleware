@@ -2,24 +2,59 @@ package com.jacolp.middleware.common.security.oauth2.token;
 
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.core.io.ClassPathResource;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-/** Read/delete adapter; atomic issuance and rotation are deliberately separate. */
+/** Redis adapter for OAuth2 state; refresh rotation is deliberately separate. */
 public final class RedisOAuth2TokenStateStore implements OAuth2TokenStateStore {
     private static final Pattern FP = Pattern.compile("[A-Za-z0-9_-]{43}");
     private static final Pattern CLIENT = Pattern.compile("[A-Za-z0-9_-]{1,100}");
+    private static final RedisScript<Long> REPLACE_CURRENT_SESSION = replaceCurrentSessionScript();
 
     private final StringRedisTemplate redis;
     private final OAuth2TokenStateCodec codec;
+    private final Clock clock;
 
     public RedisOAuth2TokenStateStore(StringRedisTemplate redis, OAuth2TokenStateCodec codec) {
+        this(redis, codec, Clock.systemUTC());
+    }
+
+    public RedisOAuth2TokenStateStore(StringRedisTemplate redis, OAuth2TokenStateCodec codec, Clock clock) {
         this.redis = Objects.requireNonNull(redis);
         this.codec = Objects.requireNonNull(codec);
+        this.clock = Objects.requireNonNull(clock);
+    }
+
+    @Override
+    public void replaceCurrentSession(RefreshTokenState refreshState, OAuth2SessionState sessionState) {
+        Objects.requireNonNull(refreshState, "refreshState must not be null");
+        Objects.requireNonNull(sessionState, "sessionState must not be null");
+        validateIssuanceState(refreshState, sessionState);
+
+        long ttlMillis = positiveTtlMillis(refreshState.expiresAt());
+        Map<String, String> refreshValues = codec.encode(refreshState);
+        Map<String, String> sessionValues = codec.encode(sessionState);
+        List<Object> arguments = new ArrayList<>(2 + refreshValues.size() * 2 + sessionValues.size() * 2);
+        appendHashArguments(arguments, ttlMillis, codec.refreshFieldNames(), refreshValues);
+        appendHashArguments(arguments, ttlMillis, codec.sessionFieldNames(), sessionValues);
+        Long outcome = redis.execute(REPLACE_CURRENT_SESSION,
+                List.of(refreshKey(refreshState.fingerprint()), sessionKey(sessionState.clientId(), sessionState.userId())),
+                arguments.toArray());
+        if (!Long.valueOf(1L).equals(outcome)) {
+            throw new IllegalStateException("OAuth2 session replacement failed");
+        }
     }
 
     @Override
@@ -44,6 +79,39 @@ public final class RedisOAuth2TokenStateStore implements OAuth2TokenStateStore {
 
     @Override public void deleteRefresh(String fingerprint) { validateFingerprint(fingerprint); redis.delete(refreshKey(fingerprint)); }
     @Override public void deleteSession(String clientId, long userId) { validateSessionInput(clientId, userId); redis.delete(sessionKey(clientId, userId)); }
+
+    private static RedisScript<Long> replaceCurrentSessionScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("oauth2/token/replace-current-session.lua"));
+        script.setResultType(Long.class);
+        return script;
+    }
+
+    private void validateIssuanceState(RefreshTokenState refreshState, OAuth2SessionState sessionState) {
+        if (refreshState.userId() != sessionState.userId()
+                || !refreshState.clientId().equals(sessionState.clientId())
+                || !refreshState.fingerprint().equals(sessionState.currentRefreshFingerprint())
+                || !refreshState.expiresAt().equals(sessionState.refreshExpiresAt())) {
+            throw new IllegalArgumentException("refresh and session state must describe the same client-user refresh session");
+        }
+        if (sessionState.accessExpiresAt().isAfter(refreshState.expiresAt())) {
+            throw new IllegalArgumentException("access expiry must not exceed refresh expiry");
+        }
+    }
+
+    private long positiveTtlMillis(Instant expiresAt) {
+        long ttlMillis = Duration.between(clock.instant(), expiresAt).toMillis();
+        if (ttlMillis <= 0) throw new IllegalArgumentException("refresh and session TTL must be positive");
+        return ttlMillis;
+    }
+
+    private static void appendHashArguments(List<Object> arguments, long ttlMillis, List<String> fields, Map<String, String> values) {
+        arguments.add(Long.toString(ttlMillis));
+        for (String field : fields) {
+            arguments.add(field);
+            arguments.add(values.get(field));
+        }
+    }
 
     private Map<String, String> entries(String key) {
         HashOperations<String, Object, Object> hash = redis.opsForHash();
