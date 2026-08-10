@@ -7,5 +7,6 @@ import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCo
  * consumes cooldown and issue-window capacity.
  */
 public interface EmailLoginCodeIssueRateLimiter {
+
     EmailLoginCodeIssueRateLimitDecision tryAcquire(EmailLoginCodeIssueRateLimitRequest request);
 }
