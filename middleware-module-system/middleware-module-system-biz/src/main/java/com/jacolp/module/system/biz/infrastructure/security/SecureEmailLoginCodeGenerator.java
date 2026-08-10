@@ -1,5 +1,6 @@
 package com.jacolp.module.system.biz.infrastructure.security;
 
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeGenerator;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
@@ -8,7 +9,7 @@ import java.util.Objects;
 
 /** Generates unbiased six-digit decimal email login codes. */
 @Component
-public final class SecureEmailLoginCodeGenerator {
+public final class SecureEmailLoginCodeGenerator implements EmailLoginCodeGenerator {
     private static final int CODE_BOUND = 1_000_000;
     private final SecureRandom secureRandom;
 
@@ -20,6 +21,7 @@ public final class SecureEmailLoginCodeGenerator {
         this.secureRandom = Objects.requireNonNull(secureRandom, "secureRandom");
     }
 
+    @Override
     public String generate() {
         return String.format(Locale.ROOT, "%06d", secureRandom.nextInt(CODE_BOUND));
     }

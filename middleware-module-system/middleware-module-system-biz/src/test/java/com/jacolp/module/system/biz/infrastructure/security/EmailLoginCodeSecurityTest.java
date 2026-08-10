@@ -1,6 +1,7 @@
 package com.jacolp.module.system.biz.infrastructure.security;
 
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeProtector;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeGenerator;
 import org.junit.jupiter.api.Test;
 
 import java.security.SecureRandom;
@@ -13,6 +14,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class EmailLoginCodeSecurityTest {
+    @Test
+    void generatorImplementsAnApplicationOnlyPort() {
+        assertThat(EmailLoginCodeGenerator.class.getDeclaredMethods()[0].getGenericReturnType().getTypeName())
+                .doesNotContain(".infrastructure.");
+        assertThat(new SecureEmailLoginCodeGenerator()).isInstanceOf(EmailLoginCodeGenerator.class);
+    }
+
     @Test
     void generatorProducesSixDigitsAndPreservesLeadingZeroAtBoundaries() {
         SecureRandom random = mock(SecureRandom.class);
