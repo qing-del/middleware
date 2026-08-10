@@ -67,7 +67,7 @@
 目标：
 1. 建立新授权体系所需的数据模型和持久化基础。
 2. sys_role 增加 rank，后续角色等级不再依赖 role id。
-3. sys_user 增加 grant_types。
+3. sys_user 增加 extra_grant_types；默认账号授权模式由配置提供，不能与该字段形成两套真相。
 4. 新增授权方案中约定的：
    - oauth2_registered_client
    - oauth2_authorization_consent
@@ -75,7 +75,7 @@
    - sys_role_perm
 5. 规划对应 Entity / Mapper / XML / Repository / Service 边界。
 6. 规划 Client、Role、Permission 的初始化数据。
-7. 规划 module:operation 权限规则，以及 wildcard 权限的解析/展开方式。
+7. 规划 module:operation 权限规则，以及 Resource Server 对 wildcard 权限的匹配方式；JWT scope 不在签发时展开。
 8. 新增 middleware-open-api-agent 模块，但只能作为空模块占位：
    - 加入 Maven modules
    - 提供最小 pom
@@ -173,30 +173,16 @@
 本阶段只做规划，不修改代码。
 
 目标：
-1. 后端建立 Spring Authorization Server。
-2. USER 和 ADMIN 统一通过授权体系签发 RS256 access token。
-3. 统一 token endpoint。
-4. 按授权升级方案实现 user/admin 对应的授权方式。
-5. 规划 Client 校验：
-   - client_id
-   - client secret（如适用）
-   - status
-   - grant type
-   - allowed_ips
-6. 权限计算：
-   Client allowed scopes ∩ Role permissions
-7. 实现 access token + refresh token。
-8. refresh token 必须 rotation：
-   - 使用旧 refresh 成功后立即失效
-   - 返回新的 access + refresh
-9. logout 只注销当前 client + user session：
-   - access jti blacklist
-   - refresh 删除
-   - session 删除
-10. 现有 /user/user/login、/admin/user/login 可以暂时保留为后端 compatibility adapter，但不得继续自行签发旧 JWT。
-11. 本阶段只改后端。
-12. 禁止修改 frontend/。
-13. 不实现 Agent 业务接口。
+1. 后端建立 Spring Authorization Server，并将 USER / ADMIN 统一为 internal 登录体系，签发 RS256 access token。
+2. fixed registered client 仅为 `user`、`admin`、`core_agent`；本阶段只处理前两个。`user`、`admin`使用数据库认证方式 `internal`，不传 `client_secret`，且不等同于 public client。
+3. 仅保留 `POST /auth/login`、`POST /auth/logout` 作为 USER / ADMIN internal endpoint；目标架构删除 `/user/user/login`、`/admin/user/login`、`/user/user/logout`、`/admin/user/logout`，不保留 compatibility adapter。
+4. `/auth/login`按 `(client_id,grant_type)` 路由：client_id 仅 `user|admin`；grant_type 仅 `password|email-code`。校验 client status、client grant、账号默认/extra grant、账号状态和 socket remote address 的 `allowed_ips`。
+5. `sys_user.extra_grant_types`仅保存附加模式；账号配置默认模式为 `password,email-code,authorization_code`，不得将默认模式写入该字段；refresh_token 是 client 技术 grant。
+6. 新增独立 `POST /oauth/email-code`：`client_id,email`、6 位、10 分钟、同一 `(client,user)`单有效；每邮箱/每 IP 60 秒冷却且每小时 5 次，5 次兑换失败失效；Redis 仅存 BCrypt verifier 与绑定信息，成功原子消费，且绝不复用 activation/email-change 逻辑或泄漏账号存在性。
+7. 权限计算：有请求 scope 时为 client scopes ∩ rank-role permissions ∩ 请求 scopes；未请求时再∩ auto_approve。`*:super`只在 creator + client 允许 + 本次明确请求时签发。
+8. 实现 access token + refresh token；USER/ADMIN TTL 与 rotation 以 client `token_settings`为唯一来源。旧 refresh 成功后必须立即失效并返回新 access + refresh。
+9. `/auth/logout`只注销当前 client + user session：access jti blacklist、refresh 删除、session 删除；不得影响另一 client 的会话。
+10. 本阶段只改后端，禁止修改 frontend/，不实现 Agent 业务接口。
 
 重点检查：
 - system 模块现有 user/admin 登录 Controller / Service
@@ -210,11 +196,12 @@
 输出：
 - Authorization Server SecurityFilterChain 设计
 - Resource Server SecurityFilterChain 演进方式
-- extension grant / AuthenticationConverter / AuthenticationProvider 设计
+- internal client authentication、`/auth/login` password/email-code 路由，以及 AuthenticationConverter / AuthenticationProvider 设计
 - user/admin 登录调用链
+- email-code 发送、Redis 原子消费、限流与防枚举调用链
 - refresh rotation 数据结构
 - logout/revoke 调用链
-- legacy compatibility adapter 方案
+- 旧四条 user/admin login/logout route 删除顺序及无 adapter 的迁移边界
 - 精确文件计划
 - 测试矩阵
 - 上线切换和回滚策略
@@ -232,31 +219,28 @@
 本阶段只做规划，不修改代码。
 
 目标：
-1. 为 CORE AGENT / 第三方授权建立 Authorization Code + PKCE 后端能力。
-2. 使用 Spring Authorization Server 标准 authorization_code 流程。
-3. code_challenge_method 首期只支持 S256。
-4. Authorization Code 一次性使用，并按方案设置 TTL。
-5. 使用 oauth2_authorization_consent 保存用户授权。
-6. effective scope：
-   Client scopes ∩ Role permissions ∩ User consent
-7. 支持 auto_approve。
-8. 校验 redirect_uri、state、client status、账号 grant_types。
-9. 如果授权升级方案要求 IP binding，则规划统一 ClientIpResolver 和 trusted proxy 处理方式。
-10. middleware-open-api-agent 仍然保持空模块，不实现任何 Agent API。
-11. 不修改 frontend/。
-12. 如果需要一个最小授权/consent 页面能力，只规划后端所必需的最小实现，不进行前端 Vue 改造。
+1. 只为固定 client `core_agent`建立标准 OAuth Authorization Code + PKCE 后端能力；不得创建第三方 client、别名或恢复 `authorization_client`。
+2. `core_agent`是 public client，以 PKCE S256 为核心保证；DB grants 为 `authorization_code,refresh_token`。首次授权唯一使用 `response_type=code`，不得使用 `agent_client`自定义 grant 或依赖 client_secret。
+3. Authorization Endpoint 必须校验 active client、精确 registered `redirect_uri`、原始 `state`、唯一 S256、账号默认/extra grant；具体 Authorization Endpoint path 由 Authorization Server 设置确定，不能自行发明。
+4. 使用 `oauth2_authorization_consent`保存 consent；effective scope 为 client scopes ∩ rank-role permissions ∩ 本次用户 consent。
+5. 本阶段明确允许在 Spring Authorization Server 标准流程的必要扩展中使用 Redis auth-code cache：256-bit code TTL 10 分钟、成功兑换原子删除；不得另起协议级 auth_code Controller。
+6. cache 必须保存 client、精确 redirect URI、consent scopes、challenge/method、原始 socket remote address 与用户安全字段快照；`user:auth_code:{user_id}`原子指向当前 code，新 code 替换旧 code；`status,role_id,password,email,username,extra_grant_types`变更立即使当前 code 无效。
+7. `POST /oauth/token`完成 authorization_code 兑换与 refresh 技术 grant；core_agent access token 1h、refresh token 24h，强制 rotation；`POST /oauth/logout`注销当前 client + user session。兑换 IP 变化只告警，不拒绝。
+8. middleware-open-api-agent 仍然保持空模块，不实现任何 Agent API；不修改 frontend/。
+9. 如果需要一个最小授权/consent 页面能力，只规划后端所必需的最小实现，不进行前端 Vue 改造。
 
 重点：
 - 优先使用 Spring Authorization Server 自带 Authorization Code / OAuth2AuthorizationService 能力
-- 不重复手写一套协议级 auth_code Controller + Redis Map，除非方案明确要求且有充分理由
+- 不新增协议级 auth_code Controller；仅按方案在 Spring Authorization Server 标准流程中实现受控 Redis auth-code cache 扩展
 
 输出：
 - 完整授权时序
 - Authorization Server 相关扩展点
 - consent 持久化
 - PKCE 校验
-- auth code 生命周期
-- IP binding（如启用）
+- Redis auth-code 生命周期、user 指针和安全字段失效机制
+- socket remote address 记录与 IP 变化告警（首版不拒绝，且不信任 X-Forwarded-For）
+- `/oauth/token` code/refresh 与 `/oauth/logout`调用链
 - 精确文件计划
 - 测试矩阵
 - 回滚方案
@@ -284,6 +268,8 @@
 8. scope 权限和业务数据 ownership 必须分离。
 9. middleware-open-api-agent 保持空模块，不增加业务接口。
 10. 不修改 frontend/。
+11. JWT scope 可原样保留 `*:read`等通配 scope；Resource Server 鉴权工具负责通配匹配，不在签发时展开为具体权限。
+12. 仅接受固定 client `user`、`admin`、`core_agent`签发的目标 access token，不为其他 client 或已删除的 legacy route 保留认证旁路。
 
 重点检查：
 - 当前 /user/** 和 /admin/** 路由保护方式
@@ -332,7 +318,8 @@
 8. 如果 jjwt 已无用途，再规划移除依赖。
 9. middleware-open-api-agent 仍为空模块。
 10. 不修改 frontend/。
-11. 不删除旧登录兼容 endpoint，除非后端已明确不再依赖并且方案中已确认；前端切换仍属于后续计划。
+11. 授权目标已明确删除旧 `/user/user/login`、`/admin/user/login`、`/user/user/logout`、`/admin/user/logout`；本阶段核验无后端引用后完成路由、测试和配置清理，不保留 compatibility adapter。
+12. activation token 保持 legacy，除非后续单独授权重构；不得因本清理阶段一并改变其协议或语义。
 
 输出：
 - legacy reference inventory
@@ -371,16 +358,21 @@
 - refresh token rotation
 - logout/revoke
 - jti blacklist
-- Client 配置
+- 固定 Client 目录仅 `user`、`admin`、`core_agent`；`authorization_client`不存在，`agent_client`不是 grant
 - RBAC permission
 - role.rank
-- user/admin 统一授权体系
-- Authorization Code + PKCE
+- USER/ADMIN internal `POST /auth/login`、`POST /auth/logout`；无 `client_secret`、`password|email-code`、旧四条 login/logout route 已删除且无 adapter
+- 独立 `POST /oauth/email-code`的防枚举、限流、BCrypt Redis verifier、失败失效与原子消费
+- `sys_user.extra_grant_types`与配置默认账号 grant 集合；refresh 仅作为 client 技术 grant
+- core_agent 标准 Authorization Code + PKCE S256、严格 redirect URI 和 original state
 - consent
 - auto_approve
 - allowed_ips
+- core_agent auth-code 10 分钟、一次性兑换、user 原子指针、新 code 替换旧 code及安全字段变更失效
+- core_agent `/oauth/token` authorization_code + refresh、1h/24h TTL、强制 rotation，以及 `/oauth/logout`
 - SecurityContext / BaseContext / PermissionContext 兼容
 - legacy user/admin JWT 已按计划收口
+- activation token 仍按既有协议独立运行
 - middleware-open-api-agent 仅为空模块占位
 
 输出：
