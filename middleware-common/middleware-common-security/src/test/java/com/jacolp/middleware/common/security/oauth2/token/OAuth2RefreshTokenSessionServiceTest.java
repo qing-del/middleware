@@ -121,6 +121,20 @@ class OAuth2RefreshTokenSessionServiceTest {
     }
 
     @Test
+    void rejectsLookupStateWhoseFingerprintDoesNotMatchRawEvenWhenItsVerifierAndSessionWouldMatch() {
+        RefreshTokenState matchingRaw = refreshState(RAW, now.plusSeconds(60));
+        RefreshTokenState wrongFingerprint = new RefreshTokenState(protector.fingerprint(OTHER_RAW), matchingRaw.verifierHash(),
+                1, "core_agent", matchingRaw.grantedScopes(), matchingRaw.issuedAt(), matchingRaw.expiresAt());
+        OAuth2SessionState forgedSession = session(wrongFingerprint, wrongFingerprint.fingerprint(), wrongFingerprint.expiresAt());
+        when(stateStore.findRefreshByFingerprint(matchingRaw.fingerprint())).thenReturn(Optional.of(wrongFingerprint));
+        when(stateStore.findSession("core_agent", 1)).thenReturn(Optional.of(forgedSession));
+
+        assertThat(protector.matches(RAW, wrongFingerprint.verifierHash())).isTrue();
+        assertThat(service.verify(RAW)).isEmpty();
+        verify(stateStore, never()).findSession("core_agent", 1);
+    }
+
+    @Test
     void rejectsOrphanRefreshWhenSessionIsMissingOrNoLongerPointsToIt() {
         RefreshTokenState refreshState = refreshState(RAW, now.plusSeconds(60));
         when(stateStore.findRefreshByFingerprint(refreshState.fingerprint())).thenReturn(Optional.of(refreshState));

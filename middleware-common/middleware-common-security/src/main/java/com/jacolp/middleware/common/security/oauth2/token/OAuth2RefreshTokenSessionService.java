@@ -46,8 +46,10 @@ public final class OAuth2RefreshTokenSessionService {
             return Optional.empty();
         }
         Optional<RefreshTokenState> state = stateStore.findRefreshByFingerprint(fingerprint);
-        if (state.isEmpty() || !state.get().expiresAt().isAfter(clock.instant())) return Optional.empty();
+        if (state.isEmpty()) return Optional.empty();
         RefreshTokenState refreshState = state.get();
+        if (!fingerprint.equals(refreshState.fingerprint())) return Optional.empty();
+        if (!refreshState.expiresAt().isAfter(clock.instant())) return Optional.empty();
         if (!tokenProtector.matches(rawToken, refreshState.verifierHash())) return Optional.empty();
 
         Optional<OAuth2SessionState> session = stateStore.findSession(refreshState.clientId(), refreshState.userId());
