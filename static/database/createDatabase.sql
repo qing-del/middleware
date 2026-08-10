@@ -38,7 +38,7 @@ CREATE TABLE `sys_user` (
                             `nickname` varchar(50) DEFAULT NULL COMMENT '昵称',
                             `email` varchar(100) UNIQUE DEFAULT NULL COMMENT '邮箱地址(唯一)',
                             `role_id` bigint NOT NULL DEFAULT 3 COMMENT '关联的角色ID',
-                            `grant_types` varchar(255) NOT NULL DEFAULT 'password,user_password,agent_client' COMMENT '账号允许的授权方式，逗号分隔；不包含 authorization_code 或 refresh_token',
+                            `extra_grant_types` varchar(255) NOT NULL DEFAULT '' COMMENT '仅保存账号显式附加授权方式（CSV）；默认授权方式来自配置；不得包含 refresh_token',
                             `max_storage_bytes` bigint DEFAULT NULL COMMENT '用户个性化最大存储空间(字节, NULL=使用角色默认值, 管理员可单独设置)',
                             `used_storage_bytes` bigint NOT NULL DEFAULT 0 COMMENT '用户当前已用存储空间(字节, 笔记与图片合计)',
                             `status` tinyint NOT NULL DEFAULT 2 COMMENT '状态(2:未激活, 1:正常, 0:禁用)',
