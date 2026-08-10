@@ -1,0 +1,88 @@
+package com.jacolp.module.system.biz.application.authorization;
+
+import com.jacolp.constant.UserConstant;
+import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount;
+import com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount;
+import com.jacolp.module.system.biz.application.authorization.model.InternalRegisteredClientPolicy;
+import com.jacolp.module.system.biz.application.authorization.model.RoleMetadata;
+import com.jacolp.module.system.biz.application.port.out.RoleMetadataRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * Clears an already-loaded account for a fixed internal client without inspecting credentials or issuing tokens.
+ */
+@Service
+public class InternalAccountEligibilityService {
+
+    private static final Set<String> INTERNAL_CLIENT_IDS = Set.of("user", "admin");
+    private static final Set<String> LOGIN_GRANT_TYPES = Set.of("password", "email-code");
+
+    private final AccountGrantTypeResolver accountGrantTypeResolver;
+    private final RoleMetadataRepository roleMetadataRepository;
+
+    public InternalAccountEligibilityService(AccountGrantTypeResolver accountGrantTypeResolver,
+                                             RoleMetadataRepository roleMetadataRepository) {
+        this.accountGrantTypeResolver = accountGrantTypeResolver;
+        this.roleMetadataRepository = roleMetadataRepository;
+    }
+
+    public InternalAuthenticatedAccount resolve(InternalRegisteredClientPolicy policy, AuthorizationAccount account) {
+        validatePolicy(policy);
+        if (account == null || account.status() != UserConstant.ACTIVE_STATUS) {
+            throw rejected();
+        }
+        final boolean allowed;
+        try {
+            allowed = accountGrantTypeResolver.allows(policy.grantType(), account.extraGrantTypes());
+        } catch (IllegalArgumentException exception) {
+            throw invalidConfiguration();
+        }
+        if (!allowed) {
+            throw rejected();
+        }
+
+        RoleMetadata role = loadRole(account.roleId());
+        if (!isRoleAllowedForClient(policy.clientId(), role.roleCode())) {
+            throw rejected();
+        }
+        return new InternalAuthenticatedAccount(account.userId(), account.username(), account.email(), account.roleId(),
+                role.roleCode(), role.rank());
+    }
+
+    private static void validatePolicy(InternalRegisteredClientPolicy policy) {
+        if (policy == null || !INTERNAL_CLIENT_IDS.contains(policy.clientId())
+                || !LOGIN_GRANT_TYPES.contains(policy.grantType())) {
+            throw invalidConfiguration();
+        }
+    }
+
+    private RoleMetadata loadRole(Long roleId) {
+        Optional<RoleMetadata> roleOptional = roleMetadataRepository.findById(roleId);
+        if (roleOptional == null || roleOptional.isEmpty()) {
+            throw invalidConfiguration();
+        }
+        RoleMetadata role = roleOptional.get();
+        if (!roleId.equals(role.id()) || role.roleCode() == null || role.roleCode().isBlank()
+                || role.rank() == null || role.rank() <= 0) {
+            throw invalidConfiguration();
+        }
+        return role;
+    }
+
+    private static boolean isRoleAllowedForClient(String clientId, String roleCode) {
+        return ("user".equals(clientId) && "USER".equals(roleCode))
+                || ("admin".equals(clientId) && ("ADMIN".equals(roleCode) || "CREATOR".equals(roleCode)));
+    }
+
+    private static InternalAccountAuthenticationRejectedException rejected() {
+        return new InternalAccountAuthenticationRejectedException();
+    }
+
+    private static IllegalStateException invalidConfiguration() {
+        return new IllegalStateException("Internal account authorization metadata is invalid");
+    }
+}
