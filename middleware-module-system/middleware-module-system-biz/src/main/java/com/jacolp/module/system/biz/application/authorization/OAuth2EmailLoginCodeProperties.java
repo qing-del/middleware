@@ -27,10 +27,6 @@ public class OAuth2EmailLoginCodeProperties {
     public void setIssueCooldown(Duration issueCooldown) { this.issueCooldown = require(issueCooldown, "issueCooldown"); }
     public Duration getIssueWindow() { return issueWindow; }
     public void setIssueWindow(Duration issueWindow) { this.issueWindow = require(issueWindow, "issueWindow"); }
-    public Integer getMaxIssuesPerWindow() { return maxIssuesPerWindow; }
-    public void setMaxIssuesPerWindow(Integer maxIssuesPerWindow) { this.maxIssuesPerWindow = Objects.requireNonNull(maxIssuesPerWindow); }
-    public Integer getMaxFailedAttempts() { return maxFailedAttempts; }
-    public void setMaxFailedAttempts(Integer maxFailedAttempts) { this.maxFailedAttempts = Objects.requireNonNull(maxFailedAttempts); }
 
     @PostConstruct
     void validate() {
