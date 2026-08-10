@@ -2,7 +2,15 @@ package com.jacolp.middleware.common.security.oauth2.config;
 
 import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
+import com.jacolp.middleware.common.security.oauth2.token.AccessTokenSessionReference;
 import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
+import com.jacolp.middleware.common.security.oauth2.token.IssuedRefreshToken;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateCodec;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
+import com.jacolp.middleware.common.security.oauth2.token.OpaqueTokenProtector;
+import com.jacolp.middleware.common.security.oauth2.token.RedisOAuth2TokenStateStore;
+import com.jacolp.middleware.common.security.oauth2.token.RefreshTokenIssueRequest;
 import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
 import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenBlacklistStore;
@@ -14,11 +22,13 @@ import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -42,6 +52,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 class OAuth2Rs256CodecConfigurationTest {
@@ -77,6 +89,10 @@ class OAuth2Rs256CodecConfigurationTest {
             assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).isEmpty();
             assertThat(context.getBeansOfType(AccessTokenBlacklistStore.class)).isEmpty();
             assertThat(context.getBeansOfType(AccessTokenBlacklistJwtValidator.class)).isEmpty();
+            assertThat(context.getBeansOfType(OpaqueTokenProtector.class)).isEmpty();
+            assertThat(context.getBeansOfType(OAuth2TokenStateCodec.class)).isEmpty();
+            assertThat(context.getBeansOfType(OAuth2TokenStateStore.class)).isEmpty();
+            assertThat(context.getBeansOfType(OAuth2RefreshTokenSessionService.class)).isEmpty();
         });
     }
 
@@ -114,6 +130,29 @@ class OAuth2Rs256CodecConfigurationTest {
             assertThat(decoded.getClaimAsStringList("roles")).containsExactly("USER");
             assertThat(decoded.getClaimAsStringList("scope")).containsExactly("*:read", "note:read");
             assertThat(Duration.between(issued.issuedAt(), issued.expiresAt())).isEqualTo(Duration.ofMinutes(5));
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void enabledConfigurationWiresRefreshSessionServiceThroughRedisLuaWithoutPersistingRawToken() {
+        enabledContext().run(context -> {
+            StringRedisTemplate redis = context.getBean(StringRedisTemplate.class);
+            doReturn(1L).when(redis).execute(any(RedisScript.class), anyList(), any(Object[].class));
+
+            assertThat(context.getBean(OAuth2TokenStateStore.class)).isInstanceOf(RedisOAuth2TokenStateStore.class);
+            assertThat(context.getBean(OAuth2TokenStateCodec.class)).isNotNull();
+            IssuedRefreshToken issued = context.getBean(OAuth2RefreshTokenSessionService.class).issue(
+                    new RefreshTokenIssueRequest(7, "user_client", List.of("note:read"),
+                            new AccessTokenSessionReference("AAECAwQFBgcICQoLDA0ODw", Instant.now().plusSeconds(60)),
+                            Duration.ofMinutes(2)));
+
+            ArgumentCaptor<RedisScript<Long>> scriptCaptor = ArgumentCaptor.forClass((Class) RedisScript.class);
+            ArgumentCaptor<Object[]> argumentsCaptor = ArgumentCaptor.forClass(Object[].class);
+            verify(redis).execute(scriptCaptor.capture(), anyList(), argumentsCaptor.capture());
+            assertThat(scriptCaptor.getValue().getScriptAsString()).contains("HSET", "PEXPIRE");
+            assertThat(argumentsCaptor.getValue()).doesNotContain(issued.rawToken());
+            assertThat(issued.toString()).doesNotContain(issued.rawToken()).contains("<redacted>");
         });
     }
 

@@ -8,6 +8,11 @@ import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer
 import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenBlacklistStore;
 import com.jacolp.middleware.common.security.oauth2.token.RedisAccessTokenBlacklistStore;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateCodec;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
+import com.jacolp.middleware.common.security.oauth2.token.OpaqueTokenProtector;
+import com.jacolp.middleware.common.security.oauth2.token.RedisOAuth2TokenStateStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -58,6 +63,28 @@ public class OAuth2Rs256CodecConfiguration {
     @Bean
     SecureOAuth2TokenGenerator secureOAuth2TokenGenerator() {
         return new SecureOAuth2TokenGenerator();
+    }
+
+    @Bean
+    OpaqueTokenProtector opaqueTokenProtector() {
+        return new OpaqueTokenProtector();
+    }
+
+    @Bean
+    OAuth2TokenStateCodec oauth2TokenStateCodec() {
+        return new OAuth2TokenStateCodec();
+    }
+
+    @Bean
+    OAuth2TokenStateStore oauth2TokenStateStore(StringRedisTemplate redis, OAuth2TokenStateCodec codec) {
+        return new RedisOAuth2TokenStateStore(redis, codec);
+    }
+
+    @Bean
+    OAuth2RefreshTokenSessionService oauth2RefreshTokenSessionService(SecureOAuth2TokenGenerator tokenGenerator,
+                                                                      OpaqueTokenProtector tokenProtector,
+                                                                      OAuth2TokenStateStore stateStore) {
+        return new OAuth2RefreshTokenSessionService(Clock.systemUTC(), tokenGenerator, tokenProtector, stateStore);
     }
 
     @Bean
