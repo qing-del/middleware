@@ -1,6 +1,7 @@
 package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeIssueRequest;
+import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeIssueRateLimitRequest;
 import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeState;
 import com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.module.system.biz.application.authorization.model.InternalRegisteredClientPolicy;
@@ -16,6 +17,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 import java.time.Clock;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -210,12 +214,15 @@ class EmailLoginCodeIssuanceServiceTest {
                 7L, "Cleared", "Alice@Example.Test", 3L, "USER", 3);
         when(fixture.eligibility.resolve(any(), any())).thenReturn(cleared);
         ArgumentCaptor<EmailLoginCodeState> state = ArgumentCaptor.forClass(EmailLoginCodeState.class);
+        ArgumentCaptor<EmailLoginCodeIssueRateLimitRequest> rateRequest =
+                ArgumentCaptor.forClass(EmailLoginCodeIssueRateLimitRequest.class);
         ArgumentCaptor<com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeDeliveryRequest> delivery =
                 ArgumentCaptor.forClass(com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeDeliveryRequest.class);
 
         fixture.service.issue(request());
 
         verify(fixture.states).replace(state.capture());
+        verify(fixture.limiter).tryAcquire(rateRequest.capture());
         verify(fixture.delivery).deliver(delivery.capture());
         assertThat(state.getValue().userId()).isEqualTo(7L);
         assertThat(state.getValue().failedAttempts()).isZero();
@@ -226,6 +233,12 @@ class EmailLoginCodeIssuanceServiceTest {
         assertThat(delivery.getValue().username()).isEqualTo("Cleared");
         assertThat(delivery.getValue().rawCode()).isEqualTo("012345");
         assertThat(delivery.getValue().ttl()).isEqualTo(Duration.ofMinutes(10));
+        assertThat(rateRequest.getValue().emailFingerprint()).hasSize(43).doesNotContain("alice", "192.0.2.1");
+        assertThat(rateRequest.getValue().ipFingerprint()).hasSize(43).doesNotContain("alice", "192.0.2.1");
+        assertThat(rateRequest.getValue().emailFingerprint()).isNotEqualTo(rateRequest.getValue().ipFingerprint());
+        assertThat(rateRequest.getValue().cooldown()).isEqualTo(Duration.ofSeconds(60));
+        assertThat(rateRequest.getValue().window()).isEqualTo(Duration.ofHours(1));
+        assertThat(rateRequest.getValue().maxIssues()).isEqualTo(5);
         InOrder order = inOrder(fixture.resolver, fixture.limiter, fixture.generator, fixture.protector,
                 fixture.accounts, fixture.eligibility, fixture.states, fixture.delivery);
         order.verify(fixture.resolver).resolve("user", "email-code");
@@ -236,6 +249,37 @@ class EmailLoginCodeIssuanceServiceTest {
         order.verify(fixture.eligibility).resolve(any(), any());
         order.verify(fixture.states).replace(any());
         order.verify(fixture.delivery).deliver(any());
+    }
+
+    @Test
+    void generatorProtectorAndLookupFailuresPropagateWithoutLaterEffects() {
+        Fixture generatorFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        IllegalStateException generatorError = new IllegalStateException("generator");
+        when(generatorFailure.generator.generate()).thenThrow(generatorError);
+        assertThatThrownBy(() -> generatorFailure.service.issue(request())).isSameAs(generatorError);
+        verify(generatorFailure.protector, never()).protect(any());
+        verify(generatorFailure.accounts, never()).findByEmail(any());
+
+        Fixture protectorFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        IllegalStateException protectorError = new IllegalStateException("protector");
+        when(protectorFailure.protector.protect("012345")).thenThrow(protectorError);
+        assertThatThrownBy(() -> protectorFailure.service.issue(request())).isSameAs(protectorError);
+        verify(protectorFailure.accounts, never()).findByEmail(any());
+
+        Fixture lookupFailure = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+        IllegalStateException lookupError = new IllegalStateException("lookup");
+        when(lookupFailure.accounts.findByEmail("alice@example.test")).thenThrow(lookupError);
+        assertThatThrownBy(() -> lookupFailure.service.issue(request())).isSameAs(lookupError);
+        verify(lookupFailure.states, never()).replace(any());
+        verify(lookupFailure.delivery, never()).deliver(any());
+    }
+
+    @Test
+    void productionServiceDoesNotReferenceLegacyOrOutboxDeliveryPaths() throws IOException {
+        String source = Files.readString(Path.of(
+                "src/main/java/com/jacolp/module/system/biz/application/authorization/EmailLoginCodeIssuanceService.java"));
+        assertThat(source).doesNotContain("Outbox", "EmailSendEventPublisher", "EmailSenderService",
+                "TokenSessionService", "activation", "email-change", "Logger", "log.");
     }
 
 
