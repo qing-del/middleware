@@ -68,8 +68,13 @@ public final class EmailLoginCodeStateCodec {
     }
     private static long strictPositiveLong(Map<String, String> map, String key) {
         long value = strictLong(map, key);
-        if (value <= 0) throw invalid();
+        if (value <= 0) {
+            throw invalid();
+        }
         return value;
     }
-    private static IllegalArgumentException invalid() { return new IllegalArgumentException("Invalid email-code state map"); }
+
+    private static IllegalArgumentException invalid() {
+        return new IllegalArgumentException("Invalid email-code state map");
+    }
 }
