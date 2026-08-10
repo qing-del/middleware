@@ -1,7 +1,8 @@
 package com.jacolp.module.system.biz.application.authorization.model;
 
 /**
- * Read-only account metadata needed by authorization flows.
+ * Read-only account metadata needed by authorization flows. Email may be absent for legacy password accounts;
+ * email-code callers must separately require a non-blank email address.
  */
 public record AuthorizationAccount(
         Long userId,
@@ -21,7 +22,9 @@ public record AuthorizationAccount(
         }
         requireText(username, "username");
         requireText(passwordHash, "passwordHash");
-        requireText(email, "email");
+        if (email != null) {
+            requireText(email, "email");
+        }
         if (extraGrantTypes == null) {
             throw new IllegalArgumentException("Authorization account extraGrantTypes cannot be null");
         }

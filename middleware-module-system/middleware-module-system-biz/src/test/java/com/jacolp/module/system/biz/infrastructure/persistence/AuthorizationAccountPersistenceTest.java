@@ -90,6 +90,22 @@ class AuthorizationAccountPersistenceTest {
     }
 
     @Test
+    void legacyAccountWithoutAnEmailCanBeBuiltAndMappedWithoutLeakingPasswordHash() {
+        AuthorizationAccount account = new AuthorizationAccount(7L, "legacy", "stored-secret", null, 3L, "", 1);
+        UserMapper mapper = mock(UserMapper.class);
+        MyBatisAuthorizationAccountRepository repository = new MyBatisAuthorizationAccountRepository(mapper);
+        UserDO legacyUser = user(7L, "legacy", null);
+        when(mapper.selectById(7L)).thenReturn(legacyUser);
+
+        assertThat(account.email()).isNull();
+        assertThat(account.toString()).doesNotContain("stored-secret");
+        assertThat(repository.findById(7L)).contains(account);
+
+        verify(mapper).selectById(7L);
+        verifyNoMoreInteractions(mapper);
+    }
+
+    @Test
     void modelRejectsInvalidSecurityFields() {
         assertThatIllegalArgumentException().isThrownBy(() -> new AuthorizationAccount(null, "alice", "hash",
                 "alice@example.test", 3L, "", 1));
