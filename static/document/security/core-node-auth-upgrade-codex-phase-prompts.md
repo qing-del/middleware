@@ -179,7 +179,7 @@
 4. `/auth/login`按 `(client_id,grant_type)` 路由：client_id 仅 `user|admin`；grant_type 仅 `password|email-code`。校验 client status、client grant、账号默认/extra grant、账号状态和 socket remote address 的 `allowed_ips`。
 5. `sys_user.extra_grant_types`仅保存附加模式；账号配置默认模式为 `password,email-code,authorization_code`，不得将默认模式写入该字段；refresh_token 是 client 技术 grant。
 6. 新增独立 `POST /oauth/email-code`：`client_id,email`、6 位、10 分钟、同一 `(client,user)`单有效；每邮箱/每 IP 60 秒冷却且每小时 5 次，5 次兑换失败失效；Redis 仅存 BCrypt verifier 与绑定信息，成功原子消费，且绝不复用 activation/email-change 逻辑或泄漏账号存在性。
-7. 权限计算：有请求 scope 时为 client scopes ∩ rank-role permissions ∩ 请求 scopes；未请求时再∩ auto_approve。`*:super`只在 creator + client 允许 + 本次明确请求时签发。
+7. 权限计算：有请求 scope 时为 client scopes ∩ rank-role permissions ∩ 请求 scopes；未请求时再∩ auto_approve。scope 必须按 `resource:action` wildcard 模式逐分量求交（相同保留、一方`*`取另一方、不同具体分量无交集），不是精确字符串相等，也不展开 permission catalogue；显式空请求不等同于未请求。`*:super`及其他`*:super`/`resource:super`结果只在 role code 为`CREATOR`、client 允许、且本次明确请求存在可相交 super 模式时签发；auto_approve 永不签发 super。
 8. 实现 access token + refresh token；USER/ADMIN TTL 与 rotation 以 client `token_settings`为唯一来源。旧 refresh 成功后必须立即失效并返回新 access + refresh。
 9. `/auth/logout`只注销当前 client + user session：access jti blacklist、refresh 删除、session 删除；不得影响另一 client 的会话。
 10. 本阶段只改后端，禁止修改 frontend/，不实现 Agent 业务接口。
@@ -222,7 +222,7 @@
 1. 只为固定 client `core_agent`建立标准 OAuth Authorization Code + PKCE 后端能力；不得创建第三方 client、别名或恢复 `authorization_client`。
 2. `core_agent`是 public client，以 PKCE S256 为核心保证；DB grants 为 `authorization_code,refresh_token`。首次授权唯一使用 `response_type=code`，不得使用 `agent_client`自定义 grant 或依赖 client_secret。
 3. Authorization Endpoint 必须校验 active client、精确 registered `redirect_uri`、原始 `state`、唯一 S256、账号默认/extra grant；具体 Authorization Endpoint path 由 Authorization Server 设置确定，不能自行发明。
-4. 使用 `oauth2_authorization_consent`保存 consent；effective scope 为 client scopes ∩ rank-role permissions ∩ 本次用户 consent。
+4. 使用 `oauth2_authorization_consent`保存 consent；effective scope 为 client scopes ∩ rank-role permissions ∩ 本次用户 consent，使用与 Phase 3 相同的逐分量 wildcard 模式求交，不做完整权限目录展开。
 5. 本阶段明确允许在 Spring Authorization Server 标准流程的必要扩展中使用 Redis auth-code cache：256-bit code TTL 10 分钟、成功兑换原子删除；不得另起协议级 auth_code Controller。
 6. cache 必须保存 client、精确 redirect URI、consent scopes、challenge/method、原始 socket remote address 与用户安全字段快照；`user:auth_code:{user_id}`原子指向当前 code，新 code 替换旧 code；`status,role_id,password,email,username,extra_grant_types`变更立即使当前 code 无效。
 7. `POST /oauth/token`完成 authorization_code 兑换与 refresh 技术 grant；core_agent access token 1h、refresh token 24h，强制 rotation；`POST /oauth/logout`注销当前 client + user session。兑换 IP 变化只告警，不拒绝。
@@ -268,7 +268,7 @@
 8. scope 权限和业务数据 ownership 必须分离。
 9. middleware-open-api-agent 保持空模块，不增加业务接口。
 10. 不修改 frontend/。
-11. JWT scope 可原样保留 `*:read`等通配 scope；Resource Server 鉴权工具负责通配匹配，不在签发时展开为具体权限。
+11. JWT scope 可原样保留 `*:read`等通配 scope；签发时以逐分量 wildcard 模式求交后保留结果，Resource Server 鉴权工具负责后续通配匹配，不在签发时展开为具体权限。
 12. 仅接受固定 client `user`、`admin`、`core_agent`签发的目标 access token，不为其他 client 或已删除的 legacy route 保留认证旁路。
 
 重点检查：
