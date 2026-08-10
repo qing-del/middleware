@@ -1,0 +1,170 @@
+package com.jacolp.module.system.biz.application.authorization;
+
+import com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount;
+import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeDeliveryRequest;
+import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeIssueRateLimitRequest;
+import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeIssueRequest;
+import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeState;
+import com.jacolp.module.system.biz.application.authorization.model.InternalRegisteredClientPolicy;
+import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeDeliveryPort;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeGenerator;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeIssueRateLimitDecision;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeIssueRateLimiter;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeProtector;
+import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeStateStore;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
+
+/** Coordinates a non-enumerating email-code issuance attempt without handling HTTP responses. */
+@Service
+public class EmailLoginCodeIssuanceService {
+
+    private final InternalRegisteredClientPolicyResolver clientPolicyResolver;
+    private final EmailLoginBindingFingerprint fingerprint;
+    private final EmailLoginCodeIssueRateLimiter rateLimiter;
+    private final AuthorizationAccountRepository accountRepository;
+    private final EmailLoginCodeGenerator codeGenerator;
+    private final EmailLoginCodeProtector codeProtector;
+    private final InternalAccountEligibilityService eligibilityService;
+    private final EmailLoginCodeStateStore stateStore;
+    private final EmailLoginCodeDeliveryPort deliveryPort;
+    private final OAuth2EmailLoginCodeProperties properties;
+    private final Clock clock;
+
+    @Autowired
+    public EmailLoginCodeIssuanceService(
+            InternalRegisteredClientPolicyResolver clientPolicyResolver,
+            EmailLoginBindingFingerprint fingerprint,
+            EmailLoginCodeIssueRateLimiter rateLimiter,
+            AuthorizationAccountRepository accountRepository,
+            EmailLoginCodeGenerator codeGenerator,
+            EmailLoginCodeProtector codeProtector,
+            InternalAccountEligibilityService eligibilityService,
+            EmailLoginCodeStateStore stateStore,
+            EmailLoginCodeDeliveryPort deliveryPort,
+            OAuth2EmailLoginCodeProperties properties) {
+        this(clientPolicyResolver, fingerprint, rateLimiter, accountRepository, codeGenerator, codeProtector,
+                eligibilityService, stateStore, deliveryPort, properties, Clock.systemUTC());
+    }
+
+    EmailLoginCodeIssuanceService(
+            InternalRegisteredClientPolicyResolver clientPolicyResolver,
+            EmailLoginBindingFingerprint fingerprint,
+            EmailLoginCodeIssueRateLimiter rateLimiter,
+            AuthorizationAccountRepository accountRepository,
+            EmailLoginCodeGenerator codeGenerator,
+            EmailLoginCodeProtector codeProtector,
+            InternalAccountEligibilityService eligibilityService,
+            EmailLoginCodeStateStore stateStore,
+            EmailLoginCodeDeliveryPort deliveryPort,
+            OAuth2EmailLoginCodeProperties properties,
+            Clock clock) {
+        this.clientPolicyResolver = Objects.requireNonNull(clientPolicyResolver, "clientPolicyResolver");
+        this.fingerprint = Objects.requireNonNull(fingerprint, "fingerprint");
+        this.rateLimiter = Objects.requireNonNull(rateLimiter, "rateLimiter");
+        this.accountRepository = Objects.requireNonNull(accountRepository, "accountRepository");
+        this.codeGenerator = Objects.requireNonNull(codeGenerator, "codeGenerator");
+        this.codeProtector = Objects.requireNonNull(codeProtector, "codeProtector");
+        this.eligibilityService = Objects.requireNonNull(eligibilityService, "eligibilityService");
+        this.stateStore = Objects.requireNonNull(stateStore, "stateStore");
+        this.deliveryPort = Objects.requireNonNull(deliveryPort, "deliveryPort");
+        this.properties = Objects.requireNonNull(properties, "properties");
+        this.clock = Objects.requireNonNull(clock, "clock");
+    }
+
+    public void issue(EmailLoginCodeIssueRequest request) {
+        Objects.requireNonNull(request, "request");
+        InternalRegisteredClientPolicy policy = clientPolicyResolver.resolve(request.clientId(), "email-code");
+        enforceSocketAllowed(policy, request.socketRemoteAddress());
+        String emailFingerprint = fingerprint.email(request.email());
+        String ipFingerprint = fingerprint.socketAddress(request.socketRemoteAddress());
+        EmailLoginCodeIssueRateLimitDecision decision = rateLimiter.tryAcquire(new EmailLoginCodeIssueRateLimitRequest(
+                emailFingerprint,
+                ipFingerprint,
+                properties.getIssueCooldown(),
+                properties.getIssueWindow(),
+                properties.getMaxIssuesPerWindow()));
+        if (decision == null) {
+            throw new IllegalStateException("Missing email-code issuance rate-limit decision");
+        }
+        if (decision == EmailLoginCodeIssueRateLimitDecision.COOLDOWN
+                || decision == EmailLoginCodeIssueRateLimitDecision.WINDOW_LIMIT) {
+            return;
+        }
+        if (decision != EmailLoginCodeIssueRateLimitDecision.ALLOWED) {
+            throw new IllegalStateException("Invalid email-code issuance rate-limit decision");
+        }
+
+        String rawCode = codeGenerator.generate();
+        String verifierHash = codeProtector.protect(rawCode);
+        Optional<AuthorizationAccount> accountOptional = accountRepository.findByEmail(request.email());
+        if (accountOptional == null) {
+            throw new IllegalStateException("Email-code account lookup returned null");
+        }
+        if (accountOptional.isEmpty()) {
+            return;
+        }
+        AuthorizationAccount account = accountOptional.get();
+        if (account.email() == null || !emailFingerprint.equals(fingerprint.email(account.email()))) {
+            return;
+        }
+        try {
+            eligibilityService.resolve(policy, account);
+        } catch (InternalAccountAuthenticationRejectedException exception) {
+            return;
+        }
+
+        Instant issuedAt = clock.instant();
+        Instant expiresAt;
+        try {
+            expiresAt = issuedAt.plus(properties.getCodeTtl());
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException("Invalid email-code issuance expiry", exception);
+        }
+        String canonicalEmail = account.email().trim().toLowerCase(Locale.ROOT);
+        EmailLoginCodeState state = new EmailLoginCodeState(policy.clientId(), account.userId(), emailFingerprint,
+                verifierHash, 0, issuedAt, expiresAt);
+        stateStore.replace(state);
+        try {
+            deliveryPort.deliver(new EmailLoginCodeDeliveryRequest(policy.clientId(), account.userId(), canonicalEmail,
+                    account.username(), rawCode, properties.getCodeTtl()));
+        } catch (RuntimeException | Error deliveryFailure) {
+            cleanupAfterDeliveryFailure(policy.clientId(), account.userId(), deliveryFailure);
+        }
+    }
+
+    private static void enforceSocketAllowed(InternalRegisteredClientPolicy policy, String remoteAddress) {
+        ClientAllowedIpPolicy allowedIps = ClientAllowedIpPolicy.parse(policy.allowedIps());
+        try {
+            if (!allowedIps.allows(remoteAddress)) {
+                throw new EmailLoginCodeIssuanceRejectedException();
+            }
+        } catch (IllegalArgumentException exception) {
+            throw new EmailLoginCodeIssuanceRejectedException();
+        }
+    }
+
+    private void cleanupAfterDeliveryFailure(String clientId, Long userId, Throwable deliveryFailure) {
+        try {
+            stateStore.delete(clientId, userId);
+        } catch (RuntimeException | Error cleanupFailure) {
+            cleanupFailure.addSuppressed(deliveryFailure);
+            throw cleanupFailure;
+        }
+        rethrow(deliveryFailure);
+    }
+
+    private static void rethrow(Throwable failure) {
+        if (failure instanceof RuntimeException runtimeException) {
+            throw runtimeException;
+        }
+        throw (Error) failure;
+    }
+}
