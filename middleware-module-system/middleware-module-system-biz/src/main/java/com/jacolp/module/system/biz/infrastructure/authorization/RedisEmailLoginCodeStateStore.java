@@ -19,32 +19,37 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /** Redis Hash adapter for strictly decoded protected email-code state. */
 @Repository
 public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
 
     private static final Set<String> CLIENTS = Set.of("user", "admin");
+    private static final Pattern BCRYPT = Pattern.compile("\\$2[aby]?\\$[0-9]{2}\\$[./A-Za-z0-9]{53}");
 
     private final StringRedisTemplate redis;
     private final EmailLoginCodeStateCodec codec;
     private final Clock clock;
     private final DefaultRedisScript<Long> replaceScript;
+    private final DefaultRedisScript<Long> consumeScript;
 
     @Autowired
     public RedisEmailLoginCodeStateStore(StringRedisTemplate redis) {
-        this(redis, new EmailLoginCodeStateCodec(), Clock.systemUTC(), replaceScript());
+        this(redis, new EmailLoginCodeStateCodec(), Clock.systemUTC(), replaceScript(), consumeScript());
     }
 
     RedisEmailLoginCodeStateStore(
             StringRedisTemplate redis,
             EmailLoginCodeStateCodec codec,
             Clock clock,
-            DefaultRedisScript<Long> replaceScript) {
+            DefaultRedisScript<Long> replaceScript,
+            DefaultRedisScript<Long> consumeScript) {
         this.redis = Objects.requireNonNull(redis, "redis");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.replaceScript = Objects.requireNonNull(replaceScript, "replaceScript");
+        this.consumeScript = Objects.requireNonNull(consumeScript, "consumeScript");
     }
 
     @Override
@@ -97,6 +102,24 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
         }
     }
 
+    @Override
+    public boolean consume(String clientId, Long userId, String expectedVerifierHash) {
+        if (expectedVerifierHash == null || !BCRYPT.matcher(expectedVerifierHash).matches()) {
+            throw invalid();
+        }
+        Long result = redis.execute(
+                consumeScript,
+                List.of(key(clientId, userId)),
+                expectedVerifierHash);
+        if (Long.valueOf(1L).equals(result)) {
+            return true;
+        }
+        if (Long.valueOf(0L).equals(result)) {
+            return false;
+        }
+        throw new IllegalStateException("Invalid email-code state consume result");
+    }
+
     private static long ttlMilliseconds(Instant now, Instant expiresAt) {
         try {
             long ttlMilliseconds = Duration.between(now, expiresAt).toMillis();
@@ -112,6 +135,13 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
     private static DefaultRedisScript<Long> replaceScript() {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
         script.setLocation(new ClassPathResource("lua/email_login_code_state_replace.lua"));
+        script.setResultType(Long.class);
+        return script;
+    }
+
+    private static DefaultRedisScript<Long> consumeScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("lua/email_login_code_state_consume.lua"));
         script.setResultType(Long.class);
         return script;
     }

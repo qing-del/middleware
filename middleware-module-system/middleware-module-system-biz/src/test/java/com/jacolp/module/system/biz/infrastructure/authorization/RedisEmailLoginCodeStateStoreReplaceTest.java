@@ -123,7 +123,8 @@ class RedisEmailLoginCodeStateStoreReplaceTest {
                 redis,
                 new EmailLoginCodeStateCodec(),
                 Clock.fixed(now, ZoneOffset.UTC),
-                script);
+                script,
+                new DefaultRedisScript<>());
     }
 
     private static Object[] arguments(EmailLoginCodeState state, String ttl) {
