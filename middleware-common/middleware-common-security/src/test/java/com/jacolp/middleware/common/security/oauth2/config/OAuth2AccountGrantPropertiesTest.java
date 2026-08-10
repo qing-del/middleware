@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OAuth2AccountGrantPropertiesTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(PropertiesConfiguration.class));
+            .withConfiguration(AutoConfigurations.of(PropertiesConfiguration.class, OAuth2AccountGrantConfiguration.class));
 
     @Test
     void defaultsAreTheRequiredImmutableAccountGrantSet() {
@@ -23,6 +23,9 @@ class OAuth2AccountGrantPropertiesTest {
             assertThat(properties.getDefaultGrantTypes())
                     .containsExactly("password", "email-code", "authorization_code");
             assertThat(properties.getDefaultGrantTypes()).isUnmodifiable();
+            assertThat(context.getBeansOfType(AccountGrantTypeResolver.class)).hasSize(1);
+            assertThat(context.getBean(AccountGrantTypeResolver.class).defaultGrantTypes())
+                    .containsExactly("password", "email-code", "authorization_code");
         });
     }
 
@@ -33,6 +36,8 @@ class OAuth2AccountGrantPropertiesTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context.getBean(OAuth2AccountGrantProperties.class).getDefaultGrantTypes())
+                            .containsExactly("password", "email-code", "authorization_code");
+                    assertThat(context.getBean(AccountGrantTypeResolver.class).defaultGrantTypes())
                             .containsExactly("password", "email-code", "authorization_code");
                 });
     }
@@ -47,6 +52,7 @@ class OAuth2AccountGrantPropertiesTest {
                     assertThat(context).hasNotFailed();
                     assertThat(context.getBean(OAuth2AccountGrantProperties.class).getDefaultGrantTypes())
                             .containsExactly("password", "email-code", "authorization_code");
+                    assertThat(context.getBeansOfType(AccountGrantTypeResolver.class)).hasSize(1);
                 });
     }
 
@@ -56,6 +62,27 @@ class OAuth2AccountGrantPropertiesTest {
                 .run(context -> assertThat(context).hasFailed());
         contextRunner.withPropertyValues("jacolp.oauth2.account.default-grant-types=password,email-code,refresh_token")
                 .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void letsApplicationsProvideTheOnlyResolverBean() {
+        AccountGrantTypeResolver override = new AccountGrantTypeResolver(
+                List.of("password", "email-code", "authorization_code"));
+
+        contextRunner.withBean(AccountGrantTypeResolver.class, () -> override)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBeansOfType(AccountGrantTypeResolver.class).values()).containsExactly(override);
+                });
+    }
+
+    @Test
+    void accountGrantResolverRemainsAvailableWhenRs256ConfigurationIsDisabled() {
+        contextRunner.withUserConfiguration(OAuth2Rs256CodecConfiguration.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBeansOfType(AccountGrantTypeResolver.class)).hasSize(1);
+                });
     }
 
     @Configuration(proxyBeanMethods = false)
