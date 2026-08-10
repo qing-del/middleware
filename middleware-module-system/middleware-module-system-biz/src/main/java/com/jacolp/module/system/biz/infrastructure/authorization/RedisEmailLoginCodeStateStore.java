@@ -5,7 +5,12 @@ import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCo
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeStateStore;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /** Redis Hash adapter for strictly decoded protected email-code state. */
 @Repository
@@ -13,10 +18,11 @@ public class RedisEmailLoginCodeStateStore implements EmailLoginCodeStateStore {
     private static final Set<String> CLIENTS = Set.of("user", "admin");
     private final StringRedisTemplate redis;
     private final EmailLoginCodeStateCodec codec;
+    @Autowired
     public RedisEmailLoginCodeStateStore(StringRedisTemplate redis) {
         this(redis, new EmailLoginCodeStateCodec());
     }
-    RedisEmailLoginCodeStateStore(StringRedisTemplate redis, EmailLoginCodeStateCodec codec) { this.redis = redis; this.codec = codec; }
+    RedisEmailLoginCodeStateStore(StringRedisTemplate redis, EmailLoginCodeStateCodec codec) { this.redis = Objects.requireNonNull(redis); this.codec = Objects.requireNonNull(codec); }
     @Override public Optional<EmailLoginCodeState> find(String clientId, Long userId) {
         String key = key(clientId, userId); Map<Object, Object> values = redis.opsForHash().entries(key);
         if (values == null || values.isEmpty()) return Optional.empty(); Map<String, String> map = new LinkedHashMap<>();
