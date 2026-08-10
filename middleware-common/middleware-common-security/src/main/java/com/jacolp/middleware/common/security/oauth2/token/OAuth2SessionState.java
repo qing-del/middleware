@@ -5,8 +5,13 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Current client-user OAuth2 session references without raw credentials or claims. */
-public record OAuth2SessionState(long userId, String clientId, String currentAccessJti, Instant accessExpiresAt,
-                                 String currentRefreshFingerprint, Instant refreshExpiresAt) {
+public record OAuth2SessionState(
+        long userId,
+        String clientId,
+        String currentAccessJti,
+        Instant accessExpiresAt,
+        String currentRefreshFingerprint,
+        Instant refreshExpiresAt) {
     private static final Pattern CLIENT_ID = Pattern.compile("[A-Za-z0-9_-]{1,100}");
     private static final Pattern JTI = Pattern.compile("[A-Za-z0-9_-]{22}");
     private static final Pattern FINGERPRINT = Pattern.compile("[A-Za-z0-9_-]{43}");

@@ -9,12 +9,18 @@ import java.util.Set;
 /** Strict schema-v1 Redis Hash representation for OAuth2 token state. */
 public final class OAuth2TokenStateCodec {
     private static final String VERSION = "1";
-    private static final Set<String> REFRESH_FIELDS = Set.of("schema_version", "fingerprint", "verifier_hash", "user_id", "client_id", "granted_scopes", "issued_at_epoch_millis", "expires_at_epoch_millis");
-    private static final Set<String> SESSION_FIELDS = Set.of("schema_version", "user_id", "client_id", "current_access_jti", "access_expires_at_epoch_millis", "current_refresh_fingerprint", "refresh_expires_at_epoch_millis");
+    private static final Set<String> REFRESH_FIELDS = Set.of(
+            "schema_version", "fingerprint", "verifier_hash", "user_id", "client_id", "granted_scopes",
+            "issued_at_epoch_millis", "expires_at_epoch_millis");
+    private static final Set<String> SESSION_FIELDS = Set.of(
+            "schema_version", "user_id", "client_id", "current_access_jti", "access_expires_at_epoch_millis",
+            "current_refresh_fingerprint", "refresh_expires_at_epoch_millis");
 
     public Map<String, String> encode(RefreshTokenState state) {
         List<String> scopes = state.grantedScopes();
-        if (scopes.stream().anyMatch(this::hasWhitespace)) throw new IllegalArgumentException("scope must not contain whitespace");
+        if (scopes.stream().anyMatch(this::hasWhitespace)) {
+            throw new IllegalArgumentException("scope must not contain whitespace");
+        }
         Map<String, String> values = new LinkedHashMap<>();
         values.put("schema_version", VERSION); values.put("fingerprint", state.fingerprint()); values.put("verifier_hash", state.verifierHash());
         values.put("user_id", Long.toString(state.userId())); values.put("client_id", state.clientId()); values.put("granted_scopes", String.join(" ", scopes));

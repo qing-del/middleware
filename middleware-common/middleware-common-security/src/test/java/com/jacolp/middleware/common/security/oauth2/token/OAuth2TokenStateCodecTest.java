@@ -3,8 +3,12 @@ package com.jacolp.middleware.common.security.oauth2.token;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import java.time.Instant;
-import java.util.*;
-import static org.assertj.core.api.Assertions.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 class OAuth2TokenStateCodecTest {
     private static final String FP = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8";

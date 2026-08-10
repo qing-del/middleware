@@ -7,8 +7,14 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Persistable refresh authorization state; user profile and role are intentionally not cached. */
-public record RefreshTokenState(String fingerprint, String verifierHash, long userId, String clientId,
-                                List<String> grantedScopes, Instant issuedAt, Instant expiresAt) {
+public record RefreshTokenState(
+        String fingerprint,
+        String verifierHash,
+        long userId,
+        String clientId,
+        List<String> grantedScopes,
+        Instant issuedAt,
+        Instant expiresAt) {
     private static final Pattern FINGERPRINT = Pattern.compile("[A-Za-z0-9_-]{43}");
     private static final Pattern BCRYPT = Pattern.compile("\\$2[aby]\\$[0-9]{2}\\$[./A-Za-z0-9]{53}");
     private static final Pattern CLIENT_ID = Pattern.compile("[A-Za-z0-9_-]{1,100}");
