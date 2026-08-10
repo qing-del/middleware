@@ -1,6 +1,10 @@
 package com.jacolp.middleware.common.security.oauth2.config;
 
 import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
+import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
+import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
+import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -25,10 +29,12 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,6 +68,8 @@ class OAuth2Rs256CodecConfigurationTest {
             assertThat(context.getBeansOfType(RsaKeyMaterial.class)).isEmpty();
             assertThat(context.getBeansOfType(JwtEncoder.class)).isEmpty();
             assertThat(context.getBeansOfType(JwtDecoder.class)).isEmpty();
+            assertThat(context.getBeansOfType(SecureOAuth2TokenGenerator.class)).isEmpty();
+            assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).isEmpty();
         });
     }
 
@@ -82,6 +90,23 @@ class OAuth2Rs256CodecConfigurationTest {
                     .containsEntry("alg", "RS256")
                     .containsEntry("kid", keyMaterial.keyId());
             assertThat(decoded.getAudience()).containsExactly("core-node-api");
+        });
+    }
+
+    @Test
+    void enabledConfigurationIssuesAndDecodesCompleteAccessToken() {
+        enabledContext().run(context -> {
+            IssuedAccessToken issued = context.getBean(Rs256AccessTokenIssuer.class).issue(
+                    new AccessTokenIssueRequest(42, "user_client", "password", "alice", "USER",
+                            Set.of("*:read", "note:read"), Duration.ofMinutes(5)));
+            Jwt decoded = context.getBean(JwtDecoder.class).decode(issued.tokenValue());
+
+            assertThat(decoded.getId()).isEqualTo(issued.jti());
+            assertThat(decoded.getSubject()).isEqualTo("42");
+            assertThat(decoded.getClaimAsString("client_id")).isEqualTo("user_client");
+            assertThat(decoded.getClaimAsStringList("roles")).containsExactly("USER");
+            assertThat(decoded.getClaimAsStringList("scope")).containsExactly("*:read", "note:read");
+            assertThat(Duration.between(issued.issuedAt(), issued.expiresAt())).isEqualTo(Duration.ofMinutes(5));
         });
     }
 

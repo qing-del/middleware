@@ -3,6 +3,8 @@ package com.jacolp.middleware.common.security.oauth2.config;
 import com.jacolp.middleware.common.security.oauth2.jwt.RequiredAudienceJwtValidator;
 import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
 import com.jacolp.middleware.common.security.oauth2.key.RsaPemKeyMaterialLoader;
+import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +15,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+
+import java.time.Clock;
 
 /**
  * RS256 codec infrastructure, kept disabled until explicitly configured.
@@ -44,5 +48,16 @@ public class OAuth2Rs256CodecConfiguration {
                 JwtValidators.createDefaultWithIssuer(properties.getIssuer()),
                 new RequiredAudienceJwtValidator(properties.getAudience())));
         return decoder;
+    }
+
+    @Bean
+    SecureOAuth2TokenGenerator secureOAuth2TokenGenerator() {
+        return new SecureOAuth2TokenGenerator();
+    }
+
+    @Bean
+    Rs256AccessTokenIssuer rs256AccessTokenIssuer(JwtEncoder jwtEncoder, OAuth2Rs256Properties properties,
+                                                   SecureOAuth2TokenGenerator tokenGenerator) {
+        return new Rs256AccessTokenIssuer(jwtEncoder, properties, Clock.systemUTC(), tokenGenerator);
     }
 }
