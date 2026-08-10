@@ -10,10 +10,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ContextCompatibilityTest {
 
@@ -77,5 +80,44 @@ class ContextCompatibilityTest {
                 new com.jacolp.middleware.common.security.context.SecurityPrincipal(2L, SecurityIdentity.USER), null,
                 List.of(new SimpleGrantedAuthority(SecurityIdentity.ADMIN.authority()))));
         assertThat(PermissionContext.isAdmin()).isTrue();
+    }
+
+    @Test
+    void completeJwtHolderIdentityIsVisibleThroughLegacyFacades() {
+        authenticateJwt(jwt("101", "ADMIN"));
+        assertThat(BaseContext.getCurrentId()).isEqualTo(101L);
+        assertThat(PermissionContext.isAdmin()).isTrue();
+        authenticateJwt(jwt("102", "USER"));
+        assertThat(BaseContext.getCurrentId()).isEqualTo(102L);
+        assertThat(PermissionContext.isAdmin()).isFalse();
+    }
+
+    @Test
+    void malformedJwtPreventsThreadLocalFallback() {
+        BaseContext.setCurrentId(88L);
+        PermissionContext.setAdmin(true);
+        authenticateJwt(jwt("not-a-number", "ADMIN"));
+
+        assertThatThrownBy(BaseContext::getCurrentId).isInstanceOf(AuthenticationException.class);
+        assertThatThrownBy(PermissionContext::isAdmin).isInstanceOf(AuthenticationException.class);
+    }
+
+    private static void authenticateJwt(Jwt jwt) {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                jwt, null, List.of(new SimpleGrantedAuthority("ROLE_USER"))));
+    }
+
+    private static Jwt jwt(String subject, String role) {
+        return Jwt.withTokenValue("opaque.jwt")
+                .header("alg", "RS256")
+                .subject(subject)
+                .claim("username", "alice")
+                .claim("client_id", "user_client")
+                .claim("grant_type", "password")
+                .claim("roles", List.of(role))
+                .claim("scope", List.of("*:read"))
+                .issuedAt(Instant.parse("2026-08-10T00:00:00Z"))
+                .expiresAt(Instant.parse("2026-08-10T01:00:00Z"))
+                .build();
     }
 }

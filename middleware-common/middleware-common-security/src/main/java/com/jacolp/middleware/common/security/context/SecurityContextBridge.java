@@ -8,6 +8,7 @@ import java.util.List;
 
 /** Mirrors successfully authenticated legacy MVC requests into Spring Security's context. */
 public final class SecurityContextBridge {
+    private static final CurrentPrincipalAccessor CURRENT_PRINCIPAL_ACCESSOR = new SecurityContextCurrentPrincipalAccessor();
 
     private SecurityContextBridge() {
     }
@@ -24,24 +25,11 @@ public final class SecurityContextBridge {
     }
 
     public static Long currentIdOrNull() {
-        SecurityPrincipal principal = principalOrNull();
-        return principal == null ? null : principal.id();
+        return CURRENT_PRINCIPAL_ACCESSOR.currentPrincipal().map(CurrentPrincipal::userId).orElse(null);
     }
 
-    /** Returns null when no compatible holder identity exists, so callers can use their legacy fallback. */
+    /** Returns null only when no supported holder identity exists, so callers can use their legacy fallback. */
     public static Boolean isAdminOrNull() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal() instanceof SecurityPrincipal)) {
-            return null;
-        }
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> SecurityIdentity.ADMIN.authority().equals(authority.getAuthority()));
-    }
-
-    private static SecurityPrincipal principalOrNull() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.isAuthenticated()
-                && authentication.getPrincipal() instanceof SecurityPrincipal principal ? principal : null;
+        return CURRENT_PRINCIPAL_ACCESSOR.currentPrincipal().map(CurrentPrincipal::isAdministrative).orElse(null);
     }
 }
