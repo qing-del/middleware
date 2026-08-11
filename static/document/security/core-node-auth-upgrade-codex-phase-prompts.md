@@ -213,6 +213,15 @@
 
 ## Phase 4：Authorization Code + PKCE + Consent
 
+已确认的 Phase 4 实施口径：
+
+- Authorization Endpoint 使用 Spring Authorization Server 默认`/oauth2/authorize`，Token Endpoint 固定为`POST /oauth/token`；`POST /oauth/logout`注销当前 core_agent + user session。
+- 允许仅用于 Authorization Server 浏览器流程的后端 Thymeleaf 页面：`GET/POST /oauth/login`和`GET /oauth/consent`。它们不属于 USER/ADMIN internal JSON endpoint，且不修改 frontend/。
+- 浏览器授权首版仅 username/password；`email-code`仍只服务`user`、`admin` internal client。
+- 浏览器 session 为 10 分钟，Cookie 为 HttpOnly、SameSite=Lax，生产 Secure；登录/consent POST 保持 CSRF，只有`/oauth/token`与 Bearer`/oauth/logout`精确豁免。
+- scope 缺省时使用 core_agent `auto_approve`作为 consent 候选；auto_approve 为强制项，用户不可取消，只可增加其余可选 scope。保存 consent 后，相同范围可复用，新增范围必须再次确认。
+- Phase 4 migration 将 core_agent 改为 active；`jacolp.oauth2.rs256.enabled=false`时保留既有签名/校验链，Phase 2-4 新 RS256 组件不接线；true 后新授权 token 均使用 RS256，Phase 5 再完成全量 Resource Server 切换。
+
 ```text
 请先读取仓库内授权升级方案文档，以及前面阶段已经实现/确认的授权基础，然后规划 Phase 4。
 
