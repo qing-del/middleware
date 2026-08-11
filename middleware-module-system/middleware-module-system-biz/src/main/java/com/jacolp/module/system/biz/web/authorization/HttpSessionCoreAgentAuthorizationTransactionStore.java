@@ -2,6 +2,8 @@ package com.jacolp.module.system.biz.web.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentBrowserAuthorizationTransaction;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -18,6 +20,8 @@ import java.util.Optional;
  * adapter never invalidates the whole session because the authorization response still needs its
  * Spring Security context; a later success handler owns complete browser-session cleanup.</p>
  */
+@Component
+@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class HttpSessionCoreAgentAuthorizationTransactionStore {
 
     static final String ATTRIBUTE_NAME = HttpSessionCoreAgentAuthorizationTransactionStore.class.getName()
@@ -25,6 +29,10 @@ public final class HttpSessionCoreAgentAuthorizationTransactionStore {
     static final int SESSION_TIMEOUT_SECONDS = 600;
 
     private final Clock clock;
+
+    public HttpSessionCoreAgentAuthorizationTransactionStore() {
+        this(Clock.systemUTC());
+    }
 
     public HttpSessionCoreAgentAuthorizationTransactionStore(Clock clock) {
         if (clock == null) {
