@@ -85,7 +85,7 @@ public record CoreAgentAuthorizationCodeState(
         }
     }
 
-    private static String requireSafeRedirectUri(String redirectUri) {
+    static String requireSafeRedirectUri(String redirectUri) {
         if (redirectUri == null || redirectUri.isBlank() || !redirectUri.equals(redirectUri.trim())) {
             throw invalid("redirectUri is required");
         }
@@ -102,7 +102,7 @@ public record CoreAgentAuthorizationCodeState(
         }
     }
 
-    private static List<String> normalizedScopes(Collection<String> candidateScopes) {
+    static List<String> normalizedScopes(Collection<String> candidateScopes) {
         if (candidateScopes == null || candidateScopes.isEmpty()) {
             throw invalid("scopes cannot be empty");
         }
@@ -125,7 +125,7 @@ public record CoreAgentAuthorizationCodeState(
         return List.copyOf(sorted);
     }
 
-    private static String requireOriginalSocketLiteral(String socketAddress) {
+    static String requireOriginalSocketLiteral(String socketAddress) {
         if (socketAddress == null || socketAddress.isBlank() || !socketAddress.equals(socketAddress.trim())) {
             throw invalid("originalSocketAddress must be a socket IP literal");
         }
@@ -139,7 +139,7 @@ public record CoreAgentAuthorizationCodeState(
         return socketAddress;
     }
 
-    private static void requireSafeState(String state) {
+    static void requireSafeState(String state) {
         if (state == null || state.isBlank() || state.length() > OAUTH_STATE_MAXIMUM_LENGTH) {
             throw invalid("oauthState is required and exceeds the supported size");
         }
