@@ -50,6 +50,7 @@ class CoreAgentAuthorizationCodeTokenServiceTest {
         assertThat(tokens.tokenType()).isEqualTo("Bearer");
         assertThat(tokens.accessIssuedAt()).isEqualTo(NOW);
         assertThat(tokens.accessExpiresAt()).isEqualTo(NOW.plus(Duration.ofHours(1)));
+        assertThat(tokens.refreshIssuedAt()).isEqualTo(NOW);
         assertThat(tokens.refreshExpiresAt()).isEqualTo(NOW.plus(Duration.ofHours(24)));
         assertThat(tokens.grantedScopes()).containsExactly("note:read");
         assertThat(tokens.socketAddressChanged()).isFalse();
@@ -160,10 +161,10 @@ class CoreAgentAuthorizationCodeTokenServiceTest {
         assertThatIllegalStateException().isThrownBy(() -> nullRefresh.service.issue(verified(false)));
 
         IssuedCoreAgentAuthorizationCodeTokens tokens = new IssuedCoreAgentAuthorizationCodeTokens("access-secret",
-                "refresh-secret", "Bearer", NOW, NOW.plusSeconds(1), NOW.plusSeconds(2), List.of("note:read"), true);
+                "refresh-secret", "Bearer", NOW, NOW.plusSeconds(1), NOW, NOW.plusSeconds(2), List.of("note:read"), true);
         assertThat(tokens.toString()).contains("<redacted>").doesNotContain("access-secret", "refresh-secret");
         assertThatIllegalArgumentException().isThrownBy(() -> new IssuedCoreAgentAuthorizationCodeTokens("a", "b", "Bearer",
-                NOW, NOW.plusSeconds(1), NOW.plusSeconds(2), List.of(), false));
+                NOW, NOW.plusSeconds(1), NOW, NOW.plusSeconds(2), List.of(), false));
     }
 
     private static void assertRejected(org.junit.jupiter.api.function.Executable executable) {

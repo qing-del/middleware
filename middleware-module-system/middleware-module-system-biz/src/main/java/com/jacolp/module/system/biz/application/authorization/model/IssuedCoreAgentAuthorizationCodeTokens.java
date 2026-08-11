@@ -13,14 +13,16 @@ public record IssuedCoreAgentAuthorizationCodeTokens(
         String tokenType,
         Instant accessIssuedAt,
         Instant accessExpiresAt,
+        Instant refreshIssuedAt,
         Instant refreshExpiresAt,
         List<String> grantedScopes,
         boolean socketAddressChanged) {
 
     public IssuedCoreAgentAuthorizationCodeTokens {
         if (!hasText(accessToken) || !hasText(refreshToken) || !"Bearer".equals(tokenType)
-                || accessIssuedAt == null || accessExpiresAt == null || refreshExpiresAt == null
-                || !accessExpiresAt.isAfter(accessIssuedAt) || refreshExpiresAt.isBefore(accessExpiresAt)) {
+                || accessIssuedAt == null || accessExpiresAt == null || refreshIssuedAt == null || refreshExpiresAt == null
+                || !accessExpiresAt.isAfter(accessIssuedAt) || !refreshExpiresAt.isAfter(refreshIssuedAt)
+                || refreshExpiresAt.isBefore(accessExpiresAt)) {
             throw new IllegalArgumentException("Invalid issued CORE AGENT authorization-code tokens");
         }
         if (grantedScopes == null || grantedScopes.isEmpty()) {

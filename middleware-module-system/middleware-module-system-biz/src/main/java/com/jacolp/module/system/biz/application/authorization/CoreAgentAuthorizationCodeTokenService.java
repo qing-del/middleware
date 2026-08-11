@@ -85,7 +85,7 @@ public final class CoreAgentAuthorizationCodeTokenService {
             throw new IllegalStateException("CORE AGENT refresh token issuer returned null");
         }
         return new IssuedCoreAgentAuthorizationCodeTokens(accessToken.tokenValue(), refreshToken.rawToken(), "Bearer",
-                accessToken.issuedAt(), accessToken.expiresAt(), refreshToken.expiresAt(), grantedScopes,
+                accessToken.issuedAt(), accessToken.expiresAt(), refreshToken.issuedAt(), refreshToken.expiresAt(), grantedScopes,
                 verifiedCode.socketAddressChanged());
     }
 
