@@ -4,8 +4,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.Locale;
+import org.springframework.stereotype.Component;
 
 /** Stable non-secret SHA-256 binding fingerprints for email-code controls. */
+@Component
 public final class EmailLoginBindingFingerprint {
     public String email(String email) {
         return hash("email\0".getBytes(StandardCharsets.UTF_8), canonicalEmail(email).getBytes(StandardCharsets.UTF_8));
