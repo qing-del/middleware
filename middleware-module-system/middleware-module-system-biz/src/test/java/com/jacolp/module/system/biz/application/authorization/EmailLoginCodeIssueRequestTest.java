@@ -1,8 +1,8 @@
 package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeIssueRequest;
+import com.jacolp.exception.AuthenticationException;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.core.AuthenticationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -30,6 +30,7 @@ class EmailLoginCodeIssueRequestTest {
     void rejectionExceptionIsAnAuthenticationExceptionWithoutPii() {
         AuthenticationException exception = new EmailLoginCodeIssuanceRejectedException();
 
+        assertThat(EmailLoginCodeIssuanceRejectedException.class).isAssignableTo(AuthenticationException.class);
         assertThat(exception).hasMessage("Email-code issuance rejected");
         assertThat(exception.getMessage()).doesNotContain("alice", "192.0.2.1");
     }

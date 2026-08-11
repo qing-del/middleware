@@ -1,6 +1,6 @@
 package com.jacolp.module.system.biz.application.authorization;
 
-import org.springframework.security.core.AuthenticationException;
+import com.jacolp.exception.AuthenticationException;
 
 /** Stable, non-enumerating rejection for ordinary email-code issuance denials. */
 public class EmailLoginCodeIssuanceRejectedException extends AuthenticationException {
