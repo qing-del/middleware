@@ -7,12 +7,15 @@ import com.jacolp.module.system.biz.application.authorization.CoreAgentRegistere
 import com.jacolp.module.system.biz.application.authorization.EffectiveRolePermissionResolver;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationCodeIssueRequest;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationConsentDecision;
-import com.jacolp.module.system.biz.application.authorization.model.CoreAgentBrowserAuthorizationTransaction;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentBrowserPrincipal;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentConsentScopeOptions;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationState;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPreparedPendingAuthorization;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationCode;
+import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -35,7 +38,6 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,10 +63,12 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
             .withUserConfiguration(ProviderOnlyConfiguration.class);
 
     @Test
-    void completeConsentIssuesRedisCodeAndReturnsTheStandardSuccessToken() {
+    void completeConsentCreatesThenAtomicallyConvertsPendingAndReturnsTheStandardSuccessToken() {
         Fixture fixture = fixture();
         when(fixture.consentService.prepare(eq(7L), any(), any(), eq(null))).thenReturn(reusedDecision());
-        when(fixture.issueService.issue(any())).thenReturn(new IssuedCoreAgentAuthorizationCode(ISSUE_CODE,
+        when(fixture.issueService.createPending(any(), eq(fixture.session.getId())))
+                .thenReturn(prepared(fixture.session, null));
+        when(fixture.issueService.convertPending(any())).thenReturn(new IssuedCoreAgentAuthorizationCode(ISSUE_CODE,
                 NOW.plus(Duration.ofMinutes(10))));
 
         Authentication result = fixture.provider.authenticate(request(fixture.session, false, null, null));
@@ -78,22 +83,26 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         assertThat(success.getRedirectUri()).isEqualTo(REDIRECT_URI);
         assertThat(success.getState()).isEqualTo(STATE);
         assertThat(success.getScopes()).containsExactly("note:read", "note:write");
+        assertThat(fixture.handleStore.find(fixture.session)).isEmpty();
         assertThat(fixture.session.getAttribute(HttpSessionCoreAgentAuthorizationTransactionStore.ATTRIBUTE_NAME)).isNull();
 
         org.mockito.ArgumentCaptor<CoreAgentAuthorizationCodeIssueRequest> requestCaptor =
                 org.mockito.ArgumentCaptor.forClass(CoreAgentAuthorizationCodeIssueRequest.class);
-        verify(fixture.issueService).issue(requestCaptor.capture());
+        verify(fixture.issueService).createPending(requestCaptor.capture(), eq(fixture.session.getId()));
+        verify(fixture.issueService).convertPending(any());
         assertThat(requestCaptor.getValue().authenticatedUserId()).isEqualTo(7L);
         assertThat(requestCaptor.getValue().requestedScopes()).isNull();
-        assertThat(requestCaptor.getValue().submittedOptionalScopes()).containsExactly("note:write");
+        assertThat(requestCaptor.getValue().submittedOptionalScopes()).isEmpty();
         assertThat(requestCaptor.getValue().codeChallenge()).isEqualTo(VALUE);
         assertThat(requestCaptor.getValue().socketRemoteAddress()).isEqualTo("127.0.0.1");
     }
 
     @Test
-    void incompleteConsentRetainsExactlyOneTenMinuteTransactionAndReturnsStandardConsentToken() {
+    void incompleteConsentRetainsOnlyOnePendingHandleInSessionAndReturnsStandardConsentToken() {
         Fixture fixture = fixture();
         when(fixture.consentService.prepare(eq(7L), any(), any(), any())).thenReturn(requiredDecision());
+        when(fixture.issueService.createPending(any(), eq(fixture.session.getId())))
+                .thenReturn(prepared(fixture.session, List.of("note:read", "note:write")));
 
         Authentication result = fixture.provider.authenticate(request(fixture.session, true,
                 new LinkedHashSet<>(List.of("note:read", "note:write")), null));
@@ -104,24 +113,12 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         assertThat(consent.getState()).isEqualTo(STATE);
         assertThat(consent.getScopes()).containsExactly("note:write");
         assertThat(consent.getPrincipal()).isInstanceOf(CoreAgentBrowserAuthenticationToken.class);
-        verify(fixture.issueService, never()).issue(any());
+        verify(fixture.issueService).createPending(any(), eq(fixture.session.getId()));
+        verify(fixture.issueService, never()).convertPending(any());
         assertThat(fixture.session.getMaxInactiveInterval())
-                .isEqualTo(HttpSessionCoreAgentAuthorizationTransactionStore.SESSION_TIMEOUT_SECONDS);
-
-        Optional<CoreAgentBrowserAuthorizationTransaction> stored = fixture.transactions.find(fixture.session, STATE, 7L);
-        assertThat(stored).isPresent();
-        assertThat(stored.orElseThrow()).satisfies(transaction -> {
-            assertThat(transaction.clientId()).isEqualTo("core_agent");
-            assertThat(transaction.redirectUri()).isEqualTo(REDIRECT_URI);
-            assertThat(transaction.requestedScopes()).containsExactly("note:read", "note:write");
-            assertThat(transaction.codeChallenge()).isEqualTo(VALUE);
-            assertThat(transaction.codeChallengeMethod()).isEqualTo("S256");
-            assertThat(transaction.oauthState()).isEqualTo(STATE);
-            assertThat(transaction.originalSocketAddress()).isEqualTo("127.0.0.1");
-            assertThat(transaction.authenticatedUserId()).isEqualTo(7L);
-            assertThat(transaction.issuedAt()).isEqualTo(NOW);
-            assertThat(transaction.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
-        });
+                .isEqualTo(HttpSessionCoreAgentPendingAuthorizationHandleStore.SESSION_TIMEOUT_SECONDS);
+        assertThat(fixture.handleStore.find(fixture.session)).contains(VALUE);
+        assertThat(fixture.session.getAttribute(HttpSessionCoreAgentAuthorizationTransactionStore.ATTRIBUTE_NAME)).isNull();
     }
 
     @Test
@@ -142,7 +139,9 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
     void preservesScopeOmissionButRejectsExplicitEmptyScopeAndInvalidPkceBeforeSideEffects() {
         Fixture fixture = fixture();
         when(fixture.consentService.prepare(eq(7L), any(), any(), eq(null))).thenReturn(reusedDecision());
-        when(fixture.issueService.issue(any())).thenReturn(new IssuedCoreAgentAuthorizationCode(ISSUE_CODE,
+        when(fixture.issueService.createPending(any(), eq(fixture.session.getId())))
+                .thenReturn(prepared(fixture.session, null));
+        when(fixture.issueService.convertPending(any())).thenReturn(new IssuedCoreAgentAuthorizationCode(ISSUE_CODE,
                 NOW.plus(Duration.ofMinutes(10))));
 
         fixture.provider.authenticate(request(fixture.session, false, null, null));
@@ -175,7 +174,7 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
     void mapsIssueEligibilityRejectionToBoundAccessDeniedAndPropagatesSystemFailures() {
         Fixture rejected = fixture();
         when(rejected.consentService.prepare(eq(7L), any(), any(), eq(null))).thenReturn(reusedDecision());
-        when(rejected.issueService.issue(any())).thenThrow(new com.jacolp.module.system.biz.application.authorization
+        when(rejected.issueService.createPending(any(), any())).thenThrow(new com.jacolp.module.system.biz.application.authorization
                 .CoreAgentAuthorizationCodeIssueRejectedException());
         assertBoundAccessDenied(() -> rejected.provider.authenticate(request(rejected.session, false, null, null)));
 
@@ -183,6 +182,42 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         when(broken.consentService.prepare(eq(7L), any(), any(), eq(null))).thenThrow(new IllegalStateException("db down"));
         assertThatIllegalStateException().isThrownBy(() -> broken.provider.authenticate(
                 request(broken.session, false, null, null))).withMessage("db down");
+    }
+
+    @Test
+    void mapsPendingConversionRejectionToBoundAccessDeniedWithoutLeavingASessionHandle() {
+        Fixture fixture = fixture();
+        when(fixture.consentService.prepare(eq(7L), any(), any(), eq(null))).thenReturn(reusedDecision());
+        when(fixture.issueService.createPending(any(), eq(fixture.session.getId()))).thenReturn(prepared(fixture.session,
+                null));
+        when(fixture.issueService.convertPending(any())).thenThrow(new com.jacolp.module.system.biz.application.authorization
+                .CoreAgentAuthorizationCodeIssueRejectedException());
+
+        assertBoundAccessDenied(() -> fixture.provider.authenticate(request(fixture.session, false, null, null)));
+
+        assertThat(fixture.handleStore.find(fixture.session)).isEmpty();
+    }
+
+    @Test
+    void cleansUpRedisPendingWhenTheSessionHandleCannotBeSaved() {
+        Fixture base = fixture();
+        HttpSessionCoreAgentPendingAuthorizationHandleStore failingHandleStore =
+                mock(HttpSessionCoreAgentPendingAuthorizationHandleStore.class);
+        Fixture fixture = new Fixture(new CoreAgentAuthorizationCodeRequestAuthenticationProvider(base.policyResolver,
+                base.roleResolver, base.consentService, base.issueService, failingHandleStore,
+                base.pendingStore), base.policyResolver, base.roleResolver, base.consentService,
+                base.issueService, failingHandleStore, base.pendingStore, base.session);
+        when(fixture.consentService.prepare(eq(7L), any(), any(), any())).thenReturn(requiredDecision());
+        when(fixture.issueService.createPending(any(), eq(fixture.session.getId())))
+                .thenReturn(prepared(fixture.session, List.of("note:read")));
+        doThrow(new IllegalStateException("session unavailable")).when(fixture.handleStore)
+                .replace(eq(fixture.session), any());
+
+        assertThatIllegalStateException().isThrownBy(() -> fixture.provider.authenticate(
+                request(fixture.session, true, new LinkedHashSet<>(List.of("note:read")), null)))
+                .withMessage("session unavailable");
+        verify(fixture.pendingStore).delete(VALUE);
+        verify(fixture.issueService, never()).convertPending(any());
     }
 
     @Test
@@ -238,12 +273,13 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         when(roleResolver.resolve(2L)).thenReturn(role());
         CoreAgentAuthorizationConsentService consentService = mock(CoreAgentAuthorizationConsentService.class);
         CoreAgentAuthorizationCodeIssueService issueService = mock(CoreAgentAuthorizationCodeIssueService.class);
-        HttpSessionCoreAgentAuthorizationTransactionStore transactions =
-                new HttpSessionCoreAgentAuthorizationTransactionStore(Clock.fixed(NOW, ZoneOffset.UTC));
+        HttpSessionCoreAgentPendingAuthorizationHandleStore handleStore =
+                new HttpSessionCoreAgentPendingAuthorizationHandleStore(Clock.fixed(NOW, ZoneOffset.UTC));
+        CoreAgentPendingAuthorizationStore pendingStore = mock(CoreAgentPendingAuthorizationStore.class);
         CoreAgentAuthorizationCodeRequestAuthenticationProvider provider =
                 new CoreAgentAuthorizationCodeRequestAuthenticationProvider(policyResolver, roleResolver, consentService,
-                        issueService, transactions, Clock.fixed(NOW, ZoneOffset.UTC));
-        return new Fixture(provider, policyResolver, roleResolver, consentService, issueService, transactions,
+                        issueService, handleStore, pendingStore);
+        return new Fixture(provider, policyResolver, roleResolver, consentService, issueService, handleStore, pendingStore,
                 new MockHttpSession());
     }
 
@@ -318,12 +354,20 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         return new CoreAgentBrowserPrincipal(7L, "alice", 2L, "USER", 2);
     }
 
+    private static CoreAgentPreparedPendingAuthorization prepared(HttpSession session, List<String> requestedScopes) {
+        Instant expiresAt = NOW.plus(Duration.ofMinutes(10));
+        return new CoreAgentPreparedPendingAuthorization(new IssuedCoreAgentAuthorizationPendingHandle(VALUE, expiresAt),
+                new CoreAgentPendingAuthorizationState("core_agent", REDIRECT_URI, requestedScopes, VALUE, "S256",
+                        STATE, "127.0.0.1", 7L, session.getId(), NOW, expiresAt));
+    }
+
     private record Fixture(CoreAgentAuthorizationCodeRequestAuthenticationProvider provider,
                            CoreAgentRegisteredClientPolicyResolver policyResolver,
                            EffectiveRolePermissionResolver roleResolver,
                            CoreAgentAuthorizationConsentService consentService,
                            CoreAgentAuthorizationCodeIssueService issueService,
-                           HttpSessionCoreAgentAuthorizationTransactionStore transactions,
+                           HttpSessionCoreAgentPendingAuthorizationHandleStore handleStore,
+                           CoreAgentPendingAuthorizationStore pendingStore,
                            MockHttpSession session) {
     }
 
@@ -350,8 +394,12 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
             return mock(CoreAgentAuthorizationCodeIssueService.class);
         }
 
-        @Bean HttpSessionCoreAgentAuthorizationTransactionStore transactionStore() {
-            return new HttpSessionCoreAgentAuthorizationTransactionStore(Clock.fixed(NOW, ZoneOffset.UTC));
+        @Bean HttpSessionCoreAgentPendingAuthorizationHandleStore pendingHandleStore() {
+            return new HttpSessionCoreAgentPendingAuthorizationHandleStore(Clock.fixed(NOW, ZoneOffset.UTC));
+        }
+
+        @Bean CoreAgentPendingAuthorizationStore pendingAuthorizationStore() {
+            return mock(CoreAgentPendingAuthorizationStore.class);
         }
     }
 }

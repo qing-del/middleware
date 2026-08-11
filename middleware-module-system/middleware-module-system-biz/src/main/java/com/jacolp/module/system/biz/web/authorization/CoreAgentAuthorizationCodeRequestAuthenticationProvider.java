@@ -8,11 +8,13 @@ import com.jacolp.module.system.biz.application.authorization.CoreAgentRegistere
 import com.jacolp.module.system.biz.application.authorization.EffectiveRolePermissionResolver;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationCodeIssueRequest;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationConsentDecision;
-import com.jacolp.module.system.biz.application.authorization.model.CoreAgentBrowserAuthorizationTransaction;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentBrowserPrincipal;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationConversionRequest;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPreparedPendingAuthorization;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationCode;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -25,8 +27,6 @@ import org.springframework.security.oauth2.server.authorization.authentication.O
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationConsentAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -40,8 +40,9 @@ import java.util.Set;
  * <p>The provider deliberately returns Spring Authorization Server's standard success and
  * consent-required tokens, so {@code OAuth2AuthorizationEndpointFilter} retains its protocol
  * redirects. It never creates SAS {@code OAuth2Authorization} state: the pending consent request
- * is held only in {@link HttpSessionCoreAgentAuthorizationTransactionStore}, and an issued raw
- * code is held only by {@link CoreAgentAuthorizationCodeIssueService}'s Redis-backed store.</p>
+ * is held only in Redis. Browser {@code HttpSession} retains at most its opaque pending handle;
+ * an issued raw code is held only by {@link CoreAgentAuthorizationCodeIssueService}'s Redis-backed
+ * store.</p>
  */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
@@ -54,8 +55,8 @@ public final class CoreAgentAuthorizationCodeRequestAuthenticationProvider imple
     private final EffectiveRolePermissionResolver effectiveRolePermissionResolver;
     private final CoreAgentAuthorizationConsentService authorizationConsentService;
     private final CoreAgentAuthorizationCodeIssueService authorizationCodeIssueService;
-    private final HttpSessionCoreAgentAuthorizationTransactionStore transactionStore;
-    private final Clock clock;
+    private final HttpSessionCoreAgentPendingAuthorizationHandleStore pendingHandleStore;
+    private final CoreAgentPendingAuthorizationStore pendingAuthorizationStore;
 
     @Autowired
     public CoreAgentAuthorizationCodeRequestAuthenticationProvider(
@@ -63,18 +64,8 @@ public final class CoreAgentAuthorizationCodeRequestAuthenticationProvider imple
             EffectiveRolePermissionResolver effectiveRolePermissionResolver,
             CoreAgentAuthorizationConsentService authorizationConsentService,
             CoreAgentAuthorizationCodeIssueService authorizationCodeIssueService,
-            HttpSessionCoreAgentAuthorizationTransactionStore transactionStore) {
-        this(policyResolver, effectiveRolePermissionResolver, authorizationConsentService,
-                authorizationCodeIssueService, transactionStore, Clock.systemUTC());
-    }
-
-    CoreAgentAuthorizationCodeRequestAuthenticationProvider(
-            CoreAgentRegisteredClientPolicyResolver policyResolver,
-            EffectiveRolePermissionResolver effectiveRolePermissionResolver,
-            CoreAgentAuthorizationConsentService authorizationConsentService,
-            CoreAgentAuthorizationCodeIssueService authorizationCodeIssueService,
-            HttpSessionCoreAgentAuthorizationTransactionStore transactionStore,
-            Clock clock) {
+            HttpSessionCoreAgentPendingAuthorizationHandleStore pendingHandleStore,
+            CoreAgentPendingAuthorizationStore pendingAuthorizationStore) {
         this.policyResolver = Objects.requireNonNull(policyResolver, "policyResolver");
         this.effectiveRolePermissionResolver = Objects.requireNonNull(effectiveRolePermissionResolver,
                 "effectiveRolePermissionResolver");
@@ -82,8 +73,8 @@ public final class CoreAgentAuthorizationCodeRequestAuthenticationProvider imple
                 "authorizationConsentService");
         this.authorizationCodeIssueService = Objects.requireNonNull(authorizationCodeIssueService,
                 "authorizationCodeIssueService");
-        this.transactionStore = Objects.requireNonNull(transactionStore, "transactionStore");
-        this.clock = Objects.requireNonNull(clock, "clock");
+        this.pendingHandleStore = Objects.requireNonNull(pendingHandleStore, "pendingHandleStore");
+        this.pendingAuthorizationStore = Objects.requireNonNull(pendingAuthorizationStore, "pendingAuthorizationStore");
     }
 
     @Override
@@ -115,21 +106,22 @@ public final class CoreAgentAuthorizationCodeRequestAuthenticationProvider imple
                     requestedScopes);
         } catch (IllegalArgumentException exception) {
             throw rejectBound(request, INVALID_REQUEST_DESCRIPTION);
+        } catch (CoreAgentAuthorizationCodeIssueRejectedException exception) {
+            throw rejectBound(request, ACCESS_DENIED_DESCRIPTION);
         }
         if (decision == null) {
             throw new IllegalStateException("CORE AGENT consent preparation returned null");
         }
 
         if (decision.consentRequired()) {
-            retainConsentTransaction(policy, browserPrincipal, request, details, requestedScopes, challenge,
-                    challengeMethod);
+            retainConsentPending(policy, browserPrincipal, request, details, requestedScopes, challenge, challengeMethod);
             return new OAuth2AuthorizationConsentAuthenticationToken(request.getAuthorizationUri(), policy.clientId(),
                     browserAuthentication, request.getState(),
                     new LinkedHashSet<>(decision.options().preselectedOptionalScopes()), Map.of());
         }
 
-        IssuedCoreAgentAuthorizationCode issued = issueCode(browserPrincipal, policy, request, details, requestedScopes,
-                challenge, challengeMethod, decision.options().optionalScopes());
+        IssuedCoreAgentAuthorizationCode issued = issueImmediately(browserPrincipal, policy, request, details,
+                requestedScopes, challenge, challengeMethod, decision.reusedFinalScopes());
         return new OAuth2AuthorizationCodeRequestAuthenticationToken(request.getAuthorizationUri(), policy.clientId(),
                 browserAuthentication, new OAuth2AuthorizationCode(issued.rawCode(),
                 issued.expiresAt().minus(policy.authorizationCodeTimeToLive()), issued.expiresAt()),
@@ -209,38 +201,61 @@ public final class CoreAgentAuthorizationCodeRequestAuthenticationProvider imple
         }
     }
 
-    private void retainConsentTransaction(CoreAgentRegisteredClientPolicy policy,
-                                          CoreAgentBrowserPrincipal principal,
-                                          OAuth2AuthorizationCodeRequestAuthenticationToken request,
-                                          CoreAgentAuthorizationEndpointRequestDetails details,
-                                          List<String> requestedScopes,
-                                          String challenge,
-                                          String challengeMethod) {
+    private void retainConsentPending(CoreAgentRegisteredClientPolicy policy,
+                                      CoreAgentBrowserPrincipal principal,
+                                      OAuth2AuthorizationCodeRequestAuthenticationToken request,
+                                      CoreAgentAuthorizationEndpointRequestDetails details,
+                                      List<String> requestedScopes,
+                                      String challenge,
+                                      String challengeMethod) {
+        CoreAgentPreparedPendingAuthorization prepared;
         try {
-            Instant issuedAt = clock.instant();
-            CoreAgentBrowserAuthorizationTransaction transaction = new CoreAgentBrowserAuthorizationTransaction(
-                    policy.clientId(), policy.redirectUri(), requestedScopes, challenge, challengeMethod,
-                    request.getState(), details.socketRemoteAddress(), principal.userId(), issuedAt,
-                    issuedAt.plus(policy.authorizationCodeTimeToLive()));
-            transactionStore.replace(details.session(), transaction);
+            prepared = authorizationCodeIssueService.createPending(issueRequest(principal, policy, request, details,
+                    requestedScopes, challenge, challengeMethod), details.sessionId());
+            if (prepared == null || prepared.handle() == null || prepared.state() == null
+                    || !details.sessionId().equals(prepared.state().sessionId())) {
+                throw new IllegalStateException("CORE AGENT pending authorization creation returned inconsistent data");
+            }
         } catch (IllegalArgumentException exception) {
             throw rejectBound(request, INVALID_REQUEST_DESCRIPTION);
+        } catch (CoreAgentAuthorizationCodeIssueRejectedException exception) {
+            throw rejectBound(request, ACCESS_DENIED_DESCRIPTION);
+        }
+        try {
+            pendingHandleStore.replace(details.session(), prepared.handle());
+        } catch (RuntimeException exception) {
+            try {
+                pendingAuthorizationStore.delete(prepared.handle().rawHandle());
+            } catch (RuntimeException ignored) {
+                // The original session-store failure remains authoritative; Redis TTL is the fallback cleanup.
+            }
+            if (exception instanceof IllegalArgumentException) {
+                throw rejectBound(request, INVALID_REQUEST_DESCRIPTION);
+            }
+            throw exception;
         }
     }
 
-    private IssuedCoreAgentAuthorizationCode issueCode(CoreAgentBrowserPrincipal principal,
-                                                        CoreAgentRegisteredClientPolicy policy,
-                                                        OAuth2AuthorizationCodeRequestAuthenticationToken request,
-                                                        CoreAgentAuthorizationEndpointRequestDetails details,
-                                                        List<String> requestedScopes,
-                                                        String challenge,
-                                                        String challengeMethod,
-                                                        Collection<String> submittedOptionalScopes) {
+    private IssuedCoreAgentAuthorizationCode issueImmediately(CoreAgentBrowserPrincipal principal,
+                                                               CoreAgentRegisteredClientPolicy policy,
+                                                               OAuth2AuthorizationCodeRequestAuthenticationToken request,
+                                                               CoreAgentAuthorizationEndpointRequestDetails details,
+                                                               List<String> requestedScopes,
+                                                               String challenge,
+                                                               String challengeMethod,
+                                                               Collection<String> grantedScopes) {
         try {
-            IssuedCoreAgentAuthorizationCode issued = authorizationCodeIssueService.issue(
-                    new CoreAgentAuthorizationCodeIssueRequest(principal.userId(), policy.clientId(),
-                            policy.redirectUri(), requestedScopes, List.copyOf(submittedOptionalScopes), challenge,
-                            challengeMethod, details.socketRemoteAddress(), request.getState()));
+            CoreAgentPreparedPendingAuthorization prepared = authorizationCodeIssueService.createPending(
+                    issueRequest(principal, policy, request, details, requestedScopes, challenge, challengeMethod),
+                    details.sessionId());
+            if (prepared == null || prepared.handle() == null || prepared.state() == null
+                    || !details.sessionId().equals(prepared.state().sessionId())) {
+                throw new IllegalStateException("CORE AGENT pending authorization creation returned inconsistent data");
+            }
+            IssuedCoreAgentAuthorizationCode issued = authorizationCodeIssueService.convertPending(
+                    new CoreAgentPendingAuthorizationConversionRequest(prepared.handle().rawHandle(), principal.userId(),
+                            details.sessionId(), policy.clientId(), policy.redirectUri(), request.getState(),
+                            List.copyOf(grantedScopes)));
             if (issued == null) {
                 throw new IllegalStateException("CORE AGENT authorization-code issue service returned null");
             }
@@ -250,6 +265,17 @@ public final class CoreAgentAuthorizationCodeRequestAuthenticationProvider imple
         } catch (IllegalArgumentException exception) {
             throw rejectBound(request, INVALID_REQUEST_DESCRIPTION);
         }
+    }
+
+    private static CoreAgentAuthorizationCodeIssueRequest issueRequest(CoreAgentBrowserPrincipal principal,
+                                                                        CoreAgentRegisteredClientPolicy policy,
+                                                                        OAuth2AuthorizationCodeRequestAuthenticationToken request,
+                                                                        CoreAgentAuthorizationEndpointRequestDetails details,
+                                                                        List<String> requestedScopes,
+                                                                        String challenge,
+                                                                        String challengeMethod) {
+        return new CoreAgentAuthorizationCodeIssueRequest(principal.userId(), policy.clientId(), policy.redirectUri(),
+                requestedScopes, List.of(), challenge, challengeMethod, details.socketRemoteAddress(), request.getState());
     }
 
     private static OAuth2AuthorizationCodeRequestAuthenticationException rejectUnbound(String description) {
