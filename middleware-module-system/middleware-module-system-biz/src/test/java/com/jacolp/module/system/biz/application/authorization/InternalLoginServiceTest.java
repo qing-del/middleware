@@ -257,7 +257,7 @@ class InternalLoginServiceTest {
         EffectiveRolePermissions effective = new EffectiveRolePermissions(3L, "USER", 3, List.of("note:read"));
         IssuedAccessToken issuedAccess = new IssuedAccessToken("access-token", "A".repeat(22), NOW,
                 NOW.plus(Duration.ofMinutes(5)));
-        IssuedRefreshToken issuedRefresh = new IssuedRefreshToken("refresh-token", NOW.plus(Duration.ofHours(24)));
+        IssuedRefreshToken issuedRefresh = new IssuedRefreshToken("refresh-token", NOW, NOW.plus(Duration.ofHours(24)));
         return new Fixture(new InternalLoginService(policyResolver, password, email, roles, scopes,
                 accessIssuer, refreshService), policyResolver, password, email, roles, scopes, accessIssuer,
                 refreshService, policy, account, effective, List.of("note:read"), issuedAccess, issuedRefresh);

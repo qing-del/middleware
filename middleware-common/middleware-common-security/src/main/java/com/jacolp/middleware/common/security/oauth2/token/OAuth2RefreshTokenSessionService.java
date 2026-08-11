@@ -36,7 +36,7 @@ public final class OAuth2RefreshTokenSessionService {
         OAuth2SessionState sessionState = new OAuth2SessionState(request.userId(), request.clientId(),
                 request.accessToken().jti(), request.accessToken().expiresAt(), protection.fingerprint(), refreshExpiresAt);
         stateStore.replaceCurrentSession(refreshState, sessionState);
-        return new IssuedRefreshToken(rawToken, refreshExpiresAt);
+        return new IssuedRefreshToken(rawToken, issuedAt, refreshExpiresAt);
     }
 
     public Optional<VerifiedRefreshToken> verify(String rawToken) {
@@ -87,7 +87,7 @@ public final class OAuth2RefreshTokenSessionService {
         OAuth2SessionState nextSessionState = new OAuth2SessionState(current.userId(), current.clientId(),
                 nextAccessToken.jti(), nextAccessToken.expiresAt(), protection.fingerprint(), nextRefreshExpiresAt);
         if (!stateStore.rotate(current.fingerprint(), nextRefreshState, nextSessionState)) return Optional.empty();
-        return Optional.of(new IssuedRefreshToken(nextRawToken, nextRefreshExpiresAt));
+        return Optional.of(new IssuedRefreshToken(nextRawToken, issuedAt, nextRefreshExpiresAt));
     }
 
     private static boolean matchesCurrentSession(RefreshTokenState refreshState, OAuth2SessionState sessionState) {

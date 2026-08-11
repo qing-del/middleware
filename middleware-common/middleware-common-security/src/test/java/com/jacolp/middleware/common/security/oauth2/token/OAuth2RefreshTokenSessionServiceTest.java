@@ -53,6 +53,7 @@ class OAuth2RefreshTokenSessionServiceTest {
         OAuth2SessionState sessionState = sessionCaptor.getValue();
 
         assertThat(issued.rawToken()).isEqualTo(RAW);
+        assertThat(issued.issuedAt()).isEqualTo(now);
         assertThat(issued.expiresAt()).isEqualTo(now.plusSeconds(60));
         assertThat(issued.toString()).doesNotContain(RAW).contains("<redacted>");
         assertThat(refreshState.fingerprint()).isEqualTo(protector.fingerprint(RAW)).isNotEqualTo(RAW);
@@ -79,6 +80,9 @@ class OAuth2RefreshTokenSessionServiceTest {
         assertThatIllegalArgumentException().isThrownBy(() -> new RefreshTokenIssueRequest(1, "core_agent", List.of(),
                 new AccessTokenSessionReference(JTI, now), Duration.ZERO));
         assertThatIllegalArgumentException().isThrownBy(() -> new VerifiedRefreshToken("bad", 1, "core_agent", List.of(), now));
+        assertThatIllegalArgumentException().isThrownBy(() -> new IssuedRefreshToken("", now, now.plusSeconds(1)));
+        assertThatIllegalArgumentException().isThrownBy(() -> new IssuedRefreshToken(RAW, null, now.plusSeconds(1)));
+        assertThatIllegalArgumentException().isThrownBy(() -> new IssuedRefreshToken(RAW, now, now));
     }
 
     @Test
@@ -151,6 +155,7 @@ class OAuth2RefreshTokenSessionServiceTest {
         OAuth2SessionState nextSession = sessionCaptor.getValue();
         IssuedRefreshToken issued = rotated.orElseThrow();
         assertThat(issued.rawToken()).isEqualTo(RAW);
+        assertThat(issued.issuedAt()).isEqualTo(now);
         assertThat(issued.expiresAt()).isEqualTo(now.plusSeconds(120));
         assertThat(issued.toString()).doesNotContain(RAW).contains("<redacted>");
         assertThat(nextRefresh.userId()).isEqualTo(current.userId());

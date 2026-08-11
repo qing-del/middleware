@@ -186,7 +186,7 @@ class CoreAgentAuthorizationCodeTokenServiceTest {
                 List.of("note:read", "*:super"));
         IssuedAccessToken accessToken = new IssuedAccessToken("access-token", "A".repeat(22), NOW,
                 NOW.plus(Duration.ofHours(1)));
-        IssuedRefreshToken refreshToken = new IssuedRefreshToken("refresh-token", NOW.plus(Duration.ofHours(24)));
+        IssuedRefreshToken refreshToken = new IssuedRefreshToken("refresh-token", NOW, NOW.plus(Duration.ofHours(24)));
         when(policyResolver.resolve("core_agent")).thenReturn(policy);
         when(accounts.findById(7L)).thenReturn(Optional.of(account));
         when(roles.resolve(3L)).thenReturn(effectiveRole);
