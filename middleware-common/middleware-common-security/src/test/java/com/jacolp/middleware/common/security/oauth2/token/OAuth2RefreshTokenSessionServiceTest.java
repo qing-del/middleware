@@ -15,6 +15,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -81,7 +82,7 @@ class OAuth2RefreshTokenSessionServiceTest {
                 new AccessTokenSessionReference(JTI, now), Duration.ZERO));
         assertThatIllegalArgumentException().isThrownBy(() -> new VerifiedRefreshToken("bad", 1, "core_agent", List.of(), now));
         assertThatIllegalArgumentException().isThrownBy(() -> new IssuedRefreshToken("", now, now.plusSeconds(1)));
-        assertThatIllegalArgumentException().isThrownBy(() -> new IssuedRefreshToken(RAW, null, now.plusSeconds(1)));
+        assertThatNullPointerException().isThrownBy(() -> new IssuedRefreshToken(RAW, null, now.plusSeconds(1)));
         assertThatIllegalArgumentException().isThrownBy(() -> new IssuedRefreshToken(RAW, now, now));
     }
 
@@ -146,7 +147,8 @@ class OAuth2RefreshTokenSessionServiceTest {
         when(stateStore.rotate(eq(current.fingerprint()), any(RefreshTokenState.class), any(OAuth2SessionState.class))).thenReturn(true);
 
         Optional<IssuedRefreshToken> rotated = service.rotate(OTHER_RAW,
-                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), Duration.ofSeconds(120));
+                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of("note:read"),
+                Duration.ofSeconds(120));
 
         ArgumentCaptor<RefreshTokenState> refreshCaptor = ArgumentCaptor.forClass(RefreshTokenState.class);
         ArgumentCaptor<OAuth2SessionState> sessionCaptor = ArgumentCaptor.forClass(OAuth2SessionState.class);
@@ -160,7 +162,7 @@ class OAuth2RefreshTokenSessionServiceTest {
         assertThat(issued.toString()).doesNotContain(RAW).contains("<redacted>");
         assertThat(nextRefresh.userId()).isEqualTo(current.userId());
         assertThat(nextRefresh.clientId()).isEqualTo(current.clientId());
-        assertThat(nextRefresh.grantedScopes()).containsExactlyElementsOf(current.grantedScopes());
+        assertThat(nextRefresh.grantedScopes()).containsExactly("note:read");
         assertThat(nextRefresh.expiresAt()).isEqualTo(now.plusSeconds(120));
         assertThat(nextRefresh.fingerprint()).isEqualTo(protector.fingerprint(RAW)).isNotEqualTo(RAW);
         assertThat(nextRefresh.verifierHash()).doesNotContain(RAW);
@@ -173,11 +175,13 @@ class OAuth2RefreshTokenSessionServiceTest {
 
     @Test
     void doesNotAttemptRotationForInvalidOrExpiredCurrentRefresh() {
-        assertThat(service.rotate("bad", new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), Duration.ofSeconds(60))).isEmpty();
+        assertThat(service.rotate("bad", new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of("note:read"),
+                Duration.ofSeconds(60))).isEmpty();
         verifyNoInteractions(stateStore);
 
         RefreshTokenState expired = arrangeVerifiedCurrent(OTHER_RAW, now);
-        assertThat(service.rotate(OTHER_RAW, new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), Duration.ofSeconds(60))).isEmpty();
+        assertThat(service.rotate(OTHER_RAW, new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of("note:read"),
+                Duration.ofSeconds(60))).isEmpty();
         verify(stateStore, never()).rotate(eq(expired.fingerprint()), any(RefreshTokenState.class), any(OAuth2SessionState.class));
     }
 
@@ -186,7 +190,23 @@ class OAuth2RefreshTokenSessionServiceTest {
         RefreshTokenState current = arrangeVerifiedCurrent(OTHER_RAW, now.plusSeconds(60));
         when(stateStore.rotate(eq(current.fingerprint()), any(RefreshTokenState.class), any(OAuth2SessionState.class))).thenReturn(false);
 
-        assertThat(service.rotate(OTHER_RAW, new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), Duration.ofSeconds(60))).isEmpty();
+        assertThat(service.rotate(OTHER_RAW, new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of("note:read"),
+                Duration.ofSeconds(60))).isEmpty();
+    }
+
+    @Test
+    void permitsAnEmptyPolicyResultAndPersistsItAsTheNextRefreshScopeSet() {
+        RefreshTokenState current = arrangeVerifiedCurrent(OTHER_RAW, now.plusSeconds(60));
+        when(stateStore.rotate(eq(current.fingerprint()), any(RefreshTokenState.class), any(OAuth2SessionState.class)))
+                .thenReturn(true);
+
+        Optional<IssuedRefreshToken> rotated = service.rotate(OTHER_RAW,
+                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of(), Duration.ofSeconds(60));
+
+        ArgumentCaptor<RefreshTokenState> next = ArgumentCaptor.forClass(RefreshTokenState.class);
+        verify(stateStore).rotate(eq(current.fingerprint()), next.capture(), any(OAuth2SessionState.class));
+        assertThat(rotated).isPresent();
+        assertThat(next.getValue().grantedScopes()).isEmpty();
     }
 
     @Test
@@ -195,17 +215,19 @@ class OAuth2RefreshTokenSessionServiceTest {
         when(stateStore.rotate(eq(current.fingerprint()), any(RefreshTokenState.class), any(OAuth2SessionState.class))).thenReturn(true, false);
         AccessTokenSessionReference nextAccess = new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30));
 
-        assertThat(service.rotate(OTHER_RAW, nextAccess, Duration.ofSeconds(60))).isPresent();
-        assertThat(service.rotate(OTHER_RAW, nextAccess, Duration.ofSeconds(60))).isEmpty();
+        assertThat(service.rotate(OTHER_RAW, nextAccess, List.of("note:read"), Duration.ofSeconds(60))).isPresent();
+        assertThat(service.rotate(OTHER_RAW, nextAccess, List.of("note:read"), Duration.ofSeconds(60))).isEmpty();
     }
 
     @Test
     void rejectsLateAccessExpiryAndInvalidNextRefreshTtlBeforeRotation() {
         RefreshTokenState current = arrangeVerifiedCurrent(OTHER_RAW, now.plusSeconds(60));
         assertThatIllegalArgumentException().isThrownBy(() -> service.rotate(OTHER_RAW,
-                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(121)), Duration.ofSeconds(120)));
+                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(121)), List.of("note:read"), Duration.ofSeconds(120)));
         assertThatIllegalArgumentException().isThrownBy(() -> service.rotate(OTHER_RAW,
-                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), Duration.ZERO));
+                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of("note:read"), Duration.ZERO));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.rotate(OTHER_RAW,
+                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of(" "), Duration.ofSeconds(60)));
         verify(stateStore, never()).rotate(eq(current.fingerprint()), any(RefreshTokenState.class), any(OAuth2SessionState.class));
     }
 
@@ -216,7 +238,7 @@ class OAuth2RefreshTokenSessionServiceTest {
                 .thenThrow(new IllegalStateException("redis unavailable"));
 
         assertThatThrownBy(() -> service.rotate(OTHER_RAW,
-                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), Duration.ofSeconds(60)))
+                new AccessTokenSessionReference(OTHER_JTI, now.plusSeconds(30)), List.of("note:read"), Duration.ofSeconds(60)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("redis unavailable");
     }

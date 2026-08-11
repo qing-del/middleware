@@ -3,6 +3,7 @@ package com.jacolp.middleware.common.security.oauth2.token;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -61,11 +62,16 @@ public final class OAuth2RefreshTokenSessionService {
 
     /**
      * Rotates a refresh session only after re-verifying the caller's raw refresh token and current session pointer.
-     * The verified identity is internal to this method and cannot be supplied by a caller.
+     * The verified identity and client are internal to this method and cannot be supplied by a caller.
+     *
+     * <p>{@code nextGrantedScopes} is the immutable result of the caller's current authorization-policy evaluation;
+     * this storage-layer service validates and persists it but does not decide scope entitlement or wildcard
+     * narrowing. An empty collection remains valid because {@link RefreshTokenState} permits it.</p>
      */
     public Optional<IssuedRefreshToken> rotate(String currentRawToken, AccessTokenSessionReference nextAccessToken,
-                                               Duration nextRefreshTtl) {
+                                               List<String> nextGrantedScopes, Duration nextRefreshTtl) {
         nextAccessToken = Objects.requireNonNull(nextAccessToken, "nextAccessToken must not be null");
+        nextGrantedScopes = List.copyOf(Objects.requireNonNull(nextGrantedScopes, "nextGrantedScopes must not be null"));
         nextRefreshTtl = Objects.requireNonNull(nextRefreshTtl, "nextRefreshTtl must not be null");
         if (nextRefreshTtl.isZero() || nextRefreshTtl.isNegative()) {
             throw new IllegalArgumentException("nextRefreshTtl must be positive");
@@ -83,7 +89,7 @@ public final class OAuth2RefreshTokenSessionService {
         OpaqueTokenProtection protection = tokenProtector.protect(nextRawToken);
         VerifiedRefreshToken current = verified.get();
         RefreshTokenState nextRefreshState = new RefreshTokenState(protection.fingerprint(), protection.verifierHash(),
-                current.userId(), current.clientId(), current.grantedScopes(), issuedAt, nextRefreshExpiresAt);
+                current.userId(), current.clientId(), nextGrantedScopes, issuedAt, nextRefreshExpiresAt);
         OAuth2SessionState nextSessionState = new OAuth2SessionState(current.userId(), current.clientId(),
                 nextAccessToken.jti(), nextAccessToken.expiresAt(), protection.fingerprint(), nextRefreshExpiresAt);
         if (!stateStore.rotate(current.fingerprint(), nextRefreshState, nextSessionState)) return Optional.empty();
