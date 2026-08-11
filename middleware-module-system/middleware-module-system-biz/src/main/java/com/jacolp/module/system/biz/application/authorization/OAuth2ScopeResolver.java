@@ -41,6 +41,21 @@ public final class OAuth2ScopeResolver {
         return resolvedPatterns.stream().map(PermissionScopePattern::asScope).sorted().toList();
     }
 
+    /**
+     * Narrows a previously granted scope set to an explicit refresh request without consulting a role or client
+     * catalogue. The caller must invoke this only when the refresh request supplied {@code scope}; a missing
+     * scope parameter has distinct protocol semantics and must not be represented as {@code null} here.
+     *
+     * <p>Both collections are strict, distinct permission patterns. The result is their pattern intersection,
+     * so it can only preserve or narrow existing grants and cannot invent a wildcard or super permission.</p>
+     */
+    public List<String> narrowGrantedScopes(Collection<String> currentGrantedScopes,
+                                            Collection<String> requestedScopes) {
+        Set<PermissionScopePattern> currentPatterns = parseDistinct(currentGrantedScopes, "current granted scopes");
+        Set<PermissionScopePattern> requestPatterns = parseDistinct(requestedScopes, "requested scopes");
+        return meet(currentPatterns, requestPatterns).stream().map(PermissionScopePattern::asScope).sorted().toList();
+    }
+
     private static Set<PermissionScopePattern> parseDistinct(Collection<String> scopes, String source) {
         if (scopes == null) {
             throw new IllegalArgumentException(source + " cannot be null");

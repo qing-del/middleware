@@ -86,6 +86,29 @@ class OAuth2ScopeResolverTest {
                 .containsExactly("*:read");
     }
 
+    @Test
+    void refreshScopeNarrowingMeetsCurrentAndExplicitRequestsWithoutExpansion() {
+        assertThat(resolver.narrowGrantedScopes(List.of("*:read"), List.of("note:read")))
+                .containsExactly("note:read");
+        assertThat(resolver.narrowGrantedScopes(List.of("note:read"), List.of("*:read")))
+                .containsExactly("note:read");
+        assertThat(resolver.narrowGrantedScopes(List.of("note:read", "sys:read"), List.of("note:read")))
+                .containsExactly("note:read");
+        List<String> immutable = resolver.narrowGrantedScopes(List.of("*:read"), List.of("*:read"));
+        assertThatThrownBy(() -> immutable.add("media:read")).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void refreshScopeNarrowingAllowsExplicitEmptyAndRejectsNullDuplicateOrInvalidPatterns() {
+        assertThat(resolver.narrowGrantedScopes(List.of("note:read"), List.of())).isEmpty();
+        assertThatIllegalArgumentException().isThrownBy(() -> resolver.narrowGrantedScopes(null, List.of("note:read")));
+        assertThatIllegalArgumentException().isThrownBy(() -> resolver.narrowGrantedScopes(List.of("note:read"), null));
+        assertThatIllegalArgumentException().isThrownBy(() -> resolver.narrowGrantedScopes(List.of("note:read", "note:read"),
+                List.of("note:read")));
+        assertThatIllegalArgumentException().isThrownBy(() -> resolver.narrowGrantedScopes(List.of("note:read"),
+                List.of("not a scope")));
+    }
+
     private static EffectiveRolePermissions role(String roleCode, String... permissions) {
         return new EffectiveRolePermissions(3L, roleCode, 3, List.of(permissions));
     }
