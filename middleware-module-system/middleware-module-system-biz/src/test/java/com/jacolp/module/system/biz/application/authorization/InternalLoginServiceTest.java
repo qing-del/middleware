@@ -119,8 +119,7 @@ class InternalLoginServiceTest {
 
     @Test
     void ipDenialAndInvalidRemoteAreUniformRejectionsBeforeAuthentication() {
-        Fixture denied = fixture("password");
-        denied = fixture(policy("user", "password", "198.51.100.0/24"));
+        Fixture denied = fixture(policy("user", "password", "198.51.100.0/24"));
         when(denied.policyResolver.resolve("user", "password")).thenReturn(denied.policy);
         assertThatThrownBy(() -> denied.service.login(passwordRequest(null, "192.0.2.7")))
                 .isInstanceOf(InternalAccountAuthenticationRejectedException.class);
@@ -187,22 +186,25 @@ class InternalLoginServiceTest {
         when(auth.password.authenticate(auth.policy, "alice", "secret")).thenThrow(failure);
         assertThatThrownBy(() -> auth.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
 
-        Fixture prepared = preparedFixture();
+        Fixture role = preparedFixture();
         failure = new RuntimeException("role");
-        when(prepared.roles.resolve(3L)).thenThrow(failure);
-        assertThatThrownBy(() -> prepared.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
+        when(role.roles.resolve(3L)).thenThrow(failure);
+        assertThatThrownBy(() -> role.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
+
+        Fixture scope = preparedFixture();
         failure = new RuntimeException("scope");
-        when(prepared.roles.resolve(3L)).thenReturn(prepared.effective);
-        when(prepared.scopes.resolve(any(), any(), any(), isNull())).thenThrow(failure);
-        assertThatThrownBy(() -> prepared.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
+        when(scope.scopes.resolve(any(), any(), any(), isNull())).thenThrow(failure);
+        assertThatThrownBy(() -> scope.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
+
+        Fixture access = preparedFixture();
         failure = new RuntimeException("access");
-        when(prepared.scopes.resolve(any(), any(), any(), isNull())).thenReturn(prepared.grantedScopes);
-        when(prepared.access.issue(any())).thenThrow(failure);
-        assertThatThrownBy(() -> prepared.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
+        when(access.access.issue(any())).thenThrow(failure);
+        assertThatThrownBy(() -> access.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
+
+        Fixture refresh = preparedFixture();
         failure = new RuntimeException("refresh");
-        when(prepared.access.issue(any())).thenReturn(prepared.accessToken);
-        when(prepared.refresh.issue(any())).thenThrow(failure);
-        assertThatThrownBy(() -> prepared.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
+        when(refresh.refresh.issue(any())).thenThrow(failure);
+        assertThatThrownBy(() -> refresh.service.login(passwordRequest(null, "192.0.2.7"))).isSameAs(failure);
     }
 
     @Test
