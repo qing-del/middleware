@@ -7,11 +7,15 @@ import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGener
 import com.jacolp.module.system.biz.application.authorization.model.AuthorizationAccount;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationCodeIssueRequest;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationCodeState;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationConversionRequest;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationState;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPreparedPendingAuthorization;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationCode;
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.module.system.biz.application.port.out.CoreAgentAuthorizationCodeStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -23,6 +27,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
@@ -30,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -44,12 +50,9 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
     private static final String CHALLENGE = RAW_CODE;
 
     @Test
-    void issuesAFullStateAndReplacesTheCurrentCodeAfterAllValidation() {
+    void issuesAFullStateOnlyThroughPendingThenAtomicCodeTransition() {
         Fixture fixture = fixture();
-        when(fixture.store.replaceCurrent(any(CoreAgentAuthorizationCodeState.class))).thenAnswer(invocation -> {
-            CoreAgentAuthorizationCodeState state = invocation.getArgument(0);
-            return new IssuedCoreAgentAuthorizationCode(state.rawCode(), state.expiresAt());
-        });
+        when(fixture.transitionStore.consumePendingAndStoreCode(any(), any(), any())).thenReturn(true);
 
         IssuedCoreAgentAuthorizationCode issued = fixture.service.issue(request(null, List.of("note:write")));
 
@@ -57,7 +60,10 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
         assertThat(issued.expiresAt()).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
         ArgumentCaptor<CoreAgentAuthorizationCodeState> stateCaptor = ArgumentCaptor.forClass(
                 CoreAgentAuthorizationCodeState.class);
-        verify(fixture.store).replaceCurrent(stateCaptor.capture());
+        ArgumentCaptor<CoreAgentPendingAuthorizationState> pendingCaptor = ArgumentCaptor.forClass(
+                CoreAgentPendingAuthorizationState.class);
+        verify(fixture.pendingStore).save(any(), pendingCaptor.capture());
+        verify(fixture.transitionStore).consumePendingAndStoreCode(any(), eq(pendingCaptor.getValue()), stateCaptor.capture());
         CoreAgentAuthorizationCodeState state = stateCaptor.getValue();
         assertThat(state.clientId()).isEqualTo("core_agent");
         assertThat(state.redirectUri()).isEqualTo("http://127.0.0.1:9090/oauth/callback");
@@ -76,11 +82,12 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
                 .hasFieldOrPropertyWithValue("extraGrantTypes", "agent_client");
 
         InOrder order = inOrder(fixture.policyResolver, fixture.accountRepository, fixture.rolePermissionResolver,
-                fixture.store);
+                fixture.pendingStore, fixture.transitionStore);
         order.verify(fixture.policyResolver).resolve(CoreAgentRegisteredClientPolicyResolver.CORE_AGENT_CLIENT_ID);
         order.verify(fixture.accountRepository).findById(7L);
         order.verify(fixture.rolePermissionResolver).resolve(2L);
-        order.verify(fixture.store).replaceCurrent(any(CoreAgentAuthorizationCodeState.class));
+        order.verify(fixture.pendingStore).save(any(), any(CoreAgentPendingAuthorizationState.class));
+        order.verify(fixture.transitionStore).consumePendingAndStoreCode(any(), any(), any());
     }
 
     @Test
@@ -98,9 +105,36 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
         Fixture grantDenied = fixture(deniedGrantResolver);
         assertRejected(() -> grantDenied.service.issue(request(null, List.of("note:write"))));
 
-        verify(missing.store, never()).replaceCurrent(any());
-        verify(inactive.store, never()).replaceCurrent(any());
-        verify(grantDenied.store, never()).replaceCurrent(any());
+        verify(missing.pendingStore, never()).save(any(), any());
+        verify(inactive.pendingStore, never()).save(any(), any());
+        verify(grantDenied.pendingStore, never()).save(any(), any());
+    }
+
+    @Test
+    void createsPendingForTheRealSessionThenRevalidatesItBeforeTheOnlyCodeTransition() {
+        Fixture fixture = fixture();
+        when(fixture.transitionStore.consumePendingAndStoreCode(any(), any(), any())).thenReturn(true);
+
+        CoreAgentPreparedPendingAuthorization pending = fixture.service.createPending(
+                request(null, List.of("note:write")), "browser-session");
+
+        assertThat(pending.handle().rawHandle()).isEqualTo(RAW_CODE);
+        assertThat(pending.state().sessionId()).isEqualTo("browser-session");
+        assertThat(pending.state().requestedScopes()).isNull();
+        assertThat(pending.toString()).doesNotContain(RAW_CODE, "browser-session", "browser-state");
+        IssuedCoreAgentAuthorizationCode issued = fixture.service.convertPending(
+                new CoreAgentPendingAuthorizationConversionRequest(pending.handle().rawHandle(), 7L,
+                        "browser-session", "core_agent", "http://127.0.0.1:9090/oauth/callback", "browser-state",
+                        List.of("note:read", "note:write")));
+        assertThat(issued.rawCode()).isEqualTo(RAW_CODE);
+        verify(fixture.transitionStore).consumePendingAndStoreCode(eq(pending.handle()), eq(pending.state()), any());
+
+        assertRejected(() -> fixture.service.convertPending(new CoreAgentPendingAuthorizationConversionRequest(
+                pending.handle().rawHandle(), 8L, "browser-session", "core_agent",
+                "http://127.0.0.1:9090/oauth/callback", "browser-state", List.of("note:read"))));
+        assertRejected(() -> fixture.service.convertPending(new CoreAgentPendingAuthorizationConversionRequest(
+                pending.handle().rawHandle(), 7L, "other-session", "core_agent",
+                "http://127.0.0.1:9090/oauth/callback", "browser-state", List.of("media:read"))));
     }
 
     @Test
@@ -117,7 +151,7 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
                 "http://127.0.0.1:9090/oauth/callback", null, List.of("note:write"), CHALLENGE, "S256",
                 "127.0.0.1", "browser-state")));
 
-        verify(roleMismatch.store, never()).replaceCurrent(any());
+        verify(roleMismatch.pendingStore, never()).save(any(), any());
         verify(socket.accountRepository, never()).findById(any());
         verify(binding.accountRepository, never()).findById(any());
     }
@@ -132,12 +166,12 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
         assertThatThrownBy(() -> empty.service.issue(request(List.of("note:write"), List.of())))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        verify(tampered.store, never()).replaceCurrent(any());
-        verify(empty.store, never()).replaceCurrent(any());
+        verify(tampered.transitionStore, never()).consumePendingAndStoreCode(any(), any(), any());
+        verify(empty.transitionStore, never()).consumePendingAndStoreCode(any(), any(), any());
     }
 
     @Test
-    void rejectsNullGeneratorOutputAndFailsForGeneratorOrStoreContractViolations() {
+    void rejectsNullGeneratorOutputAndFailsForPendingOrTransitionFailures() {
         Fixture nullGenerator = fixture();
         when(nullGenerator.tokenGenerator.newOpaqueToken()).thenReturn(null);
         assertThatIllegalStateException().isThrownBy(() -> nullGenerator.service.issue(request(null, List.of("note:write"))));
@@ -147,19 +181,14 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
         assertThatIllegalStateException().isThrownBy(() -> generatorFailure.service.issue(request(null, List.of("note:write"))))
                 .withMessage("rng down");
 
-        Fixture nullStore = fixture();
-        when(nullStore.store.replaceCurrent(any())).thenReturn(null);
-        assertThatIllegalStateException().isThrownBy(() -> nullStore.service.issue(request(null, List.of("note:write"))));
-
-        Fixture mismatch = fixture();
-        when(mismatch.store.replaceCurrent(any())).thenReturn(new IssuedCoreAgentAuthorizationCode(
-                ALTERNATE_RAW_CODE, NOW.plus(Duration.ofMinutes(10))));
-        assertThatIllegalStateException().isThrownBy(() -> mismatch.service.issue(request(null, List.of("note:write"))));
-
-        Fixture storeFailure = fixture();
-        doThrow(new IllegalStateException("redis down")).when(storeFailure.store).replaceCurrent(any());
-        assertThatIllegalStateException().isThrownBy(() -> storeFailure.service.issue(request(null, List.of("note:write"))))
+        Fixture pendingFailure = fixture();
+        doThrow(new IllegalStateException("redis down")).when(pendingFailure.pendingStore).save(any(), any());
+        assertThatIllegalStateException().isThrownBy(() -> pendingFailure.service.issue(request(null, List.of("note:write"))))
                 .withMessage("redis down");
+
+        Fixture stale = fixture();
+        when(stale.transitionStore.consumePendingAndStoreCode(any(), any(), any())).thenReturn(false);
+        assertRejected(() -> stale.service.issue(request(null, List.of("note:write"))));
     }
 
     @Test
@@ -195,11 +224,20 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
         when(accountRepository.findById(7L)).thenReturn(Optional.of(account(UserConstant.ACTIVE_STATUS)));
         EffectiveRolePermissionResolver rolePermissionResolver = mock(EffectiveRolePermissionResolver.class);
         when(rolePermissionResolver.resolve(2L)).thenReturn(role(2L));
-        CoreAgentAuthorizationCodeStore store = mock(CoreAgentAuthorizationCodeStore.class);
+        CoreAgentPendingAuthorizationStore pendingStore = mock(CoreAgentPendingAuthorizationStore.class);
+        CoreAgentPendingAuthorizationCodeTransitionStore transitionStore = mock(CoreAgentPendingAuthorizationCodeTransitionStore.class);
+        AtomicReference<CoreAgentPendingAuthorizationState> pending = new AtomicReference<>();
+        doAnswer(invocation -> {
+            pending.set(invocation.getArgument(1));
+            return null;
+        }).when(pendingStore).save(any(), any());
+        when(pendingStore.find(any())).thenAnswer(invocation -> Optional.ofNullable(pending.get()));
         CoreAgentAuthorizationCodeIssueService service = new CoreAgentAuthorizationCodeIssueService(
                 Clock.fixed(NOW, ZoneOffset.UTC), tokenGenerator, policyResolver, accountRepository, grantTypeResolver,
-                rolePermissionResolver, new CoreAgentConsentScopeService(new OAuth2ScopeResolver()), store);
-        return new Fixture(service, tokenGenerator, policyResolver, accountRepository, rolePermissionResolver, store);
+                rolePermissionResolver, new CoreAgentConsentScopeService(new OAuth2ScopeResolver()),
+                new CoreAgentPendingAuthorizationHandleGenerator(tokenGenerator), pendingStore, transitionStore);
+        return new Fixture(service, tokenGenerator, policyResolver, accountRepository, rolePermissionResolver,
+                pendingStore, transitionStore);
     }
 
     private static CoreAgentAuthorizationCodeIssueRequest request(List<String> requested, List<String> submitted) {
@@ -237,6 +275,7 @@ class CoreAgentAuthorizationCodeIssueServiceTest {
                            CoreAgentRegisteredClientPolicyResolver policyResolver,
                            AuthorizationAccountRepository accountRepository,
                            EffectiveRolePermissionResolver rolePermissionResolver,
-                           CoreAgentAuthorizationCodeStore store) {
+                           CoreAgentPendingAuthorizationStore pendingStore,
+                           CoreAgentPendingAuthorizationCodeTransitionStore transitionStore) {
     }
 }

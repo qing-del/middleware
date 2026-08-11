@@ -7,21 +7,30 @@ import com.jacolp.module.system.biz.application.authorization.model.Authorizatio
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationAccountSnapshot;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationCodeIssueRequest;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationCodeState;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationConversionRequest;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationState;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPreparedPendingAuthorization;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationCode;
+import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
+import com.jacolp.module.system.biz.application.authorization.model.PermissionScopePattern;
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.module.system.biz.application.port.out.CoreAgentAuthorizationCodeStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Issues and atomically stores one validated CORE AGENT authorization code. */
+/** Creates pending browser authorization state and converts it atomically into a CORE AGENT code. */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationCodeIssueService {
@@ -33,7 +42,9 @@ public final class CoreAgentAuthorizationCodeIssueService {
     private final AccountGrantTypeResolver accountGrantTypeResolver;
     private final EffectiveRolePermissionResolver rolePermissionResolver;
     private final CoreAgentConsentScopeService consentScopeService;
-    private final CoreAgentAuthorizationCodeStore authorizationCodeStore;
+    private final CoreAgentPendingAuthorizationHandleGenerator pendingHandleGenerator;
+    private final CoreAgentPendingAuthorizationStore pendingAuthorizationStore;
+    private final CoreAgentPendingAuthorizationCodeTransitionStore transitionStore;
 
     public CoreAgentAuthorizationCodeIssueService(
             Clock clock,
@@ -43,7 +54,9 @@ public final class CoreAgentAuthorizationCodeIssueService {
             AccountGrantTypeResolver accountGrantTypeResolver,
             EffectiveRolePermissionResolver rolePermissionResolver,
             CoreAgentConsentScopeService consentScopeService,
-            CoreAgentAuthorizationCodeStore authorizationCodeStore) {
+            CoreAgentPendingAuthorizationHandleGenerator pendingHandleGenerator,
+            CoreAgentPendingAuthorizationStore pendingAuthorizationStore,
+            CoreAgentPendingAuthorizationCodeTransitionStore transitionStore) {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.tokenGenerator = Objects.requireNonNull(tokenGenerator, "tokenGenerator");
         this.policyResolver = Objects.requireNonNull(policyResolver, "policyResolver");
@@ -51,43 +64,85 @@ public final class CoreAgentAuthorizationCodeIssueService {
         this.accountGrantTypeResolver = Objects.requireNonNull(accountGrantTypeResolver, "accountGrantTypeResolver");
         this.rolePermissionResolver = Objects.requireNonNull(rolePermissionResolver, "rolePermissionResolver");
         this.consentScopeService = Objects.requireNonNull(consentScopeService, "consentScopeService");
-        this.authorizationCodeStore = Objects.requireNonNull(authorizationCodeStore, "authorizationCodeStore");
+        this.pendingHandleGenerator = Objects.requireNonNull(pendingHandleGenerator, "pendingHandleGenerator");
+        this.pendingAuthorizationStore = Objects.requireNonNull(pendingAuthorizationStore, "pendingAuthorizationStore");
+        this.transitionStore = Objects.requireNonNull(transitionStore, "transitionStore");
     }
 
+    /**
+     * Compatibility bridge for the pre-provider call site. It deliberately uses the same pending
+     * and atomic transition path as browser consent; C2 supplies the real servlet session id to
+     * {@link #createPending(CoreAgentAuthorizationCodeIssueRequest, String)} instead.
+     */
     public IssuedCoreAgentAuthorizationCode issue(CoreAgentAuthorizationCodeIssueRequest request) {
         Objects.requireNonNull(request, "request");
-        CoreAgentRegisteredClientPolicy policy = requiredPolicy();
-        if (!policy.clientId().equals(request.clientId()) || !policy.redirectUri().equals(request.redirectUri())) {
+        String immediateSessionBinding = nextOpaque("pending session binding");
+        CoreAgentPreparedPendingAuthorization prepared = createPending(request, immediateSessionBinding);
+        AccountContext context = currentContext(request.authenticatedUserId(), request.clientId(), request.redirectUri(),
+                request.socketRemoteAddress());
+        List<String> finalScopes = confirmScopes(context.effectiveRole(), context.policy(), request.requestedScopes(),
+                request.submittedOptionalScopes());
+        return convertPending(new CoreAgentPendingAuthorizationConversionRequest(prepared.handle().rawHandle(),
+                request.authenticatedUserId(), immediateSessionBinding, request.clientId(), request.redirectUri(),
+                request.oauthState(), finalScopes));
+    }
+
+    /** Creates only Redis pending state; callers retain its opaque handle in their browser session. */
+    public CoreAgentPreparedPendingAuthorization createPending(
+            CoreAgentAuthorizationCodeIssueRequest request, String sessionId) {
+        Objects.requireNonNull(request, "request");
+        sessionId = CoreAgentPendingAuthorizationState.requireSessionId(sessionId);
+        AccountContext context = currentContext(request.authenticatedUserId(), request.clientId(), request.redirectUri(),
+                request.socketRemoteAddress());
+        Instant issuedAt = clock.instant();
+        Instant expiresAt = issuedAt.plus(context.policy().authorizationCodeTimeToLive());
+        CoreAgentPendingAuthorizationState pending = new CoreAgentPendingAuthorizationState(context.policy().clientId(),
+                context.policy().redirectUri(), request.requestedScopes(), request.codeChallenge(),
+                request.codeChallengeMethod(), request.oauthState(), request.socketRemoteAddress(),
+                context.account().userId(), sessionId, issuedAt, expiresAt);
+        var handle = pendingHandleGenerator.generate(expiresAt);
+        if (handle == null || !expiresAt.equals(handle.expiresAt())) {
+            throw new IllegalStateException("CORE AGENT pending handle generator returned an inconsistent handle");
+        }
+        pendingAuthorizationStore.save(handle, pending);
+        return new CoreAgentPreparedPendingAuthorization(handle, pending);
+    }
+
+    /**
+     * Revalidates current account, policy, role, pending binding, and final scopes before the
+     * only normal authorization-code persistence path: atomic pending-to-code conversion.
+     */
+    public IssuedCoreAgentAuthorizationCode convertPending(CoreAgentPendingAuthorizationConversionRequest request) {
+        Objects.requireNonNull(request, "request");
+        Optional<CoreAgentPendingAuthorizationState> pendingOptional = pendingAuthorizationStore.find(
+                request.rawPendingHandle());
+        if (pendingOptional == null) {
+            throw new IllegalStateException("CORE AGENT pending authorization lookup returned null");
+        }
+        if (pendingOptional.isEmpty()) {
             throw rejected();
         }
-        enforceSocketAllowed(policy, request.socketRemoteAddress());
-
-        AuthorizationAccount account = currentAccount(request.authenticatedUserId());
-        verifyAuthorizationCodeGrant(account);
-        EffectiveRolePermissions effectiveRole = rolePermissionResolver.resolve(account.roleId());
-        if (effectiveRole == null || !account.roleId().equals(effectiveRole.roleId())) {
-            throw new IllegalStateException("CORE AGENT effective role identity is inconsistent");
+        CoreAgentPendingAuthorizationState pending = pendingOptional.get();
+        verifyPendingBinding(pending, request);
+        Instant now = clock.instant();
+        if (pending.issuedAt().isAfter(now) || !now.isBefore(pending.expiresAt())) {
+            throw rejected();
         }
-        List<String> scopes = consentScopeService.confirm(effectiveRole, policy, request.requestedScopes(), null,
-                request.submittedOptionalScopes());
-        if (scopes == null || scopes.isEmpty()) {
-            throw new IllegalStateException("CORE AGENT consent scope resolution returned no scopes");
-        }
-
-        String rawCode = tokenGenerator.newOpaqueToken();
-        if (rawCode == null) {
-            throw new IllegalStateException("CORE AGENT authorization-code generator returned null");
-        }
+        AccountContext context = currentContext(request.authenticatedUserId(), request.clientId(), request.redirectUri(),
+                pending.originalSocketAddress());
+        List<String> finalScopes = validateGrantedScopes(context.effectiveRole(), context.policy(),
+                pending.requestedScopes(), request.grantedScopes());
+        String rawCode = nextOpaque("authorization-code");
         Instant issuedAt = clock.instant();
-        Instant expiresAt = issuedAt.plus(policy.authorizationCodeTimeToLive());
-        CoreAgentAuthorizationCodeState state = new CoreAgentAuthorizationCodeState(rawCode, policy.clientId(),
-                policy.redirectUri(), scopes, request.codeChallenge(), request.codeChallengeMethod(),
-                request.socketRemoteAddress(), request.oauthState(), issuedAt, expiresAt, snapshot(account));
-        IssuedCoreAgentAuthorizationCode issued = authorizationCodeStore.replaceCurrent(state);
-        if (issued == null || !rawCode.equals(issued.rawCode()) || !expiresAt.equals(issued.expiresAt())) {
-            throw new IllegalStateException("CORE AGENT authorization-code store returned an inconsistent issuance");
+        Instant expiresAt = issuedAt.plus(context.policy().authorizationCodeTimeToLive());
+        CoreAgentAuthorizationCodeState codeState = new CoreAgentAuthorizationCodeState(rawCode, context.policy().clientId(),
+                context.policy().redirectUri(), finalScopes, pending.codeChallenge(), pending.codeChallengeMethod(),
+                pending.originalSocketAddress(), pending.oauthState(), issuedAt, expiresAt, snapshot(context.account()));
+        var pendingHandle = new IssuedCoreAgentAuthorizationPendingHandle(request.rawPendingHandle(), pending.expiresAt());
+        if (!transitionStore.consumePendingAndStoreCode(pendingHandle, pending, codeState)) {
+            throw rejected();
         }
-        return issued;
+        return new IssuedCoreAgentAuthorizationCode(rawCode, expiresAt);
     }
 
     private CoreAgentRegisteredClientPolicy requiredPolicy() {
@@ -97,6 +152,86 @@ public final class CoreAgentAuthorizationCodeIssueService {
             throw new IllegalStateException("CORE AGENT registered client policy is invalid");
         }
         return policy;
+    }
+
+    private AccountContext currentContext(Long userId, String clientId, String redirectUri, String socketRemoteAddress) {
+        CoreAgentRegisteredClientPolicy policy = requiredPolicy();
+        if (!policy.clientId().equals(clientId) || !policy.redirectUri().equals(redirectUri)) {
+            throw rejected();
+        }
+        enforceSocketAllowed(policy, socketRemoteAddress);
+        AuthorizationAccount account = currentAccount(userId);
+        verifyAuthorizationCodeGrant(account);
+        EffectiveRolePermissions effectiveRole = rolePermissionResolver.resolve(account.roleId());
+        if (effectiveRole == null || !account.roleId().equals(effectiveRole.roleId())) {
+            throw new IllegalStateException("CORE AGENT effective role identity is inconsistent");
+        }
+        return new AccountContext(policy, account, effectiveRole);
+    }
+
+    private List<String> confirmScopes(EffectiveRolePermissions effectiveRole,
+                                       CoreAgentRegisteredClientPolicy policy,
+                                       Collection<String> requestedScopes,
+                                       Collection<String> submittedOptionalScopes) {
+        List<String> scopes = consentScopeService.confirm(effectiveRole, policy, requestedScopes, null,
+                submittedOptionalScopes);
+        if (scopes == null || scopes.isEmpty()) {
+            throw new IllegalStateException("CORE AGENT consent scope resolution returned no scopes");
+        }
+        return scopes;
+    }
+
+    private static void verifyPendingBinding(CoreAgentPendingAuthorizationState pending,
+                                             CoreAgentPendingAuthorizationConversionRequest request) {
+        if (pending.authenticatedUserId() != request.authenticatedUserId()
+                || !pending.sessionId().equals(request.sessionId())
+                || !pending.clientId().equals(request.clientId())
+                || !pending.redirectUri().equals(request.redirectUri())
+                || !pending.oauthState().equals(request.oauthState())) {
+            throw rejected();
+        }
+    }
+
+    private List<String> validateGrantedScopes(EffectiveRolePermissions effectiveRole,
+                                               CoreAgentRegisteredClientPolicy policy,
+                                               Collection<String> requestedScopes,
+                                               Collection<String> grantedScopes) {
+        if (grantedScopes == null || grantedScopes.isEmpty()) {
+            throw rejected();
+        }
+        LinkedHashSet<String> canonical = new LinkedHashSet<>();
+        for (String scope : grantedScopes) {
+            try {
+                if (scope == null || scope.isBlank() || !scope.equals(scope.trim())
+                        || !canonical.add(PermissionScopePattern.parse(scope).asScope())) {
+                    throw rejected();
+                }
+            } catch (IllegalArgumentException exception) {
+                throw rejected();
+            }
+        }
+        List<String> normalized = new ArrayList<>(canonical);
+        normalized.sort(String::compareTo);
+        var options = consentScopeService.options(effectiveRole, policy, requestedScopes, null);
+        LinkedHashSet<String> allowed = new LinkedHashSet<>(options.candidateScopes());
+        allowed.addAll(options.mandatoryScopes());
+        if (!allowed.containsAll(normalized) || !normalized.containsAll(options.mandatoryScopes())) {
+            throw rejected();
+        }
+        return List.copyOf(normalized);
+    }
+
+    private String nextOpaque(String purpose) {
+        String value = tokenGenerator.newOpaqueToken();
+        if (value == null) {
+            throw new IllegalStateException("CORE AGENT " + purpose + " generator returned null");
+        }
+        try {
+            IssuedCoreAgentAuthorizationPendingHandle.requireRawHandle(value);
+            return value;
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("CORE AGENT " + purpose + " generator returned an invalid value", exception);
+        }
     }
 
     private static void enforceSocketAllowed(CoreAgentRegisteredClientPolicy policy, String socketRemoteAddress) {
@@ -153,5 +288,11 @@ public final class CoreAgentAuthorizationCodeIssueService {
 
     private static CoreAgentAuthorizationCodeIssueRejectedException rejected() {
         return new CoreAgentAuthorizationCodeIssueRejectedException();
+    }
+
+    private record AccountContext(
+            CoreAgentRegisteredClientPolicy policy,
+            AuthorizationAccount account,
+            EffectiveRolePermissions effectiveRole) {
     }
 }

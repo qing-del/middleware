@@ -3,7 +3,8 @@ package com.jacolp.module.system.biz.application.authorization;
 import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
 import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.module.system.biz.application.port.out.CoreAgentAuthorizationCodeStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -52,6 +53,14 @@ class CoreAgentAuthorizationCodeIssueServiceContextTest {
         @Bean CoreAgentConsentScopeService consentScopeService() {
             return new CoreAgentConsentScopeService(new OAuth2ScopeResolver());
         }
-        @Bean CoreAgentAuthorizationCodeStore authorizationCodeStore() { return mock(CoreAgentAuthorizationCodeStore.class); }
+        @Bean CoreAgentPendingAuthorizationHandleGenerator pendingHandleGenerator(SecureOAuth2TokenGenerator generator) {
+            return new CoreAgentPendingAuthorizationHandleGenerator(generator);
+        }
+        @Bean CoreAgentPendingAuthorizationStore pendingAuthorizationStore() {
+            return mock(CoreAgentPendingAuthorizationStore.class);
+        }
+        @Bean CoreAgentPendingAuthorizationCodeTransitionStore transitionStore() {
+            return mock(CoreAgentPendingAuthorizationCodeTransitionStore.class);
+        }
     }
 }
