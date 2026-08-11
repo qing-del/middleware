@@ -10,10 +10,12 @@ import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGener
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenBlacklistStore;
 import com.jacolp.middleware.common.security.oauth2.token.RedisAccessTokenBlacklistStore;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionRevocationStore;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateCodec;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
 import com.jacolp.middleware.common.security.oauth2.token.OpaqueTokenProtector;
 import com.jacolp.middleware.common.security.oauth2.token.RedisOAuth2TokenStateStore;
+import com.jacolp.middleware.common.security.oauth2.token.RedisOAuth2SessionRevocationStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -96,6 +98,11 @@ public class OAuth2Rs256CodecConfiguration {
     @Bean
     AccessTokenBlacklistStore accessTokenBlacklistStore(StringRedisTemplate redis) {
         return new RedisAccessTokenBlacklistStore(redis);
+    }
+
+    @Bean
+    OAuth2SessionRevocationStore oauth2SessionRevocationStore(StringRedisTemplate redis) {
+        return new RedisOAuth2SessionRevocationStore(redis);
     }
 
     @Bean

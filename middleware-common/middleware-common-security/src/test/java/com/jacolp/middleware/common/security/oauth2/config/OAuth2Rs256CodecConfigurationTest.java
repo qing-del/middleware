@@ -9,6 +9,7 @@ import com.jacolp.middleware.common.security.oauth2.token.IssuedRefreshToken;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateCodec;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
+import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionRevocationStore;
 import com.jacolp.middleware.common.security.oauth2.token.OpaqueTokenProtector;
 import com.jacolp.middleware.common.security.oauth2.token.RedisOAuth2TokenStateStore;
 import com.jacolp.middleware.common.security.oauth2.token.RefreshTokenIssueRequest;
@@ -94,6 +95,7 @@ class OAuth2Rs256CodecConfigurationTest {
             assertThat(context.getBeansOfType(OpaqueTokenProtector.class)).isEmpty();
             assertThat(context.getBeansOfType(OAuth2TokenStateCodec.class)).isEmpty();
             assertThat(context.getBeansOfType(OAuth2TokenStateStore.class)).isEmpty();
+            assertThat(context.getBeansOfType(OAuth2SessionRevocationStore.class)).isEmpty();
             assertThat(context.getBeansOfType(OAuth2RefreshTokenSessionService.class)).isEmpty();
         });
     }
@@ -101,6 +103,7 @@ class OAuth2Rs256CodecConfigurationTest {
     @Test
     void enabledConfigurationEncodesAndDecodesRs256WithStableKid() {
         enabledContext().run(context -> {
+            assertThat(context.getBeansOfType(OAuth2SessionRevocationStore.class)).hasSize(1);
             JwtEncoder encoder = context.getBean(JwtEncoder.class);
             JwtDecoder decoder = context.getBean(JwtDecoder.class);
             RsaKeyMaterial keyMaterial = context.getBean(RsaKeyMaterial.class);
