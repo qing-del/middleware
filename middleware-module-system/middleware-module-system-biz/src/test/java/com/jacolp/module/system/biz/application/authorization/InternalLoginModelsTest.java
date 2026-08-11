@@ -16,8 +16,8 @@ class InternalLoginModelsTest {
   assertThatIllegalArgumentException().isThrownBy(()->new InternalLoginRequest("user","password","a","p","a@b",null,Set.of(),"ip"));
  }
  @Test void issuedTokensSortAndRedact() {
-  Instant now=Instant.EPOCH; InternalIssuedTokens tokens=new InternalIssuedTokens("access","refresh","Bearer",now,now.plusSeconds(1),now.plusSeconds(2),List.of("z:read","a:read"));
-  assertThat(tokens.grantedScopes()).containsExactly("a:read","z:read"); assertThat(tokens.toString()).doesNotContain("access","refresh","a:read");
+  Instant now=Instant.EPOCH; InternalIssuedTokens tokens=new InternalIssuedTokens("jwt-one","refresh-secret","Bearer",now,now.plusSeconds(1),now.plusSeconds(2),List.of("z:read","a:read"));
+  assertThat(tokens.grantedScopes()).containsExactly("a:read","z:read"); assertThat(tokens.toString()).doesNotContain("jwt-one","refresh-secret","a:read");
   assertThatIllegalArgumentException().isThrownBy(()->new InternalIssuedTokens("a","r","Bearer",now,now,now,List.of()));
  }
 }
