@@ -1,0 +1,61 @@
+package com.jacolp.module.system.biz.infrastructure.authorization;
+
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeRequestAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationConsentAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationEndpointAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+
+/** Phase 4 endpoint settings and wiring metadata; this class deliberately creates no filter chain. */
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
+public class CoreAgentAuthorizationServerConfiguration {
+
+    static final String AUTHORIZATION_ENDPOINT = "/oauth2/authorize";
+    static final String TOKEN_ENDPOINT = "/oauth/token";
+    static final String CONSENT_PAGE = "/oauth/consent";
+
+    /**
+     * Keeps issuer unset so SAS derives it from a trusted request context when the browser chain is
+     * introduced. The project JWT issuer remains independently configured by OAuth2Rs256Properties.
+     */
+    @Bean
+    AuthorizationServerSettings coreAgentAuthorizationServerSettings() {
+        return AuthorizationServerSettings.builder()
+                .authorizationEndpoint(AUTHORIZATION_ENDPOINT)
+                .tokenEndpoint(TOKEN_ENDPOINT)
+                .build();
+    }
+
+    @Bean
+    CoreAgentAuthorizationServerConfigurerFactory coreAgentAuthorizationServerConfigurerFactory(
+            ActiveRegisteredClientRepository registeredClientRepository,
+            FailClosedOAuth2AuthorizationService authorizationService,
+            OAuth2AuthorizationConsentService authorizationConsentService,
+            AuthorizationServerSettings coreAgentAuthorizationServerSettings,
+            CoreAgentPublicClientAuthenticationConverter publicClientAuthenticationConverter,
+            CoreAgentPublicClientAuthenticationProvider publicClientAuthenticationProvider,
+            CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter,
+            CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider,
+            CoreAgentAuthorizationConsentAuthenticationProvider authorizationConsentAuthenticationProvider,
+            CoreAgentAuthorizationCodeTokenAuthenticationConverter authorizationCodeTokenAuthenticationConverter,
+            CoreAgentRefreshTokenAuthenticationConverter refreshTokenAuthenticationConverter,
+            CoreAgentAuthorizationCodeTokenAuthenticationProvider authorizationCodeTokenAuthenticationProvider,
+            CoreAgentRefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider) {
+        return new CoreAgentAuthorizationServerConfigurerFactory(registeredClientRepository, authorizationService,
+                authorizationConsentService, coreAgentAuthorizationServerSettings, publicClientAuthenticationConverter,
+                publicClientAuthenticationProvider, authorizationEndpointAuthenticationConverter,
+                authorizationCodeRequestAuthenticationProvider, authorizationConsentAuthenticationProvider,
+                authorizationCodeTokenAuthenticationConverter, refreshTokenAuthenticationConverter,
+                authorizationCodeTokenAuthenticationProvider, refreshTokenAuthenticationProvider);
+    }
+}
