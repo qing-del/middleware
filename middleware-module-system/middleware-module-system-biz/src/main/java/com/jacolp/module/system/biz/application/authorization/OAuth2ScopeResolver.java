@@ -2,6 +2,7 @@ package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.PermissionScopePattern;
+import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -11,6 +12,7 @@ import java.util.Set;
 /**
  * Computes the finite intersection of role, client, request, and auto-approve scope patterns.
  */
+@Component
 public final class OAuth2ScopeResolver {
 
     private static final String CREATOR_ROLE_CODE = "CREATOR";
