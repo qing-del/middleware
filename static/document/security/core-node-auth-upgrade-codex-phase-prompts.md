@@ -217,8 +217,10 @@
 
 - Authorization Endpoint 使用 Spring Authorization Server 默认`/oauth2/authorize`，Token Endpoint 固定为`POST /oauth/token`；`POST /oauth/logout`注销当前 core_agent + user session。
 - 允许仅用于 Authorization Server 浏览器流程的后端 Thymeleaf 页面：`GET/POST /oauth/login`和`GET /oauth/consent`。它们不属于 USER/ADMIN internal JSON endpoint，且不修改 frontend/。
+- SAS 7.0.4 保留`OAuth2AuthorizationEndpointFilter`、官方 GET/POST converter 与标准 redirect 响应形状；在`authorizationEndpoint.authenticationProviders(...)`中移除默认 code-request/consent provider，改接项目 provider。不得写 SAS `OAuth2Authorization`或 SAS authorization code；确认后唯一的 raw code 只写`CoreAgentAuthorizationCodeStore`，避免双写。
+- 等待 consent 的浏览器 transaction 仅存 HttpSession、TTL 10 分钟，只含已校验授权请求绑定数据与 authenticated principal；不得存 raw code、access token 或 refresh token。自定义 consent 表单仍`POST /oauth2/authorize`，带标准`client_id`、`state`、重复`scope`、CSRF token及`consent_action=approve|deny`；wrapper converter/details 把 action 交项目 provider。approve 必须服务端重算并强制 auto_approve，deny 必须按标准 redirect 返回`access_denied`，不得由 hidden mandatory scope 决定。
 - 浏览器授权首版仅 username/password；`email-code`仍只服务`user`、`admin` internal client。
-- 浏览器 session 为 10 分钟，Cookie 为 HttpOnly、SameSite=Lax，生产 Secure；登录/consent POST 保持 CSRF，只有`/oauth/token`与 Bearer`/oauth/logout`精确豁免。
+- 浏览器 session 为 10 分钟，Cookie 为 HttpOnly、SameSite=Lax，生产 Secure；SAS 7.0.4 会忽略完整 endpoint matcher 的 CSRF，普通 DSL 无法精确撤销。因此增加独立 browser CSRF filter，仅匹配`POST /oauth/login`和`POST /oauth2/authorize`；`/oauth/token`与 Bearer`/oauth/logout`不匹配该 filter，保持精确豁免。
 - scope 缺省时使用 core_agent `auto_approve`作为 consent 候选；auto_approve 为强制项，用户不可取消，只可增加其余可选 scope。保存 consent 后，相同范围可复用，新增范围必须再次确认。
 - Phase 4 migration 将 core_agent 改为 active；`jacolp.oauth2.rs256.enabled=false`时保留既有签名/校验链，Phase 2-4 新 RS256 组件不接线；true 后新授权 token 均使用 RS256，Phase 5 再完成全量 Resource Server 切换。
 
