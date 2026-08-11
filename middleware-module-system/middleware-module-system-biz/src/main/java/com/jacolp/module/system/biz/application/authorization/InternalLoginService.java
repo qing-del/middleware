@@ -8,6 +8,7 @@ import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSess
 import com.jacolp.middleware.common.security.oauth2.token.RefreshTokenIssueRequest;
 import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
+import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeAuthenticationRequest;
 import com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.module.system.biz.application.authorization.model.InternalIssuedTokens;
 import com.jacolp.module.system.biz.application.authorization.model.InternalLoginRequest;
@@ -90,8 +91,7 @@ public class InternalLoginService {
         return switch (request.grantType()) {
             case "password" -> passwordAuthenticator.authenticate(policy, request.username(), request.rawPassword());
             case "email-code" -> emailCodeAuthenticator.authenticate(policy,
-                    new com.jacolp.module.system.biz.application.authorization.model.EmailLoginCodeAuthenticationRequest(
-                            request.email(), request.rawEmailCode()));
+                    new EmailLoginCodeAuthenticationRequest(request.email(), request.rawEmailCode()));
             default -> throw new IllegalStateException("Invalid internal login grant type");
         };
     }
@@ -136,5 +136,4 @@ public class InternalLoginService {
             throw new IllegalStateException("Internal login role metadata is inconsistent");
         }
     }
-
 }
