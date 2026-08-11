@@ -11,7 +11,8 @@ public record InternalIssuedTokens(String accessToken, String refreshToken, Stri
         if (!text(accessToken) || !text(refreshToken) || !"Bearer".equals(tokenType) || accessIssuedAt == null
                 || accessExpiresAt == null || refreshExpiresAt == null || !accessExpiresAt.isAfter(accessIssuedAt)
                 || refreshExpiresAt.isBefore(accessExpiresAt)) throw new IllegalArgumentException("Invalid issued tokens");
-        List<String> scopes = new ArrayList<>(grantedScopes == null ? List.of() : grantedScopes);
+        if (grantedScopes == null) throw new IllegalArgumentException("Invalid issued tokens");
+        List<String> scopes = new ArrayList<>(grantedScopes);
         if (scopes.stream().anyMatch(scope -> !text(scope))) throw new IllegalArgumentException("Invalid issued tokens");
         scopes.sort(String::compareTo);
         for (int i = 1; i < scopes.size(); i++) if (scopes.get(i - 1).equals(scopes.get(i))) throw new IllegalArgumentException("Invalid issued tokens");
