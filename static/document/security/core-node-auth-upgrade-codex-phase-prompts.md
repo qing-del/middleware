@@ -218,7 +218,7 @@
 - Authorization Endpoint 使用 Spring Authorization Server 默认`/oauth2/authorize`，Token Endpoint 固定为`POST /oauth/token`；`POST /oauth/logout`注销当前 core_agent + user session。
 - 允许仅用于 Authorization Server 浏览器流程的后端 Thymeleaf 页面：`GET/POST /oauth/login`和`GET /oauth/consent`。它们不属于 USER/ADMIN internal JSON endpoint，且不修改 frontend/。
 - SAS 7.0.4 保留`OAuth2AuthorizationEndpointFilter`、官方 GET/POST converter 与标准 redirect 响应形状；在`authorizationEndpoint.authenticationProviders(...)`中移除默认 code-request/consent provider，改接项目 provider。不得写 SAS `OAuth2Authorization`或 SAS authorization code；确认后唯一的 raw code 只写`CoreAgentAuthorizationCodeStore`，避免双写。
-- 等待 consent 的浏览器 transaction 仅存 HttpSession、TTL 10 分钟，只含已校验授权请求绑定数据与 authenticated principal；不得存 raw code、access token 或 refresh token。自定义 consent 表单仍`POST /oauth2/authorize`，带标准`client_id`、`state`、重复`scope`、CSRF token及`consent_action=approve|deny`；wrapper converter/details 把 action 交项目 provider。approve 必须服务端重算并强制 auto_approve，deny 必须按标准 redirect 返回`access_denied`，不得由 hidden mandatory scope 决定。
+- 等待 consent 的完整授权 transaction 存 Redis、TTL 10 分钟；HttpSession 只保留 Java `SecureRandom`生成的 256-bit Base64URL `pendingHandle`，不得存 transaction、raw code、access token 或 refresh token。pending key 固定为`oauth2:authorize:pending:{pendingHandle}`。自定义 consent 表单仍`POST /oauth2/authorize`，带标准`client_id`、`state`、重复`scope`、CSRF token及`consent_action=approve|deny`；wrapper converter/details 把 action 交项目 provider。approve 必须服务端重算并强制 auto_approve，先幂等保存 MySQL consent，再用 Redis Lua 原子消费 pending、写 auth-code state/TTL和`user:auth_code:{user_id}:{client_id}`指针/同 TTL；Lua只做 keys/args/TTL校验与 Redis 变迁，不做密码学或版本判断，脚本失败不得写状态。deny 必须按标准 redirect 返回`access_denied`，不得由 hidden mandatory scope 决定。
 - 浏览器授权首版仅 username/password；`email-code`仍只服务`user`、`admin` internal client。
 - 浏览器 session 为 10 分钟，Cookie 为 HttpOnly、SameSite=Lax，生产 Secure；SAS 7.0.4 会忽略完整 endpoint matcher 的 CSRF，普通 DSL 无法精确撤销。因此增加独立 browser CSRF filter，仅匹配`POST /oauth/login`和`POST /oauth2/authorize`；`/oauth/token`与 Bearer`/oauth/logout`不匹配该 filter，保持精确豁免。
 - scope 缺省时使用 core_agent `auto_approve`作为 consent 候选；auto_approve 为强制项，用户不可取消，只可增加其余可选 scope。保存 consent 后，相同范围可复用，新增范围必须再次确认。
@@ -235,7 +235,7 @@
 3. Authorization Endpoint 必须校验 active client、精确 registered `redirect_uri`、原始 `state`、唯一 S256、账号默认/extra grant；具体 Authorization Endpoint path 由 Authorization Server 设置确定，不能自行发明。
 4. 使用 `oauth2_authorization_consent`保存 consent；effective scope 为 client scopes ∩ rank-role permissions ∩ 本次用户 consent，使用与 Phase 3 相同的逐分量 wildcard 模式求交，不做完整权限目录展开。
 5. 本阶段明确允许在 Spring Authorization Server 标准流程的必要扩展中使用 Redis auth-code cache：256-bit code TTL 10 分钟、成功兑换原子删除；不得另起协议级 auth_code Controller。
-6. cache 必须保存 client、精确 redirect URI、consent scopes、challenge/method、原始 socket remote address 与用户安全字段快照；`user:auth_code:{user_id}`原子指向当前 code，新 code 替换旧 code；`status,role_id,password,email,username,extra_grant_types`变更立即使当前 code 无效。
+6. cache 必须保存 client、精确 redirect URI、consent scopes、challenge/method、原始 socket remote address 与用户安全字段快照；pending transaction使用`oauth2:authorize:pending:{pendingHandle}`，`pendingHandle`与 raw auth code 均由 Java `SecureRandom`生成 256-bit Base64URL 值；`user:auth_code:{user_id}:{client_id}`原子指向当前 code。首版不删除旧 code key，兑换时必须校验指针仍指向该 code，旧 code 自然 TTL 失效。安全字段`status,role_id,password,email,username,extra_grant_types`的 user 前缀失效清理后续使用非阻塞`SCAN`，首版不实现，严禁`KEYS`。
 7. `POST /oauth/token`完成 authorization_code 兑换与 refresh 技术 grant；core_agent access token 1h、refresh token 24h，强制 rotation；`POST /oauth/logout`注销当前 client + user session。兑换 IP 变化只告警，不拒绝。
 8. middleware-open-api-agent 仍然保持空模块，不实现任何 Agent API；不修改 frontend/。
 9. 如果需要一个最小授权/consent 页面能力，只规划后端所必需的最小实现，不进行前端 Vue 改造。
@@ -379,7 +379,7 @@
 - consent
 - auto_approve
 - allowed_ips
-- core_agent auth-code 10 分钟、一次性兑换、user 原子指针、新 code 替换旧 code及安全字段变更失效
+- core_agent pending transaction/auth-code 均为10分钟、一次性兑换、`user:auth_code:{user_id}:{client_id}`原子指针、Lua pending→code 变迁及安全字段失效计划（后续非阻塞 SCAN，禁止 KEYS）
 - core_agent `/oauth/token` authorization_code + refresh、1h/24h TTL、强制 rotation，以及 `/oauth/logout`
 - SecurityContext / BaseContext / PermissionContext 兼容
 - legacy user/admin JWT 已按计划收口
