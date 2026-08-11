@@ -2,8 +2,11 @@ package com.jacolp.module.system.biz.infrastructure.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.CoreAgentAuthorizationCodeStateCodec;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentAuthorizationCodeState;
+import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationState;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationCode;
+import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentAuthorizationCodeStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -24,12 +27,13 @@ import java.util.Optional;
  * Redis Hash implementation of one-time CORE AGENT authorization-code storage.
  *
  * <p>Code hashes use {@code oauth2:auth_code:{rawCode}} and account pointers use
- * {@code user:auth_code:{userId}}. The dynamic old-code deletion in the replace/invalidate Lua
- * scripts assumes the existing single-node Redis deployment. A Redis Cluster deployment needs
+ * {@code user:auth_code:{userId}:{clientId}}. The multi-key Lua scripts assume the existing
+ * single-node Redis deployment. A Redis Cluster deployment needs
  * Phase 7 real-Redis validation and a shared hash-tag strategy before this adapter is enabled there.</p>
  */
 @Repository
-public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizationCodeStore {
+public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizationCodeStore,
+        CoreAgentPendingAuthorizationCodeTransitionStore {
 
     private static final String CODE_KEY_PREFIX = "oauth2:auth_code:";
     private static final String USER_POINTER_KEY_PREFIX = "user:auth_code:";
@@ -40,11 +44,12 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
     private final DefaultRedisScript<Long> replaceScript;
     private final DefaultRedisScript<Long> consumeScript;
     private final DefaultRedisScript<Long> invalidateScript;
+    private final DefaultRedisScript<Long> pendingTransitionScript;
 
     @Autowired
     public RedisCoreAgentAuthorizationCodeStore(StringRedisTemplate redis) {
         this(redis, new CoreAgentAuthorizationCodeStateCodec(), Clock.systemUTC(), replaceScript(), consumeScript(),
-                invalidateScript());
+                invalidateScript(), pendingTransitionScript());
     }
 
     RedisCoreAgentAuthorizationCodeStore(
@@ -53,13 +58,15 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
             Clock clock,
             DefaultRedisScript<Long> replaceScript,
             DefaultRedisScript<Long> consumeScript,
-            DefaultRedisScript<Long> invalidateScript) {
+            DefaultRedisScript<Long> invalidateScript,
+            DefaultRedisScript<Long> pendingTransitionScript) {
         this.redis = Objects.requireNonNull(redis, "redis");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.replaceScript = Objects.requireNonNull(replaceScript, "replaceScript");
         this.consumeScript = Objects.requireNonNull(consumeScript, "consumeScript");
         this.invalidateScript = Objects.requireNonNull(invalidateScript, "invalidateScript");
+        this.pendingTransitionScript = Objects.requireNonNull(pendingTransitionScript, "pendingTransitionScript");
     }
 
     @Override
@@ -71,16 +78,18 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
         }
         long ttlMillis = ttlMillis(now, state.expiresAt());
         Map<String, String> values = codec.encode(state);
-        List<Object> arguments = new ArrayList<>(3 + values.size() * 2);
+        List<Object> arguments = new ArrayList<>(4 + values.size() * 2);
         arguments.add(Long.toString(ttlMillis));
         arguments.add(state.rawCode());
         arguments.add(state.accountSnapshot().userId().toString());
+        arguments.add(state.clientId());
         for (String field : codec.fieldNames()) {
             arguments.add(field);
             arguments.add(values.get(field));
         }
         Long outcome = redis.execute(replaceScript,
-                List.of(codeKey(state.rawCode()), userPointerKey(state.accountSnapshot().userId())), arguments.toArray());
+                List.of(codeKey(state.rawCode()), userPointerKey(state.accountSnapshot().userId(), state.clientId())),
+                arguments.toArray());
         if (!Long.valueOf(1L).equals(outcome)) {
             throw new IllegalStateException("Invalid CORE AGENT authorization-code replace result");
         }
@@ -109,11 +118,12 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
     }
 
     @Override
-    public boolean consume(String rawCode, Long expectedUserId) {
+    public boolean consume(String rawCode, Long expectedUserId, String expectedClientId) {
         rawCode = requireRawCode(rawCode);
         long userId = requireUserId(expectedUserId);
-        Long outcome = redis.execute(consumeScript, List.of(codeKey(rawCode), userPointerKey(userId)), rawCode,
-                Long.toString(userId));
+        String clientId = requireClientId(expectedClientId);
+        Long outcome = redis.execute(consumeScript, List.of(codeKey(rawCode), userPointerKey(userId, clientId)), rawCode,
+                Long.toString(userId), clientId);
         if (Long.valueOf(1L).equals(outcome)) {
             return true;
         }
@@ -124,10 +134,11 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
     }
 
     @Override
-    public void invalidateCurrent(Long userId) {
+    public void invalidateCurrent(Long userId, String clientId) {
         long requiredUserId = requireUserId(userId);
-        Long outcome = redis.execute(invalidateScript, List.of(userPointerKey(requiredUserId)),
-                Long.toString(requiredUserId), CODE_KEY_PREFIX);
+        String requiredClientId = requireClientId(clientId);
+        Long outcome = redis.execute(invalidateScript, List.of(userPointerKey(requiredUserId, requiredClientId)),
+                Long.toString(requiredUserId), requiredClientId, CODE_KEY_PREFIX);
         if (!Long.valueOf(1L).equals(outcome)) {
             throw new IllegalStateException("Invalid CORE AGENT authorization-code invalidate result");
         }
@@ -137,11 +148,53 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
         return CODE_KEY_PREFIX + '{' + requireRawCode(rawCode) + '}';
     }
 
-    static String userPointerKey(long userId) {
+    @Override
+    public boolean consumePendingAndStoreCode(
+            IssuedCoreAgentAuthorizationPendingHandle pendingHandle,
+            CoreAgentPendingAuthorizationState expectedPending,
+            CoreAgentAuthorizationCodeState codeState) {
+        if (pendingHandle == null || expectedPending == null || codeState == null) {
+            throw invalid();
+        }
+        verifyTransitionBinding(pendingHandle, expectedPending, codeState);
+        Instant now = clock.instant();
+        if (codeState.issuedAt().isAfter(now)) {
+            throw invalid();
+        }
+        long ttlMillis = ttlMillis(now, codeState.expiresAt());
+        Map<String, String> values = codec.encode(codeState);
+        List<Object> arguments = new ArrayList<>(6 + values.size() * 2);
+        arguments.add(Long.toString(ttlMillis));
+        arguments.add(pendingHandle.rawHandle());
+        arguments.add(codeState.rawCode());
+        arguments.add(expectedPending.clientId());
+        arguments.add(Long.toString(expectedPending.authenticatedUserId()));
+        arguments.add(expectedPending.sessionId());
+        for (String field : codec.fieldNames()) {
+            arguments.add(field);
+            arguments.add(values.get(field));
+        }
+        Long outcome = redis.execute(pendingTransitionScript,
+                List.of(pendingKey(pendingHandle.rawHandle()), codeKey(codeState.rawCode()),
+                        userPointerKey(codeState.accountSnapshot().userId(), codeState.clientId())), arguments.toArray());
+        if (Long.valueOf(1L).equals(outcome)) {
+            return true;
+        }
+        if (Long.valueOf(0L).equals(outcome)) {
+            return false;
+        }
+        throw new IllegalStateException("Invalid CORE AGENT pending authorization transition result");
+    }
+
+    static String userPointerKey(long userId, String clientId) {
         if (userId <= 0) {
             throw invalid();
         }
-        return USER_POINTER_KEY_PREFIX + '{' + userId + '}';
+        return USER_POINTER_KEY_PREFIX + '{' + userId + "}:{" + requireClientId(clientId) + '}';
+    }
+
+    static String pendingKey(String rawHandle) {
+        return "oauth2:authorize:pending:{" + IssuedCoreAgentAuthorizationPendingHandle.requireRawHandle(rawHandle) + '}';
     }
 
     private static long ttlMillis(Instant now, Instant expiresAt) {
@@ -168,6 +221,29 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
         return userId;
     }
 
+    private static String requireClientId(String clientId) {
+        if (!CoreAgentAuthorizationCodeState.CORE_AGENT_CLIENT_ID.equals(clientId)) {
+            throw invalid();
+        }
+        return clientId;
+    }
+
+    private static void verifyTransitionBinding(
+            IssuedCoreAgentAuthorizationPendingHandle pendingHandle,
+            CoreAgentPendingAuthorizationState pending,
+            CoreAgentAuthorizationCodeState codeState) {
+        if (!pendingHandle.expiresAt().equals(pending.expiresAt())
+                || !codeState.clientId().equals(pending.clientId())
+                || !codeState.redirectUri().equals(pending.redirectUri())
+                || !codeState.codeChallenge().equals(pending.codeChallenge())
+                || !codeState.codeChallengeMethod().equals(pending.codeChallengeMethod())
+                || !codeState.oauthState().equals(pending.oauthState())
+                || !codeState.originalSocketAddress().equals(pending.originalSocketAddress())
+                || codeState.accountSnapshot().userId() != pending.authenticatedUserId()) {
+            throw invalid();
+        }
+    }
+
     private static DefaultRedisScript<Long> replaceScript() {
         return script("lua/core_agent_authorization_code_replace.lua");
     }
@@ -178,6 +254,10 @@ public class RedisCoreAgentAuthorizationCodeStore implements CoreAgentAuthorizat
 
     private static DefaultRedisScript<Long> invalidateScript() {
         return script("lua/core_agent_authorization_code_invalidate.lua");
+    }
+
+    private static DefaultRedisScript<Long> pendingTransitionScript() {
+        return script("lua/core_agent_pending_authorization_to_code.lua");
     }
 
     private static DefaultRedisScript<Long> script(String resource) {

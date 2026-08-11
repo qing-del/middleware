@@ -72,13 +72,13 @@ public class CoreAgentAuthorizationCodeExchangeService {
         verifyAuthorizationCodeGrant(account);
         CoreAgentAuthorizationAccountSnapshot currentSnapshot = snapshot(account);
         if (!state.accountSnapshot().equals(currentSnapshot)) {
-            authorizationCodeStore.consume(request.rawCode(), account.userId());
+            authorizationCodeStore.consume(request.rawCode(), account.userId(), policy.clientId());
             throw rejected();
         }
         if (state.scopes().isEmpty()) {
             throw new IllegalStateException("CORE AGENT authorization-code state has no scopes");
         }
-        if (!authorizationCodeStore.consume(request.rawCode(), account.userId())) {
+        if (!authorizationCodeStore.consume(request.rawCode(), account.userId(), policy.clientId())) {
             throw rejected();
         }
         return new VerifiedCoreAgentAuthorizationCode(policy.registeredClientId(), policy.clientId(), account.userId(),

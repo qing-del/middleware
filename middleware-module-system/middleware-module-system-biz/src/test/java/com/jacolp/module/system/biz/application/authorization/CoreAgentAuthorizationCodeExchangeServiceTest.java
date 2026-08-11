@@ -41,7 +41,7 @@ class CoreAgentAuthorizationCodeExchangeServiceTest {
     void exchangesTheRfc7636VectorThenConsumesExactlyOnce() {
         Fixture fixture = fixture(state(RFC7636_CHALLENGE, snapshot()), account("alice", 2L, hash(), "private@example.test",
                 "", UserConstant.ACTIVE_STATUS));
-        when(fixture.store.consume(RAW_CODE, USER_ID)).thenReturn(true);
+        when(fixture.store.consume(RAW_CODE, USER_ID, "core_agent")).thenReturn(true);
 
         VerifiedCoreAgentAuthorizationCode verified = fixture.service.exchange(request(VERIFIER, "127.0.0.1"));
 
@@ -54,7 +54,7 @@ class CoreAgentAuthorizationCodeExchangeServiceTest {
         verify(fixture.policyResolver).resolve("core_agent");
         verify(fixture.store).findByCode(RAW_CODE);
         verify(fixture.accounts).findById(USER_ID);
-        verify(fixture.store).consume(RAW_CODE, USER_ID);
+        verify(fixture.store).consume(RAW_CODE, USER_ID, "core_agent");
     }
 
     @Test
@@ -84,23 +84,23 @@ class CoreAgentAuthorizationCodeExchangeServiceTest {
         Fixture missing = fixture(null, currentAccount());
         assertRejected(() -> missing.service.exchange(request(VERIFIER, "127.0.0.1")));
         verify(missing.store).findByCode(RAW_CODE);
-        verify(missing.store, never()).consume(RAW_CODE, USER_ID);
+        verify(missing.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
 
         Fixture pkce = fixture(state(RFC7636_CHALLENGE, snapshot()), currentAccount());
         assertRejected(() -> pkce.service.exchange(request("A".repeat(43), "127.0.0.1")));
         verify(pkce.store).findByCode(RAW_CODE);
-        verify(pkce.store, never()).consume(RAW_CODE, USER_ID);
+        verify(pkce.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
         verifyNoInteractions(pkce.accounts);
 
         Fixture staleBinding = fixture(stateWithRedirect("http://127.0.0.1:9090/other"), currentAccount());
         assertRejected(() -> staleBinding.service.exchange(request(VERIFIER, "127.0.0.1")));
         verify(staleBinding.store).findByCode(RAW_CODE);
-        verify(staleBinding.store, never()).consume(RAW_CODE, USER_ID);
+        verify(staleBinding.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
         verifyNoInteractions(staleBinding.accounts);
 
         Fixture wrongCodeIdentity = fixture(stateWithRawCode(code((byte) 11)), currentAccount());
         assertThatIllegalStateException().isThrownBy(() -> wrongCodeIdentity.service.exchange(request(VERIFIER, "127.0.0.1")));
-        verify(wrongCodeIdentity.store, never()).consume(RAW_CODE, USER_ID);
+        verify(wrongCodeIdentity.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
     }
 
     @Test
@@ -112,10 +112,10 @@ class CoreAgentAuthorizationCodeExchangeServiceTest {
                 account("alice", 2L, hash(), "changed@example.test", "", UserConstant.ACTIVE_STATUS),
                 account("alice", 2L, hash(), "private@example.test", "agent_client", UserConstant.ACTIVE_STATUS))) {
             Fixture fixture = fixture(state(RFC7636_CHALLENGE, snapshot()), changed);
-            when(fixture.store.consume(RAW_CODE, USER_ID)).thenReturn(true);
+            when(fixture.store.consume(RAW_CODE, USER_ID, "core_agent")).thenReturn(true);
 
             assertRejected(() -> fixture.service.exchange(request(VERIFIER, "127.0.0.1")));
-            verify(fixture.store).consume(RAW_CODE, USER_ID);
+            verify(fixture.store).consume(RAW_CODE, USER_ID, "core_agent");
         }
     }
 
@@ -123,27 +123,27 @@ class CoreAgentAuthorizationCodeExchangeServiceTest {
     void missingInactiveAndExtraGrantPollutionFailClosedWithoutAccidentallyInvalidatingNewCode() {
         Fixture missing = fixture(state(RFC7636_CHALLENGE, snapshot()), null);
         assertRejected(() -> missing.service.exchange(request(VERIFIER, "127.0.0.1")));
-        verify(missing.store, never()).consume(RAW_CODE, USER_ID);
+        verify(missing.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
 
         Fixture inactive = fixture(state(RFC7636_CHALLENGE, snapshot()), account("alice", 2L, hash(),
                 "private@example.test", "", UserConstant.ACTIVE_STATUS + 1));
         assertRejected(() -> inactive.service.exchange(request(VERIFIER, "127.0.0.1")));
-        verify(inactive.store, never()).consume(RAW_CODE, USER_ID);
+        verify(inactive.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
 
         Fixture polluted = fixture(state(RFC7636_CHALLENGE, snapshot()), account("alice", 2L, hash(),
                 "private@example.test", "authorization_code", UserConstant.ACTIVE_STATUS));
         assertThatIllegalStateException().isThrownBy(() -> polluted.service.exchange(request(VERIFIER, "127.0.0.1")));
-        verify(polluted.store, never()).consume(RAW_CODE, USER_ID);
+        verify(polluted.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
     }
 
     @Test
     void staleConsumeIsAUniformReplayRejectionAndSocketChangeIsOnlyAFlag() {
         Fixture stale = fixture(state(RFC7636_CHALLENGE, snapshot()), currentAccount());
-        when(stale.store.consume(RAW_CODE, USER_ID)).thenReturn(false);
+        when(stale.store.consume(RAW_CODE, USER_ID, "core_agent")).thenReturn(false);
         assertRejected(() -> stale.service.exchange(request(VERIFIER, "127.0.0.1")));
 
         Fixture changedIp = fixture(state(RFC7636_CHALLENGE, snapshot()), currentAccount());
-        when(changedIp.store.consume(RAW_CODE, USER_ID)).thenReturn(true);
+        when(changedIp.store.consume(RAW_CODE, USER_ID, "core_agent")).thenReturn(true);
         assertThat(changedIp.service.exchange(request(VERIFIER, "127.0.0.2")).socketAddressChanged()).isTrue();
     }
 
