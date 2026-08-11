@@ -110,8 +110,8 @@ CREATE TABLE `sys_permission` (
 
 -- SAS 7.0.4 JsonMapper-compatible settings. The fixed first-release catalogue is
 -- user, admin, and core_agent only. user/admin are server-side internal clients
--- with no shared secret and active login grants; core_agent remains public and
--- disabled until Phase 4 enables its registered PKCE redirect flow.
+-- with no shared secret and active login grants; core_agent is the active public
+-- PKCE client. Runtime exposure remains conditional on jacolp.oauth2.rs256.enabled.
 INSERT INTO `oauth2_registered_client` (
     `id`, `client_id`, `client_name`, `client_authentication_methods`,
     `authorization_grant_types`, `redirect_uris`, `post_logout_redirect_uris`,
@@ -159,7 +159,7 @@ INSERT INTO `oauth2_registered_client` (
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-proof-key":true,"settings.client.require-authorization-consent":true}',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.reuse-refresh-tokens":false,"settings.token.x509-certificate-bound-access-tokens":false,"settings.token.id-token-signature-algorithm":["org.springframework.security.oauth2.jose.jws.SignatureAlgorithm","RS256"],"settings.token.access-token-time-to-live":["java.time.Duration","PT1H"],"settings.token.access-token-format":{"@class":"org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat","value":"self-contained"},"settings.token.refresh-token-time-to-live":["java.time.Duration","PT24H"],"settings.token.authorization-code-time-to-live":["java.time.Duration","PT10M"],"settings.token.device-code-time-to-live":["java.time.Duration","PT5M"]}',
     'note:read,sys:read',
-    'disabled',
+    'active',
     '0.0.0.0/0'
 );
 

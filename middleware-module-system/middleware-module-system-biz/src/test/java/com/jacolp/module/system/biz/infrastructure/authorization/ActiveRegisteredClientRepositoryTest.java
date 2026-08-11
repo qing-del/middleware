@@ -30,6 +30,8 @@ class ActiveRegisteredClientRepositoryTest {
 
     private static final String USER_ID = "e7cf5b30-8e43-4db2-bc53-000000000001";
     private static final String USER_CLIENT_ID = "user";
+    private static final String CORE_AGENT_ID = "e7cf5b30-8e43-4db2-bc53-000000000003";
+    private static final String CORE_AGENT_CLIENT_ID = "core_agent";
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withBean(OAuth2RegisteredClientMetadataRepository.class,
@@ -69,6 +71,33 @@ class ActiveRegisteredClientRepositoryTest {
         assertThat(actual.getTokenSettings().isReuseRefreshTokens()).isFalse();
         verify(metadataRepository).findByClientId(USER_CLIENT_ID);
         verify(sasDelegate).findByClientId(USER_CLIENT_ID);
+        verifyNoMoreInteractions(metadataRepository, sasDelegate);
+    }
+
+    @Test
+    void activeCoreAgentReturnsThePublicPkceSasMappingWithOneLookupPerRepository() {
+        OAuth2RegisteredClientMetadataRepository metadataRepository = mock(OAuth2RegisteredClientMetadataRepository.class);
+        RegisteredClientRepository sasDelegate = mock(RegisteredClientRepository.class);
+        ActiveRegisteredClientRepository repository = new ActiveRegisteredClientRepository(metadataRepository, sasDelegate);
+        RegisteredClient expected = activeCoreAgent();
+        when(metadataRepository.findByClientId(CORE_AGENT_CLIENT_ID)).thenReturn(Optional.of(coreAgentMetadata("active")));
+        when(sasDelegate.findByClientId(CORE_AGENT_CLIENT_ID)).thenReturn(expected);
+
+        RegisteredClient actual = repository.findByClientId(CORE_AGENT_CLIENT_ID);
+
+        assertThat(actual).isSameAs(expected);
+        assertThat(actual.getClientSecret()).isNull();
+        assertThat(actual.getClientAuthenticationMethods()).containsExactly(ClientAuthenticationMethod.NONE);
+        assertThat(actual.getAuthorizationGrantTypes()).containsExactlyInAnyOrder(
+                AuthorizationGrantType.AUTHORIZATION_CODE, AuthorizationGrantType.REFRESH_TOKEN);
+        assertThat(actual.getRedirectUris()).containsExactly("http://127.0.0.1:9090/oauth/callback");
+        assertThat(actual.getClientSettings().isRequireProofKey()).isTrue();
+        assertThat(actual.getClientSettings().isRequireAuthorizationConsent()).isTrue();
+        assertThat(actual.getTokenSettings().getAccessTokenTimeToLive()).isEqualTo(Duration.ofHours(1));
+        assertThat(actual.getTokenSettings().getRefreshTokenTimeToLive()).isEqualTo(Duration.ofHours(24));
+        assertThat(actual.getTokenSettings().isReuseRefreshTokens()).isFalse();
+        verify(metadataRepository).findByClientId(CORE_AGENT_CLIENT_ID);
+        verify(sasDelegate).findByClientId(CORE_AGENT_CLIENT_ID);
         verifyNoMoreInteractions(metadataRepository, sasDelegate);
     }
 
@@ -166,10 +195,40 @@ class ActiveRegisteredClientRepositoryTest {
                 .build();
     }
 
+    private static RegisteredClient activeCoreAgent() {
+        return RegisteredClient.withId(CORE_AGENT_ID)
+                .clientId(CORE_AGENT_CLIENT_ID)
+                .clientIdIssuedAt(Instant.parse("2026-08-10T00:00:00Z"))
+                .clientName("CORE AGENT")
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .redirectUri("http://127.0.0.1:9090/oauth/callback")
+                .scope("note:read")
+                .scope("note:write")
+                .scope("sys:read")
+                .scope("media:read")
+                .clientSettings(ClientSettings.builder().requireProofKey(true).requireAuthorizationConsent(true).build())
+                .tokenSettings(TokenSettings.builder()
+                        .accessTokenTimeToLive(Duration.ofHours(1))
+                        .refreshTokenTimeToLive(Duration.ofHours(24))
+                        .reuseRefreshTokens(false)
+                        .build())
+                .build();
+    }
+
     private static OAuth2RegisteredClientMetadata metadata(String status) {
         return new OAuth2RegisteredClientMetadata(USER_ID, USER_CLIENT_ID,
                 LocalDateTime.of(2026, 8, 10, 8, 0), null, null, "CORE NODE User Client",
                 "internal", "password,email-code,refresh_token", null, null, "*:read,*:write",
                 "{}", "{}", "*:read,*:write", status, "0.0.0.0/0");
+    }
+
+    private static OAuth2RegisteredClientMetadata coreAgentMetadata(String status) {
+        return new OAuth2RegisteredClientMetadata(CORE_AGENT_ID, CORE_AGENT_CLIENT_ID,
+                LocalDateTime.of(2026, 8, 10, 8, 0), null, null, "CORE AGENT",
+                "none", "authorization_code,refresh_token", "http://127.0.0.1:9090/oauth/callback", null,
+                "note:read,note:write,sys:read,media:read", "{}", "{}", "note:read,sys:read", status,
+                "0.0.0.0/0");
     }
 }
