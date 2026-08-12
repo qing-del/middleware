@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.jacolp.constant.DatabaseConstant;
 import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.BaseException;
+import com.jacolp.exception.PermissionDeniedException;
 import com.jacolp.exception.RateLimitExceededException;
 import com.jacolp.result.Result;
 import jakarta.validation.ConstraintViolationException;
@@ -24,6 +25,14 @@ import java.sql.SQLIntegrityConstraintViolationException;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    /** Keeps the established Result error body while preserving the HTTP authorization status. */
+    @ExceptionHandler
+    public Result permissionDeniedExceptionHandler(PermissionDeniedException ex, HttpServletResponse response) {
+        log.warn("Permission denied: {}", ex.getMessage());
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        return Result.error(ex.getMessage());
+    }
 
     /**
      * 捕获业务异常

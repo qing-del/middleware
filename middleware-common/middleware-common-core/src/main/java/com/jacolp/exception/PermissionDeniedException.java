@@ -1,12 +1,13 @@
 package com.jacolp.exception;
 
-import com.jacolp.constant.UserConstant;
-
+/** A business authorization failure: scope, ownership, rank, or creator-only policy did not permit the operation. */
 public class PermissionDeniedException extends BaseException {
+
     public PermissionDeniedException(String message) {
         super(message);
     }
+
     public PermissionDeniedException() {
-        super(UserConstant.PERMISSION_DENIED);
+        super("无权限");
     }
 }
