@@ -54,6 +54,16 @@ spring:
             port: 465
             class: javax.net.ssl.SSLSocketFactory
 
+server:
+  servlet:
+    session:
+      timeout: 10m
+      cookie:
+        http-only: true
+        same-site: lax
+        # 生产环境必须通过 TLS 并将该值设为 true；本地 127.0.0.1 HTTP 保持 false。
+        secure: ${OAUTH_SESSION_COOKIE_SECURE:false}
+
 management:
   endpoints:
     web:
