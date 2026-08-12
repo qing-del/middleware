@@ -45,7 +45,7 @@ public class SecurityFilterConfiguration {
     }
 
     @Bean
-    @Order(2)
+    @Order(3)
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             LegacyJwtAuthenticationFilter adminJwtAuthenticationFilter,
                                             LegacyJwtAuthenticationFilter userJwtAuthenticationFilter,

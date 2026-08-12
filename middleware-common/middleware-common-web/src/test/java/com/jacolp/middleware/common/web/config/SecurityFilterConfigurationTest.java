@@ -39,7 +39,7 @@ class SecurityFilterConfigurationTest {
                 LegacyJwtAuthenticationFilter.class);
 
         assertThat(chainBean.getAnnotation(Order.class)).isNotNull();
-        assertThat(chainBean.getAnnotation(Order.class).value()).isEqualTo(2);
+        assertThat(chainBean.getAnnotation(Order.class).value()).isEqualTo(3);
     }
 
     @Test
