@@ -3,12 +3,33 @@ package com.jacolp.config;
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
 import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
+import com.jacolp.middleware.common.core.metrics.QpsCounter;
+import com.jacolp.middleware.common.security.jwt.JwtProperties;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAccountAuthenticator;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAuthenticationProvider;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentLogoutService;
+import com.jacolp.module.system.biz.infrastructure.authorization.ActiveRegisteredClientRepository;
+import com.jacolp.module.system.biz.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
+import com.jacolp.module.system.biz.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeRequestAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationConsentAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationEndpointAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationServerSecurityConfiguration;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationProvider;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationProvider;
+import com.jacolp.module.system.biz.web.controller.authorization.CoreAgentLogoutController;
+import com.jacolp.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.MapPropertySource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockServletContext;
@@ -16,7 +37,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
 import org.springframework.security.web.FilterChainProxy;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -40,6 +63,34 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class BusinessRouteResourceServerSecurityConfigurationTest {
+
+    @Test
+    void aggregateContextOrdersOAuthBusinessAndLegacyChainsWithoutRouteTakeover() {
+        try (AnnotationConfigWebApplicationContext context = aggregateContext()) {
+            FilterChainProxy chains = context.getBean("springSecurityFilterChain", FilterChainProxy.class);
+            assertThat(chains.getFilterChains()).hasSize(3);
+            List<SecurityFilterChain> ordered = chains.getFilterChains();
+
+            assertThat(ordered.get(0).matches(request(HttpMethod.GET, "/oauth2/authorize"))).isTrue();
+            assertThat(ordered.get(1).matches(request(HttpMethod.GET, "/oauth2/authorize"))).isFalse();
+            assertThat(ordered.get(0).matches(request(HttpMethod.POST, "/oauth/token"))).isTrue();
+            assertThat(ordered.get(1).matches(request(HttpMethod.POST, "/oauth/token"))).isFalse();
+
+            assertThat(ordered.get(0).matches(request(HttpMethod.GET, "/user/note/9"))).isFalse();
+            assertThat(ordered.get(1).matches(request(HttpMethod.GET, "/user/note/9"))).isTrue();
+            assertThat(ordered.get(1).matches(request(HttpMethod.POST, "/auth/logout"))).isTrue();
+
+            for (String exception : List.of("POST /user/user/login", "POST /user/user/logout", "POST /admin/user/login",
+                    "POST /admin/user/logout", "POST /user/user/register", "POST /user/user/resend-activation",
+                    "GET /user/user/active/token", "POST /user/user/active-code", "GET /unrelated")) {
+                String[] parts = exception.split(" ", 2);
+                MockHttpServletRequest request = request(HttpMethod.valueOf(parts[0]), parts[1]);
+                assertThat(ordered.get(0).matches(request)).isFalse();
+                assertThat(ordered.get(1).matches(request)).isFalse();
+                assertThat(ordered.get(2).matches(request)).isTrue();
+            }
+        }
+    }
 
     @Test
     void orderTwoMatchesOnlyCatalogueRoutesAndLeavesAllExceptionsAndOAuthAlone() throws Exception {
@@ -131,6 +182,19 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         return context;
     }
 
+    private static AnnotationConfigWebApplicationContext aggregateContext() {
+        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+        context.setServletContext(new MockServletContext());
+        context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test", Map.of(
+                "jacolp.oauth2.rs256.enabled", "true")));
+        context.register(TestWebConfiguration.class, AggregateOAuthDependencies.class,
+                SecurityFilterConfiguration.class, CoreAgentAuthorizationServerConfiguration.class,
+                CoreAgentAuthorizationServerSecurityConfiguration.class, CoreAgentLogoutController.class,
+                BusinessRouteScopeCatalogConfiguration.class, BusinessRouteResourceServerSecurityConfiguration.class);
+        context.refresh();
+        return context;
+    }
+
     private static MockHttpServletRequest request(HttpMethod method, String path) {
         return new MockHttpServletRequest(method.name(), path);
     }
@@ -163,6 +227,36 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         @Bean
         TestController testController() {
             return new TestController();
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class AggregateOAuthDependencies {
+        @Bean StringRedisTemplate redis() { return org.mockito.Mockito.mock(StringRedisTemplate.class); }
+        @Bean JwtProperties jwtProperties() {
+            JwtProperties properties = new JwtProperties();
+            properties.setUserSecretKey("test-user-secret");
+            properties.setAdminSecretKey("test-admin-secret");
+            properties.setActiveSecretKey("test-active-secret");
+            return properties;
+        }
+        @Bean QpsCounter qpsCounter() { return org.mockito.Mockito.mock(QpsCounter.class); }
+        @Bean ActiveRegisteredClientRepository registeredClientRepository() { return org.mockito.Mockito.mock(ActiveRegisteredClientRepository.class); }
+        @Bean FailClosedOAuth2AuthorizationService authorizationService() { return org.mockito.Mockito.mock(FailClosedOAuth2AuthorizationService.class); }
+        @Bean OAuth2AuthorizationConsentService authorizationConsentService() { return org.mockito.Mockito.mock(OAuth2AuthorizationConsentService.class); }
+        @Bean CoreAgentLogoutService coreAgentLogoutService() { return org.mockito.Mockito.mock(CoreAgentLogoutService.class); }
+        @Bean CoreAgentPublicClientAuthenticationConverter publicClientAuthenticationConverter() { return org.mockito.Mockito.mock(CoreAgentPublicClientAuthenticationConverter.class); }
+        @Bean CoreAgentPublicClientAuthenticationProvider publicClientAuthenticationProvider() { return org.mockito.Mockito.mock(CoreAgentPublicClientAuthenticationProvider.class); }
+        @Bean CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter() { return org.mockito.Mockito.mock(CoreAgentAuthorizationEndpointAuthenticationConverter.class); }
+        @Bean CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider() { return org.mockito.Mockito.mock(CoreAgentAuthorizationCodeRequestAuthenticationProvider.class); }
+        @Bean CoreAgentAuthorizationConsentAuthenticationProvider authorizationConsentAuthenticationProvider() { return org.mockito.Mockito.mock(CoreAgentAuthorizationConsentAuthenticationProvider.class); }
+        @Bean CoreAgentAuthorizationCodeTokenAuthenticationConverter authorizationCodeTokenAuthenticationConverter() { return org.mockito.Mockito.mock(CoreAgentAuthorizationCodeTokenAuthenticationConverter.class); }
+        @Bean CoreAgentRefreshTokenAuthenticationConverter refreshTokenAuthenticationConverter() { return org.mockito.Mockito.mock(CoreAgentRefreshTokenAuthenticationConverter.class); }
+        @Bean CoreAgentAuthorizationCodeTokenAuthenticationProvider authorizationCodeTokenAuthenticationProvider() { return org.mockito.Mockito.mock(CoreAgentAuthorizationCodeTokenAuthenticationProvider.class); }
+        @Bean CoreAgentRefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider() { return org.mockito.Mockito.mock(CoreAgentRefreshTokenAuthenticationProvider.class); }
+        @Bean CoreAgentBrowserAccountAuthenticator browserAccountAuthenticator() { return org.mockito.Mockito.mock(CoreAgentBrowserAccountAuthenticator.class); }
+        @Bean CoreAgentBrowserAuthenticationProvider browserAuthenticationProvider(CoreAgentBrowserAccountAuthenticator authenticator) {
+            return new CoreAgentBrowserAuthenticationProvider(authenticator);
         }
     }
 
