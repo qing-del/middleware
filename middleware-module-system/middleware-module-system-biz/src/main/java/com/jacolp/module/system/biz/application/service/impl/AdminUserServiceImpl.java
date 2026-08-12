@@ -1,11 +1,16 @@
 package com.jacolp.module.system.biz.application.service.impl;
 
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
+import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.module.system.biz.application.annotation.RequireValidRole;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserListDTO;
@@ -41,6 +46,13 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class AdminUserServiceImpl implements AdminUserService {
+    private final AccountAuthorizationStateRevocationService authorizationStateRevocationService;
+
+    public AdminUserServiceImpl(AccountAuthorizationStateRevocationService authorizationStateRevocationService) {
+        this.authorizationStateRevocationService = Objects.requireNonNull(
+                authorizationStateRevocationService, "authorizationStateRevocationService");
+    }
+
     @Autowired private UserMapper userMapper;
 
     @Autowired private TokenSessionService tokenSessionService;
@@ -115,9 +127,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BaseException("权限不足：只能改动权限低于自身的账户");
         }
 
+        UserDO targetBeforeUpdate = userMapper.selectById(dto.getId());
+
         // 构建更新实体，仅设置非空字段（updateById 的 XML 使用 <if> 动态判断）
         UserDO user = new UserDO();
         BeanUtils.copyProperties(dto, user);
+        boolean securityFieldChangeRequested = securityFieldChangeRequested(dto, targetBeforeUpdate);
         if (dto.getRoleId() != null) {
             user.setExtraGrantTypes(UserExtraGrantTypePolicy.forRoleId(dto.getRoleId()));
         }
@@ -143,6 +158,9 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
         }
         publishProfile(userMapper.selectById(dto.getId()));
+        if (securityFieldChangeRequested) {
+            authorizationStateRevocationService.revokeForSecurityFieldChange(dto.getId());
+        }
     }
 
     @Override
@@ -194,6 +212,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteUsers(List<Long> ids) {
         log.info("Admin deleting users, ids: {}", ids);
 
@@ -226,11 +245,18 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         // 4. Proceed with batch deletion
-        userMapper.deleteByIds(ids);
+        int affected = userMapper.deleteByIds(ids);
+        if (affected <= 0) {
+            throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
+        }
+        for (Long targetId : distinctExistingIdsInRequestOrder(ids, targets)) {
+            authorizationStateRevocationService.revokeForSecurityFieldChange(targetId);
+        }
         log.info("Batch delete completed, count: {}", ids.size());
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateStatus(Long targetId, Integer status) {
         log.info("Admin updating user status, target id: {}, new status: {}", targetId, status);
 
@@ -250,6 +276,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
         }
 
+        authorizationStateRevocationService.revokeForSecurityFieldChange(targetId);
         log.info("User status updated successfully, id: {}, status: {}", targetId, status);
     }
 
@@ -286,5 +313,37 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         userProfileEvents.publish(new UserProfileChangedEvent(
                 user.getId(), user.getUsername(), user.getNickname()));
+    }
+
+    private static List<Long> distinctExistingIdsInRequestOrder(List<Long> requestedIds, List<UserDO> targets) {
+        Set<Long> existingIds = new HashSet<>();
+        for (UserDO target : targets) {
+            if (target != null && target.getId() != null) {
+                existingIds.add(target.getId());
+            }
+        }
+        LinkedHashSet<Long> distinctIds = new LinkedHashSet<>();
+        for (Long requestedId : requestedIds) {
+            if (requestedId != null && existingIds.contains(requestedId)) {
+                distinctIds.add(requestedId);
+            }
+        }
+        return List.copyOf(distinctIds);
+    }
+
+    private static boolean securityFieldChangeRequested(UserModifyDTO dto, UserDO targetBeforeUpdate) {
+        if (StringUtils.hasText(dto.getNewPassword())) {
+            return true;
+        }
+        if (targetBeforeUpdate == null) {
+            return StringUtils.hasText(dto.getUsername()) || StringUtils.hasText(dto.getEmail())
+                    || dto.getRoleId() != null || dto.getStatus() != null;
+        }
+        return (StringUtils.hasText(dto.getUsername())
+                && !Objects.equals(dto.getUsername(), targetBeforeUpdate.getUsername()))
+                || (StringUtils.hasText(dto.getEmail())
+                && !Objects.equals(dto.getEmail(), targetBeforeUpdate.getEmail()))
+                || (dto.getRoleId() != null && !Objects.equals(dto.getRoleId(), targetBeforeUpdate.getRoleId()))
+                || (dto.getStatus() != null && !Objects.equals(dto.getStatus(), targetBeforeUpdate.getStatus()));
     }
 }

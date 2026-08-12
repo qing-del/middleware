@@ -92,7 +92,7 @@ class UserExtraGrantTypeWritePathTest {
         UserMapper userMapper = mock(UserMapper.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         UserProfileEventPublisher userProfileEvents = mock(UserProfileEventPublisher.class);
-        AdminUserServiceImpl service = new AdminUserServiceImpl();
+        AdminUserServiceImpl service = new AdminUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
         ReflectionTestUtils.setField(service, "userMapper", userMapper);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
         ReflectionTestUtils.setField(service, "userProfileEvents", userProfileEvents);

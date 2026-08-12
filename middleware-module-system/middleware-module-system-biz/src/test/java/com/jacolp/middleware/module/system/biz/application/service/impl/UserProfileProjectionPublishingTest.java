@@ -87,7 +87,7 @@ class UserProfileProjectionPublishingTest {
 
     private static AdminUserServiceImpl adminService(UserMapper users, PasswordEncoder passwords,
                                                      UserProfileEventPublisher events) {
-        AdminUserServiceImpl service = new AdminUserServiceImpl();
+        AdminUserServiceImpl service = new AdminUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
         ReflectionTestUtils.setField(service, "userMapper", users);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwords);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);

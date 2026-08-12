@@ -136,7 +136,7 @@ class TokenSessionWorkflowTest {
         UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
     }
     private static AdminUserServiceImpl admin(UserMapper mapper, TokenSessionService tokens, PasswordEncoder passwords) {
-        AdminUserServiceImpl service = new AdminUserServiceImpl(); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
+        AdminUserServiceImpl service = new AdminUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
     }
     private static UserDO user(Long id, Integer status, Long role) { UserDO user = new UserDO(); user.setId(id); user.setStatus(status); user.setRoleId(role); user.setPassword("hash"); return user; }
 }
