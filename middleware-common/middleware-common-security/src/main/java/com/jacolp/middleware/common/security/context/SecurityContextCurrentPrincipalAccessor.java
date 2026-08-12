@@ -33,7 +33,11 @@ public final class SecurityContextCurrentPrincipalAccessor implements CurrentPri
         return new CurrentPrincipal(principal.id(), null, null, null, roles, List.of());
     }
 
-    private static CurrentPrincipal fromJwt(Jwt jwt) {
+    /**
+     * Normalizes an already authenticated RS256 JWT without reading the thread-local security context.
+     * Resource-server authorization managers use this so their decision is based on the supplied authentication.
+     */
+    public static CurrentPrincipal fromJwt(Jwt jwt) {
         Map<String, Object> claims = jwt.getClaims();
         long userId = positiveSubject(claims.get("sub"));
         String username = requiredString(claims, "username");
