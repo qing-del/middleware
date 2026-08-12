@@ -4,10 +4,13 @@ import com.jacolp.middleware.common.core.metrics.QpsCounter;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAccountAuthenticator;
 import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAuthenticationProvider;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentLogoutRejectedException;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentLogoutService;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentBrowserPrincipal;
 import com.jacolp.module.system.biz.infrastructure.authorization.ActiveRegisteredClientRepository;
 import com.jacolp.module.system.biz.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
 import com.jacolp.module.system.biz.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
+import com.jacolp.module.system.biz.web.controller.authorization.CoreAgentLogoutController;
 import com.jacolp.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Bean;
@@ -23,6 +26,9 @@ import org.springframework.mock.web.MockServletContext;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CsrfFilter;
@@ -31,15 +37,21 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.lang.reflect.Method;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -75,7 +87,8 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
         assertThat(source).doesNotContain("getEndpointsMatcher", "OAuth2AuthorizationService", "OAuth2TokenGenerator",
                 "InMemoryOAuth2AuthorizationService", "JdbcOAuth2AuthorizationService");
         assertThat(source).contains("securityMatcher(browserAndTokenRoutes)", "postPath(TOKEN_PATH)",
-                "postPath(LOGOUT_PATH)", "browserAuthorizationCsrfFilter");
+                "postPath(LOGOUT_PATH)", "browserAuthorizationCsrfFilter", "oauth2ResourceServer",
+                "coreAgentLogoutBearerTokenResolver");
     }
 
     @Test
@@ -97,11 +110,49 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
             mvc.perform(post("/oauth/login"))
                     .andExpect(status().isForbidden());
             mvc.perform(post("/oauth/token").param("grant_type", "unsupported"))
-                    .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotEqualTo(403));
+                    .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotIn(401, 403));
             mvc.perform(post("/oauth/logout"))
-                    .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotEqualTo(403));
+                    .andExpect(status().isUnauthorized());
             mvc.perform(get("/oauth2/revoke"))
                     .andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    void logoutRequiresOnlyRs256ValidatedBearerAndDelegatesOnlyTheCoreAgentToken() throws Exception {
+        try (AnnotationConfigWebApplicationContext context = enabledContext()) {
+            JwtDecoder decoder = context.getBean(JwtDecoder.class);
+            CoreAgentLogoutService logoutService = context.getBean(CoreAgentLogoutService.class);
+            MockMvc mvc = MockMvcBuilders.webAppContextSetup(context)
+                    .addFilters(context.getBean("springSecurityFilterChain", FilterChainProxy.class)).build();
+
+            mvc.perform(post("/oauth/logout")).andExpect(status().isUnauthorized());
+            verify(decoder, never()).decode(org.mockito.ArgumentMatchers.anyString());
+            verify(logoutService, never()).logout();
+
+            when(decoder.decode("bad-token")).thenThrow(new BadJwtException("invalid"));
+            when(decoder.decode("hs256-token")).thenThrow(new BadJwtException("invalid"));
+            when(decoder.decode("revoked-token")).thenThrow(new BadJwtException("invalid"));
+            mvc.perform(post("/oauth/logout").header("Authorization", "Bearer bad-token"))
+                    .andExpect(status().isUnauthorized());
+            mvc.perform(post("/oauth/logout").header("Authorization", "Bearer hs256-token"))
+                    .andExpect(status().isUnauthorized());
+            mvc.perform(post("/oauth/logout").header("Authorization", "Bearer revoked-token"))
+                    .andExpect(status().isUnauthorized());
+            verify(logoutService, never()).logout();
+
+            when(decoder.decode("valid-core-agent-token")).thenReturn(jwt("core_agent"));
+            mvc.perform(post("/oauth/logout").header("Authorization", "Bearer valid-core-agent-token"))
+                    .andExpect(status().isOk());
+            verify(logoutService).logout();
+
+            doThrow(new CoreAgentLogoutRejectedException()).when(logoutService).logout();
+            when(decoder.decode("wrong-client-token")).thenReturn(jwt("user"));
+            assertThatThrownBy(() -> mvc.perform(post("/oauth/logout")
+                    .header("Authorization", "Bearer wrong-client-token")))
+                    .hasRootCauseInstanceOf(CoreAgentLogoutRejectedException.class);
+        } finally {
+            SecurityContextHolder.clearContext();
         }
     }
 
@@ -154,6 +205,13 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
         return CoreAgentAuthorizationServerSecurityConfiguration.exactCoreAgentRoutes().matches(request);
     }
 
+    private static Jwt jwt(String clientId) {
+        Instant issuedAt = Instant.parse("2026-08-12T02:00:00Z");
+        return new Jwt("fixture-token", issuedAt, issuedAt.plusSeconds(3600), Map.of("alg", "RS256"), Map.of(
+                "sub", "7", "client_id", clientId, "jti", "0123456789abcdefghijkl",
+                "iss", "core-node", "aud", List.of("core-node")));
+    }
+
     private static void assertOrder(Class<?> type, String methodName, int expected) throws NoSuchMethodException {
         Method method = List.of(type.getDeclaredMethods()).stream().filter(candidate -> candidate.getName().equals(methodName))
                 .findFirst().orElseThrow();
@@ -183,8 +241,9 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
 
     @Configuration(proxyBeanMethods = false)
     @EnableWebSecurity
+    @EnableWebMvc
     @Import({SecurityFilterConfiguration.class, CoreAgentAuthorizationServerConfiguration.class,
-            CoreAgentAuthorizationServerSecurityConfiguration.class})
+            CoreAgentAuthorizationServerSecurityConfiguration.class, CoreAgentLogoutController.class})
     static class EnabledConfiguration {
         @Bean StringRedisTemplate redis() { return mock(StringRedisTemplate.class); }
         @Bean JwtProperties jwtProperties() {
@@ -198,6 +257,8 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
         @Bean ActiveRegisteredClientRepository registeredClientRepository() { return mock(ActiveRegisteredClientRepository.class); }
         @Bean FailClosedOAuth2AuthorizationService authorizationService() { return mock(FailClosedOAuth2AuthorizationService.class); }
         @Bean OAuth2AuthorizationConsentService authorizationConsentService() { return mock(OAuth2AuthorizationConsentService.class); }
+        @Bean JwtDecoder jwtDecoder() { return mock(JwtDecoder.class); }
+        @Bean CoreAgentLogoutService coreAgentLogoutService() { return mock(CoreAgentLogoutService.class); }
         @Bean CoreAgentPublicClientAuthenticationConverter publicClientAuthenticationConverter() { return mock(CoreAgentPublicClientAuthenticationConverter.class); }
         @Bean CoreAgentPublicClientAuthenticationProvider publicClientAuthenticationProvider() { return mock(CoreAgentPublicClientAuthenticationProvider.class); }
         @Bean CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter() { return mock(CoreAgentAuthorizationEndpointAuthenticationConverter.class); }

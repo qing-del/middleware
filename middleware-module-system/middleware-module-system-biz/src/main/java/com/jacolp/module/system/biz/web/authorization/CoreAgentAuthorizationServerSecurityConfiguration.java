@@ -10,6 +10,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.csrf.CsrfFilter;
@@ -57,6 +63,29 @@ public class CoreAgentAuthorizationServerSecurityConfiguration {
         return new HttpSessionRequestCache();
     }
 
+    /** Resolves bearer credentials only for the authenticated POST logout route, never token or browser routes. */
+    @Bean
+    BearerTokenResolver coreAgentLogoutBearerTokenResolver() {
+        DefaultBearerTokenResolver delegate = new DefaultBearerTokenResolver();
+        RequestMatcher logout = postPath(LOGOUT_PATH);
+        return request -> logout.matches(request) ? delegate.resolve(request) : null;
+    }
+
+    /** Routes missing authentication on browser pages to login, but returns RFC 6750 errors for bearer logout. */
+    @Bean
+    AuthenticationEntryPoint coreAgentRouteAuthenticationEntryPoint() {
+        LoginUrlAuthenticationEntryPoint browserLogin = new LoginUrlAuthenticationEntryPoint(LOGIN_PATH);
+        BearerTokenAuthenticationEntryPoint bearerLogout = new BearerTokenAuthenticationEntryPoint();
+        RequestMatcher logout = postPath(LOGOUT_PATH);
+        return (request, response, authenticationException) -> {
+            if (logout.matches(request)) {
+                bearerLogout.commence(request, response, authenticationException);
+                return;
+            }
+            browserLogin.commence(request, response, authenticationException);
+        };
+    }
+
     @Bean
     @Order(1)
     SecurityFilterChain coreAgentAuthorizationServerSecurityFilterChain(
@@ -65,7 +94,10 @@ public class CoreAgentAuthorizationServerSecurityConfiguration {
             CoreAgentBrowserAuthenticationProvider browserAuthenticationProvider,
             CsrfTokenRepository coreAgentBrowserCsrfTokenRepository,
             CsrfTokenRequestHandler coreAgentBrowserCsrfTokenRequestHandler,
-            RequestCache coreAgentBrowserRequestCache) throws Exception {
+            RequestCache coreAgentBrowserRequestCache,
+            JwtDecoder jwtDecoder,
+            BearerTokenResolver coreAgentLogoutBearerTokenResolver,
+            AuthenticationEntryPoint coreAgentRouteAuthenticationEntryPoint) throws Exception {
         RequestMatcher browserAndTokenRoutes = exactCoreAgentRoutes();
         CsrfFilter browserAuthorizationCsrf = browserAuthorizationCsrfFilter(coreAgentBrowserCsrfTokenRepository,
                 coreAgentBrowserCsrfTokenRequestHandler);
@@ -85,8 +117,14 @@ public class CoreAgentAuthorizationServerSecurityConfiguration {
                         .permitAll())
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(LOGIN_PATH, TOKEN_PATH, LOGOUT_PATH).permitAll()
+                        .requestMatchers(LOGIN_PATH, TOKEN_PATH).permitAll()
+                        .requestMatchers(LOGOUT_PATH).authenticated()
                         .requestMatchers(AUTHORIZE_PATH, CONSENT_PATH).authenticated())
+                .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(coreAgentRouteAuthenticationEntryPoint))
+                .oauth2ResourceServer(resourceServer -> resourceServer
+                        .bearerTokenResolver(coreAgentLogoutBearerTokenResolver)
+                        .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
+                        .jwt(jwt -> jwt.decoder(jwtDecoder)))
                 .oauth2AuthorizationServer(authorizationServerConfigurerFactory::configure)
                 .addFilterBefore(browserAuthorizationCsrf, CsrfFilter.class);
         return http.build();
