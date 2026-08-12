@@ -46,7 +46,7 @@ admin 操作还会保留相应 rank/creator 业务约束。
 HTTP `403`；响应体保持既有 `Result.error` 契约。此行为在 RS256 与 legacy 模式下一致。
 OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不走业务 `Result` 错误体。
 
-## `/user/**`：user client（75）
+## `/user/**`：user client（71 bearer routes）
 
 | # | method + path | required scopes（all-of） | 业务语义 |
 | ---: | --- | --- | --- |
@@ -129,7 +129,7 @@ OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不
 `POST /user/user/active-code`。它们保持既有 activation 协议；因此表内 bearer
 业务条目为 71 条，`/user/**` 源码 endpoint 总数为 77。
 
-## `/admin/**`：admin client（47）
+## `/admin/**`：admin client（45 bearer routes）
 
 | # | method + path | required scopes（all-of） | 业务语义 |
 | ---: | --- | --- | --- |

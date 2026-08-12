@@ -72,6 +72,10 @@ class BusinessRouteScopeCatalogConfigurationTest {
         long documentedEntries = document.lines().filter(line -> line.matches("\\| \\d+ \\|.*")).count();
 
         assertThat(documentedEntries).isEqualTo(116);
+        assertThat(document.lines().filter(line -> line.startsWith("## `/user/**`")).toList())
+                .containsExactly("## `/user/**`：user client（71 bearer routes）");
+        assertThat(document.lines().filter(line -> line.startsWith("## `/admin/**`")).toList())
+                .containsExactly("## `/admin/**`：admin client（45 bearer routes）");
         assertThat(document).contains("124 个", "77 个 user", "47 个 admin", "116 个是 bearer", "8 个是下文明确排除");
         assertThat(document).contains("`GET /user/note/source/{id}`", "`audit:write`", "`audit:manage`",
                 "`note:read` + `media:read`", "`note:write` + `media:read`");
