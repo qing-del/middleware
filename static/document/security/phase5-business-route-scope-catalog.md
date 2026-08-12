@@ -39,6 +39,13 @@ required scope；scope 的 wildcard 匹配由统一 matcher 完成，签发 JWT 
 所有标记为“own”的操作还必须在 service 层做 ownership 校验；标记为“any”的
 admin 操作还会保留相应 rank/creator 业务约束。
 
+## HTTP 拒绝语义
+
+认证缺失、无效或过期时返回 HTTP `401`。JWT route scope、client 边界不满足时，及
+通过路由准入后 service 层拒绝 ownership、rank 或 creator-only 业务规则时，均返回
+HTTP `403`；响应体保持既有 `Result.error` 契约。此行为在 RS256 与 legacy 模式下一致。
+OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不走业务 `Result` 错误体。
+
 ## `/user/**`：user client（75）
 
 | # | method + path | required scopes（all-of） | 业务语义 |
