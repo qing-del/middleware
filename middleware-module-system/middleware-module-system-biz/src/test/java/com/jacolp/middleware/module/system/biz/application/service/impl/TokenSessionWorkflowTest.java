@@ -5,6 +5,7 @@ import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;
 import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
@@ -65,28 +66,27 @@ class TokenSessionWorkflowTest {
     @Test void activationCodeDeletesOnlyAfterAccountActivationSucceeds() {
         UserMapper mapper = mock(UserMapper.class);
         TokenSessionService tokens = mock(TokenSessionService.class);
-        UserUserServiceImpl service = spy(user(mapper, tokens, mock(PasswordEncoder.class)));
-        List<String> events = new ArrayList<>();
+        UserUserServiceImpl service = user(mapper, tokens, mock(PasswordEncoder.class));
         when(tokens.findActivationCodeUserId("123456")).thenReturn(3L);
-        doAnswer(invocation -> { events.add("activate"); return "账号激活成功"; })
-                .when(service).activeAccount(3L);
-        doAnswer(invocation -> { events.add("delete"); return null; })
-                .when(tokens).deleteActivationCode("123456");
+        when(mapper.selectById(3L)).thenReturn(user(3L, UserConstant.UNACTIVE_STATUS, RoleConstant.USER));
+        when(mapper.updateById(any(UserDO.class))).thenReturn(1);
 
-        assertThat(service.verifyActivationCode("123456")).isEqualTo("账号激活成功");
-        assertThat(events).containsExactly("activate", "delete");
+        assertThat(service.verifyActivationCode("123456")).isEqualTo("激活成功");
+        InOrder order = inOrder(mapper, tokens);
+        order.verify(mapper).updateById(any(UserDO.class));
+        order.verify(tokens).deleteActivationCode("123456");
     }
 
     @Test void activationCodeIsNotDeletedWhenAccountActivationFails() {
         UserMapper mapper = mock(UserMapper.class);
         TokenSessionService tokens = mock(TokenSessionService.class);
-        UserUserServiceImpl service = spy(user(mapper, tokens, mock(PasswordEncoder.class)));
+        UserUserServiceImpl service = user(mapper, tokens, mock(PasswordEncoder.class));
         when(tokens.findActivationCodeUserId("123456")).thenReturn(3L);
-        doThrow(new BaseException("激活失败")).when(service).activeAccount(3L);
-
+        when(mapper.selectById(3L)).thenReturn(user(3L, UserConstant.UNACTIVE_STATUS, RoleConstant.USER));
+        when(mapper.updateById(any(UserDO.class))).thenReturn(0);
         assertThatThrownBy(() -> service.verifyActivationCode("123456"))
                 .isInstanceOf(BaseException.class)
-                .hasMessage("激活失败");
+                .hasMessage(UserConstant.UPDATE_USER_INFO_FAILED);
         verify(tokens, never()).deleteActivationCode(anyString());
     }
 
@@ -133,7 +133,7 @@ class TokenSessionWorkflowTest {
     }
 
     private static UserUserServiceImpl user(UserMapper mapper, TokenSessionService tokens, PasswordEncoder passwords) {
-        UserUserServiceImpl service = new UserUserServiceImpl(); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
+        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
     }
     private static AdminUserServiceImpl admin(UserMapper mapper, TokenSessionService tokens, PasswordEncoder passwords) {
         AdminUserServiceImpl service = new AdminUserServiceImpl(); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;

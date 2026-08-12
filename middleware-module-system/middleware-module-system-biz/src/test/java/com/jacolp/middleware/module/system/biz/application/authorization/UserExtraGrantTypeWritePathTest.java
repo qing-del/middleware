@@ -6,6 +6,7 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
+import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserRegisterDTO;
@@ -68,7 +69,7 @@ class UserExtraGrantTypeWritePathTest {
         when(userMapper.selectById(7L)).thenAnswer(invocation -> inserted.get());
         when(tokenSessionService.acquireActivationEmailCooldown(7L)).thenReturn(true);
 
-        UserUserServiceImpl service = new UserUserServiceImpl();
+        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
         ReflectionTestUtils.setField(service, "userMapper", userMapper);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
         ReflectionTestUtils.setField(service, "tokenSessionService", tokenSessionService);

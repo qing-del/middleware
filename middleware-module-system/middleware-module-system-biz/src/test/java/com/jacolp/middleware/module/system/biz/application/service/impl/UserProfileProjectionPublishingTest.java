@@ -6,6 +6,7 @@ import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
+import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;
 import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
@@ -78,7 +79,7 @@ class UserProfileProjectionPublishingTest {
     }
 
     private static UserUserServiceImpl userService(UserMapper users, UserProfileEventPublisher events) {
-        UserUserServiceImpl service = new UserUserServiceImpl();
+        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
         ReflectionTestUtils.setField(service, "userMapper", users);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);
         return service;

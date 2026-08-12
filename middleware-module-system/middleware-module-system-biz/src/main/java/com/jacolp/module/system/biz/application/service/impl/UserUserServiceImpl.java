@@ -3,6 +3,7 @@ package com.jacolp.module.system.biz.application.service.impl;
 import com.jacolp.module.system.biz.infrastructure.security.PasswordEncoder;
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
+import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
@@ -33,10 +34,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.Objects;
+
 @Service
 @Slf4j
 @Validated
 public class UserUserServiceImpl implements UserUserService {
+    private final AccountAuthorizationStateRevocationService authorizationStateRevocationService;
+
+    public UserUserServiceImpl(AccountAuthorizationStateRevocationService authorizationStateRevocationService) {
+        this.authorizationStateRevocationService = Objects.requireNonNull(
+                authorizationStateRevocationService, "authorizationStateRevocationService");
+    }
+
     @Autowired private UserMapper userMapper;
 
     @Autowired private TokenSessionService tokenSessionService;
@@ -156,6 +166,7 @@ public class UserUserServiceImpl implements UserUserService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteCurrentUser() {
         Long userId = BaseContext.getCurrentId();
         UserDO user = userMapper.selectById(userId);
@@ -173,6 +184,7 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException("用户删除失败");
         }
 
+        authorizationStateRevocationService.revokeForSecurityFieldChange(userId);
         log.info("User soft-deleted (account deactivated), userId: {}", userId);
     }
 
@@ -191,10 +203,12 @@ public class UserUserServiceImpl implements UserUserService {
             user.setNickname(dto.getNickname());
         }
         // 检验是否需要更改邮箱
+        boolean securityFieldChanged = false;
         if (StringUtils.hasText(dto.getEmail())) {
             if (user.getStatus() == UserConstant.ACTIVE_STATUS) {
                 throw new BaseException(UserConstant.EMAIL_CHANGE_DIRECT_NOT_ALLOWED);
             }
+            securityFieldChanged = !Objects.equals(user.getEmail(), dto.getEmail());
             user.setEmail(dto.getEmail());
         }
 
@@ -208,6 +222,7 @@ public class UserUserServiceImpl implements UserUserService {
                 throw new BaseException(UserConstant.PASSWORD_CONFIRM_ERROR);
             }
             user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+            securityFieldChanged = true;
         }
 
         // 更新数据库
@@ -217,6 +232,9 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
         }
         publishProfile(user);
+        if (securityFieldChanged) {
+            authorizationStateRevocationService.revokeForSecurityFieldChange(userId);
+        }
         log.info("User profile updated, userId: {}", userId);
     }
 
@@ -231,8 +249,16 @@ public class UserUserServiceImpl implements UserUserService {
      * @return 激活结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public String activeAccount(Long userId) {
         log.info("User active: {}", userId);
+
+        String result = activateAccount(userId);
+        authorizationStateRevocationService.revokeForSecurityFieldChange(userId);
+        return result;
+    }
+
+    private String activateAccount(Long userId) {
 
         // 查询用户
         UserDO user = userMapper.selectById(userId);
@@ -333,13 +359,15 @@ public class UserUserServiceImpl implements UserUserService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public String verifyActivationCode(String code) {
         Long userId = tokenSessionService.findActivationCodeUserId(code);
         if (userId == null) {
             throw new BaseException("激活码无效或已过期");
         }
-        String result = activeAccount(userId);
+        String result = activateAccount(userId);
         tokenSessionService.deleteActivationCode(code);
+        authorizationStateRevocationService.revokeForSecurityFieldChange(userId);
         return result;
     }
 
@@ -382,6 +410,7 @@ public class UserUserServiceImpl implements UserUserService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public String verifyEmailChangeCode(String code) {
         TokenSessionService.EmailChangeCode stored = tokenSessionService.findEmailChangeCode(code);
         if (stored == null) {
@@ -406,6 +435,7 @@ public class UserUserServiceImpl implements UserUserService {
         }
 
         tokenSessionService.deleteEmailChangeCode(code);
+        authorizationStateRevocationService.revokeForSecurityFieldChange(userId);
         log.info("Email changed successfully for userId: {}", userId);
         return "邮箱修改成功";
     }

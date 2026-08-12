@@ -1,0 +1,153 @@
+package com.jacolp.module.system.biz.application.authorization;
+
+import com.jacolp.constant.RoleConstant;
+import com.jacolp.constant.UserConstant;
+import com.jacolp.context.BaseContext;
+import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
+import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
+import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
+import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.module.system.biz.infrastructure.security.PasswordEncoder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class UserAuthorizationCodeRevocationWritePathTest {
+
+    @AfterEach
+    void clearContext() {
+        BaseContext.remove();
+    }
+
+    @Test
+    void profileSecurityFieldChangePublishesBeforeRevocationButNicknameOnlyDoesNotRevoke() {
+        UserMapper users = mock(UserMapper.class);
+        UserProfileEventPublisher events = mock(UserProfileEventPublisher.class);
+        AccountAuthorizationStateRevocationService revocation = mock(AccountAuthorizationStateRevocationService.class);
+        UserDO user = user(7L, UserConstant.UNACTIVE_STATUS);
+        when(users.selectById(7L)).thenReturn(user);
+        when(users.updateById(user)).thenReturn(1);
+        BaseContext.setCurrentId(7L);
+        UserUserServiceImpl service = service(users, mock(TokenSessionService.class), events, revocation);
+
+        UserProfileUpdateDTO emailChange = new UserProfileUpdateDTO();
+        emailChange.setEmail("new@example.com");
+        service.updateCurrentUserProfile(emailChange);
+
+        InOrder ordered = inOrder(users, events, revocation);
+        ordered.verify(users).updateById(user);
+        ordered.verify(events).publish(any());
+        ordered.verify(revocation).revokeForSecurityFieldChange(7L);
+
+        UserProfileUpdateDTO nicknameOnly = new UserProfileUpdateDTO();
+        nicknameOnly.setNickname("new nickname");
+        service.updateCurrentUserProfile(nicknameOnly);
+        verify(revocation).revokeForSecurityFieldChange(7L);
+    }
+
+    @Test
+    void softDeleteAndDirectActivationRevokeOnlyAfterTheirDatabaseUpdates() {
+        UserMapper users = mock(UserMapper.class);
+        AccountAuthorizationStateRevocationService revocation = mock(AccountAuthorizationStateRevocationService.class);
+        UserDO deleted = user(8L, UserConstant.ACTIVE_STATUS);
+        when(users.selectById(8L)).thenReturn(deleted);
+        when(users.updateById(any(UserDO.class))).thenReturn(1);
+        BaseContext.setCurrentId(8L);
+        UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
+                mock(UserProfileEventPublisher.class), revocation);
+
+        service.deleteCurrentUser();
+
+        InOrder deleteOrder = inOrder(users, revocation);
+        deleteOrder.verify(users).updateById(any(UserDO.class));
+        deleteOrder.verify(revocation).revokeForSecurityFieldChange(8L);
+
+        UserDO inactive = user(9L, UserConstant.UNACTIVE_STATUS);
+        when(users.selectById(9L)).thenReturn(inactive);
+        service.activeAccount(9L);
+
+        InOrder activationOrder = inOrder(users, revocation);
+        activationOrder.verify(users).updateById(inactive);
+        activationOrder.verify(revocation).revokeForSecurityFieldChange(9L);
+    }
+
+    @Test
+    void activationAndEmailVerificationCompleteOtherBusinessOperationsBeforeRevocation() {
+        UserMapper users = mock(UserMapper.class);
+        TokenSessionService tokens = mock(TokenSessionService.class);
+        AccountAuthorizationStateRevocationService revocation = mock(AccountAuthorizationStateRevocationService.class);
+        UserDO inactive = user(10L, UserConstant.UNACTIVE_STATUS);
+        when(users.selectById(10L)).thenReturn(inactive);
+        when(users.updateById(any(UserDO.class))).thenReturn(1);
+        when(tokens.findActivationCodeUserId("activate")).thenReturn(10L);
+        UserUserServiceImpl service = service(users, tokens, mock(UserProfileEventPublisher.class), revocation);
+
+        service.verifyActivationCode("activate");
+
+        InOrder activationOrder = inOrder(users, tokens, revocation);
+        activationOrder.verify(users).updateById(inactive);
+        activationOrder.verify(tokens).deleteActivationCode("activate");
+        activationOrder.verify(revocation).revokeForSecurityFieldChange(10L);
+
+        when(tokens.findEmailChangeCode("email"))
+                .thenReturn(new TokenSessionService.EmailChangeCode(11L, "new@example.com"));
+        BaseContext.setCurrentId(11L);
+        service.verifyEmailChangeCode("email");
+
+        InOrder emailOrder = inOrder(users, tokens, revocation);
+        emailOrder.verify(users).updateById(any(UserDO.class));
+        emailOrder.verify(tokens).deleteEmailChangeCode("email");
+        emailOrder.verify(revocation).revokeForSecurityFieldChange(11L);
+    }
+
+    @Test
+    void revocationFailureIsNotCaughtAfterAUserSecurityFieldUpdate() {
+        UserMapper users = mock(UserMapper.class);
+        AccountAuthorizationStateRevocationService revocation = mock(AccountAuthorizationStateRevocationService.class);
+        UserDO user = user(12L, UserConstant.ACTIVE_STATUS);
+        when(users.selectById(12L)).thenReturn(user);
+        when(users.updateById(any(UserDO.class))).thenReturn(1);
+        RuntimeException failure = new IllegalStateException("redis unavailable");
+        org.mockito.Mockito.doThrow(failure).when(revocation).revokeForSecurityFieldChange(12L);
+        BaseContext.setCurrentId(12L);
+        UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
+                mock(UserProfileEventPublisher.class), revocation);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(service::deleteCurrentUser).isSameAs(failure);
+        verify(revocation).revokeForSecurityFieldChange(12L);
+        verify(users).updateById(any(UserDO.class));
+    }
+
+    private static UserUserServiceImpl service(UserMapper users, TokenSessionService tokens,
+                                               UserProfileEventPublisher events,
+                                               AccountAuthorizationStateRevocationService revocation) {
+        UserUserServiceImpl service = new UserUserServiceImpl(revocation);
+        ReflectionTestUtils.setField(service, "userMapper", users);
+        ReflectionTestUtils.setField(service, "tokenSessionService", tokens);
+        ReflectionTestUtils.setField(service, "userProfileEvents", events);
+        ReflectionTestUtils.setField(service, "passwordEncoder", mock(PasswordEncoder.class));
+        return service;
+    }
+
+    private static UserDO user(Long id, Integer status) {
+        UserDO user = new UserDO();
+        user.setId(id);
+        user.setUsername("user" + id);
+        user.setNickname("User " + id);
+        user.setEmail("old@example.com");
+        user.setRoleId(RoleConstant.USER);
+        user.setStatus(status);
+        user.setPassword("hash");
+        return user;
+    }
+}
