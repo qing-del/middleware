@@ -2,9 +2,10 @@
 
 ## 状态与适用范围
 
-这是 Phase 5 首发的、可执行的 route-to-scope 目录。它覆盖当前所有 122 个
-`@RestController` 下的 `/user/**` 与 `/admin/**` 最终 HTTP 路由：75 个 user
-路由、47 个 admin 路由。认证完成后，每个业务路由都必须同时满足本表的全部
+这是 Phase 5 首发的、可执行的 route-to-scope 目录。当前存在 124 个
+`@RestController` 下的 `/user/**` 与 `/admin/**` 最终 HTTP 路由：77 个 user
+路由、47 个 admin 路由；其中 116 个是 bearer 业务路由、8 个是下文明确排除的
+legacy/public/activation 例外。认证完成后，每个业务路由都必须同时满足本表的全部
 required scope；scope 的 wildcard 匹配由统一 matcher 完成，签发 JWT 时不展开。
 
 本目录的权限名空间固定为：
@@ -29,11 +30,11 @@ required scope；scope 的 wildcard 匹配由统一 matcher 完成，签发 JWT 
   ownership 和管理等级判断。
 - `core_agent` 首版拒绝全部本表旧业务路由，即使它的 scope 能匹配；它不具有临时
   user/admin 旁路。
-- 以下旧路由不是本目录的 bearer 业务路由：`POST /user/user/login`、
-  `POST /user/user/logout`、`POST /admin/user/login`、`POST /admin/user/logout`。
-  它们是 Phase 6 删除项。`POST /user/user/register`、
-  `POST /user/user/resend-activation`、`/user/user/active/{token}` 与
-  `POST /user/user/active-code` 属于既有 public activation 协议，首版不改造。
+- 以下 8 条路由不是本目录的 bearer 业务路由：`POST /user/user/login`、
+  `POST /user/user/logout`、`POST /admin/user/login`、`POST /admin/user/logout`、
+  `POST /user/user/register`、`POST /user/user/resend-activation`、
+  `GET /user/user/active/{token}` 与`POST /user/user/active-code`。前 4 条是
+  Phase 6 删除项；后 4 条注册/激活路由属于既有 public activation 协议，首版不改造。
 
 所有标记为“own”的操作还必须在 service 层做 ownership 校验；标记为“any”的
 admin 操作还会保留相应 rank/creator 业务约束。
@@ -114,12 +115,12 @@ admin 操作还会保留相应 rank/creator 业务约束。
 | 70 | `PUT /user/user/me` | `account:write` | 更新 own 资料/密码 |
 | 71 | `DELETE /user/user/me` | `account:write` | 删除 own 账户 |
 
-下列 4 条 `/user/**` 旧登录/激活路由属于本文件开头的例外，计入源码路由
+下列 6 条 `/user/**` 旧登录/注册路由属于本文件开头的例外，计入源码路由
 总数但不分配 bearer required scope：`POST /user/user/login`、
 `POST /user/user/logout`、`POST /user/user/register`、
-`POST /user/user/resend-activation`。连同 `GET /user/user/active/{token}` 和
-`POST /user/user/active-code`，它们保持既有 activation 协议；因此表内 bearer
-业务条目为 71 条，`/user/**` 源码 endpoint 总数为 75。
+`POST /user/user/resend-activation`、`GET /user/user/active/{token}` 和
+`POST /user/user/active-code`。它们保持既有 activation 协议；因此表内 bearer
+业务条目为 71 条，`/user/**` 源码 endpoint 总数为 77。
 
 ## `/admin/**`：admin client（47）
 
