@@ -144,7 +144,7 @@ admin 操作还会保留相应 rank/creator 业务约束。
 | 16 | `POST /admin/image/list` | `media:read` | 查询图片 |
 | 17 | `GET /admin/image/notes/{imageId}` | `media:read` + `note:read` | 查询图片关联笔记 |
 | 18 | `POST /admin/image/public/{isPublic}` | `media:manage` | 变更图片公开状态 |
-| 19 | `GET /admin/note` | `note:read` | 读取 any 笔记源内容 |
+| 19 | `GET /admin/note/source/{noteId}` | `note:read` | 读取 any 笔记源内容 |
 | 20 | `POST /admin/note/convert/{noteId}` | `note:manage` | 转换 any 笔记 |
 | 21 | `DELETE /admin/note/convert/{noteId}` | `note:manage` | 删除 any 转换结果 |
 | 22 | `PUT /admin/note/force/{status}/{noteId}` | `note:manage` | 强制变更笔记状态 |
