@@ -61,6 +61,35 @@ class MigrationScriptTest {
                 .isLessThan(migration.indexOf("SET r.`status` = b.`resolved_status`"));
     }
 
+    @Test
+    void phaseFiveRouteScopesShouldKeepWildcardRolesAndNarrowFirstPartyClients()
+            throws IOException {
+        String migration = readMigration("20260812_phase5_business_route_scopes.sql");
+        String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
+        String userScopes = "account:read,account:write,audio:read,audio:write,audit:read,audit:write,media:read,media:write,note:read,note:write";
+        String adminScopes = "account:read,account:manage,audio:read,audio:manage,audit:read,audit:manage,media:read,media:manage,note:read,note:manage";
+
+        assertThat(migration)
+                .contains("phase5_business_route_scopes_preflight")
+                .contains("phase5_business_route_scopes_postflight")
+                .contains("v_permission_count <> 19")
+                .contains("v_exact_permission_count <> 15")
+                .contains("'account:read'")
+                .contains("'audit:manage'")
+                .contains("BINARY `client_id` = 'core_agent'")
+                .contains("BINARY `scopes` = 'note:read,note:write,sys:read,media:read'")
+                .contains("'*:read', '*:write', '*:manage', '*:super'")
+                .contains(userScopes)
+                .contains(adminScopes);
+        assertThat(bootstrap)
+                .contains(userScopes)
+                .contains(adminScopes)
+                .contains("('account:read', NULL, 'account', 'read', 'active'")
+                .contains("('audit:manage', NULL, 'audit', 'manage', 'active'")
+                .contains("'core_agent',")
+                .contains("'note:read,note:write,sys:read,media:read'");
+    }
+
     private static String readMigration(String fileName) throws IOException {
         Path migration = MIGRATION_DIRECTORY.resolve(fileName);
         assertThat(migration)

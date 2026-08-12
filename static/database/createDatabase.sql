@@ -125,10 +125,10 @@ INSERT INTO `oauth2_registered_client` (
     'password,email-code,refresh_token',
     NULL,
     NULL,
-    '*:read,*:write',
+    'account:read,account:write,audio:read,audio:write,audit:read,audit:write,media:read,media:write,note:read,note:write',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-proof-key":false,"settings.client.require-authorization-consent":false}',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.reuse-refresh-tokens":false,"settings.token.x509-certificate-bound-access-tokens":false,"settings.token.id-token-signature-algorithm":["org.springframework.security.oauth2.jose.jws.SignatureAlgorithm","RS256"],"settings.token.access-token-time-to-live":["java.time.Duration","PT3H"],"settings.token.access-token-format":{"@class":"org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat","value":"self-contained"},"settings.token.refresh-token-time-to-live":["java.time.Duration","PT72H"],"settings.token.authorization-code-time-to-live":["java.time.Duration","PT5M"],"settings.token.device-code-time-to-live":["java.time.Duration","PT5M"]}',
-    '*:read,*:write',
+    'account:read,account:write,audio:read,audio:write,audit:read,audit:write,media:read,media:write,note:read,note:write',
     'active',
     '0.0.0.0/0'
 ),
@@ -140,10 +140,10 @@ INSERT INTO `oauth2_registered_client` (
     'password,email-code,refresh_token',
     NULL,
     NULL,
-    '*:read,*:manage,*:super',
+    'account:read,account:manage,audio:read,audio:manage,audit:read,audit:manage,media:read,media:manage,note:read,note:manage',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.client.require-proof-key":false,"settings.client.require-authorization-consent":false}',
     '{"@class":"java.util.Collections$UnmodifiableMap","settings.token.reuse-refresh-tokens":false,"settings.token.x509-certificate-bound-access-tokens":false,"settings.token.id-token-signature-algorithm":["org.springframework.security.oauth2.jose.jws.SignatureAlgorithm","RS256"],"settings.token.access-token-time-to-live":["java.time.Duration","PT3H"],"settings.token.access-token-format":{"@class":"org.springframework.security.oauth2.server.authorization.settings.OAuth2TokenFormat","value":"self-contained"},"settings.token.refresh-token-time-to-live":["java.time.Duration","PT72H"],"settings.token.authorization-code-time-to-live":["java.time.Duration","PT5M"],"settings.token.device-code-time-to-live":["java.time.Duration","PT5M"]}',
-    '*:read,*:manage',
+    'account:read,account:manage,audio:read,audio:manage,audit:read,audit:manage,media:read,media:manage,note:read,note:manage',
     'active',
     '0.0.0.0/0'
 ),
@@ -169,7 +169,22 @@ INSERT INTO `sys_permission` (`code`, `oauth_scope`, `resource`, `action`, `stat
     ('*:read', NULL, '*', 'read', 'active', '读取权限通配符'),
     ('*:write', NULL, '*', 'write', 'active', '写入权限通配符'),
     ('*:manage', NULL, '*', 'manage', 'active', '管理权限通配符'),
-    ('*:super', NULL, '*', 'super', 'active', '创建者专属权限通配符');
+    ('*:super', NULL, '*', 'super', 'active', '创建者专属权限通配符'),
+    ('account:read', NULL, 'account', 'read', 'active', 'Read account data'),
+    ('account:write', NULL, 'account', 'write', 'active', 'Write own account data'),
+    ('account:manage', NULL, 'account', 'manage', 'active', 'Manage accounts'),
+    ('note:read', NULL, 'note', 'read', 'active', 'Read notes and note metadata'),
+    ('note:write', NULL, 'note', 'write', 'active', 'Write own notes and note metadata'),
+    ('note:manage', NULL, 'note', 'manage', 'active', 'Manage notes and note metadata'),
+    ('media:read', NULL, 'media', 'read', 'active', 'Read media and media metadata'),
+    ('media:write', NULL, 'media', 'write', 'active', 'Write own media and media metadata'),
+    ('media:manage', NULL, 'media', 'manage', 'active', 'Manage media and media metadata'),
+    ('audio:read', NULL, 'audio', 'read', 'active', 'Read audio tasks'),
+    ('audio:write', NULL, 'audio', 'write', 'active', 'Create and modify own audio tasks'),
+    ('audio:manage', NULL, 'audio', 'manage', 'active', 'Manage audio tasks'),
+    ('audit:read', NULL, 'audit', 'read', 'active', 'Read audit records'),
+    ('audit:write', NULL, 'audit', 'write', 'active', 'Submit or cancel own audit applications'),
+    ('audit:manage', NULL, 'audit', 'manage', 'active', 'Review audit applications');
 
 -- Direct grants are intentionally minimal. Effective permissions inherit lower
 -- role behavior through sys_role.rank in the later authorization resolver.
