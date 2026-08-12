@@ -2,6 +2,7 @@ package com.jacolp.middleware.common.security.oauth2.config;
 
 import com.jacolp.middleware.common.security.oauth2.jwt.RequiredAudienceJwtValidator;
 import com.jacolp.middleware.common.security.oauth2.jwt.AccessTokenBlacklistJwtValidator;
+import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
 import com.jacolp.middleware.common.security.oauth2.key.PublicJwkSetProvider;
 import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
 import com.jacolp.middleware.common.security.oauth2.key.RsaPemKeyMaterialLoader;
@@ -58,13 +59,14 @@ public class OAuth2Rs256CodecConfiguration {
 
     @Bean
     JwtDecoder oauth2Rs256JwtDecoder(RsaKeyMaterial keyMaterial, OAuth2Rs256Properties properties,
-                                     AccessTokenBlacklistJwtValidator blacklistValidator) {
+                                     AccessTokenBlacklistJwtValidator blacklistValidator,
+                                     CoreNodeAccessTokenClaimsValidator accessTokenClaimsValidator) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(keyMaterial.publicKey())
                 .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(properties.getIssuer()),
-                new RequiredAudienceJwtValidator(properties.getAudience()), blacklistValidator));
+                new RequiredAudienceJwtValidator(properties.getAudience()), blacklistValidator, accessTokenClaimsValidator));
         return decoder;
     }
 
@@ -108,6 +110,11 @@ public class OAuth2Rs256CodecConfiguration {
     @Bean
     AccessTokenBlacklistJwtValidator accessTokenBlacklistJwtValidator(AccessTokenBlacklistStore blacklistStore) {
         return new AccessTokenBlacklistJwtValidator(blacklistStore);
+    }
+
+    @Bean
+    CoreNodeAccessTokenClaimsValidator coreNodeAccessTokenClaimsValidator() {
+        return new CoreNodeAccessTokenClaimsValidator();
     }
 
     @Bean

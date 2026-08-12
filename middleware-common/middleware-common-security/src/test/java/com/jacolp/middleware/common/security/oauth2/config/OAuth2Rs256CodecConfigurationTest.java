@@ -17,6 +17,7 @@ import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer
 import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenBlacklistStore;
 import com.jacolp.middleware.common.security.oauth2.jwt.AccessTokenBlacklistJwtValidator;
+import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -92,6 +93,7 @@ class OAuth2Rs256CodecConfigurationTest {
             assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).isEmpty();
             assertThat(context.getBeansOfType(AccessTokenBlacklistStore.class)).isEmpty();
             assertThat(context.getBeansOfType(AccessTokenBlacklistJwtValidator.class)).isEmpty();
+            assertThat(context.getBeansOfType(CoreNodeAccessTokenClaimsValidator.class)).isEmpty();
             assertThat(context.getBeansOfType(OpaqueTokenProtector.class)).isEmpty();
             assertThat(context.getBeansOfType(OAuth2TokenStateCodec.class)).isEmpty();
             assertThat(context.getBeansOfType(OAuth2TokenStateStore.class)).isEmpty();
@@ -127,13 +129,13 @@ class OAuth2Rs256CodecConfigurationTest {
     void enabledConfigurationIssuesAndDecodesCompleteAccessToken() {
         enabledContext().run(context -> {
             IssuedAccessToken issued = context.getBean(Rs256AccessTokenIssuer.class).issue(
-                    new AccessTokenIssueRequest(42, "user_client", "password", "alice", "USER",
+                    new AccessTokenIssueRequest(42, "user", "password", "alice", "USER",
                             Set.of("*:read", "note:read"), Duration.ofMinutes(5)));
             Jwt decoded = context.getBean(JwtDecoder.class).decode(issued.tokenValue());
 
             assertThat(decoded.getId()).isEqualTo(issued.jti());
             assertThat(decoded.getSubject()).isEqualTo("42");
-            assertThat(decoded.getClaimAsString("client_id")).isEqualTo("user_client");
+            assertThat(decoded.getClaimAsString("client_id")).isEqualTo("user");
             assertThat(decoded.getClaimAsStringList("roles")).containsExactly("USER");
             assertThat(decoded.getClaimAsStringList("scope")).containsExactly("*:read", "note:read");
             assertThat(Duration.between(issued.issuedAt(), issued.expiresAt())).isEqualTo(Duration.ofMinutes(5));
@@ -168,7 +170,7 @@ class OAuth2Rs256CodecConfigurationTest {
         enabledContext().run(context -> {
             StringRedisTemplate redis = context.getBean(StringRedisTemplate.class);
             IssuedAccessToken issued = context.getBean(Rs256AccessTokenIssuer.class).issue(
-                    new AccessTokenIssueRequest(1, "client", "password", "alice", "USER", Set.of(), Duration.ofMinutes(5)));
+                    new AccessTokenIssueRequest(1, "user", "password", "alice", "USER", Set.of(), Duration.ofMinutes(5)));
             JwtDecoder decoder = context.getBean(JwtDecoder.class);
             assertThat(decoder.decode(issued.tokenValue()).getId()).isEqualTo(issued.jti());
             when(redis.hasKey("user:blacklist:access:" + issued.jti())).thenReturn(true);
@@ -252,11 +254,16 @@ class OAuth2Rs256CodecConfigurationTest {
                 : Instant.now();
         return JwtClaimsSet.builder()
                 .issuer(issuer)
-                .subject("test-subject")
+                .subject("42")
                 .audience(List.of(audience))
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .id("AAECAwQFBgcICQoLDA0ODw")
+                .claim("client_id", "user")
+                .claim("grant_type", "password")
+                .claim("username", "alice")
+                .claim("roles", List.of("USER"))
+                .claim("scope", List.of("*:read"))
                 .build();
     }
 
