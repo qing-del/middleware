@@ -128,6 +128,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         UserDO targetBeforeUpdate = userMapper.selectById(dto.getId());
+        if (usernameChangeRequested(dto, targetBeforeUpdate)) {
+            roleRankAuthorizationService.requireCreator(modifier.getRoleId());
+        }
 
         // 构建更新实体，仅设置非空字段（updateById 的 XML 使用 <if> 动态判断）
         UserDO user = new UserDO();
@@ -327,14 +330,18 @@ public class AdminUserServiceImpl implements AdminUserService {
             return true;
         }
         if (targetBeforeUpdate == null) {
-            return StringUtils.hasText(dto.getUsername()) || StringUtils.hasText(dto.getEmail())
+            return usernameChangeRequested(dto, null) || StringUtils.hasText(dto.getEmail())
                     || dto.getRoleId() != null || dto.getStatus() != null;
         }
-        return (StringUtils.hasText(dto.getUsername())
-                && !Objects.equals(dto.getUsername(), targetBeforeUpdate.getUsername()))
+        return usernameChangeRequested(dto, targetBeforeUpdate)
                 || (StringUtils.hasText(dto.getEmail())
                 && !Objects.equals(dto.getEmail(), targetBeforeUpdate.getEmail()))
                 || (dto.getRoleId() != null && !Objects.equals(dto.getRoleId(), targetBeforeUpdate.getRoleId()))
                 || (dto.getStatus() != null && !Objects.equals(dto.getStatus(), targetBeforeUpdate.getStatus()));
+    }
+
+    private static boolean usernameChangeRequested(UserModifyDTO dto, UserDO targetBeforeUpdate) {
+        return StringUtils.hasText(dto.getUsername())
+                && (targetBeforeUpdate == null || !Objects.equals(dto.getUsername(), targetBeforeUpdate.getUsername()));
     }
 }

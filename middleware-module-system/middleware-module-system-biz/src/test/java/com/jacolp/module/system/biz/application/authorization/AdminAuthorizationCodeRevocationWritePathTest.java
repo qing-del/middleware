@@ -3,6 +3,7 @@ package com.jacolp.module.system.biz.application.authorization;
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
+import com.jacolp.exception.PermissionDeniedException;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
@@ -143,14 +144,50 @@ class AdminAuthorizationCodeRevocationWritePathTest {
         verify(revocation).revokeForSecurityFieldChange(7L);
     }
 
+    @Test
+    void onlyCreatorCanActuallyChangeUsername() {
+        UserMapper users = mock(UserMapper.class);
+        RoleRankAuthorizationService roleRankAuthorization = mock(RoleRankAuthorizationService.class);
+        UserDO admin = user(1L, RoleConstant.ADMIN);
+        UserDO target = user(2L, RoleConstant.USER);
+        when(users.selectById(1L)).thenReturn(admin);
+        when(users.selectById(2L)).thenReturn(target);
+        BaseContext.setCurrentId(1L);
+        AdminUserServiceImpl service = service(users, mock(UserProfileEventPublisher.class),
+                mock(PasswordEncoder.class), mock(AccountAuthorizationStateRevocationService.class), roleRankAuthorization);
+        UserModifyDTO changedUsername = new UserModifyDTO();
+        changedUsername.setId(2L);
+        changedUsername.setUsername("renamed_user");
+        org.mockito.Mockito.doThrow(new PermissionDeniedException("creator required"))
+                .when(roleRankAuthorization).requireCreator(RoleConstant.ADMIN);
+
+        assertThatThrownBy(() -> service.modifyUser(changedUsername)).isInstanceOf(PermissionDeniedException.class);
+        verify(users, never()).updateById(any(UserDO.class));
+        org.mockito.Mockito.clearInvocations(roleRankAuthorization);
+
+        UserModifyDTO unchangedUsername = new UserModifyDTO();
+        unchangedUsername.setId(2L);
+        unchangedUsername.setUsername(target.getUsername());
+        when(users.updateById(any(UserDO.class))).thenReturn(1);
+        service.modifyUser(unchangedUsername);
+        verify(roleRankAuthorization, never()).requireCreator(RoleConstant.ADMIN);
+    }
+
     private static AdminUserServiceImpl service(UserMapper users, UserProfileEventPublisher events,
                                                 PasswordEncoder passwords,
                                                 AccountAuthorizationStateRevocationService revocation) {
+        return service(users, events, passwords, revocation, mock(RoleRankAuthorizationService.class));
+    }
+
+    private static AdminUserServiceImpl service(UserMapper users, UserProfileEventPublisher events,
+                                                PasswordEncoder passwords,
+                                                AccountAuthorizationStateRevocationService revocation,
+                                                RoleRankAuthorizationService roleRankAuthorization) {
         AdminUserServiceImpl service = new AdminUserServiceImpl(revocation);
         ReflectionTestUtils.setField(service, "userMapper", users);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwords);
-        ReflectionTestUtils.setField(service, "roleRankAuthorizationService", mock(RoleRankAuthorizationService.class));
+        ReflectionTestUtils.setField(service, "roleRankAuthorizationService", roleRankAuthorization);
         return service;
     }
 

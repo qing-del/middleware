@@ -31,6 +31,13 @@ public final class RoleRankAuthorizationService {
         }
     }
 
+    /** Requires the fixed creator identity for creator-only business operations. */
+    public void requireCreator(Long roleId) {
+        if (!CREATOR.equals(requiredRole(roleId).roleCode())) {
+            throw new PermissionDeniedException("权限不足：仅创建者可以修改用户名");
+        }
+    }
+
     /** Requires the actor rank to be strictly higher than the target rank (smaller numeric rank is higher). */
     public void requireStrictlySuperior(Long actorRoleId, Long targetRoleId) {
         RoleMetadata actor = requiredRole(actorRoleId);

@@ -30,6 +30,16 @@ class RoleRankAuthorizationServiceTest {
     }
 
     @Test
+    void limitsCreatorOnlyOperationByRoleCode() {
+        RoleMetadataRepository roles = mock(RoleMetadataRepository.class);
+        when(roles.findAll()).thenReturn(List.of(role(10L, "CREATOR", 7), role(20L, "ADMIN", 8)));
+        RoleRankAuthorizationService service = new RoleRankAuthorizationService(roles);
+
+        assertThatCode(() -> service.requireCreator(10L)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> service.requireCreator(20L)).isInstanceOf(PermissionDeniedException.class);
+    }
+
+    @Test
     void malformedOrMissingRoleMetadataFailsClosed() {
         RoleMetadataRepository roles = mock(RoleMetadataRepository.class);
         when(roles.findAll()).thenReturn(List.of(role(2L, "USER", 0)));
