@@ -37,9 +37,17 @@ public final class ImmutableBusinessRouteAuthorizationPolicy implements Business
                 .filter(entry -> entry.method() == method && entry.compiledPattern().matches(path))
                 .toList();
         if (matches.isEmpty()) return Decision.NO_MATCH;
-        if (matches.size() != 1) throw new IllegalStateException("business route catalogue has overlapping matches");
+        List<BusinessRouteAuthorizationEntry> orderedMatches = matches.stream()
+                .sorted((left, right) -> org.springframework.web.util.pattern.PathPattern.SPECIFICITY_COMPARATOR
+                        .compare(left.compiledPattern(), right.compiledPattern()))
+                .toList();
+        if (orderedMatches.size() > 1
+                && org.springframework.web.util.pattern.PathPattern.SPECIFICITY_COMPARATOR.compare(
+                orderedMatches.getFirst().compiledPattern(), orderedMatches.get(1).compiledPattern()) == 0) {
+            throw new IllegalStateException("business route catalogue has ambiguous overlapping matches");
+        }
 
-        BusinessRouteAuthorizationEntry entry = matches.getFirst();
+        BusinessRouteAuthorizationEntry entry = orderedMatches.getFirst();
         if (!entry.requiredClientId().equals(principal.clientId())) return Decision.CLIENT_MISMATCH;
         if (!clientRoleMatches(entry.requiredClientId(), principal.roles())) return Decision.ROLE_MISMATCH;
         return PermissionScopeMatcher.grantsAll(principal.scopes(), entry.requiredScopes())

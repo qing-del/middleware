@@ -55,6 +55,24 @@ class ImmutableBusinessRouteAuthorizationPolicyTest {
     }
 
     @Test
+    void prefersTheSpringPathPatternWithHigherSpecificityAndFailsClosedOnATie() {
+        ImmutableBusinessRouteAuthorizationPolicy specificityPolicy = new ImmutableBusinessRouteAuthorizationPolicy(List.of(
+                entry(HttpMethod.GET, "/user/note/{id}", Set.of("note:read"), "user"),
+                entry(HttpMethod.GET, "/user/note/search", Set.of("note:write"), "user")
+        ));
+        assertThat(specificityPolicy.authorize(HttpMethod.GET, "/user/note/search",
+                principal("user", List.of("USER"), List.of("note:write")))).isEqualTo(ALLOW);
+
+        ImmutableBusinessRouteAuthorizationPolicy ambiguousPolicy = new ImmutableBusinessRouteAuthorizationPolicy(List.of(
+                entry(HttpMethod.GET, "/user/note/{id}", Set.of("note:read"), "user"),
+                entry(HttpMethod.GET, "/user/note/{slug}", Set.of("note:write"), "user")
+        ));
+        assertThatThrownBy(() -> ambiguousPolicy.authorize(HttpMethod.GET, "/user/note/7",
+                principal("user", List.of("USER"), List.of("note:read", "note:write"))))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void entriesAndPolicyAreImmutableAndRejectDuplicateRouteDefinitions() {
         assertThatThrownBy(() -> policy.entries().add(entry(HttpMethod.GET, "/user/x", Set.of("note:read"), "user")))
                 .isInstanceOf(UnsupportedOperationException.class);
