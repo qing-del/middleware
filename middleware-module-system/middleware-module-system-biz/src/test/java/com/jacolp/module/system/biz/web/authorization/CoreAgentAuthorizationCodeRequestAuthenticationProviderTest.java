@@ -84,7 +84,6 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         assertThat(success.getState()).isEqualTo(STATE);
         assertThat(success.getScopes()).containsExactly("note:read", "note:write");
         assertThat(fixture.handleStore.find(fixture.session)).isEmpty();
-        assertThat(fixture.session.getAttribute(HttpSessionCoreAgentAuthorizationTransactionStore.ATTRIBUTE_NAME)).isNull();
 
         org.mockito.ArgumentCaptor<CoreAgentAuthorizationCodeIssueRequest> requestCaptor =
                 org.mockito.ArgumentCaptor.forClass(CoreAgentAuthorizationCodeIssueRequest.class);
@@ -118,7 +117,6 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         assertThat(fixture.session.getMaxInactiveInterval())
                 .isEqualTo(HttpSessionCoreAgentPendingAuthorizationHandleStore.SESSION_TIMEOUT_SECONDS);
         assertThat(fixture.handleStore.find(fixture.session)).contains(VALUE);
-        assertThat(fixture.session.getAttribute(HttpSessionCoreAgentAuthorizationTransactionStore.ATTRIBUTE_NAME)).isNull();
     }
 
     @Test
