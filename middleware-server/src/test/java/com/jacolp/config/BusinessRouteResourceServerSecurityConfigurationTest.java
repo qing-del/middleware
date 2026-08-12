@@ -2,7 +2,13 @@ package com.jacolp.config;
 
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
+import com.jacolp.middleware.common.security.oauth2.config.OAuth2Rs256CodecConfiguration;
+import com.jacolp.middleware.common.security.oauth2.config.OAuth2Rs256Properties;
+import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
 import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
+import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
+import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
+import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAccountAuthenticator;
@@ -24,6 +30,8 @@ import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthe
 import com.jacolp.module.system.biz.web.controller.authorization.CoreAgentLogoutController;
 import com.jacolp.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -51,9 +59,16 @@ import org.springframework.web.context.support.AnnotationConfigWebApplicationCon
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -63,6 +78,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class BusinessRouteResourceServerSecurityConfigurationTest {
+
+    @TempDir
+    Path keyDirectory;
 
     @Test
     void aggregateContextOrdersOAuthBusinessAndLegacyChainsWithoutRouteTakeover() {
@@ -89,6 +107,31 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
                 assertThat(ordered.get(1).matches(request)).isFalse();
                 assertThat(ordered.get(2).matches(request)).isTrue();
             }
+        }
+    }
+
+    @Test
+    void aggregateContextStartsWithExternalPemAndUsesTheRealRs256Codec() throws Exception {
+        KeyPair signingPair = rsaPair();
+        Path privateKey = pemFile("phase5-private.pem", "PRIVATE KEY", signingPair.getPrivate().getEncoded());
+        Path publicKey = pemFile("phase5-public.pem", "PUBLIC KEY", signingPair.getPublic().getEncoded());
+
+        try (AnnotationConfigWebApplicationContext context = aggregateContext(privateKey, publicKey)) {
+            List<SecurityFilterChain> chains = context.getBean("springSecurityFilterChain", FilterChainProxy.class)
+                    .getFilterChains();
+            assertThat(chains).hasSize(3);
+            assertThat(chains.get(0).matches(request(HttpMethod.POST, "/oauth/token"))).isTrue();
+            assertThat(chains.get(1).matches(request(HttpMethod.GET, "/user/note/9"))).isTrue();
+            assertThat(chains.get(2).matches(request(HttpMethod.GET, "/unrelated"))).isTrue();
+
+            RsaKeyMaterial keyMaterial = context.getBean(RsaKeyMaterial.class);
+            assertThat(keyMaterial.publicKey().getModulus().bitLength()).isGreaterThanOrEqualTo(2048);
+            IssuedAccessToken issued = context.getBean(Rs256AccessTokenIssuer.class).issue(
+                    new AccessTokenIssueRequest(42, "user", "password", "alice", "USER",
+                            Set.of("note:read"), Duration.ofMinutes(5)));
+            Jwt decoded = context.getBean(JwtDecoder.class).decode(issued.tokenValue());
+            assertThat(decoded.getSubject()).isEqualTo("42");
+            assertThat(decoded.getClaimAsString("client_id")).isEqualTo("user");
         }
     }
 
@@ -195,6 +238,22 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         return context;
     }
 
+    private static AnnotationConfigWebApplicationContext aggregateContext(Path privateKey, Path publicKey) {
+        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+        context.setServletContext(new MockServletContext());
+        context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test", Map.of(
+                "jacolp.oauth2.rs256.enabled", "true",
+                "jacolp.oauth2.rs256.private-key-location", privateKey.toUri().toString(),
+                "jacolp.oauth2.rs256.public-key-location", publicKey.toUri().toString())));
+        context.register(RealPemWebConfiguration.class, AggregateOAuthDependencies.class,
+                OAuth2Rs256CodecConfiguration.class, SecurityFilterConfiguration.class,
+                CoreAgentAuthorizationServerConfiguration.class, CoreAgentAuthorizationServerSecurityConfiguration.class,
+                CoreAgentLogoutController.class, BusinessRouteScopeCatalogConfiguration.class,
+                BusinessRouteResourceServerSecurityConfiguration.class);
+        context.refresh();
+        return context;
+    }
+
     private static MockHttpServletRequest request(HttpMethod method, String path) {
         return new MockHttpServletRequest(method.name(), path);
     }
@@ -223,6 +282,18 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         CoreNodeAccessTokenClaimsValidator coreNodeAccessTokenClaimsValidator() {
             return new CoreNodeAccessTokenClaimsValidator();
         }
+
+        @Bean
+        TestController testController() {
+            return new TestController();
+        }
+    }
+
+    @Configuration
+    @EnableWebMvc
+    @EnableWebSecurity
+    @EnableConfigurationProperties(OAuth2Rs256Properties.class)
+    static class RealPemWebConfiguration {
 
         @Bean
         TestController testController() {
@@ -300,5 +371,17 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
                 .claim("scope", scopes)
                 .issuedAt(Instant.parse("2026-01-01T00:00:00Z"))
                 .expiresAt(Instant.parse("2026-01-01T01:00:00Z"));
+    }
+
+    private static KeyPair rsaPair() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        return generator.generateKeyPair();
+    }
+
+    private Path pemFile(String name, String type, byte[] encoded) throws Exception {
+        return Files.writeString(keyDirectory.resolve(name), "-----BEGIN " + type + "-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(encoded)
+                + "\n-----END " + type + "-----\n");
     }
 }
