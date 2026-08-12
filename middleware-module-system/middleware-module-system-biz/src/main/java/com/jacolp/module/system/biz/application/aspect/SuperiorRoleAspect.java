@@ -1,11 +1,11 @@
 package com.jacolp.module.system.biz.application.aspect;
 
-import com.jacolp.constant.RoleConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.NotFindUserException;
 import com.jacolp.exception.PermissionDeniedException;
 import com.jacolp.module.system.biz.application.annotation.RequireSuperiorRole;
+import com.jacolp.module.system.biz.application.authorization.RoleRankAuthorizationService;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.module.system.biz.application.provider.TargetUserProvider;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
@@ -21,8 +21,8 @@ import org.springframework.stereotype.Component;
  * <p>
  * 校验规则：
  * <ol>
- *   <li>操作者（从 JWT → BaseContext 获取 id）的 roleId 必须 ≤ 2（创建者 / 管理员）</li>
- *   <li>操作者的 roleId 必须严格小于被操作者的 roleId</li>
+ *   <li>操作者必须具有 CREATOR 或 ADMIN 管理身份</li>
+ *   <li>操作者的 sys_role.rank 必须严格高于被操作者</li>
  * </ol>
  */
 @Aspect
@@ -32,6 +32,9 @@ public class SuperiorRoleAspect {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private RoleRankAuthorizationService roleRankAuthorizationService;
 
     @Before("@annotation(com.jacolp.module.system.biz.application.annotation.RequireSuperiorRole)")
     public void checkSuperiorRole(JoinPoint joinPoint) {
@@ -68,20 +71,10 @@ public class SuperiorRoleAspect {
             throw new NotFindUserException("被操作的目标用户不存在");
         }
 
-        // 4. 权限校验
-        //    4a. 操作者必须是创建者或管理员（roleId <= 2）
-        if (modifier.getRoleId() > RoleConstant.ADMIN) {
-            log.error("Permission denied: Modifier roleId={} is not admin/creator", modifier.getRoleId());
-            throw new PermissionDeniedException("权限不足：仅创建者和管理员可以修改其他用户");
-        }
+        // 4. 管理身份按 role code，角色高低仅按 sys_role.rank。
+        roleRankAuthorizationService.requireManagementRole(modifier.getRoleId());
+        roleRankAuthorizationService.requireStrictlySuperior(modifier.getRoleId(), target.getRoleId());
 
-        //    4b. 操作者的 roleId 必须严格小于被操作者的 roleId
-        if (modifier.getRoleId() >= target.getRoleId()) {
-            log.error("Permission denied: Modifier roleId={} is not higher than target roleId={}", modifier.getRoleId(), target.getRoleId());
-            throw new PermissionDeniedException("权限不足：只能修改权限低于自己的用户");
-        }
-
-        log.info("Role check passed: Modifier id={} (roleId={}) -> Target id={} (roleId={})",
-                modifierId, modifier.getRoleId(), targetUserId, target.getRoleId());
+        log.info("Role-rank check passed: modifier id={} -> target id={}", modifierId, targetUserId);
     }
 }

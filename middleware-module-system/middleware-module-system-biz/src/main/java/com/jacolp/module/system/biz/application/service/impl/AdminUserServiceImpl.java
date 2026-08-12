@@ -11,6 +11,7 @@ import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
+import com.jacolp.module.system.biz.application.authorization.RoleRankAuthorizationService;
 import com.jacolp.module.system.biz.application.annotation.RequireValidRole;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserListDTO;
@@ -58,6 +59,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Autowired private TokenSessionService tokenSessionService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserProfileEventPublisher userProfileEvents;
+    @Autowired private RoleRankAuthorizationService roleRankAuthorizationService;
 
     @Override
     public String loginAdmin(UserLoginDTO userLoginDTO) {
@@ -121,10 +123,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (modifier == null) {
             throw new AuthenticationException("操作者用户不存在");
         }
-        if (dto.getRoleId() != null && modifier.getRoleId() >= dto.getRoleId()) {
-            log.error("Permission denied: Modifier roleId={} cannot assign roleId={}",
-                    modifier.getRoleId(), dto.getRoleId());
-            throw new BaseException("权限不足：只能改动权限低于自身的账户");
+        if (dto.getRoleId() != null) {
+            roleRankAuthorizationService.requireStrictlySuperior(modifier.getRoleId(), dto.getRoleId());
         }
 
         UserDO targetBeforeUpdate = userMapper.selectById(dto.getId());
@@ -177,12 +177,11 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AuthenticationException("操作者用户不存在");
         }
 
-        // 3. Cannot assign a role equal to or higher than the modifier's own role
-        if (dto.getRoleId() == null || dto.getRoleId() <= modifier.getRoleId()) {
-            log.error("Permission denied: Modifier roleId={} cannot assign roleId={}",
-                    modifier.getRoleId(), dto.getRoleId());
+        // 3. Cannot assign a role equal to or higher than the modifier's own rank.
+        if (dto.getRoleId() == null) {
             throw new PermissionDeniedException("权限不足：只能创建权限低于自身的账户");
         }
+        roleRankAuthorizationService.requireStrictlySuperior(modifier.getRoleId(), dto.getRoleId());
 
         // 2. Check if the username already exists
         UserDO existed = userMapper.selectByUsername(dto.getUsername());
@@ -227,21 +226,13 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AuthenticationException("操作者用户不存在");
         }
 
-        // 2. Modifier must be admin or creator (roleId <= 2)
-        if (modifier.getRoleId() > RoleConstant.ADMIN) {
-            log.error("Permission denied: Modifier roleId={} is not admin/creator", modifier.getRoleId());
-            throw new PermissionDeniedException("权限不足：仅创建者和管理员可以删除账户");
-        }
+        // 2. Management identity is fixed by role code; hierarchy is evaluated by rank below.
+        roleRankAuthorizationService.requireManagementRole(modifier.getRoleId());
 
         // 3. Fail-fast: pre-fetch all targets and check for any privilege violation
         List<UserDO> targets = userMapper.selectByIds(ids);
         for (UserDO target : targets) {
-            if (target.getRoleId() <= modifier.getRoleId()) {
-                log.error("Permission denied: Cannot delete user id={} (roleId={}), modifier roleId={}",
-                        target.getId(), target.getRoleId(), modifier.getRoleId());
-                throw new PermissionDeniedException(
-                        "权限不足：id=" + target.getId() + " 的用户权限不低于操作者，已终止整批删除");
-            }
+            roleRankAuthorizationService.requireStrictlySuperior(modifier.getRoleId(), target.getRoleId());
         }
 
         // 4. Proceed with batch deletion

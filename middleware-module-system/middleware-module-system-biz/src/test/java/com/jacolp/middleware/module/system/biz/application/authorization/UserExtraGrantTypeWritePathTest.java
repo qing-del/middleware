@@ -8,6 +8,7 @@ import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.module.system.biz.application.authorization.CreatorAccountSynchronizationService;
+import com.jacolp.module.system.biz.application.authorization.RoleRankAuthorizationService;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserRegisterDTO;
@@ -94,6 +95,7 @@ class UserExtraGrantTypeWritePathTest {
         ReflectionTestUtils.setField(service, "userMapper", userMapper);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
         ReflectionTestUtils.setField(service, "userProfileEvents", userProfileEvents);
+        ReflectionTestUtils.setField(service, "roleRankAuthorizationService", mock(RoleRankAuthorizationService.class));
         BaseContext.setCurrentId(1L);
         UserDO creator = user(1L, RoleConstant.CREATOR);
         when(userMapper.selectById(1L)).thenReturn(creator);

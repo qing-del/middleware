@@ -6,6 +6,7 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
+import com.jacolp.module.system.biz.application.authorization.RoleRankAuthorizationService;
 import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
@@ -149,6 +150,7 @@ class AdminAuthorizationCodeRevocationWritePathTest {
         ReflectionTestUtils.setField(service, "userMapper", users);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwords);
+        ReflectionTestUtils.setField(service, "roleRankAuthorizationService", mock(RoleRankAuthorizationService.class));
         return service;
     }
 

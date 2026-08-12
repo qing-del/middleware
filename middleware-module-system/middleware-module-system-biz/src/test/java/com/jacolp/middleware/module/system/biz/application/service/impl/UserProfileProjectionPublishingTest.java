@@ -7,6 +7,7 @@ import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
+import com.jacolp.module.system.biz.application.authorization.RoleRankAuthorizationService;
 import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;
 import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
@@ -91,6 +92,7 @@ class UserProfileProjectionPublishingTest {
         ReflectionTestUtils.setField(service, "userMapper", users);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwords);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);
+        ReflectionTestUtils.setField(service, "roleRankAuthorizationService", mock(RoleRankAuthorizationService.class));
         return service;
     }
 
