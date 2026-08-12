@@ -92,13 +92,13 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
     }
 
     @Test
-    void enabledContextUsesOrderOneAsChainAndOrderTwoFallbackWithBrowserCsrfProtection() throws Exception {
+    void isolatedPhaseFourContextUsesOrderOneAndOrderThreeFallbackWithBrowserCsrfProtection() throws Exception {
         try (AnnotationConfigWebApplicationContext context = enabledContext()) {
             FilterChainProxy chains = context.getBean("springSecurityFilterChain", FilterChainProxy.class);
             assertThat(chains.getFilterChains()).hasSize(2);
             assertOrder(CoreAgentAuthorizationServerSecurityConfiguration.class,
                     "coreAgentAuthorizationServerSecurityFilterChain", 1);
-            assertOrder(SecurityFilterConfiguration.class, "securityFilterChain", 2);
+            assertOrder(SecurityFilterConfiguration.class, "securityFilterChain", 3);
             assertThat(chains.getFilters("/oauth2/authorize")).anyMatch(CsrfFilter.class::isInstance);
             assertThat(chains.getFilters("/oauth2/revoke")).isNotEmpty();
 
