@@ -1,16 +1,11 @@
 package com.jacolp.module.system.biz.infrastructure.bootstrap;
 
 import com.jacolp.constant.RoleConstant;
-import com.jacolp.constant.UserConstant;
-import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
+import com.jacolp.module.system.biz.application.authorization.CreatorAccountSynchronizationService;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.RoleDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.RoleMapper;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
-import com.jacolp.module.system.biz.infrastructure.security.PasswordEncoder;
 import com.jacolp.utils.RoleDataComputerUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -25,6 +20,15 @@ import java.util.List;
  * 固定改动 id 为 1 的账号
  */
 public class DataInitializer implements CommandLineRunner {
+    private final RoleMapper roleMapper;
+    private final CreatorAccountSynchronizationService creatorAccountSynchronizationService;
+
+    public DataInitializer(RoleMapper roleMapper,
+                           CreatorAccountSynchronizationService creatorAccountSynchronizationService) {
+        this.roleMapper = roleMapper;
+        this.creatorAccountSynchronizationService = creatorAccountSynchronizationService;
+    }
+
     @Value("${jacolp.admin.username}")
     private String adminUsername;
 
@@ -33,10 +37,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Value("${jacolp.admin.email}")
     private String adminEmail;
-
-    @Autowired private PasswordEncoder passwordEncoder;
-    @Autowired private UserMapper userMapper;
-    @Autowired private RoleMapper roleMapper;
 
     @Override
     public void run(String... args) {
@@ -56,28 +56,8 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initCreatorAccount() {
-        // 检查是否存在管理员账号
-        UserDO creator = userMapper.selectById(1L);
-        if (creator == null) {
-            creator = userMapper.selectByUsername(adminUsername);
-        }
-
-        // 强制加入一个创建者角色
-        creator = new UserDO();
-        creator.setId(1L);
-        creator.setUsername(adminUsername);
-        creator.setPassword(passwordEncoder.encode(adminPassword));
-        creator.setEmail(adminEmail);
-        creator.setRoleId(RoleConstant.CREATOR);
-        creator.setExtraGrantTypes(UserExtraGrantTypePolicy.forRoleId(creator.getRoleId()));
-        creator.setStatus(UserConstant.ACTIVE_STATUS);
-        creator.setMaxStorageBytes(RoleDataComputerUtil.getStorage(RoleConstant.CREATOR));
-        int count = userMapper.upsertCreator(creator);
-        if (count <= 0) {
-            log.error("Failed to create admin account!");
-            throw new RuntimeException("Failed to create admin account!");
-        }
-
+        creatorAccountSynchronizationService.synchronize(adminUsername, adminPassword, adminEmail,
+                RoleDataComputerUtil.getStorage(RoleConstant.CREATOR));
         log.warn("The creator account init!");
     }
 }

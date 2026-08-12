@@ -7,15 +7,14 @@ import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
+import com.jacolp.module.system.biz.application.authorization.CreatorAccountSynchronizationService;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserRegisterDTO;
 import com.jacolp.module.system.biz.application.service.EmailSenderService;
 import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;
 import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
-import com.jacolp.module.system.biz.infrastructure.bootstrap.DataInitializer;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.RoleMapper;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.module.system.biz.infrastructure.security.PasswordEncoder;
 import org.junit.jupiter.api.AfterEach;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -131,24 +129,17 @@ class UserExtraGrantTypeWritePathTest {
     }
 
     @Test
-    void creatorBootstrapWritesNoExplicitExtraGrant() throws Exception {
+    void creatorSynchronizationWritesNoExplicitExtraGrantForANewAccount() {
         UserMapper userMapper = mock(UserMapper.class);
-        RoleMapper roleMapper = mock(RoleMapper.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-        when(roleMapper.getAll()).thenReturn(List.of());
         when(userMapper.selectById(1L)).thenReturn(null);
         when(userMapper.selectByUsername("creator")).thenReturn(null);
         when(passwordEncoder.encode("password")).thenReturn("hash");
         when(userMapper.upsertCreator(any(UserDO.class))).thenReturn(1);
-        DataInitializer initializer = new DataInitializer();
-        ReflectionTestUtils.setField(initializer, "userMapper", userMapper);
-        ReflectionTestUtils.setField(initializer, "roleMapper", roleMapper);
-        ReflectionTestUtils.setField(initializer, "passwordEncoder", passwordEncoder);
-        ReflectionTestUtils.setField(initializer, "adminUsername", "creator");
-        ReflectionTestUtils.setField(initializer, "adminPassword", "password");
-        ReflectionTestUtils.setField(initializer, "adminEmail", "creator@example.com");
+        CreatorAccountSynchronizationService service = new CreatorAccountSynchronizationService(userMapper,
+                passwordEncoder, mock(AccountAuthorizationStateRevocationService.class));
 
-        initializer.run();
+        service.synchronize("creator", "password", "creator@example.com", 1024L);
 
         ArgumentCaptor<UserDO> creator = ArgumentCaptor.forClass(UserDO.class);
         verify(userMapper).upsertCreator(creator.capture());
