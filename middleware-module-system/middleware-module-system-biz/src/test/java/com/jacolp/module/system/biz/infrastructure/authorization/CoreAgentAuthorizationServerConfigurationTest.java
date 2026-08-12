@@ -15,8 +15,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.context.AuthorizationServerContext;
+import org.springframework.security.oauth2.server.authorization.context.AuthorizationServerContextHolder;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 
@@ -25,10 +33,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class CoreAgentAuthorizationServerConfigurationTest {
 
@@ -91,6 +103,59 @@ class CoreAgentAuthorizationServerConfigurationTest {
     }
 
     @Test
+    void authorizationProviderChainPlacesProjectProvidersBeforeTheSasValidatorBootstrapProvider() {
+        CoreAgentAuthorizationServerConfigurerFactory factory = factory();
+
+        assertThat(factory.authorizationEndpointProviders()).hasSize(3);
+        assertThat(factory.authorizationEndpointProviders().get(0))
+                .isInstanceOf(CoreAgentAuthorizationCodeRequestAuthenticationProvider.class);
+        assertThat(factory.authorizationEndpointProviders().get(1))
+                .isInstanceOf(CoreAgentAuthorizationConsentAuthenticationProvider.class);
+        assertThat(factory.authorizationEndpointProviders().get(2))
+                .isInstanceOf(OAuth2AuthorizationCodeRequestAuthenticationProvider.class);
+    }
+
+    @Test
+    void sasBootstrapProviderCannotPersistOrIssueACodeWhenReachedUnexpectedly() {
+        ActiveRegisteredClientRepository clients = mock(ActiveRegisteredClientRepository.class);
+        RegisteredClient client = RegisteredClient.withId("bootstrap-client").clientId("bootstrap-client")
+                .clientAuthenticationMethod(org.springframework.security.oauth2.core.ClientAuthenticationMethod.NONE)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("http://127.0.0.1:9090/bootstrap").scope("note:read")
+                .clientSettings(ClientSettings.builder().requireProofKey(false).requireAuthorizationConsent(false).build())
+                .build();
+        when(clients.findByClientId("bootstrap-client")).thenReturn(client);
+        CoreAgentAuthorizationServerConfigurerFactory factory = new CoreAgentAuthorizationServerConfigurerFactory(clients,
+                new FailClosedOAuth2AuthorizationService(), mock(OAuth2AuthorizationConsentService.class),
+                new CoreAgentAuthorizationServerConfiguration().coreAgentAuthorizationServerSettings(),
+                mock(CoreAgentPublicClientAuthenticationConverter.class), mock(CoreAgentPublicClientAuthenticationProvider.class),
+                mock(CoreAgentAuthorizationEndpointAuthenticationConverter.class),
+                mock(CoreAgentAuthorizationCodeRequestAuthenticationProvider.class),
+                mock(CoreAgentAuthorizationConsentAuthenticationProvider.class),
+                mock(CoreAgentAuthorizationCodeTokenAuthenticationConverter.class),
+                mock(CoreAgentRefreshTokenAuthenticationConverter.class),
+                mock(CoreAgentAuthorizationCodeTokenAuthenticationProvider.class),
+                mock(CoreAgentRefreshTokenAuthenticationProvider.class));
+        AuthenticationProvider bootstrap = factory.authorizationEndpointProviders().get(2);
+        OAuth2AuthorizationCodeRequestAuthenticationToken request =
+                new OAuth2AuthorizationCodeRequestAuthenticationToken("/oauth2/authorize", "bootstrap-client",
+                        UsernamePasswordAuthenticationToken.authenticated("alice", null, List.of()),
+                        "http://127.0.0.1:9090/bootstrap", "state", Set.of("note:read"), Map.of());
+
+        AuthorizationServerContext context = mock(AuthorizationServerContext.class);
+        when(context.getIssuer()).thenReturn("http://127.0.0.1:9090");
+        when(context.getAuthorizationServerSettings()).thenReturn(
+                new CoreAgentAuthorizationServerConfiguration().coreAgentAuthorizationServerSettings());
+        AuthorizationServerContextHolder.setContext(context);
+        try {
+            assertThatIllegalStateException().isThrownBy(() -> bootstrap.authenticate(request))
+                    .withMessage(FailClosedOAuth2AuthorizationService.FAILURE_MESSAGE);
+        } finally {
+            AuthorizationServerContextHolder.resetContext();
+        }
+    }
+
+    @Test
     void configurationIsConditionalAndProvidesOnlySettingsAndTheUnappliedFactory() {
         runner.run(context -> {
             assertThat(context.getBeansOfType(AuthorizationServerSettings.class)).isEmpty();
@@ -135,6 +200,20 @@ class CoreAgentAuthorizationServerConfigurationTest {
                 return false;
             }
         };
+    }
+
+    private static CoreAgentAuthorizationServerConfigurerFactory factory() {
+        return new CoreAgentAuthorizationServerConfigurerFactory(mock(ActiveRegisteredClientRepository.class),
+                mock(FailClosedOAuth2AuthorizationService.class), mock(OAuth2AuthorizationConsentService.class),
+                new CoreAgentAuthorizationServerConfiguration().coreAgentAuthorizationServerSettings(),
+                mock(CoreAgentPublicClientAuthenticationConverter.class), mock(CoreAgentPublicClientAuthenticationProvider.class),
+                mock(CoreAgentAuthorizationEndpointAuthenticationConverter.class),
+                mock(CoreAgentAuthorizationCodeRequestAuthenticationProvider.class),
+                mock(CoreAgentAuthorizationConsentAuthenticationProvider.class),
+                mock(CoreAgentAuthorizationCodeTokenAuthenticationConverter.class),
+                mock(CoreAgentRefreshTokenAuthenticationConverter.class),
+                mock(CoreAgentAuthorizationCodeTokenAuthenticationProvider.class),
+                mock(CoreAgentRefreshTokenAuthenticationProvider.class));
     }
 
     @Configuration(proxyBeanMethods = false)

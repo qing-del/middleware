@@ -12,6 +12,7 @@ import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthe
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 
@@ -37,6 +38,7 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
     private final CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter;
     private final CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider;
     private final CoreAgentAuthorizationConsentAuthenticationProvider authorizationConsentAuthenticationProvider;
+    private final OAuth2AuthorizationCodeRequestAuthenticationProvider sasAuthorizationValidatorBootstrapProvider;
     private final CoreAgentAuthorizationCodeTokenAuthenticationConverter authorizationCodeTokenAuthenticationConverter;
     private final CoreAgentRefreshTokenAuthenticationConverter refreshTokenAuthenticationConverter;
     private final CoreAgentAuthorizationCodeTokenAuthenticationProvider authorizationCodeTokenAuthenticationProvider;
@@ -70,6 +72,8 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
                 authorizationCodeRequestAuthenticationProvider, "authorizationCodeRequestAuthenticationProvider");
         this.authorizationConsentAuthenticationProvider = Objects.requireNonNull(
                 authorizationConsentAuthenticationProvider, "authorizationConsentAuthenticationProvider");
+        this.sasAuthorizationValidatorBootstrapProvider = new OAuth2AuthorizationCodeRequestAuthenticationProvider(
+                this.registeredClientRepository, this.authorizationService, this.authorizationConsentService);
         this.authorizationCodeTokenAuthenticationConverter = Objects.requireNonNull(authorizationCodeTokenAuthenticationConverter,
                 "authorizationCodeTokenAuthenticationConverter");
         this.refreshTokenAuthenticationConverter = Objects.requireNonNull(refreshTokenAuthenticationConverter,
@@ -120,8 +124,9 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
         return List.of(authorizationEndpointAuthenticationConverter);
     }
 
-    private List<AuthenticationProvider> authorizationEndpointProviders() {
-        return List.of(authorizationCodeRequestAuthenticationProvider, authorizationConsentAuthenticationProvider);
+    List<AuthenticationProvider> authorizationEndpointProviders() {
+        return List.of(authorizationCodeRequestAuthenticationProvider, authorizationConsentAuthenticationProvider,
+                sasAuthorizationValidatorBootstrapProvider);
     }
 
     private List<AuthenticationConverter> tokenEndpointConverters() {
