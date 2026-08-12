@@ -282,6 +282,7 @@
 11. JWT scope 可原样保留 `*:read`等通配 scope；签发时以逐分量 wildcard 模式求交后保留结果，Resource Server 鉴权工具负责后续通配匹配，不在签发时展开为具体权限。
 12. 仅接受固定 client `user`、`admin`、`core_agent`签发的目标 access token，不为其他 client 或已删除的 legacy route 保留认证旁路。
 13. `/user/**`与`/admin/**`保留为第一方 client 入口边界：user client 仅进入`/user/**`，admin client（ADMIN 或 CREATOR 角色）仅进入`/admin/**`，不新增`/admin/creator/**`。路径边界不代替业务授权；路径内准入唯一由 JWT scope 与 route-to-scope 目录决定，不得用 ROLE_ADMIN、ROLE_CREATOR 或 client_id 代替 scope 授权。role 只用于身份、ownership 和 rank 管理等级。首版若某旧业务路由尚无明确 scope 映射，core_agent 必须拒绝进入，不能因其 role/client 获得临时旁路。
+14. Phase 5 的路由映射以`static/document/security/phase5-business-route-scope-catalog.md`为唯一目录：五类资源`account/note/media/audio/audit`均有`read/write/manage`精确 scope；image-note 复合查询须同时满足两项 scope；user audit submit/cancel=`audit:write`，admin audit review=`audit:manage`。`*:super`不是默认路由 scope，ownership/rank/creator-only 仍为独立业务检查；core_agent 继续拒绝目录内旧业务路由。
 
 重点检查：
 - 当前 /user/** 和 /admin/** 路由保护方式
