@@ -5,6 +5,7 @@ import com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteA
 import com.jacolp.middleware.common.security.oauth2.authorization.ImmutableBusinessRouteAuthorizationPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
@@ -19,6 +20,8 @@ import java.util.Set;
 @Configuration
 public class BusinessRouteScopeCatalogConfiguration {
 
+    private static final String INTERNAL_LOGOUT_PATH = "/auth/logout";
+
     @Bean
     public BusinessRouteAuthorizationPolicy businessRouteAuthorizationPolicy() {
         return new ImmutableBusinessRouteAuthorizationPolicy(entries());
@@ -30,6 +33,19 @@ public class BusinessRouteScopeCatalogConfiguration {
         return new OrRequestMatcher(entries().stream()
                 .<RequestMatcher>map(entry -> PathPatternRequestMatcher.pathPattern(entry.method(), entry.pathPattern()))
                 .toList());
+    }
+
+    /** The resource-server chain also owns this authenticated internal endpoint, outside the 116 route catalogue. */
+    @Bean
+    public RequestMatcher internalLogoutRequestMatcher() {
+        return PathPatternRequestMatcher.pathPattern(HttpMethod.POST, INTERNAL_LOGOUT_PATH);
+    }
+
+    @Bean
+    public RequestMatcher businessResourceServerRequestMatcher(
+            @Qualifier("businessRouteRequestMatcher") RequestMatcher businessRouteRequestMatcher,
+            @Qualifier("internalLogoutRequestMatcher") RequestMatcher internalLogoutRequestMatcher) {
+        return new OrRequestMatcher(List.of(businessRouteRequestMatcher, internalLogoutRequestMatcher));
     }
 
     public static List<BusinessRouteAuthorizationEntry> entries() {

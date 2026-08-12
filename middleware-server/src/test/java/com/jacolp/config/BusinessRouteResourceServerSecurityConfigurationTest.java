@@ -45,20 +45,27 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
     void orderTwoMatchesOnlyCatalogueRoutesAndLeavesAllExceptionsAndOAuthAlone() throws Exception {
         Method chain = BusinessRouteResourceServerSecurityConfiguration.class.getDeclaredMethod(
                 "businessRouteResourceServerSecurityFilterChain", org.springframework.security.config.annotation.web.builders.HttpSecurity.class,
-                RequestMatcher.class, com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationPolicy.class,
+                RequestMatcher.class, RequestMatcher.class,
+                com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationPolicy.class,
                 JwtDecoder.class, CoreNodeAccessTokenClaimsValidator.class);
         assertThat(AnnotationUtils.findAnnotation(chain, Order.class).value()).isEqualTo(2);
 
-        RequestMatcher matcher = new BusinessRouteScopeCatalogConfiguration().businessRouteRequestMatcher();
+        BusinessRouteScopeCatalogConfiguration catalogue = new BusinessRouteScopeCatalogConfiguration();
+        RequestMatcher matcher = catalogue.businessRouteRequestMatcher();
+        RequestMatcher resourceServerMatcher = catalogue.businessResourceServerRequestMatcher(matcher,
+                catalogue.internalLogoutRequestMatcher());
         assertThat(matcher.matches(request(HttpMethod.GET, "/user/note/9"))).isTrue();
         assertThat(matcher.matches(request(HttpMethod.PUT, "/admin/user/user"))).isTrue();
+        assertThat(matcher.matches(request(HttpMethod.POST, "/auth/logout"))).isFalse();
+        assertThat(resourceServerMatcher.matches(request(HttpMethod.POST, "/auth/logout"))).isTrue();
+        assertThat(resourceServerMatcher.matches(request(HttpMethod.GET, "/auth/logout"))).isFalse();
         for (String exception : List.of("POST /user/user/login", "POST /user/user/logout", "POST /admin/user/login",
                 "POST /admin/user/logout", "POST /user/user/register", "POST /user/user/resend-activation",
                 "GET /user/user/active/token", "POST /user/user/active-code")) {
             String[] parts = exception.split(" ", 2);
-            assertThat(matcher.matches(request(HttpMethod.valueOf(parts[0]), parts[1]))).isFalse();
+            assertThat(resourceServerMatcher.matches(request(HttpMethod.valueOf(parts[0]), parts[1]))).isFalse();
         }
-        assertThat(matcher.matches(request(HttpMethod.POST, "/oauth/token"))).isFalse();
+        assertThat(resourceServerMatcher.matches(request(HttpMethod.POST, "/oauth/token"))).isFalse();
     }
 
     @Test
@@ -74,6 +81,10 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
                     .andExpect(status().isOk()).andExpect(content().string("42:false"));
             mvc.perform(put("/admin/user/user").header("Authorization", "Bearer admin-creator"))
                     .andExpect(status().isOk()).andExpect(content().string("42:true"));
+            mvc.perform(post("/auth/logout").header("Authorization", "Bearer user-read"))
+                    .andExpect(status().isOk()).andExpect(content().string("42:false"));
+            mvc.perform(post("/auth/logout").header("Authorization", "Bearer admin-creator"))
+                    .andExpect(status().isOk()).andExpect(content().string("42:true"));
 
             mvc.perform(get("/user/note/9").header("Authorization", "Bearer core-agent"))
                     .andExpect(status().isForbidden()).andExpect(content().string(org.hamcrest.Matchers.containsString("无权访问")));
@@ -81,9 +92,13 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
                     .andExpect(status().isForbidden());
             mvc.perform(put("/admin/user/user").header("Authorization", "Bearer user-manage"))
                     .andExpect(status().isForbidden());
+            mvc.perform(post("/auth/logout").header("Authorization", "Bearer core-agent"))
+                    .andExpect(status().isForbidden());
 
             mvc.perform(get("/user/note/9")).andExpect(status().isUnauthorized())
                     .andExpect(content().string(org.hamcrest.Matchers.containsString("认证失败")));
+            mvc.perform(post("/auth/logout")).andExpect(status().isUnauthorized());
+            mvc.perform(post("/auth/logout").header("Authorization", "Bearer invalid")).andExpect(status().isUnauthorized());
             mvc.perform(get("/user/note/9").header("Authorization", "Bearer invalid"))
                     .andExpect(status().isUnauthorized());
             mvc.perform(get("/user/note/9").header("Authorization", "Bearer malformed"))
@@ -172,6 +187,11 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         @PostMapping("/oauth/token")
         String oauth() {
             return "oauth";
+        }
+
+        @PostMapping("/auth/logout")
+        String logout() {
+            return BaseContext.getCurrentId() + ":" + PermissionContext.isAdmin();
         }
     }
 

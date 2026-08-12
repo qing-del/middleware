@@ -5,6 +5,7 @@ import com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteA
 import com.jacolp.middleware.common.security.oauth2.authorization.CoreNodeJsonAccessDeniedHandler;
 import com.jacolp.middleware.common.security.oauth2.authorization.CoreNodeJsonAuthenticationEntryPoint;
 import com.jacolp.middleware.common.security.oauth2.authorization.CoreNodeJwtAuthenticationConverter;
+import com.jacolp.middleware.common.security.oauth2.authorization.InternalLogoutAuthorizationManager;
 import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -30,7 +31,8 @@ public class BusinessRouteResourceServerSecurityConfiguration {
     @Order(2)
     SecurityFilterChain businessRouteResourceServerSecurityFilterChain(
             HttpSecurity http,
-            @Qualifier("businessRouteRequestMatcher") RequestMatcher businessRouteRequestMatcher,
+            @Qualifier("businessResourceServerRequestMatcher") RequestMatcher businessResourceServerRequestMatcher,
+            @Qualifier("internalLogoutRequestMatcher") RequestMatcher internalLogoutRequestMatcher,
             BusinessRouteAuthorizationPolicy businessRouteAuthorizationPolicy,
             JwtDecoder jwtDecoder,
             CoreNodeAccessTokenClaimsValidator coreNodeAccessTokenClaimsValidator) throws Exception {
@@ -41,14 +43,16 @@ public class BusinessRouteResourceServerSecurityConfiguration {
         CoreNodeJwtAuthenticationConverter authenticationConverter =
                 new CoreNodeJwtAuthenticationConverter(coreNodeAccessTokenClaimsValidator);
 
-        http.securityMatcher(businessRouteRequestMatcher)
+        http.securityMatcher(businessResourceServerRequestMatcher)
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authorize -> authorize.anyRequest().access(authorizationManager))
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(internalLogoutRequestMatcher).access(new InternalLogoutAuthorizationManager())
+                        .anyRequest().access(authorizationManager))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
