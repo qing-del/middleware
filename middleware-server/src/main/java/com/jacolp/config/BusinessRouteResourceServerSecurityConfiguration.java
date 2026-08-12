@@ -1,0 +1,60 @@
+package com.jacolp.config;
+
+import com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationManager;
+import com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationPolicy;
+import com.jacolp.middleware.common.security.oauth2.authorization.CoreNodeJsonAccessDeniedHandler;
+import com.jacolp.middleware.common.security.oauth2.authorization.CoreNodeJsonAuthenticationEntryPoint;
+import com.jacolp.middleware.common.security.oauth2.authorization.CoreNodeJwtAuthenticationConverter;
+import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+
+/**
+ * Stateless RS256 resource-server chain for the executable Phase 5 business route catalogue.
+ * The matcher is intentionally limited to catalogue entries so legacy/activation exceptions fall through.
+ */
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
+public class BusinessRouteResourceServerSecurityConfiguration {
+
+    @Bean
+    @Order(2)
+    SecurityFilterChain businessRouteResourceServerSecurityFilterChain(
+            HttpSecurity http,
+            @Qualifier("businessRouteRequestMatcher") RequestMatcher businessRouteRequestMatcher,
+            BusinessRouteAuthorizationPolicy businessRouteAuthorizationPolicy,
+            JwtDecoder jwtDecoder,
+            CoreNodeAccessTokenClaimsValidator coreNodeAccessTokenClaimsValidator) throws Exception {
+        CoreNodeJsonAuthenticationEntryPoint authenticationEntryPoint = new CoreNodeJsonAuthenticationEntryPoint();
+        CoreNodeJsonAccessDeniedHandler accessDeniedHandler = new CoreNodeJsonAccessDeniedHandler();
+        BusinessRouteAuthorizationManager authorizationManager =
+                new BusinessRouteAuthorizationManager(businessRouteAuthorizationPolicy);
+        CoreNodeJwtAuthenticationConverter authenticationConverter =
+                new CoreNodeJwtAuthenticationConverter(coreNodeAccessTokenClaimsValidator);
+
+        http.securityMatcher(businessRouteRequestMatcher)
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .requestCache(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().access(authorizationManager))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .oauth2ResourceServer(resourceServer -> resourceServer
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(authenticationConverter)));
+        return http.build();
+    }
+}

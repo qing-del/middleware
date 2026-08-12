@@ -6,6 +6,9 @@ import com.jacolp.middleware.common.security.oauth2.authorization.ImmutableBusin
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -19,6 +22,14 @@ public class BusinessRouteScopeCatalogConfiguration {
     @Bean
     public BusinessRouteAuthorizationPolicy businessRouteAuthorizationPolicy() {
         return new ImmutableBusinessRouteAuthorizationPolicy(entries());
+    }
+
+    /** Matches only the 116 bearer business routes, never the eight legacy/activation exceptions. */
+    @Bean
+    public RequestMatcher businessRouteRequestMatcher() {
+        return new OrRequestMatcher(entries().stream()
+                .<RequestMatcher>map(entry -> PathPatternRequestMatcher.pathPattern(entry.method(), entry.pathPattern()))
+                .toList());
     }
 
     public static List<BusinessRouteAuthorizationEntry> entries() {
