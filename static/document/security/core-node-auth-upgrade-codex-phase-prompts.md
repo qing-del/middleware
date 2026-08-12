@@ -281,6 +281,7 @@
 10. 不修改 frontend/。
 11. JWT scope 可原样保留 `*:read`等通配 scope；签发时以逐分量 wildcard 模式求交后保留结果，Resource Server 鉴权工具负责后续通配匹配，不在签发时展开为具体权限。
 12. 仅接受固定 client `user`、`admin`、`core_agent`签发的目标 access token，不为其他 client 或已删除的 legacy route 保留认证旁路。
+13. `/user/**`与`/admin/**`保留为第一方 client 入口边界：user client 仅进入`/user/**`，admin client（ADMIN 或 CREATOR 角色）仅进入`/admin/**`，不新增`/admin/creator/**`。路径边界不代替业务授权；路径内准入唯一由 JWT scope 与 route-to-scope 目录决定，不得用 ROLE_ADMIN、ROLE_CREATOR 或 client_id 代替 scope 授权。role 只用于身份、ownership 和 rank 管理等级。首版若某旧业务路由尚无明确 scope 映射，core_agent 必须拒绝进入，不能因其 role/client 获得临时旁路。
 
 重点检查：
 - 当前 /user/** 和 /admin/** 路由保护方式
@@ -292,6 +293,7 @@
 输出：
 - Resource Server 最终认证链路
 - authority 映射规则
+- route-to-scope 目录及其客户端无关的 scope 准入规则
 - legacy filter 退出顺序
 - role.rank 替换清单
 - username 权限约束落点
