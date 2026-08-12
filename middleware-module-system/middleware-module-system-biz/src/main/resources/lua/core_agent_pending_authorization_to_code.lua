@@ -23,7 +23,6 @@ if redis.call('HGET', KEYS[1], 'user_id') ~= ARGV[5] then return 0 end
 if redis.call('HGET', KEYS[1], 'session_id') ~= ARGV[6] then return 0 end
 
 redis.call('DEL', KEYS[1])
-redis.call('DEL', KEYS[2])
 redis.call('HSET', KEYS[2], unpack(ARGV, 7))
 redis.call('PEXPIRE', KEYS[2], ARGV[1])
 redis.call('SET', KEYS[3], ARGV[3], 'PX', ARGV[1])

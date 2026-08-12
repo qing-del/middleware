@@ -208,13 +208,29 @@ class RedisCoreAgentAuthorizationCodeStoreTest {
                 "user:auth_code:{", "HGET", "HSET", "PEXPIRE", "SET", "DEL");
         assertThat(lua.indexOf("for index, field")).isLessThan(lua.indexOf("redis.call('HGET'"));
         assertThat(lua.indexOf("redis.call('HGET'")).isLessThan(lua.indexOf("redis.call('DEL'"));
-        assertThat(lua).doesNotContain("SCAN", "math.random", "sha", "bcrypt");
+        assertThat(lua).containsSubsequence("redis.call('DEL', KEYS[1])", "redis.call('HSET', KEYS[2]",
+                "redis.call('PEXPIRE', KEYS[2]", "redis.call('SET', KEYS[3]");
+        assertThat(lua).doesNotContain("redis.call('DEL', KEYS[2])", "redis.call('KEYS'", "SCAN", "math.random", "sha", "bcrypt");
+        assertThat(countOccurrences(lua, "redis.call('DEL'")).isEqualTo(1);
+        assertThat(countOccurrences(lua, "redis.call('HSET'")).isEqualTo(1);
+        assertThat(countOccurrences(lua, "redis.call('PEXPIRE'")).isEqualTo(1);
+        assertThat(countOccurrences(lua, "redis.call('SET'")).isEqualTo(1);
     }
 
     private static RedisCoreAgentAuthorizationCodeStore store(StringRedisTemplate redis, DefaultRedisScript<Long> replace,
                                                                DefaultRedisScript<Long> consume,
                                                                DefaultRedisScript<Long> invalidate, Instant now) {
         return store(redis, replace, consume, invalidate, new DefaultRedisScript<>(), now);
+    }
+
+    private static int countOccurrences(String value, String needle) {
+        int count = 0;
+        int index = 0;
+        while ((index = value.indexOf(needle, index)) >= 0) {
+            count++;
+            index += needle.length();
+        }
+        return count;
     }
 
     private static RedisCoreAgentAuthorizationCodeStore store(StringRedisTemplate redis, DefaultRedisScript<Long> replace,
