@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.jacolp.context.BaseContext;
+import com.jacolp.module.media.biz.support.TestSecurityContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.framework.oss.AliyunOSSOperator;
 import com.jacolp.middleware.messaging.pulisher.MediaResourceDeleteEventPublisher;
@@ -28,14 +28,14 @@ class MediaImageServiceImplTest {
 
     @AfterEach
     void clearContext() {
-        BaseContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
     void submitAndCancelUseAuditApiAroundImageCas() {
         ImageMapper mapper = mock(ImageMapper.class);
         AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
-        BaseContext.setCurrentId(9L);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectById(7L)).thenReturn(image(7L, 9L, AuditStatus.WAIT));
         when(mapper.updateAuditStatusIfCurrent(7L, AuditStatus.WAIT.getCode(),
                 AuditStatus.AUDITING.getCode())).thenReturn(1);

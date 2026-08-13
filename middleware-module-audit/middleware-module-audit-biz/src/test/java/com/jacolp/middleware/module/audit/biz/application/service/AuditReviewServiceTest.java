@@ -1,7 +1,7 @@
 package com.jacolp.middleware.module.audit.biz.application.service;
 
 import com.jacolp.constant.AuditConstant;
-import com.jacolp.context.BaseContext;
+import com.jacolp.module.audit.biz.support.TestSecurityContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.messaging.event.AuditReviewedEvent;
@@ -50,11 +50,11 @@ class AuditReviewServiceTest {
         projections = mock(AuditQueryProjectionMapper.class);
         when(projections.selectUsername(9L)).thenReturn("reviewer");
         service = new AuditReviewService(metaMapper, imageMapper, noteMapper, eventPublisher, projections);
-        BaseContext.setCurrentId(9L);
+        TestSecurityContext.authenticate(9L, false);
     }
 
     @AfterEach
-    void cleanContext() { BaseContext.remove(); }
+    void cleanContext() { TestSecurityContext.clear(); }
 
     @Test
     @SuppressWarnings("unchecked")

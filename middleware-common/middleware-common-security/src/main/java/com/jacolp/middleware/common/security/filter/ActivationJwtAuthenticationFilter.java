@@ -2,10 +2,8 @@ package com.jacolp.middleware.common.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.json.JacksonObjectMapper;
-import com.jacolp.middleware.common.security.context.AuthenticationContext;
-import com.jacolp.middleware.common.security.context.AuthorizationContext;
-import com.jacolp.middleware.common.security.context.SecurityContextBridge;
 import com.jacolp.middleware.common.security.context.SecurityIdentity;
+import com.jacolp.middleware.common.security.context.SecurityPrincipal;
 import com.jacolp.middleware.common.security.activation.ActivationJwtTokenSupport;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
@@ -17,6 +15,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.server.PathContainer;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerExecutionChain;
@@ -25,6 +26,7 @@ import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.io.IOException;
+import java.util.List;
 
 /** Authenticates the activation-link JWT exception that remains outside the OAuth2 token flow. */
 public final class ActivationJwtAuthenticationFilter extends OncePerRequestFilter {
@@ -54,9 +56,7 @@ public final class ActivationJwtAuthenticationFilter extends OncePerRequestFilte
                 filterChain.doFilter(request, response);
             }
         } finally {
-            AuthenticationContext.clear();
-            AuthorizationContext.clear();
-            SecurityContextBridge.clear();
+            SecurityContextHolder.clearContext();
         }
     }
 
@@ -76,7 +76,9 @@ public final class ActivationJwtAuthenticationFilter extends OncePerRequestFilte
                 writeResult(response, Result.error("并激活令牌，无法激活账号"));
                 return false;
             }
-            SecurityContextBridge.authenticate(userId, SecurityIdentity.ACTIVATION);
+            SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                    new SecurityPrincipal(userId, SecurityIdentity.ACTIVATION), null,
+                    List.of(new SimpleGrantedAuthority(SecurityIdentity.ACTIVATION.authority()))));
             return true;
         } catch (Exception ex) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

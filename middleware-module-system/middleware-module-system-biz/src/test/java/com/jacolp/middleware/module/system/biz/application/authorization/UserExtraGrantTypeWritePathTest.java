@@ -2,7 +2,7 @@ package com.jacolp.middleware.module.system.biz.application.authorization;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.context.BaseContext;
+import com.jacolp.module.system.biz.support.TestSecurityContext;
 import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
@@ -37,7 +37,7 @@ class UserExtraGrantTypeWritePathTest {
 
     @AfterEach
     void clearContext() {
-        BaseContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
@@ -96,7 +96,7 @@ class UserExtraGrantTypeWritePathTest {
         ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
         ReflectionTestUtils.setField(service, "userProfileEvents", userProfileEvents);
         ReflectionTestUtils.setField(service, "roleRankAuthorizationService", mock(RoleRankAuthorizationService.class));
-        BaseContext.setCurrentId(1L);
+        TestSecurityContext.authenticate(1L, true);
         UserDO creator = user(1L, RoleConstant.CREATOR);
         when(userMapper.selectById(1L)).thenReturn(creator);
         when(userMapper.selectByUsername("admin2")).thenReturn(null);

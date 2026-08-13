@@ -2,8 +2,6 @@ package com.jacolp.middleware.common.security.filter;
 
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
-import com.jacolp.middleware.common.security.context.AuthenticationContext;
-import com.jacolp.middleware.common.security.context.AuthorizationContext;
 import com.jacolp.middleware.common.security.context.SecurityIdentity;
 import com.jacolp.middleware.common.security.context.SecurityPrincipal;
 import com.jacolp.middleware.common.security.activation.ActivationJwtTokenSupport;
@@ -54,8 +52,6 @@ class ActivationJwtAuthenticationFilterTest {
 
     @AfterEach
     void clearContexts() {
-        AuthenticationContext.clear();
-        AuthorizationContext.clear();
         SecurityContextHolder.clearContext();
     }
 
@@ -77,7 +73,6 @@ class ActivationJwtAuthenticationFilterTest {
         filter.doFilter(request, new MockHttpServletResponse(), chain);
 
         verify(chain).doFilter(eq(request), any());
-        assertThat(AuthenticationContext.getCurrentIdWithoutValidation()).isNull();
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 

@@ -2,7 +2,7 @@ package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.context.BaseContext;
+import com.jacolp.module.system.biz.support.TestSecurityContext;
 import com.jacolp.exception.PermissionDeniedException;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
@@ -32,7 +32,7 @@ class AdminAuthorizationCodeRevocationWritePathTest {
 
     @AfterEach
     void clearContext() {
-        BaseContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
@@ -45,7 +45,7 @@ class AdminAuthorizationCodeRevocationWritePathTest {
         when(users.selectById(1L)).thenReturn(creator);
         when(users.selectById(2L)).thenReturn(target);
         when(users.updateById(any(UserDO.class))).thenReturn(1);
-        BaseContext.setCurrentId(1L);
+        TestSecurityContext.authenticate(1L, true);
         AdminUserServiceImpl service = service(users, events, mock(PasswordEncoder.class), revocation);
 
         UserModifyDTO nicknameOnly = new UserModifyDTO();
@@ -88,7 +88,7 @@ class AdminAuthorizationCodeRevocationWritePathTest {
             invocation.<UserDO>getArgument(0).setId(8L);
             return 1;
         });
-        BaseContext.setCurrentId(1L);
+        TestSecurityContext.authenticate(1L, true);
         AdminUserServiceImpl service = service(users, events, passwords, revocation);
         UserAddDTO add = new UserAddDTO();
         add.setUsername("new_user");
@@ -108,7 +108,7 @@ class AdminAuthorizationCodeRevocationWritePathTest {
         UserDO first = user(3L, RoleConstant.USER);
         UserDO second = user(2L, RoleConstant.ADMIN);
         when(users.updateById(any(UserDO.class))).thenReturn(1);
-        BaseContext.setCurrentId(1L);
+        TestSecurityContext.authenticate(1L, true);
         AdminUserServiceImpl service = service(users, mock(UserProfileEventPublisher.class),
                 mock(PasswordEncoder.class), revocation);
 
@@ -152,7 +152,7 @@ class AdminAuthorizationCodeRevocationWritePathTest {
         UserDO target = user(2L, RoleConstant.USER);
         when(users.selectById(1L)).thenReturn(admin);
         when(users.selectById(2L)).thenReturn(target);
-        BaseContext.setCurrentId(1L);
+        TestSecurityContext.authenticate(1L, true);
         AdminUserServiceImpl service = service(users, mock(UserProfileEventPublisher.class),
                 mock(PasswordEncoder.class), mock(AccountAuthorizationStateRevocationService.class), roleRankAuthorization);
         UserModifyDTO changedUsername = new UserModifyDTO();

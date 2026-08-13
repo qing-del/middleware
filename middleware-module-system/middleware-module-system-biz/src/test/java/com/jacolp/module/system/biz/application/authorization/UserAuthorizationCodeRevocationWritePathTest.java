@@ -2,7 +2,7 @@ package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.context.BaseContext;
+import com.jacolp.module.system.biz.support.TestSecurityContext;
 import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
@@ -26,7 +26,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
 
     @AfterEach
     void clearContext() {
-        BaseContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
@@ -37,7 +37,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         UserDO user = user(7L, UserConstant.UNACTIVE_STATUS);
         when(users.selectById(7L)).thenReturn(user);
         when(users.updateById(user)).thenReturn(1);
-        BaseContext.setCurrentId(7L);
+        TestSecurityContext.authenticate(7L, false);
         UserUserServiceImpl service = service(users, mock(AccountVerificationCredentialService.class), events, revocation);
 
         UserProfileUpdateDTO emailChange = new UserProfileUpdateDTO();
@@ -62,7 +62,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         UserDO deleted = user(8L, UserConstant.ACTIVE_STATUS);
         when(users.selectById(8L)).thenReturn(deleted);
         when(users.updateById(any(UserDO.class))).thenReturn(1);
-        BaseContext.setCurrentId(8L);
+        TestSecurityContext.authenticate(8L, false);
         UserUserServiceImpl service = service(users, mock(AccountVerificationCredentialService.class),
                 mock(UserProfileEventPublisher.class), revocation);
 
@@ -102,7 +102,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
 
         when(credentials.findEmailChangeCode("email"))
                 .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(11L, "new@example.com"));
-        BaseContext.setCurrentId(11L);
+        TestSecurityContext.authenticate(11L, false);
         service.verifyEmailChangeCode("email");
 
         InOrder emailOrder = inOrder(users, credentials, revocation);
@@ -120,7 +120,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         when(users.updateById(any(UserDO.class))).thenReturn(1);
         RuntimeException failure = new IllegalStateException("redis unavailable");
         org.mockito.Mockito.doThrow(failure).when(revocation).revokeForSecurityFieldChange(12L);
-        BaseContext.setCurrentId(12L);
+        TestSecurityContext.authenticate(12L, false);
         UserUserServiceImpl service = service(users, mock(AccountVerificationCredentialService.class),
                 mock(UserProfileEventPublisher.class), revocation);
 

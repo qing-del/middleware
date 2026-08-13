@@ -9,8 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.jacolp.context.BaseContext;
-import com.jacolp.context.PermissionContext;
+import com.jacolp.module.note.biz.support.TestSecurityContext;
 import com.jacolp.enums.NoteStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.module.audit.api.AuditApplicationApi;
@@ -29,16 +28,14 @@ class NoteCoreServiceImplTest {
 
     @AfterEach
     void clearContexts() {
-        BaseContext.remove();
-        PermissionContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
     void submitAuditUsesCasThenCreatesSynchronousApplication() {
         NoteMapper mapper = mock(NoteMapper.class);
         AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
-        BaseContext.setCurrentId(9L);
-        PermissionContext.setAdmin(false);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectById(7L)).thenReturn(note(7L, 9L, NoteStatus.CONVERTED));
         when(mapper.updateStatusIfCurrent(7L, NoteStatus.CONVERTED.getCode(),
                 NoteStatus.PENDING_AUDIT.getCode())).thenReturn(1);
@@ -57,8 +54,7 @@ class NoteCoreServiceImplTest {
     void submitAuditRejectsApprovedStatusBeforeCallingAuditApi() {
         NoteMapper mapper = mock(NoteMapper.class);
         AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
-        BaseContext.setCurrentId(9L);
-        PermissionContext.setAdmin(false);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectById(7L)).thenReturn(note(7L, 9L, NoteStatus.APPROVED));
 
         assertThrows(BaseException.class, () -> service(mapper, auditApi).submitNoteAudit(7L));
@@ -70,8 +66,7 @@ class NoteCoreServiceImplTest {
     @Test
     void getByIdRejectsAnotherUsersPrivateNote() {
         NoteMapper mapper = mock(NoteMapper.class);
-        BaseContext.setCurrentId(9L);
-        PermissionContext.setAdmin(false);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectById(7L)).thenReturn(note(7L, 10L, NoteStatus.CONVERTED));
 
         assertThrows(BaseException.class, () -> service(mapper, mock(AuditApplicationApi.class)).getById(7L));
@@ -81,8 +76,7 @@ class NoteCoreServiceImplTest {
     void cancelAuditCancelsApplicationThenUsesCasToRestoreConverted() {
         NoteMapper mapper = mock(NoteMapper.class);
         AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
-        BaseContext.setCurrentId(9L);
-        PermissionContext.setAdmin(false);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectById(7L)).thenReturn(note(7L, 9L, NoteStatus.PENDING_AUDIT));
         when(mapper.updateStatusIfCurrent(7L, NoteStatus.PENDING_AUDIT.getCode(),
                 NoteStatus.CONVERTED.getCode())).thenReturn(1);

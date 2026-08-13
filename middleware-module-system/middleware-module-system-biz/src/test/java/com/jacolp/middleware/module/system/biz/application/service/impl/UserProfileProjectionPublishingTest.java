@@ -1,7 +1,7 @@
 package com.jacolp.middleware.module.system.biz.application.service.impl;
 
 import com.jacolp.constant.RoleConstant;
-import com.jacolp.context.BaseContext;
+import com.jacolp.module.system.biz.support.TestSecurityContext;
 import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
@@ -28,7 +28,7 @@ class UserProfileProjectionPublishingTest {
 
     @AfterEach
     void clearContext() {
-        BaseContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
@@ -41,7 +41,7 @@ class UserProfileProjectionPublishingTest {
         UserUserServiceImpl service = userService(users, events);
         UserProfileUpdateDTO update = new UserProfileUpdateDTO();
         update.setNickname("new-name");
-        BaseContext.setCurrentId(7L);
+        TestSecurityContext.authenticate(7L, false);
 
         service.updateCurrentUserProfile(update);
 
@@ -70,7 +70,7 @@ class UserProfileProjectionPublishingTest {
         request.setPassword("secret12");
         request.setNickname("Alice");
         request.setRoleId(RoleConstant.USER);
-        BaseContext.setCurrentId(1L);
+        TestSecurityContext.authenticate(1L, true);
 
         service.addUser(request);
 

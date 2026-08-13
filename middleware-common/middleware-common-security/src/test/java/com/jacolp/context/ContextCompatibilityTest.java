@@ -1,9 +1,7 @@
 package com.jacolp.context;
 
-import com.jacolp.middleware.common.security.context.AuthenticationContext;
-import com.jacolp.middleware.common.security.context.AuthorizationContext;
-import com.jacolp.middleware.common.security.context.SecurityContextBridge;
 import com.jacolp.middleware.common.security.context.SecurityIdentity;
+import com.jacolp.middleware.common.security.context.SecurityPrincipal;
 import com.jacolp.exception.AuthenticationException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -22,63 +20,32 @@ class ContextCompatibilityTest {
 
     @AfterEach
     void clearContexts() {
-        BaseContext.remove();
-        PermissionContext.remove();
-        SecurityContextBridge.clear();
+        SecurityContextHolder.clearContext();
     }
 
     @Test
-    void newSecurityContextIsVisibleThroughLegacyFacade() {
-        SecurityContextBridge.authenticate(101L, SecurityIdentity.ADMIN);
+    void activationSecurityContextIsVisibleThroughLegacyFacade() {
+        authenticate(new SecurityPrincipal(101L, SecurityIdentity.ACTIVATION), SecurityIdentity.ACTIVATION);
 
         assertThat(BaseContext.getCurrentId()).isEqualTo(101L);
-        assertThat(PermissionContext.isAdmin()).isTrue();
-    }
-
-    @Test
-    void legacyFacadeWritesToNewSecurityContext() {
-        BaseContext.setCurrentId(202L);
-        PermissionContext.setAdmin(false);
-
-        assertThat(AuthenticationContext.getCurrentId()).isEqualTo(202L);
-        assertThat(AuthorizationContext.isAdmin()).isFalse();
-    }
-
-    @Test
-    void holderTakesPrecedenceAndMapsAllAuthorities() {
-        AuthenticationContext.setCurrentId(9L);
-        AuthorizationContext.setAdmin(true);
-        SecurityContextBridge.authenticate(101L, SecurityIdentity.USER);
-        assertThat(BaseContext.getCurrentId()).isEqualTo(101L);
         assertThat(PermissionContext.isAdmin()).isFalse();
-        SecurityContextBridge.authenticate(102L, SecurityIdentity.ACTIVATION);
-        assertThat(PermissionContext.isAdmin()).isFalse();
-        SecurityContextBridge.authenticate(103L, SecurityIdentity.ADMIN);
-        assertThat(PermissionContext.isAdmin()).isTrue();
     }
 
     @Test
-    void absentHolderFallsBackAndAbsentIdentityRetainsLegacyException() {
-        BaseContext.setCurrentId(88L);
-        PermissionContext.setAdmin(true);
-        assertThat(BaseContext.getCurrentIdWithoutValid()).isEqualTo(88L);
-        assertThat(PermissionContext.isAdmin()).isTrue();
-        BaseContext.remove();
-        org.assertj.core.api.Assertions.assertThatThrownBy(BaseContext::getCurrentId)
+    void absentSecurityContextRejectsIdentityReads() {
+        assertThat(BaseContext.getCurrentIdWithoutValid()).isNull();
+        assertThat(PermissionContext.isAdmin()).isFalse();
+        assertThatThrownBy(BaseContext::getCurrentId)
                 .isInstanceOf(AuthenticationException.class)
                 .hasMessage("当前登录信息已失效");
     }
 
     @Test
     void holderAuthorityOverridesPrincipalIdentity() {
-        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                new com.jacolp.middleware.common.security.context.SecurityPrincipal(1L, SecurityIdentity.ADMIN), null,
-                List.of(new SimpleGrantedAuthority(SecurityIdentity.USER.authority()))));
+        authenticate(new SecurityPrincipal(1L, SecurityIdentity.ADMIN), SecurityIdentity.USER);
         assertThat(PermissionContext.isAdmin()).isFalse();
 
-        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                new com.jacolp.middleware.common.security.context.SecurityPrincipal(2L, SecurityIdentity.USER), null,
-                List.of(new SimpleGrantedAuthority(SecurityIdentity.ADMIN.authority()))));
+        authenticate(new SecurityPrincipal(2L, SecurityIdentity.USER), SecurityIdentity.ADMIN);
         assertThat(PermissionContext.isAdmin()).isTrue();
     }
 
@@ -93,9 +60,7 @@ class ContextCompatibilityTest {
     }
 
     @Test
-    void malformedJwtPreventsThreadLocalFallback() {
-        BaseContext.setCurrentId(88L);
-        PermissionContext.setAdmin(true);
+    void malformedJwtFailsClosed() {
         authenticateJwt(jwt("not-a-number", "ADMIN"));
 
         assertThatThrownBy(BaseContext::getCurrentId).isInstanceOf(AuthenticationException.class);
@@ -105,6 +70,11 @@ class ContextCompatibilityTest {
     private static void authenticateJwt(Jwt jwt) {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
                 jwt, null, List.of(new SimpleGrantedAuthority("ROLE_USER"))));
+    }
+
+    private static void authenticate(SecurityPrincipal principal, SecurityIdentity authority) {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new SimpleGrantedAuthority(authority.authority()))));
     }
 
     private static Jwt jwt(String subject, String role) {

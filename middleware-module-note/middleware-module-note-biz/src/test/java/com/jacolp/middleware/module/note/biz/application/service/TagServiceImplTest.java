@@ -8,8 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.jacolp.context.BaseContext;
-import com.jacolp.context.PermissionContext;
+import com.jacolp.module.note.biz.support.TestSecurityContext;
 import com.jacolp.enums.AuditStatus;
 import com.jacolp.exception.BaseException;
 import com.jacolp.module.audit.api.AuditApplicationApi;
@@ -28,15 +27,14 @@ class TagServiceImplTest {
 
     @AfterEach
     void clearContexts() {
-        BaseContext.remove();
-        PermissionContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
     void submitAuditUsesCasThenCreatesSynchronousApplication() {
         TagMapper mapper = mock(TagMapper.class);
         AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
-        BaseContext.setCurrentId(9L);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectByIdAndUserId(7L, 9L)).thenReturn(tag(7L, 9L, AuditStatus.WAIT));
         when(mapper.updateAuditStatusIfCurrent(7L, AuditStatus.WAIT.getCode(),
                 AuditStatus.AUDITING.getCode())).thenReturn(1);
@@ -53,7 +51,7 @@ class TagServiceImplTest {
     void submitAuditDoesNotCreateApplicationWhenCasFails() {
         TagMapper mapper = mock(TagMapper.class);
         AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
-        BaseContext.setCurrentId(9L);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectByIdAndUserId(7L, 9L)).thenReturn(tag(7L, 9L, AuditStatus.WAIT));
         when(mapper.updateAuditStatusIfCurrent(7L, AuditStatus.WAIT.getCode(),
                 AuditStatus.AUDITING.getCode())).thenReturn(0);
@@ -67,7 +65,7 @@ class TagServiceImplTest {
     void cancelAuditCancelsApplicationThenUsesCasToRestoreWaiting() {
         TagMapper mapper = mock(TagMapper.class);
         AuditApplicationApi auditApi = mock(AuditApplicationApi.class);
-        BaseContext.setCurrentId(9L);
+        TestSecurityContext.authenticate(9L, false);
         when(mapper.selectByIdAndUserId(7L, 9L)).thenReturn(tag(7L, 9L, AuditStatus.AUDITING));
         when(mapper.updateAuditStatusIfCurrent(7L, AuditStatus.AUDITING.getCode(),
                 AuditStatus.WAIT.getCode())).thenReturn(1);

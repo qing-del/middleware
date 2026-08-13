@@ -5,8 +5,7 @@ import com.jacolp.audio.biz.service.AudioTaskPublisher;
 import com.jacolp.audio.biz.service.AudioResourceDeletePublisher;
 import com.jacolp.audio.biz.service.TransactionAfterCommitExecutor;
 import com.jacolp.audio.biz.audio.AudioTaskLifecycle;
-import com.jacolp.context.BaseContext;
-import com.jacolp.context.PermissionContext;
+import com.jacolp.module.audio.biz.support.TestSecurityContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.exception.RateLimitExceededException;
 import com.jacolp.audio.biz.constant.AudioConstant;
@@ -64,13 +63,12 @@ class AudioTaskServiceImplTest {
         ReflectionTestUtils.setField(service, "audioTaskPublisher", publisher);
         ReflectionTestUtils.setField(service, "audioResourceDeletePublisher", deletePublisher);
         ReflectionTestUtils.setField(service, "transactionAfterCommitExecutor", afterCommitExecutor);
-        BaseContext.setCurrentId(9L);
+        TestSecurityContext.authenticate(9L, false);
     }
 
     @AfterEach
     void clearContext() {
-        BaseContext.remove();
-        PermissionContext.remove();
+        TestSecurityContext.clear();
     }
 
     @Test
@@ -84,7 +82,7 @@ class AudioTaskServiceImplTest {
 
         assertThatThrownBy(() -> service.getTask(30L)).isInstanceOf(BaseException.class);
 
-        PermissionContext.setAdmin(true);
+        TestSecurityContext.authenticate(9L, true);
         assertThat(service.getTask(30L).getSourceText()).isEqualTo("detail text");
         assertThat(service.getTask(30L).getResultUrl()).isEqualTo("https://audio.example/30.mp3");
     }
@@ -105,7 +103,7 @@ class AudioTaskServiceImplTest {
         assertThat(service.cancelTask(31L)).isTrue();
         verify(mapper).cancelTask(31L, 9L, AudioTaskLifecycle.Status.CANCELLED.code());
 
-        PermissionContext.setAdmin(true);
+        TestSecurityContext.authenticate(9L, true);
         when(mapper.cancelTask(32L, null, AudioTaskLifecycle.Status.CANCELLED.code())).thenReturn(1);
         assertThat(service.cancelTask(32L)).isTrue();
         verify(mapper).cancelTask(32L, null, AudioTaskLifecycle.Status.CANCELLED.code());
@@ -160,7 +158,7 @@ class AudioTaskServiceImplTest {
         task.setUserId(7L);
         when(mapper.selectById(42L)).thenReturn(task);
         when(mapper.deleteTask(42L, null)).thenReturn(1);
-        PermissionContext.setAdmin(true);
+        TestSecurityContext.authenticate(9L, true);
 
         assertThat(service.deleteTask(42L)).isTrue();
 

@@ -2,7 +2,7 @@ package com.jacolp.middleware.module.system.biz.application.service.impl;
 
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.context.BaseContext;
+import com.jacolp.module.system.biz.support.TestSecurityContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 class AccountVerificationCredentialWorkflowTest {
-    @AfterEach void clear() { BaseContext.remove(); }
+    @AfterEach void clear() { TestSecurityContext.clear(); }
 
     @Test void activationCodeDeletesOnlyAfterAccountActivationSucceeds() {
         UserMapper mapper = mock(UserMapper.class);
@@ -61,7 +61,7 @@ class AccountVerificationCredentialWorkflowTest {
         when(mapper.updateById(any(UserDO.class))).thenAnswer(invocation -> { events.add("update"); return 1; });
         doAnswer(invocation -> { events.add("delete"); return null; })
                 .when(credentials).deleteEmailChangeCode("654321");
-        BaseContext.setCurrentId(4L);
+        TestSecurityContext.authenticate(4L, false);
 
         assertThat(service.verifyEmailChangeCode("654321")).isEqualTo("邮箱修改成功");
         assertThat(events).containsExactly("update", "delete");
@@ -73,14 +73,14 @@ class AccountVerificationCredentialWorkflowTest {
         UserUserServiceImpl mismatchService = user(mismatchMapper, mismatchCredentials);
         when(mismatchCredentials.findEmailChangeCode("owner"))
                 .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(5L, "new@test.com"));
-        BaseContext.setCurrentId(6L);
+        TestSecurityContext.authenticate(6L, false);
         assertThatThrownBy(() -> mismatchService.verifyEmailChangeCode("owner"))
                 .isInstanceOf(BaseException.class)
                 .hasMessage("验证码无效或已过期");
         verify(mismatchMapper, never()).updateById(any());
         verify(mismatchCredentials, never()).deleteEmailChangeCode(anyString());
 
-        BaseContext.setCurrentId(5L);
+        TestSecurityContext.authenticate(5L, false);
         AccountVerificationCredentialService failedCredentials = mock(AccountVerificationCredentialService.class);
         UserMapper failedMapper = mock(UserMapper.class);
         UserUserServiceImpl failedService = user(failedMapper, failedCredentials);
