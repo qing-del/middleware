@@ -4,18 +4,12 @@ import java.util.List;
 
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserListDTO;
-import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserQuoteStorageDTO;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.result.PageResult;
 
 public interface AdminUserService {
-    // 管理端登录，返回通过校验后的用户信息
-    String loginAdmin(UserLoginDTO userLoginDTO);
-
-    void logout();
-
     PageResult list(UserListDTO userListDTO);
     // 管理员修改用户信息（权限/密码/基本信息）
 

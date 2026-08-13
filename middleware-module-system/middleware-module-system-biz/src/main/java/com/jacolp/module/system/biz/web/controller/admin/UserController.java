@@ -4,7 +4,6 @@ import com.jacolp.module.system.biz.application.annotation.RequireSuperiorRole;
 import com.jacolp.context.BaseContext;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserListDTO;
-import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserStatusDTO;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
@@ -30,27 +29,6 @@ import java.util.List;
 @Tag(name = "Admin-用户管理", description = "管理员登录、用户增删改查与封禁/解封接口")
 public class UserController {
     @Autowired private AdminUserService adminUserService;
-
-    @PostMapping("/login")
-    @Operation(summary = "管理员登录", description = "验证管理员账号密码，登录成功后签发 JWT 令牌并返回；后续管理员接口通过该 token 鉴权。")
-    public Result<String> login(
-            @Parameter(description = "管理员登录请求，包含用户名和密码") @RequestBody UserLoginDTO userLoginDTO) {
-        log.info("User login: {}", userLoginDTO.getUsername());
-        return Result.success(adminUserService.loginAdmin(userLoginDTO));
-    }
-
-    /**
-     * 退出登录
-     * @return
-     */
-    @PostMapping("/logout")
-    @Operation(summary = "退出登录",
-            description = "管理员退出登录，删除 Redis 中的 JWT 令牌。")
-    public Result logout() {
-        log.info("User logout, userId: {}", BaseContext.getCurrentId());
-        adminUserService.logout();
-        return Result.success();
-    }
 
     @PostMapping("/list")
     @Operation(summary = "分页查询用户列表", description = "按用户名、角色等条件分页查询用户列表，返回分页结果供管理端展示。")

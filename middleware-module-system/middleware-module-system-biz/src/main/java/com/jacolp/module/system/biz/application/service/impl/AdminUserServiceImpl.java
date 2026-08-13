@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
@@ -15,7 +14,6 @@ import com.jacolp.module.system.biz.application.authorization.RoleRankAuthorizat
 import com.jacolp.module.system.biz.application.annotation.RequireValidRole;
 import com.jacolp.module.system.biz.application.dto.user.UserAddDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserListDTO;
-import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,9 +29,7 @@ import com.jacolp.context.BaseContext;
 import com.jacolp.exception.AuthenticationException;
 import com.jacolp.exception.BaseException;
 import com.jacolp.exception.NotFindUserException;
-import com.jacolp.exception.PasswordIncorrectException;
 import com.jacolp.exception.PermissionDeniedException;
-import com.jacolp.exception.UserIsBanException;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.module.system.biz.application.dto.user.UserModifyDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserQuoteStorageDTO;
@@ -56,47 +52,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Autowired private UserMapper userMapper;
 
-    @Autowired private TokenSessionService tokenSessionService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserProfileEventPublisher userProfileEvents;
     @Autowired private RoleRankAuthorizationService roleRankAuthorizationService;
-
-    @Override
-    public String loginAdmin(UserLoginDTO userLoginDTO) {
-        // 通过用户名查询用户
-        UserDO user = userMapper.selectByUsername(userLoginDTO.getUsername());
-        if (user == null) {
-            log.error("User not found!");
-            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
-        }
-
-        // 检查账号状态
-        if (user.getStatus() == UserConstant.BANNED_STATUS) {
-            log.error("User is banned!");
-            throw new UserIsBanException(UserConstant.USER_IS_BANNED);
-        }
-
-        // 检查账号权限
-        if (user.getRoleId() != RoleConstant.ADMIN
-                && user.getRoleId() != RoleConstant.CREATOR) {
-            log.error("User isn't admin!");
-            throw new PasswordIncorrectException(UserConstant.PERMISSION_DENIED);
-        }
-
-        // 检查密码
-        if (!passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword())) {
-            log.error("Password isn't correct!");
-            throw new PasswordIncorrectException(UserConstant.USER_PASSWORD_ERROR);
-        }
-
-        // 生成 JWT 令牌（封装 id 到令牌里面）
-        return tokenSessionService.issueAdminLoginToken(user.getId());
-    }
-
-    @Override
-    public void logout() {
-        tokenSessionService.revokeAdminLoginToken(BaseContext.getCurrentId());
-    }
 
     @Override
     public PageResult list(UserListDTO userListDTO) {

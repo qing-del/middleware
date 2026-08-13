@@ -4,15 +4,11 @@ import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
-import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
-import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
-import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;
 import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
-import com.jacolp.module.system.biz.infrastructure.security.PasswordEncoder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -25,49 +21,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
-class TokenSessionWorkflowTest {
+class AccountVerificationCredentialWorkflowTest {
     @AfterEach void clear() { BaseContext.remove(); }
-
-    @Test void userLoginIssuesOnlyAfterPasswordValidationAndLogoutRevokesCurrentId() {
-        UserMapper mapper = mock(UserMapper.class); TokenSessionService tokens = mock(TokenSessionService.class); PasswordEncoder passwords = mock(PasswordEncoder.class);
-        UserUserServiceImpl service = user(mapper, tokens, mock(AccountVerificationCredentialService.class), passwords); UserDO user = user(1L, UserConstant.ACTIVE_STATUS, RoleConstant.USER);
-        when(mapper.selectByUsername("user")).thenReturn(user); when(passwords.matches("pw", "hash")).thenReturn(true); when(tokens.issueUserLoginToken(1L)).thenReturn("jwt");
-        assertThat(service.loginUser(new UserLoginDTO("user", "pw"))).isEqualTo("jwt");
-        InOrder order = inOrder(passwords, tokens); order.verify(passwords).matches("pw", "hash"); order.verify(tokens).issueUserLoginToken(1L);
-        BaseContext.setCurrentId(1L); service.logout(); verify(tokens).revokeUserLoginToken(1L);
-    }
-
-    @Test void userStatusOrPasswordFailureNeverIssues() {
-        UserMapper mapper = mock(UserMapper.class); TokenSessionService tokens = mock(TokenSessionService.class); PasswordEncoder passwords = mock(PasswordEncoder.class);
-        UserUserServiceImpl service = user(mapper, tokens, mock(AccountVerificationCredentialService.class), passwords);
-        when(mapper.selectByUsername("user")).thenReturn(user(1L, UserConstant.BANNED_STATUS, RoleConstant.USER));
-        assertThatThrownBy(() -> service.loginUser(new UserLoginDTO("user", "pw"))).isNotNull(); verifyNoInteractions(tokens);
-        when(mapper.selectByUsername("user")).thenReturn(user(1L, UserConstant.ACTIVE_STATUS, RoleConstant.USER)); when(passwords.matches("pw", "hash")).thenReturn(false);
-        assertThatThrownBy(() -> service.loginUser(new UserLoginDTO("user", "pw"))).isNotNull(); verifyNoInteractions(tokens);
-    }
-
-    @Test void adminLoginIssuesAfterRoleAndPasswordAndLogoutRevokes() {
-        UserMapper mapper = mock(UserMapper.class); TokenSessionService tokens = mock(TokenSessionService.class); PasswordEncoder passwords = mock(PasswordEncoder.class);
-        AdminUserServiceImpl service = admin(mapper, tokens, passwords); UserDO admin = user(2L, UserConstant.ACTIVE_STATUS, RoleConstant.ADMIN);
-        when(mapper.selectByUsername("admin")).thenReturn(admin); when(passwords.matches("pw", "hash")).thenReturn(true); when(tokens.issueAdminLoginToken(2L)).thenReturn("admin-jwt");
-        assertThat(service.loginAdmin(new UserLoginDTO("admin", "pw"))).isEqualTo("admin-jwt");
-        InOrder order = inOrder(passwords, tokens); order.verify(passwords).matches("pw", "hash"); order.verify(tokens).issueAdminLoginToken(2L);
-        BaseContext.setCurrentId(2L); service.logout(); verify(tokens).revokeAdminLoginToken(2L);
-    }
-
-    @Test void adminRoleOrPasswordFailureNeverIssues() {
-        UserMapper mapper = mock(UserMapper.class); TokenSessionService tokens = mock(TokenSessionService.class); PasswordEncoder passwords = mock(PasswordEncoder.class);
-        AdminUserServiceImpl service = admin(mapper, tokens, passwords);
-        when(mapper.selectByUsername("admin")).thenReturn(user(2L, UserConstant.ACTIVE_STATUS, RoleConstant.USER));
-        assertThatThrownBy(() -> service.loginAdmin(new UserLoginDTO("admin", "pw"))).isNotNull(); verifyNoInteractions(tokens);
-        when(mapper.selectByUsername("admin")).thenReturn(user(2L, UserConstant.ACTIVE_STATUS, RoleConstant.ADMIN)); when(passwords.matches("pw", "hash")).thenReturn(false);
-        assertThatThrownBy(() -> service.loginAdmin(new UserLoginDTO("admin", "pw"))).isNotNull(); verifyNoInteractions(tokens);
-    }
 
     @Test void activationCodeDeletesOnlyAfterAccountActivationSucceeds() {
         UserMapper mapper = mock(UserMapper.class);
         AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
-        UserUserServiceImpl service = user(mapper, mock(TokenSessionService.class), credentials, mock(PasswordEncoder.class));
+        UserUserServiceImpl service = user(mapper, credentials);
         when(credentials.findActivationCodeUserId("123456")).thenReturn(3L);
         when(mapper.selectById(3L)).thenReturn(user(3L, UserConstant.UNACTIVE_STATUS, RoleConstant.USER));
         when(mapper.updateById(any(UserDO.class))).thenReturn(1);
@@ -81,7 +41,7 @@ class TokenSessionWorkflowTest {
     @Test void activationCodeIsNotDeletedWhenAccountActivationFails() {
         UserMapper mapper = mock(UserMapper.class);
         AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
-        UserUserServiceImpl service = user(mapper, mock(TokenSessionService.class), credentials, mock(PasswordEncoder.class));
+        UserUserServiceImpl service = user(mapper, credentials);
         when(credentials.findActivationCodeUserId("123456")).thenReturn(3L);
         when(mapper.selectById(3L)).thenReturn(user(3L, UserConstant.UNACTIVE_STATUS, RoleConstant.USER));
         when(mapper.updateById(any(UserDO.class))).thenReturn(0);
@@ -94,7 +54,7 @@ class TokenSessionWorkflowTest {
     @Test void emailChangeCodeDeletesOnlyAfterDatabaseUpdateSucceeds() {
         UserMapper mapper = mock(UserMapper.class);
         AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
-        UserUserServiceImpl service = user(mapper, mock(TokenSessionService.class), credentials, mock(PasswordEncoder.class));
+        UserUserServiceImpl service = user(mapper, credentials);
         List<String> events = new ArrayList<>();
         when(credentials.findEmailChangeCode("654321"))
                 .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(4L, "new@test.com"));
@@ -110,7 +70,7 @@ class TokenSessionWorkflowTest {
     @Test void emailChangeCodeIsNotDeletedForOwnerMismatchOrDatabaseFailure() {
         AccountVerificationCredentialService mismatchCredentials = mock(AccountVerificationCredentialService.class);
         UserMapper mismatchMapper = mock(UserMapper.class);
-        UserUserServiceImpl mismatchService = user(mismatchMapper, mock(TokenSessionService.class), mismatchCredentials, mock(PasswordEncoder.class));
+        UserUserServiceImpl mismatchService = user(mismatchMapper, mismatchCredentials);
         when(mismatchCredentials.findEmailChangeCode("owner"))
                 .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(5L, "new@test.com"));
         BaseContext.setCurrentId(6L);
@@ -123,7 +83,7 @@ class TokenSessionWorkflowTest {
         BaseContext.setCurrentId(5L);
         AccountVerificationCredentialService failedCredentials = mock(AccountVerificationCredentialService.class);
         UserMapper failedMapper = mock(UserMapper.class);
-        UserUserServiceImpl failedService = user(failedMapper, mock(TokenSessionService.class), failedCredentials, mock(PasswordEncoder.class));
+        UserUserServiceImpl failedService = user(failedMapper, failedCredentials);
         when(failedCredentials.findEmailChangeCode("database"))
                 .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(5L, "new@test.com"));
         when(failedMapper.updateById(any(UserDO.class))).thenReturn(0);
@@ -133,12 +93,11 @@ class TokenSessionWorkflowTest {
         verify(failedCredentials, never()).deleteEmailChangeCode(anyString());
     }
 
-    private static UserUserServiceImpl user(UserMapper mapper, TokenSessionService tokens,
-            AccountVerificationCredentialService credentials, PasswordEncoder passwords) {
-        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
-    }
-    private static AdminUserServiceImpl admin(UserMapper mapper, TokenSessionService tokens, PasswordEncoder passwords) {
-        AdminUserServiceImpl service = new AdminUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
+    private static UserUserServiceImpl user(UserMapper mapper, AccountVerificationCredentialService credentials) {
+        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
+        ReflectionTestUtils.setField(service, "userMapper", mapper);
+        ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials);
+        return service;
     }
     private static UserDO user(Long id, Integer status, Long role) { UserDO user = new UserDO(); user.setId(id); user.setStatus(status); user.setRoleId(role); user.setPassword("hash"); return user; }
 }

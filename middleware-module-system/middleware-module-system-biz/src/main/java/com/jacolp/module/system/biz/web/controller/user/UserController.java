@@ -2,7 +2,6 @@ package com.jacolp.module.system.biz.web.controller.user;
 
 import java.util.Map;
 
-import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.module.system.biz.application.service.UserUserService;
 import com.jacolp.module.system.biz.application.vo.user.UserDetailVO;
 import com.jacolp.module.system.biz.application.vo.user.UserOverviewVO;
@@ -33,24 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "User-用户认证", description = "用户注册与登录接口")
 public class UserController {
     @Autowired private UserUserService userUserService;
-
-    @PostMapping("/login")
-    @Operation(summary = "用户登录",
-            description = "先校验用户名和密码是否匹配，登录成功后将用户 ID 写入 JWT claims 并签发令牌返回；后续接口会通过该 token 解析当前用户。")
-    public Result<String> login(
-            @Parameter(description = "用户登录请求，包含用户名和密码") @RequestBody @Valid UserLoginDTO userLoginDTO) {
-        log.info("User login: {}", userLoginDTO.getUsername());
-        return Result.success(userUserService.loginUser(userLoginDTO));
-    }
-
-    @PostMapping("/logout")
-    @Operation(summary = "退出登录",
-            description = "用户退出；删除 Redis 中的 JWT 令牌。")
-    public Result logout() {
-        log.info("User logout, userId: {}", BaseContext.getCurrentId());
-        userUserService.logout();
-        return Result.success();
-    }
 
     @PostMapping("/register")
     @Operation(summary = "用户注册",

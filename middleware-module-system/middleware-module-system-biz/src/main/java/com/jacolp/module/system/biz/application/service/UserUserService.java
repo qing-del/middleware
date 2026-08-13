@@ -1,6 +1,5 @@
 package com.jacolp.module.system.biz.application.service;
 
-import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserRegisterDTO;
 import com.jacolp.module.system.biz.application.dto.user.EmailChangeRequestDTO;
@@ -10,11 +9,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 
 public interface UserUserService {
-    // 用户端登录，返回通过校验后的用户信息
-    String loginUser(@NotNull @Valid UserLoginDTO userLoginDTO);
-
-    void logout();
-
     String register(@NotNull @Valid UserRegisterDTO userRegisterDTO);
     // 用户端：获取当前登录用户详情（不含密码）
 

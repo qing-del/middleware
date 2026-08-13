@@ -8,17 +8,13 @@ import com.jacolp.module.system.biz.application.authorization.UserExtraGrantType
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.exception.NotFindUserException;
-import com.jacolp.exception.PasswordIncorrectException;
-import com.jacolp.exception.UserIsBanException;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.module.system.biz.application.dto.user.EmailChangeRequestDTO;
-import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.module.system.biz.application.dto.user.UserRegisterDTO;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.module.system.biz.application.vo.user.UserDetailVO;
 import com.jacolp.module.system.biz.application.vo.user.UserOverviewVO;
-import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
@@ -50,48 +46,10 @@ public class UserUserServiceImpl implements UserUserService {
 
     @Autowired private UserMapper userMapper;
 
-    @Autowired private TokenSessionService tokenSessionService;
     @Autowired private AccountVerificationCredentialService accountVerificationCredentialService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private EmailSenderService emailSenderService;
     @Autowired private UserProfileEventPublisher userProfileEvents;
-
-    @Override
-    public String loginUser(@NotNull @Valid UserLoginDTO userLoginDTO) {
-        // 1. 根据用户名查用户
-        UserDO user = userMapper.selectByUsername(userLoginDTO.getUsername());
-        if (user == null) {
-            log.error("User isn't existed!");
-            throw new NotFindUserException(UserConstant.NOT_FOUND_USER);
-        }
-
-        // 2.1 账号被禁用则直接拒绝登录
-        if (user.getStatus() == UserConstant.BANNED_STATUS) {
-            log.error("User is banned!");
-            throw new UserIsBanException(UserConstant.USER_IS_BANNED);
-        }
-
-        // 2.2 账号未激活则拒绝登录
-        if (user.getStatus() == UserConstant.UNACTIVE_STATUS) {
-            log.error("User account is not activated, userId: {}", user.getId());
-            throw new BaseException(UserConstant.ACCOUNT_NOT_ACTIVATED);
-        }
-
-        // 3. 校验密码是否一致
-        boolean valid = passwordEncoder.matches(userLoginDTO.getPassword(), user.getPassword());
-        if (!valid) {
-            log.error("Password isn't correct!");
-            throw new PasswordIncorrectException(UserConstant.USER_PASSWORD_ERROR);
-        }
-
-        // 将用户ID写入 JWT，后续请求会通过拦截器解析出来
-        return tokenSessionService.issueUserLoginToken(user.getId());
-    }
-
-    @Override
-    public void logout() {
-        tokenSessionService.revokeUserLoginToken(BaseContext.getCurrentId());
-    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
