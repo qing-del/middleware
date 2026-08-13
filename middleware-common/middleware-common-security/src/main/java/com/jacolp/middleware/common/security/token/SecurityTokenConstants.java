@@ -2,7 +2,6 @@ package com.jacolp.middleware.common.security.token;
 
 public final class SecurityTokenConstants {
 
-    public static final String ADMIN_ID_CLAIM = "adminId";
     public static final String USER_ID_CLAIM = "userId";
     public static final String ACTIVE_SIGN_KEY = "active";
     public static final String ACTIVE_CODE_PREFIX = "active:code:";

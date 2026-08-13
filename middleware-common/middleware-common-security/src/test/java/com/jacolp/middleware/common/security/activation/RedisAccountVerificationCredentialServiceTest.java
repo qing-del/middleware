@@ -1,7 +1,6 @@
 package com.jacolp.middleware.common.security.activation;
 
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
-import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
 import com.jacolp.middleware.common.security.token.SecurityTokenKeyGenerator;
 import io.jsonwebtoken.Claims;
@@ -38,7 +37,7 @@ class RedisAccountVerificationCredentialServiceTest {
     @Test
     void issuesActivationTokenWithTheExistingClaimsAndTtl() {
         long started = System.currentTimeMillis();
-        Claims claims = JwtTokenSupport.parseJWT(ACTIVE_SECRET, service.issueActivationToken(13L));
+        Claims claims = ActivationJwtTokenSupport.parseActivationJwt(ACTIVE_SECRET, service.issueActivationToken(13L));
         long finished = System.currentTimeMillis();
 
         assertThat(claims.get(SecurityTokenConstants.USER_ID_CLAIM).toString()).isEqualTo("13");

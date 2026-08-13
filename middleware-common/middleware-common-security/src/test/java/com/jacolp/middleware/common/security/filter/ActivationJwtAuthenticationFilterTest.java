@@ -6,8 +6,8 @@ import com.jacolp.middleware.common.security.context.AuthenticationContext;
 import com.jacolp.middleware.common.security.context.AuthorizationContext;
 import com.jacolp.middleware.common.security.context.SecurityIdentity;
 import com.jacolp.middleware.common.security.context.SecurityPrincipal;
+import com.jacolp.middleware.common.security.activation.ActivationJwtTokenSupport;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
-import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
@@ -132,7 +132,7 @@ class ActivationJwtAuthenticationFilterTest {
     }
 
     private static String activationToken(long id, boolean active) {
-        return JwtTokenSupport.createJWT(ACTIVE_SECRET, 60_000, new HashMap<>(Map.of(
+        return ActivationJwtTokenSupport.createActivationJwt(ACTIVE_SECRET, 60_000, new HashMap<>(Map.of(
                 SecurityTokenConstants.USER_ID_CLAIM, id, SecurityTokenConstants.ACTIVE_SIGN_KEY, active)));
     }
 

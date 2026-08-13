@@ -3,7 +3,6 @@ package com.jacolp.module.system.biz.application.authorization;
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
-import com.jacolp.middleware.common.security.token.TokenSessionService;
 import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
@@ -39,8 +38,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         when(users.selectById(7L)).thenReturn(user);
         when(users.updateById(user)).thenReturn(1);
         BaseContext.setCurrentId(7L);
-        UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
-                mock(AccountVerificationCredentialService.class), events, revocation);
+        UserUserServiceImpl service = service(users, mock(AccountVerificationCredentialService.class), events, revocation);
 
         UserProfileUpdateDTO emailChange = new UserProfileUpdateDTO();
         emailChange.setEmail("new@example.com");
@@ -65,8 +63,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         when(users.selectById(8L)).thenReturn(deleted);
         when(users.updateById(any(UserDO.class))).thenReturn(1);
         BaseContext.setCurrentId(8L);
-        UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
-                mock(AccountVerificationCredentialService.class),
+        UserUserServiceImpl service = service(users, mock(AccountVerificationCredentialService.class),
                 mock(UserProfileEventPublisher.class), revocation);
 
         service.deleteCurrentUser();
@@ -93,7 +90,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         when(users.selectById(10L)).thenReturn(inactive);
         when(users.updateById(any(UserDO.class))).thenReturn(1);
         when(credentials.findActivationCodeUserId("activate")).thenReturn(10L);
-        UserUserServiceImpl service = service(users, mock(TokenSessionService.class), credentials,
+        UserUserServiceImpl service = service(users, credentials,
                 mock(UserProfileEventPublisher.class), revocation);
 
         service.verifyActivationCode("activate");
@@ -124,8 +121,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         RuntimeException failure = new IllegalStateException("redis unavailable");
         org.mockito.Mockito.doThrow(failure).when(revocation).revokeForSecurityFieldChange(12L);
         BaseContext.setCurrentId(12L);
-        UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
-                mock(AccountVerificationCredentialService.class),
+        UserUserServiceImpl service = service(users, mock(AccountVerificationCredentialService.class),
                 mock(UserProfileEventPublisher.class), revocation);
 
         org.assertj.core.api.Assertions.assertThatThrownBy(service::deleteCurrentUser).isSameAs(failure);
@@ -133,13 +129,11 @@ class UserAuthorizationCodeRevocationWritePathTest {
         verify(users).updateById(any(UserDO.class));
     }
 
-    private static UserUserServiceImpl service(UserMapper users, TokenSessionService tokens,
-                                               AccountVerificationCredentialService credentials,
+    private static UserUserServiceImpl service(UserMapper users, AccountVerificationCredentialService credentials,
                                                UserProfileEventPublisher events,
                                                AccountAuthorizationStateRevocationService revocation) {
         UserUserServiceImpl service = new UserUserServiceImpl(revocation);
         ReflectionTestUtils.setField(service, "userMapper", users);
-        ReflectionTestUtils.setField(service, "tokenSessionService", tokens);
         ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);
         ReflectionTestUtils.setField(service, "passwordEncoder", mock(PasswordEncoder.class));

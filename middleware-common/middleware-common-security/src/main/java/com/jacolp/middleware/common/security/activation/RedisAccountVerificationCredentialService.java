@@ -1,15 +1,11 @@
 package com.jacolp.middleware.common.security.activation;
 
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
-import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
-import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
 import com.jacolp.middleware.common.security.token.SecurityTokenKeyGenerator;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 /** Redis adapter that preserves the existing activation and email-change credential contract. */
 @Service
@@ -24,10 +20,7 @@ public class RedisAccountVerificationCredentialService implements AccountVerific
 
     @Override
     public String issueActivationToken(Long userId) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(SecurityTokenConstants.ACTIVE_SIGN_KEY, true);
-        claims.put(SecurityTokenConstants.USER_ID_CLAIM, userId);
-        return JwtTokenSupport.createJWT(properties.getActiveSecretKey(), properties.getActiveTtl(), claims);
+        return ActivationJwtTokenSupport.issueActivationToken(properties.getActiveSecretKey(), properties.getActiveTtl(), userId);
     }
 
     @Override

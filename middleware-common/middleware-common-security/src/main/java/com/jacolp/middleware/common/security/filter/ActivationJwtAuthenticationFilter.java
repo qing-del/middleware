@@ -6,8 +6,8 @@ import com.jacolp.middleware.common.security.context.AuthenticationContext;
 import com.jacolp.middleware.common.security.context.AuthorizationContext;
 import com.jacolp.middleware.common.security.context.SecurityContextBridge;
 import com.jacolp.middleware.common.security.context.SecurityIdentity;
+import com.jacolp.middleware.common.security.activation.ActivationJwtTokenSupport;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
-import com.jacolp.middleware.common.security.jwt.JwtTokenSupport;
 import com.jacolp.middleware.common.security.token.SecurityTokenConstants;
 import com.jacolp.result.Result;
 import io.jsonwebtoken.Claims;
@@ -68,7 +68,7 @@ public final class ActivationJwtAuthenticationFilter extends OncePerRequestFilte
         String[] parts = request.getRequestURI().split("/");
         String token = parts[parts.length - 1];
         try {
-            Claims claims = JwtTokenSupport.parseJWT(jwtProperties.getActiveSecretKey(), token);
+            Claims claims = ActivationJwtTokenSupport.parseActivationJwt(jwtProperties.getActiveSecretKey(), token);
             Long userId = Long.valueOf(claims.get(SecurityTokenConstants.USER_ID_CLAIM).toString());
             boolean activeCode = Boolean.parseBoolean(claims.get(SecurityTokenConstants.ACTIVE_SIGN_KEY).toString());
             if (!activeCode) {
