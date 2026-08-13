@@ -77,12 +77,11 @@ class OAuth2AccountGrantPropertiesTest {
     }
 
     @Test
-    void accountGrantResolverRemainsAvailableWhenRs256ConfigurationIsDisabled() {
-        contextRunner.withUserConfiguration(OAuth2Rs256CodecConfiguration.class)
-                .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context.getBeansOfType(AccountGrantTypeResolver.class)).hasSize(1);
-                });
+    void accountGrantResolverRemainsAvailableWithoutCodecConfiguration() {
+        contextRunner.run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBeansOfType(AccountGrantTypeResolver.class)).hasSize(1);
+        });
     }
 
     @Configuration(proxyBeanMethods = false)

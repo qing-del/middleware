@@ -83,28 +83,8 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     @Test
-    void disabledConfigurationCreatesNoKeyOrCodecBeans() {
-        contextRunner.run(context -> {
-            assertThat(context.getBeansOfType(RsaKeyMaterial.class)).isEmpty();
-            assertThat(context.getBeansOfType(PublicJwkSetProvider.class)).isEmpty();
-            assertThat(context.getBeansOfType(JwtEncoder.class)).isEmpty();
-            assertThat(context.getBeansOfType(JwtDecoder.class)).isEmpty();
-            assertThat(context.getBeansOfType(SecureOAuth2TokenGenerator.class)).isEmpty();
-            assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).isEmpty();
-            assertThat(context.getBeansOfType(AccessTokenBlacklistStore.class)).isEmpty();
-            assertThat(context.getBeansOfType(AccessTokenBlacklistJwtValidator.class)).isEmpty();
-            assertThat(context.getBeansOfType(CoreNodeAccessTokenClaimsValidator.class)).isEmpty();
-            assertThat(context.getBeansOfType(OpaqueTokenProtector.class)).isEmpty();
-            assertThat(context.getBeansOfType(OAuth2TokenStateCodec.class)).isEmpty();
-            assertThat(context.getBeansOfType(OAuth2TokenStateStore.class)).isEmpty();
-            assertThat(context.getBeansOfType(OAuth2SessionRevocationStore.class)).isEmpty();
-            assertThat(context.getBeansOfType(OAuth2RefreshTokenSessionService.class)).isEmpty();
-        });
-    }
-
-    @Test
-    void enabledConfigurationEncodesAndDecodesRs256WithStableKid() {
-        enabledContext().run(context -> {
+    void configuredPemMaterialCreatesRs256BeansAndEncodesWithStableKid() {
+        configuredContext().run(context -> {
             assertThat(context.getBeansOfType(OAuth2SessionRevocationStore.class)).hasSize(1);
             JwtEncoder encoder = context.getBean(JwtEncoder.class);
             JwtDecoder decoder = context.getBean(JwtDecoder.class);
@@ -126,8 +106,8 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     @Test
-    void enabledConfigurationIssuesAndDecodesCompleteAccessToken() {
-        enabledContext().run(context -> {
+    void configuredPemMaterialIssuesAndDecodesCompleteAccessToken() {
+        configuredContext().run(context -> {
             IssuedAccessToken issued = context.getBean(Rs256AccessTokenIssuer.class).issue(
                     new AccessTokenIssueRequest(42, "user", "password", "alice", "USER",
                             Set.of("*:read", "note:read"), Duration.ofMinutes(5)));
@@ -144,8 +124,8 @@ class OAuth2Rs256CodecConfigurationTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void enabledConfigurationWiresRefreshSessionServiceThroughRedisLuaWithoutPersistingRawToken() {
-        enabledContext().run(context -> {
+    void configuredPemMaterialWiresRefreshSessionServiceThroughRedisLuaWithoutPersistingRawToken() {
+        configuredContext().run(context -> {
             StringRedisTemplate redis = context.getBean(StringRedisTemplate.class);
             doReturn(1L).when(redis).execute(any(RedisScript.class), anyList(), any(Object[].class));
 
@@ -166,8 +146,8 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     @Test
-    void enabledConfigurationRejectsBlacklistedOrUnavailableJti() {
-        enabledContext().run(context -> {
+    void configuredPemMaterialRejectsBlacklistedOrUnavailableJti() {
+        configuredContext().run(context -> {
             StringRedisTemplate redis = context.getBean(StringRedisTemplate.class);
             IssuedAccessToken issued = context.getBean(Rs256AccessTokenIssuer.class).issue(
                     new AccessTokenIssueRequest(1, "user", "password", "alice", "USER", Set.of(), Duration.ofMinutes(5)));
@@ -181,8 +161,8 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     @Test
-    void enabledConfigurationRejectsWrongSignature() {
-        enabledContext().run(context -> {
+    void configuredPemMaterialRejectsWrongSignature() {
+        configuredContext().run(context -> {
             JwtEncoder otherEncoder = NimbusJwtEncoder.withKeyPair(
                             (java.security.interfaces.RSAPublicKey) differentPair.getPublic(),
                             (java.security.interfaces.RSAPrivateKey) differentPair.getPrivate())
@@ -196,8 +176,8 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     @Test
-    void enabledConfigurationRejectsWrongIssuerAudienceAndExpiredJwt() {
-        enabledContext().run(context -> {
+    void configuredPemMaterialRejectsWrongIssuerAudienceAndExpiredJwt() {
+        configuredContext().run(context -> {
             JwtEncoder encoder = context.getBean(JwtEncoder.class);
             JwtDecoder decoder = context.getBean(JwtDecoder.class);
 
@@ -211,8 +191,8 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     @Test
-    void enabledConfigurationRejectsHs256Jwt() throws Exception {
-        enabledContext().run(context -> {
+    void configuredPemMaterialRejectsHs256Jwt() throws Exception {
+        configuredContext().run(context -> {
             try {
                 assertThatThrownBy(() -> context.getBean(JwtDecoder.class).decode(hs256Token()))
                         .isInstanceOf(JwtException.class);
@@ -223,19 +203,17 @@ class OAuth2Rs256CodecConfigurationTest {
     }
 
     @Test
-    void enabledConfigurationFailsFastForMissingOrInvalidKeyMaterial() {
-        contextRunner.withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+    void configurationFailsFastForMissingOrInvalidKeyMaterial() {
+        contextRunner.withUserConfiguration(RedisConfiguration.class)
                 .run(context -> assertThat(context.getStartupFailure()).isNotNull());
         contextRunner.withPropertyValues(
-                        "jacolp.oauth2.rs256.enabled=true",
                         "jacolp.oauth2.rs256.private-key-location=" + invalidKey.toUri(),
                         "jacolp.oauth2.rs256.public-key-location=" + publicKey.toUri())
                 .run(context -> assertThat(context.getStartupFailure()).isNotNull());
     }
 
-    private ApplicationContextRunner enabledContext() {
+    private ApplicationContextRunner configuredContext() {
         return contextRunner.withUserConfiguration(RedisConfiguration.class).withPropertyValues(
-                "jacolp.oauth2.rs256.enabled=true",
                 "jacolp.oauth2.rs256.private-key-location=" + privateKey.toUri(),
                 "jacolp.oauth2.rs256.public-key-location=" + publicKey.toUri());
     }

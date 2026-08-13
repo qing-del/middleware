@@ -17,7 +17,6 @@ import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
 import com.jacolp.middleware.common.security.oauth2.token.OpaqueTokenProtector;
 import com.jacolp.middleware.common.security.oauth2.token.RedisOAuth2TokenStateStore;
 import com.jacolp.middleware.common.security.oauth2.token.RedisOAuth2SessionRevocationStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -32,10 +31,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import java.time.Clock;
 
 /**
- * RS256 codec infrastructure, kept disabled until explicitly configured.
+ * RS256 codec infrastructure required for the OAuth2 token flow.
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class OAuth2Rs256CodecConfiguration {
 
     @Bean
