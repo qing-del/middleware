@@ -207,6 +207,10 @@ class OAuth2Rs256CodecConfigurationTest {
         contextRunner.withUserConfiguration(RedisConfiguration.class)
                 .run(context -> assertThat(context.getStartupFailure()).isNotNull());
         contextRunner.withPropertyValues(
+                        "jacolp.oauth2.rs256.private-key-location=",
+                        "jacolp.oauth2.rs256.public-key-location=" + publicKey.toUri())
+                .run(context -> assertThat(context.getStartupFailure()).isNotNull());
+        contextRunner.withPropertyValues(
                         "jacolp.oauth2.rs256.private-key-location=" + invalidKey.toUri(),
                         "jacolp.oauth2.rs256.public-key-location=" + publicKey.toUri())
                 .run(context -> assertThat(context.getStartupFailure()).isNotNull());

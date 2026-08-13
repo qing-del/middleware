@@ -93,6 +93,12 @@ jacolp:
     password: ${jacolp.admin.password}
     email: ${jacolp.admin.email}
   default-password: ${jacolp.default-password}  # 默认测试密码
+  oauth2:
+    rs256:
+      issuer: ${OAUTH2_RS256_ISSUER:core-node}
+      audience: ${OAUTH2_RS256_AUDIENCE:core-node-api}
+      private-key-location: ${OAUTH2_RS256_PRIVATE_KEY_LOCATION:file:/run/secrets/oauth2-rs256/private.pem}
+      public-key-location: ${OAUTH2_RS256_PUBLIC_KEY_LOCATION:file:/run/secrets/oauth2-rs256/public.pem}
   jwt:
     admin-secret-key: ${jwt.admin-secret-key}
     admin-ttl: 7200000
