@@ -405,3 +405,6 @@
 
 如果存在任何会影响后端正式切换的未决问题，立即停止并列出问题，不要用假设填补。
 ```
+
+Phase 7 的可执行验收矩阵、真实环境门禁、证据模板与发布边界见
+[Phase 7 后端授权升级验收与发布 Runbook](phase7-backend-authorization-acceptance-and-release-runbook.md)。其中 Redis 拓扑未确认、Redis Cluster 的多 key Lua `CROSSSLOT` 风险、缺少真实 Redis/MySQL/SMTP/HTTP E2E 证据，均不得被 Mockito 测试替代，且会阻塞正式切换结论。
