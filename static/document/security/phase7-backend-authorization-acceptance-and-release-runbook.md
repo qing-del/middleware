@@ -60,9 +60,10 @@ JDK 版本与 Surefire 汇总，不能只记录“已通过”。
 raw authorization code、refresh token、private PEM 或完整 bearer token。可记录不可逆指纹、
 截断后的 `jti`、HTTP 状态和 Redis key 名称。
 
-## Redis 拓扑：正式切换阻塞项
+## Redis 拓扑：首发单节点部署前提
 
-当前仓库的 Docker Compose 声明的是单节点 Redis 7；但生产 Redis 拓扑尚未确认。以下
+首发部署已确定仅支持**单节点 Redis**；当前仓库的 Docker Compose 同样声明 Redis 7
+单节点。以下
 CORE AGENT Lua 脚本一次操作多个 key，当前 key 的 hash tag 分别来自 raw handle、raw code
 或 user id：
 
@@ -72,17 +73,21 @@ CORE AGENT Lua 脚本一次操作多个 key，当前 key 的 hash tag 分别来�
 - `rotate-current-session.lua`：旧 refresh、新 refresh、session；
 - `revoke-current-session.lua`：blacklist、session、可选 refresh。
 
-在 Redis Cluster 中，多 key `EVAL` 要求所有 key 位于同一 hash slot。现有 tag 不保证此条件，
-会产生 `CROSSSLOT`；不能以“单元测试通过”或“当前代码没有 Cluster 配置”替代验证。
+Redis Cluster 不属于首发支持范围。在 Redis Cluster 中，多 key `EVAL` 要求所有 key 位于同一
+hash slot；现有 tag 不保证此条件，会产生 `CROSSSLOT`。不能以“单元测试通过”或“当前代码
+没有 Cluster 配置”替代验证。
 
 | 生产拓扑 | 允许的验收动作 | 切换结论 |
 | --- | --- | --- |
-| 明确单节点 Redis，或单 slot 代理且已由运维确认 | 在与生产等价版本 Redis 上完成本文件的真实 Lua/TTL/并发验证。 | 可在其余门禁通过后继续。 |
-| Redis Cluster | 先停止正式切换。必须另起专项设计：为每一原子状态机选择不泄漏凭据、不会扩大影响范围的共同 hash-tag 策略，并完成 Cluster E2E。 | **阻塞**；不得直接上线。 |
-| 拓扑未确认 | 不对 Lua 原子性作生产结论。 | **阻塞**。 |
+| 单节点 Redis | 在与生产等价版本 Redis 上完成本文件的真实 Lua/TTL/并发验证。 | 可在其余门禁通过后继续。 |
+| Redis Cluster | 首发不支持。必须另起专项设计：为每一原子状态机选择不泄漏凭据、不会扩大影响范围的共同 hash-tag 策略，并完成 Cluster E2E。 | 不得以本次首发版本部署。 |
 
 禁止为绕过问题临时把 EVAL 拆为多次普通 Redis 调用；那会破坏一次性 code、rotation 和
 logout/revoke 的原子性。
+
+Testcontainers 也明确不纳入首发验收。真实 Redis、MySQL、SMTP 和 HTTP E2E 必须在受控
+单节点环境由本 Runbook 的命令/人工步骤执行并保存证据；后续若批准引入 Testcontainers，应
+作为独立测试基础设施变更，不能改变本次单节点部署前提或替代发布环境复验。
 
 ## Redis Lua 与并发/TTL 验收矩阵
 
@@ -191,10 +196,9 @@ namespace。未完成该外部依赖确认时，保留 key 不阻断新链路运
 
 ## 当前未决项与最终结论
 
-当前不得假设 Redis 拓扑，也不得将缺少真实 Redis/MySQL/SMTP/HTTP E2E 的环境视为通过。
-在拓扑未确认、Docker/真实测试环境不可用或上述证据缺失时，本阶段结论为：
+当前首发 Redis 拓扑已确定为单节点，但不得将缺少真实 Redis/MySQL/SMTP/HTTP E2E 的环境
+视为通过。Docker/真实测试环境不可用或上述证据缺失时，本阶段结论为：
 
 > **代码静态验收可继续；后端授权升级第一阶段的正式切换结论为阻塞。**
 
-当且仅当 Redis 单节点/Cluster 策略明确且所有真实环境门禁通过后，才能将结论更新为
-“后端授权升级第一阶段完成”。
+当且仅当单节点 Redis 与所有真实环境门禁通过后，才能将结论更新为“后端授权升级第一阶段完成”。
