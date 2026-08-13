@@ -204,21 +204,16 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
     }
 
     @Test
-    void disabledPropertyDoesNotCreateTheOrderTwoBusinessChain() {
-        try (AnnotationConfigWebApplicationContext context = context(false)) {
-            assertThat(context.containsBean("businessRouteResourceServerSecurityFilterChain")).isFalse();
+    void alwaysCreatesTheOrderTwoBusinessChain() {
+        try (AnnotationConfigWebApplicationContext context = enabledContext()) {
+            assertThat(context.containsBean("businessRouteResourceServerSecurityFilterChain")).isTrue();
+            assertThat(context.getBean("springSecurityFilterChain", FilterChainProxy.class).getFilterChains()).hasSize(1);
         }
     }
 
     private static AnnotationConfigWebApplicationContext enabledContext() {
-        return context(true);
-    }
-
-    private static AnnotationConfigWebApplicationContext context(boolean enabled) {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
-        context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test", Map.of(
-                "jacolp.oauth2.rs256.enabled", Boolean.toString(enabled))));
         context.register(TestWebConfiguration.class, BusinessRouteScopeCatalogConfiguration.class,
                 BusinessRouteResourceServerSecurityConfiguration.class);
         context.refresh();
@@ -228,8 +223,6 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
     private static AnnotationConfigWebApplicationContext aggregateContext() {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
-        context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test", Map.of(
-                "jacolp.oauth2.rs256.enabled", "true")));
         context.register(TestWebConfiguration.class, AggregateOAuthDependencies.class,
                 SecurityFilterConfiguration.class, CoreAgentAuthorizationServerConfiguration.class,
                 CoreAgentAuthorizationServerSecurityConfiguration.class, CoreAgentLogoutController.class,
@@ -242,7 +235,6 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
         context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test", Map.of(
-                "jacolp.oauth2.rs256.enabled", "true",
                 "jacolp.oauth2.rs256.private-key-location", privateKey.toUri().toString(),
                 "jacolp.oauth2.rs256.public-key-location", publicKey.toUri().toString())));
         context.register(RealPemWebConfiguration.class, AggregateOAuthDependencies.class,

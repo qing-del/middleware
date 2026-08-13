@@ -8,7 +8,6 @@ import com.jacolp.middleware.common.security.oauth2.authorization.CoreNodeJwtAut
 import com.jacolp.middleware.common.security.oauth2.authorization.InternalLogoutAuthorizationManager;
 import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -25,7 +24,6 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * The matcher is intentionally limited to catalogue entries so legacy/activation exceptions fall through.
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class BusinessRouteResourceServerSecurityConfiguration {
 
     @Bean
