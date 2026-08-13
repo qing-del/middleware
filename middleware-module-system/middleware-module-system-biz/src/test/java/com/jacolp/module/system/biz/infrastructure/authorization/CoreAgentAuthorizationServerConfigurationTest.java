@@ -156,17 +156,14 @@ class CoreAgentAuthorizationServerConfigurationTest {
     }
 
     @Test
-    void configurationIsConditionalAndProvidesOnlySettingsAndTheUnappliedFactory() {
-        runner.run(context -> {
-            assertThat(context.getBeansOfType(AuthorizationServerSettings.class)).isEmpty();
-            assertThat(context.getBeansOfType(CoreAgentAuthorizationServerConfigurerFactory.class)).isEmpty();
-        });
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false").run(context -> {
-            assertThat(context.getBeansOfType(AuthorizationServerSettings.class)).isEmpty();
-            assertThat(context.getBeansOfType(CoreAgentAuthorizationServerConfigurerFactory.class)).isEmpty();
-        });
+    void configurationProvidesOnlySettingsAndTheUnappliedFactoryWhenDependenciesExist() {
         runner.withUserConfiguration(DependenciesConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> {
+                    assertThat(context.getBeansOfType(AuthorizationServerSettings.class)).hasSize(1);
+                    assertThat(context.getBeansOfType(CoreAgentAuthorizationServerConfigurerFactory.class)).hasSize(1);
+                });
+        runner.withUserConfiguration(DependenciesConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> {
                     assertThat(context.getBeansOfType(AuthorizationServerSettings.class)).hasSize(1);
                     assertThat(context.getBeansOfType(CoreAgentAuthorizationServerConfigurerFactory.class)).hasSize(1);

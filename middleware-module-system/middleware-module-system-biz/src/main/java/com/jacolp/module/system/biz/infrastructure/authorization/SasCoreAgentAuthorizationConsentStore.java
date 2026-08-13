@@ -2,7 +2,6 @@ package com.jacolp.module.system.biz.infrastructure.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.PermissionScopePattern;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentAuthorizationConsentStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsent;
@@ -19,7 +18,6 @@ import java.util.Set;
 
 /** Bridges the application consent port to Spring Authorization Server's official consent service. */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class SasCoreAgentAuthorizationConsentStore implements CoreAgentAuthorizationConsentStore {
 
     private static final String SCOPE_AUTHORITY_PREFIX = "SCOPE_";

@@ -9,7 +9,6 @@ import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthe
 import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationConverter;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
@@ -17,7 +16,6 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 
 /** Phase 4 endpoint settings and wiring metadata; this class deliberately creates no filter chain. */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class CoreAgentAuthorizationServerConfiguration {
 
     static final String AUTHORIZATION_ENDPOINT = "/oauth2/authorize";

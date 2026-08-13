@@ -3,6 +3,9 @@ package com.jacolp.module.system.biz.web.authorization;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
 import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpSession;
 
 import java.time.Clock;
@@ -27,6 +30,18 @@ class HttpSessionCoreAgentPendingAuthorizationHandleStoreTest {
 
     private static final Instant NOW = Instant.parse("2026-08-11T08:00:00Z");
     private static final String HANDLE = opaque((byte) 5);
+
+    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+            .withUserConfiguration(StoreConfiguration.class);
+
+    @Test
+    void registersTheSessionHandleStoreRegardlessOfTheLegacyFlag() {
+        runner.run(context -> assertThat(context.getBeansOfType(HttpSessionCoreAgentPendingAuthorizationHandleStore.class))
+                .hasSize(1));
+        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
+                .run(context -> assertThat(context.getBeansOfType(HttpSessionCoreAgentPendingAuthorizationHandleStore.class))
+                        .hasSize(1));
+    }
 
     @Test
     void retainsOnlyOneOpaqueHandleAndSessionBindingAndSetsTenMinuteTimeout() {
@@ -93,5 +108,10 @@ class HttpSessionCoreAgentPendingAuthorizationHandleStoreTest {
         byte[] bytes = new byte[32];
         java.util.Arrays.fill(bytes, fill);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @Import(HttpSessionCoreAgentPendingAuthorizationHandleStore.class)
+    static class StoreConfiguration {
     }
 }

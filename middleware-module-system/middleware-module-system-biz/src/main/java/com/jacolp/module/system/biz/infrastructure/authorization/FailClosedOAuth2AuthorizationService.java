@@ -1,6 +1,5 @@
 package com.jacolp.module.system.biz.infrastructure.authorization;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
@@ -14,7 +13,6 @@ import org.springframework.stereotype.Component;
  * fallback path, so every operation fails closed and deliberately ignores every supplied value.</p>
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class FailClosedOAuth2AuthorizationService implements OAuth2AuthorizationService {
 
     static final String FAILURE_MESSAGE = "SAS OAuth2Authorization persistence is disabled";

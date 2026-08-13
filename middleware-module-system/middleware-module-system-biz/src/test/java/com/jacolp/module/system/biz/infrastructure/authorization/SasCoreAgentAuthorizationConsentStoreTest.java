@@ -114,20 +114,18 @@ class SasCoreAgentAuthorizationConsentStoreTest {
     }
 
     @Test
-    void configurationAndAdapterAreAbsentUnlessRs256IsEnabled() {
+    void configurationAndAdapterAreAlwaysPresentWhenTheirDependenciesExist() {
         ApplicationContextRunner runner = new ApplicationContextRunner()
                 .withUserConfiguration(CoreAgentAuthorizationConsentConfiguration.class, SasCoreAgentAuthorizationConsentStore.class);
-        runner.run(context -> {
-            assertThat(context.getBeansOfType(OAuth2AuthorizationConsentService.class)).isEmpty();
-            assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentStore.class)).isEmpty();
-        });
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false").run(context -> {
-            assertThat(context.getBeansOfType(OAuth2AuthorizationConsentService.class)).isEmpty();
-            assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentStore.class)).isEmpty();
-        });
         runner.withBean(JdbcOperations.class, () -> mock(JdbcOperations.class))
                 .withBean(RegisteredClientRepository.class, () -> mock(RegisteredClientRepository.class))
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true").run(context -> {
+                .run(context -> {
+                    assertThat(context.getBeansOfType(OAuth2AuthorizationConsentService.class)).hasSize(1);
+                    assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentStore.class)).hasSize(1);
+                });
+        runner.withBean(JdbcOperations.class, () -> mock(JdbcOperations.class))
+                .withBean(RegisteredClientRepository.class, () -> mock(RegisteredClientRepository.class))
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false").run(context -> {
                     assertThat(context.getBeansOfType(OAuth2AuthorizationConsentService.class)).hasSize(1);
                     assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentStore.class)).hasSize(1);
                 });

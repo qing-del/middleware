@@ -3,7 +3,6 @@ package com.jacolp.module.system.biz.web.authorization;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentPendingAuthorizationState;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.Serial;
@@ -17,7 +16,6 @@ import java.util.Optional;
  * it. Full authorization state is intentionally never stored in {@link HttpSession}.
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class HttpSessionCoreAgentPendingAuthorizationHandleStore {
 
     static final String ATTRIBUTE_NAME = HttpSessionCoreAgentPendingAuthorizationHandleStore.class.getName()
