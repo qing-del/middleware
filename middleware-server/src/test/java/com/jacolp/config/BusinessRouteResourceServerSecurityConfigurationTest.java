@@ -98,8 +98,7 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
             assertThat(ordered.get(1).matches(request(HttpMethod.GET, "/user/note/9"))).isTrue();
             assertThat(ordered.get(1).matches(request(HttpMethod.POST, "/auth/logout"))).isTrue();
 
-            for (String exception : List.of("POST /user/user/login", "POST /user/user/logout", "POST /admin/user/login",
-                    "POST /admin/user/logout", "POST /user/user/register", "POST /user/user/resend-activation",
+            for (String exception : List.of("POST /user/user/register", "POST /user/user/resend-activation",
                     "GET /user/user/active/token", "POST /user/user/active-code", "GET /unrelated")) {
                 String[] parts = exception.split(" ", 2);
                 MockHttpServletRequest request = request(HttpMethod.valueOf(parts[0]), parts[1]);
@@ -153,8 +152,7 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         assertThat(matcher.matches(request(HttpMethod.POST, "/auth/logout"))).isFalse();
         assertThat(resourceServerMatcher.matches(request(HttpMethod.POST, "/auth/logout"))).isTrue();
         assertThat(resourceServerMatcher.matches(request(HttpMethod.GET, "/auth/logout"))).isFalse();
-        for (String exception : List.of("POST /user/user/login", "POST /user/user/logout", "POST /admin/user/login",
-                "POST /admin/user/logout", "POST /user/user/register", "POST /user/user/resend-activation",
+        for (String exception : List.of("POST /user/user/register", "POST /user/user/resend-activation",
                 "GET /user/user/active/token", "POST /user/user/active-code")) {
             String[] parts = exception.split(" ", 2);
             assertThat(resourceServerMatcher.matches(request(HttpMethod.valueOf(parts[0]), parts[1]))).isFalse();
@@ -198,7 +196,7 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
             mvc.perform(get("/user/note/9").header("Authorization", "Bearer malformed"))
                     .andExpect(status().isUnauthorized());
 
-            mvc.perform(post("/user/user/login")).andExpect(status().isOk()).andExpect(content().string("legacy"));
+            mvc.perform(post("/user/user/active-code")).andExpect(status().isOk()).andExpect(content().string("activation"));
             mvc.perform(post("/oauth/token")).andExpect(status().isOk()).andExpect(content().string("oauth"));
         }
     }
@@ -334,9 +332,9 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
             return BaseContext.getCurrentId() + ":" + PermissionContext.isAdmin();
         }
 
-        @PostMapping("/user/user/login")
-        String legacy() {
-            return "legacy";
+        @PostMapping("/user/user/active-code")
+        String activation() {
+            return "activation";
         }
 
         @PostMapping("/oauth/token")

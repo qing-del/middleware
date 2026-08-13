@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BusinessRouteScopeCatalogConfigurationTest {
 
     private static final Set<String> EXCEPTIONS = Set.of(
-            "POST /user/user/login", "POST /user/user/logout", "POST /admin/user/login", "POST /admin/user/logout",
             "POST /user/user/register", "POST /user/user/resend-activation", "GET /user/user/active/{token}",
             "POST /user/user/active-code");
     private static final List<String> CONTROLLERS = List.of(
@@ -56,9 +55,9 @@ class BusinessRouteScopeCatalogConfigurationTest {
         Map<String, Long> policyRoutes = BusinessRouteScopeCatalogConfiguration.entries().stream()
                 .collect(Collectors.groupingBy(BusinessRouteScopeCatalogConfigurationTest::route, Collectors.counting()));
 
-        assertThat(mappedRoutes).hasSize(124);
+        assertThat(mappedRoutes).hasSize(120);
         assertThat(mappedRoutes).containsAll(EXCEPTIONS);
-        assertThat(EXCEPTIONS).hasSize(8);
+        assertThat(EXCEPTIONS).hasSize(4);
         assertThat(protectedRoutes).hasSize(116);
         assertThat(policyRoutes).hasSize(116);
         assertThat(policyRoutes.keySet()).containsExactlyInAnyOrderElementsOf(protectedRoutes);
@@ -76,7 +75,7 @@ class BusinessRouteScopeCatalogConfigurationTest {
                 .containsExactly("## `/user/**`：user client（71 bearer routes）");
         assertThat(document.lines().filter(line -> line.startsWith("## `/admin/**`")).toList())
                 .containsExactly("## `/admin/**`：admin client（45 bearer routes）");
-        assertThat(document).contains("124 个", "77 个 user", "47 个 admin", "116 个是 bearer", "8 个是下文明确排除");
+        assertThat(document).contains("120 个", "75 个 user", "45 个 admin", "116 个是 bearer", "4 个是下文明确排除");
         assertThat(document).contains("`GET /user/note/source/{id}`", "`audit:write`", "`audit:manage`",
                 "`note:read` + `media:read`", "`note:write` + `media:read`");
     }

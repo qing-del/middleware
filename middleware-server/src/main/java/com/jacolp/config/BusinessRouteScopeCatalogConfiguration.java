@@ -27,7 +27,7 @@ public class BusinessRouteScopeCatalogConfiguration {
         return new ImmutableBusinessRouteAuthorizationPolicy(entries());
     }
 
-    /** Matches only the 116 bearer business routes, never the eight legacy/activation exceptions. */
+    /** Matches only the 116 bearer business routes, never the four public activation exceptions. */
     @Bean
     public RequestMatcher businessRouteRequestMatcher() {
         return new OrRequestMatcher(entries().stream()
