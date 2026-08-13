@@ -9,7 +9,7 @@ import com.jacolp.middleware.messaging.pulisher.EmailSendEventPublisher;
 import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
 import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
-import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.module.system.biz.application.service.EmailSenderService;
 import com.jacolp.module.system.biz.application.dto.email.EmailSendDTO;
 import com.jacolp.module.system.biz.application.dto.email.EmailResultDTO;
@@ -29,7 +29,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
     @Autowired private EmailSendEventPublisher emailEventPublisher;
 
     // 配置
-    @Autowired private TokenSessionService tokenSessionService;
+    @Autowired private AccountVerificationCredentialService accountVerificationCredentialService;
 
     // Mapper & Redis
     @Autowired private UserMapper userMapper;
@@ -39,21 +39,21 @@ public class EmailSenderServiceImpl implements EmailSenderService {
 
     @Override
     public String sendActivationEmail(UserDO user) {
-        String token = tokenSessionService.issueActivationToken(user.getId());
+        String token = accountVerificationCredentialService.issueActivationToken(user.getId());
 
         String activationUrl = normalizeBaseUrl(baseUrl) + "/activate/" + token;
 
         // 生成 6 位数字激活码并存入 Redis
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
-        tokenSessionService.saveActivationCode(code, user.getId());
+        accountVerificationCredentialService.saveActivationCode(code, user.getId());
         log.info("Activation code generated for user: {}", user.getId());
 
         // 设置邮件内容
         Context ctx = new Context();
         ctx.setVariable("username", user.getUsername());
         ctx.setVariable("activationUrl", activationUrl);
-        ctx.setVariable("linkExpiryMinutes", tokenSessionService.activationLinkExpiryMinutes());
-        ctx.setVariable("codeExpiryMinutes", tokenSessionService.activationCodeExpiryMinutes());
+        ctx.setVariable("linkExpiryMinutes", accountVerificationCredentialService.activationLinkExpiryMinutes());
+        ctx.setVariable("codeExpiryMinutes", accountVerificationCredentialService.activationCodeExpiryMinutes());
         ctx.setVariable("activationCode", code);
         // 渲染邮件内容
         String html = templateEngine.process("email/activation", ctx);
@@ -114,7 +114,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(0, 1_000_000));
 
         // 存储验证码到 Redis
-        tokenSessionService.saveEmailChangeCode(code, user.getId(), newEmail);
+        accountVerificationCredentialService.saveEmailChangeCode(code, user.getId(), newEmail);
         log.info("Email change code generated for userId: {}", user.getId());
 
         // 构建邮件内容
@@ -122,7 +122,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
         ctx.setVariable("username", user.getUsername());
         ctx.setVariable("newEmail", newEmail);
         ctx.setVariable("verificationCode", code);
-        ctx.setVariable("expiryMinutes", tokenSessionService.emailChangeCodeExpiryMinutes());
+        ctx.setVariable("expiryMinutes", accountVerificationCredentialService.emailChangeCodeExpiryMinutes());
         String html = templateEngine.process("email/email-change", ctx);
 
         emailEventPublisher.publish(List.of(new EmailSendRequestedEvent(newEmail,

@@ -3,7 +3,7 @@ package com.jacolp.middleware.module.system.biz.application.authorization;
 import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
-import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
@@ -55,7 +55,7 @@ class UserExtraGrantTypeWritePathTest {
     void userRegistrationWritesNoExplicitExtraGrant() {
         UserMapper userMapper = mock(UserMapper.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-        TokenSessionService tokenSessionService = mock(TokenSessionService.class);
+        AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
         AtomicReference<UserDO> inserted = new AtomicReference<>();
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(passwordEncoder.encode("password")).thenReturn("hash");
@@ -66,12 +66,12 @@ class UserExtraGrantTypeWritePathTest {
             return 1;
         }).when(userMapper).insertUser(any(UserDO.class));
         when(userMapper.selectById(7L)).thenAnswer(invocation -> inserted.get());
-        when(tokenSessionService.acquireActivationEmailCooldown(7L)).thenReturn(true);
+        when(credentials.acquireActivationEmailCooldown(7L)).thenReturn(true);
 
         UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
         ReflectionTestUtils.setField(service, "userMapper", userMapper);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
-        ReflectionTestUtils.setField(service, "tokenSessionService", tokenSessionService);
+        ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials);
         ReflectionTestUtils.setField(service, "emailSenderService", mock(EmailSenderService.class));
         ReflectionTestUtils.setField(service, "userProfileEvents", mock(UserProfileEventPublisher.class));
         UserRegisterDTO dto = new UserRegisterDTO();

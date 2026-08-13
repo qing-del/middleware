@@ -19,6 +19,7 @@ import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO
 import com.jacolp.module.system.biz.application.vo.user.UserDetailVO;
 import com.jacolp.module.system.biz.application.vo.user.UserOverviewVO;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.middleware.messaging.event.UserProfileChangedEvent;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.service.EmailSenderService;
@@ -50,6 +51,7 @@ public class UserUserServiceImpl implements UserUserService {
     @Autowired private UserMapper userMapper;
 
     @Autowired private TokenSessionService tokenSessionService;
+    @Autowired private AccountVerificationCredentialService accountVerificationCredentialService;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private EmailSenderService emailSenderService;
     @Autowired private UserProfileEventPublisher userProfileEvents;
@@ -349,7 +351,7 @@ public class UserUserServiceImpl implements UserUserService {
         }
 
         // 尝试使用 Redis 做用户速率限制
-        if (!tokenSessionService.acquireActivationEmailCooldown(user.getId())) {
+        if (!accountVerificationCredentialService.acquireActivationEmailCooldown(user.getId())) {
             throw new BaseException(UserConstant.ACTIVATION_EMAIL_SEND_TOO_FREQUENT);
         }
 
@@ -361,12 +363,12 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String verifyActivationCode(String code) {
-        Long userId = tokenSessionService.findActivationCodeUserId(code);
+        Long userId = accountVerificationCredentialService.findActivationCodeUserId(code);
         if (userId == null) {
             throw new BaseException("激活码无效或已过期");
         }
         String result = activateAccount(userId);
-        tokenSessionService.deleteActivationCode(code);
+        accountVerificationCredentialService.deleteActivationCode(code);
         authorizationStateRevocationService.revokeForSecurityFieldChange(userId);
         return result;
     }
@@ -412,7 +414,8 @@ public class UserUserServiceImpl implements UserUserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public String verifyEmailChangeCode(String code) {
-        TokenSessionService.EmailChangeCode stored = tokenSessionService.findEmailChangeCode(code);
+        AccountVerificationCredentialService.EmailChangeCode stored = accountVerificationCredentialService
+                .findEmailChangeCode(code);
         if (stored == null) {
             throw new BaseException("验证码无效或已过期");
         }
@@ -434,7 +437,7 @@ public class UserUserServiceImpl implements UserUserService {
             throw new BaseException(UserConstant.UPDATE_USER_INFO_FAILED);
         }
 
-        tokenSessionService.deleteEmailChangeCode(code);
+        accountVerificationCredentialService.deleteEmailChangeCode(code);
         authorizationStateRevocationService.revokeForSecurityFieldChange(userId);
         log.info("Email changed successfully for userId: {}", userId);
         return "邮箱修改成功";

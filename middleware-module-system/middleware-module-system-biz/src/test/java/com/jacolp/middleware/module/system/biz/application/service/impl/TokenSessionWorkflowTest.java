@@ -5,6 +5,7 @@ import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.module.system.biz.application.dto.user.UserLoginDTO;
 import com.jacolp.module.system.biz.application.service.impl.AdminUserServiceImpl;
@@ -29,7 +30,7 @@ class TokenSessionWorkflowTest {
 
     @Test void userLoginIssuesOnlyAfterPasswordValidationAndLogoutRevokesCurrentId() {
         UserMapper mapper = mock(UserMapper.class); TokenSessionService tokens = mock(TokenSessionService.class); PasswordEncoder passwords = mock(PasswordEncoder.class);
-        UserUserServiceImpl service = user(mapper, tokens, passwords); UserDO user = user(1L, UserConstant.ACTIVE_STATUS, RoleConstant.USER);
+        UserUserServiceImpl service = user(mapper, tokens, mock(AccountVerificationCredentialService.class), passwords); UserDO user = user(1L, UserConstant.ACTIVE_STATUS, RoleConstant.USER);
         when(mapper.selectByUsername("user")).thenReturn(user); when(passwords.matches("pw", "hash")).thenReturn(true); when(tokens.issueUserLoginToken(1L)).thenReturn("jwt");
         assertThat(service.loginUser(new UserLoginDTO("user", "pw"))).isEqualTo("jwt");
         InOrder order = inOrder(passwords, tokens); order.verify(passwords).matches("pw", "hash"); order.verify(tokens).issueUserLoginToken(1L);
@@ -38,7 +39,7 @@ class TokenSessionWorkflowTest {
 
     @Test void userStatusOrPasswordFailureNeverIssues() {
         UserMapper mapper = mock(UserMapper.class); TokenSessionService tokens = mock(TokenSessionService.class); PasswordEncoder passwords = mock(PasswordEncoder.class);
-        UserUserServiceImpl service = user(mapper, tokens, passwords);
+        UserUserServiceImpl service = user(mapper, tokens, mock(AccountVerificationCredentialService.class), passwords);
         when(mapper.selectByUsername("user")).thenReturn(user(1L, UserConstant.BANNED_STATUS, RoleConstant.USER));
         assertThatThrownBy(() -> service.loginUser(new UserLoginDTO("user", "pw"))).isNotNull(); verifyNoInteractions(tokens);
         when(mapper.selectByUsername("user")).thenReturn(user(1L, UserConstant.ACTIVE_STATUS, RoleConstant.USER)); when(passwords.matches("pw", "hash")).thenReturn(false);
@@ -65,41 +66,41 @@ class TokenSessionWorkflowTest {
 
     @Test void activationCodeDeletesOnlyAfterAccountActivationSucceeds() {
         UserMapper mapper = mock(UserMapper.class);
-        TokenSessionService tokens = mock(TokenSessionService.class);
-        UserUserServiceImpl service = user(mapper, tokens, mock(PasswordEncoder.class));
-        when(tokens.findActivationCodeUserId("123456")).thenReturn(3L);
+        AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
+        UserUserServiceImpl service = user(mapper, mock(TokenSessionService.class), credentials, mock(PasswordEncoder.class));
+        when(credentials.findActivationCodeUserId("123456")).thenReturn(3L);
         when(mapper.selectById(3L)).thenReturn(user(3L, UserConstant.UNACTIVE_STATUS, RoleConstant.USER));
         when(mapper.updateById(any(UserDO.class))).thenReturn(1);
 
         assertThat(service.verifyActivationCode("123456")).isEqualTo("激活成功");
-        InOrder order = inOrder(mapper, tokens);
+        InOrder order = inOrder(mapper, credentials);
         order.verify(mapper).updateById(any(UserDO.class));
-        order.verify(tokens).deleteActivationCode("123456");
+        order.verify(credentials).deleteActivationCode("123456");
     }
 
     @Test void activationCodeIsNotDeletedWhenAccountActivationFails() {
         UserMapper mapper = mock(UserMapper.class);
-        TokenSessionService tokens = mock(TokenSessionService.class);
-        UserUserServiceImpl service = user(mapper, tokens, mock(PasswordEncoder.class));
-        when(tokens.findActivationCodeUserId("123456")).thenReturn(3L);
+        AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
+        UserUserServiceImpl service = user(mapper, mock(TokenSessionService.class), credentials, mock(PasswordEncoder.class));
+        when(credentials.findActivationCodeUserId("123456")).thenReturn(3L);
         when(mapper.selectById(3L)).thenReturn(user(3L, UserConstant.UNACTIVE_STATUS, RoleConstant.USER));
         when(mapper.updateById(any(UserDO.class))).thenReturn(0);
         assertThatThrownBy(() -> service.verifyActivationCode("123456"))
                 .isInstanceOf(BaseException.class)
                 .hasMessage(UserConstant.UPDATE_USER_INFO_FAILED);
-        verify(tokens, never()).deleteActivationCode(anyString());
+        verify(credentials, never()).deleteActivationCode(anyString());
     }
 
     @Test void emailChangeCodeDeletesOnlyAfterDatabaseUpdateSucceeds() {
         UserMapper mapper = mock(UserMapper.class);
-        TokenSessionService tokens = mock(TokenSessionService.class);
-        UserUserServiceImpl service = user(mapper, tokens, mock(PasswordEncoder.class));
+        AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
+        UserUserServiceImpl service = user(mapper, mock(TokenSessionService.class), credentials, mock(PasswordEncoder.class));
         List<String> events = new ArrayList<>();
-        when(tokens.findEmailChangeCode("654321"))
-                .thenReturn(new TokenSessionService.EmailChangeCode(4L, "new@test.com"));
+        when(credentials.findEmailChangeCode("654321"))
+                .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(4L, "new@test.com"));
         when(mapper.updateById(any(UserDO.class))).thenAnswer(invocation -> { events.add("update"); return 1; });
         doAnswer(invocation -> { events.add("delete"); return null; })
-                .when(tokens).deleteEmailChangeCode("654321");
+                .when(credentials).deleteEmailChangeCode("654321");
         BaseContext.setCurrentId(4L);
 
         assertThat(service.verifyEmailChangeCode("654321")).isEqualTo("邮箱修改成功");
@@ -107,33 +108,34 @@ class TokenSessionWorkflowTest {
     }
 
     @Test void emailChangeCodeIsNotDeletedForOwnerMismatchOrDatabaseFailure() {
-        TokenSessionService mismatchTokens = mock(TokenSessionService.class);
+        AccountVerificationCredentialService mismatchCredentials = mock(AccountVerificationCredentialService.class);
         UserMapper mismatchMapper = mock(UserMapper.class);
-        UserUserServiceImpl mismatchService = user(mismatchMapper, mismatchTokens, mock(PasswordEncoder.class));
-        when(mismatchTokens.findEmailChangeCode("owner"))
-                .thenReturn(new TokenSessionService.EmailChangeCode(5L, "new@test.com"));
+        UserUserServiceImpl mismatchService = user(mismatchMapper, mock(TokenSessionService.class), mismatchCredentials, mock(PasswordEncoder.class));
+        when(mismatchCredentials.findEmailChangeCode("owner"))
+                .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(5L, "new@test.com"));
         BaseContext.setCurrentId(6L);
         assertThatThrownBy(() -> mismatchService.verifyEmailChangeCode("owner"))
                 .isInstanceOf(BaseException.class)
                 .hasMessage("验证码无效或已过期");
         verify(mismatchMapper, never()).updateById(any());
-        verify(mismatchTokens, never()).deleteEmailChangeCode(anyString());
+        verify(mismatchCredentials, never()).deleteEmailChangeCode(anyString());
 
         BaseContext.setCurrentId(5L);
-        TokenSessionService failedTokens = mock(TokenSessionService.class);
+        AccountVerificationCredentialService failedCredentials = mock(AccountVerificationCredentialService.class);
         UserMapper failedMapper = mock(UserMapper.class);
-        UserUserServiceImpl failedService = user(failedMapper, failedTokens, mock(PasswordEncoder.class));
-        when(failedTokens.findEmailChangeCode("database"))
-                .thenReturn(new TokenSessionService.EmailChangeCode(5L, "new@test.com"));
+        UserUserServiceImpl failedService = user(failedMapper, mock(TokenSessionService.class), failedCredentials, mock(PasswordEncoder.class));
+        when(failedCredentials.findEmailChangeCode("database"))
+                .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(5L, "new@test.com"));
         when(failedMapper.updateById(any(UserDO.class))).thenReturn(0);
         assertThatThrownBy(() -> failedService.verifyEmailChangeCode("database"))
                 .isInstanceOf(BaseException.class)
                 .hasMessage(UserConstant.UPDATE_USER_INFO_FAILED);
-        verify(failedTokens, never()).deleteEmailChangeCode(anyString());
+        verify(failedCredentials, never()).deleteEmailChangeCode(anyString());
     }
 
-    private static UserUserServiceImpl user(UserMapper mapper, TokenSessionService tokens, PasswordEncoder passwords) {
-        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
+    private static UserUserServiceImpl user(UserMapper mapper, TokenSessionService tokens,
+            AccountVerificationCredentialService credentials, PasswordEncoder passwords) {
+        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;
     }
     private static AdminUserServiceImpl admin(UserMapper mapper, TokenSessionService tokens, PasswordEncoder passwords) {
         AdminUserServiceImpl service = new AdminUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class)); ReflectionTestUtils.setField(service, "userMapper", mapper); ReflectionTestUtils.setField(service, "tokenSessionService", tokens); ReflectionTestUtils.setField(service, "passwordEncoder", passwords); return service;

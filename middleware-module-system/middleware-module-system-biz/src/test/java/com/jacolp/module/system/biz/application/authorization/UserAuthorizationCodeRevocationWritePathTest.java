@@ -4,6 +4,7 @@ import com.jacolp.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
 import com.jacolp.context.BaseContext;
 import com.jacolp.middleware.common.security.token.TokenSessionService;
+import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.module.system.biz.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
@@ -38,7 +39,8 @@ class UserAuthorizationCodeRevocationWritePathTest {
         when(users.selectById(7L)).thenReturn(user);
         when(users.updateById(user)).thenReturn(1);
         BaseContext.setCurrentId(7L);
-        UserUserServiceImpl service = service(users, mock(TokenSessionService.class), events, revocation);
+        UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
+                mock(AccountVerificationCredentialService.class), events, revocation);
 
         UserProfileUpdateDTO emailChange = new UserProfileUpdateDTO();
         emailChange.setEmail("new@example.com");
@@ -64,6 +66,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         when(users.updateById(any(UserDO.class))).thenReturn(1);
         BaseContext.setCurrentId(8L);
         UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
+                mock(AccountVerificationCredentialService.class),
                 mock(UserProfileEventPublisher.class), revocation);
 
         service.deleteCurrentUser();
@@ -84,29 +87,30 @@ class UserAuthorizationCodeRevocationWritePathTest {
     @Test
     void activationAndEmailVerificationCompleteOtherBusinessOperationsBeforeRevocation() {
         UserMapper users = mock(UserMapper.class);
-        TokenSessionService tokens = mock(TokenSessionService.class);
+        AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
         AccountAuthorizationStateRevocationService revocation = mock(AccountAuthorizationStateRevocationService.class);
         UserDO inactive = user(10L, UserConstant.UNACTIVE_STATUS);
         when(users.selectById(10L)).thenReturn(inactive);
         when(users.updateById(any(UserDO.class))).thenReturn(1);
-        when(tokens.findActivationCodeUserId("activate")).thenReturn(10L);
-        UserUserServiceImpl service = service(users, tokens, mock(UserProfileEventPublisher.class), revocation);
+        when(credentials.findActivationCodeUserId("activate")).thenReturn(10L);
+        UserUserServiceImpl service = service(users, mock(TokenSessionService.class), credentials,
+                mock(UserProfileEventPublisher.class), revocation);
 
         service.verifyActivationCode("activate");
 
-        InOrder activationOrder = inOrder(users, tokens, revocation);
+        InOrder activationOrder = inOrder(users, credentials, revocation);
         activationOrder.verify(users).updateById(inactive);
-        activationOrder.verify(tokens).deleteActivationCode("activate");
+        activationOrder.verify(credentials).deleteActivationCode("activate");
         activationOrder.verify(revocation).revokeForSecurityFieldChange(10L);
 
-        when(tokens.findEmailChangeCode("email"))
-                .thenReturn(new TokenSessionService.EmailChangeCode(11L, "new@example.com"));
+        when(credentials.findEmailChangeCode("email"))
+                .thenReturn(new AccountVerificationCredentialService.EmailChangeCode(11L, "new@example.com"));
         BaseContext.setCurrentId(11L);
         service.verifyEmailChangeCode("email");
 
-        InOrder emailOrder = inOrder(users, tokens, revocation);
+        InOrder emailOrder = inOrder(users, credentials, revocation);
         emailOrder.verify(users).updateById(any(UserDO.class));
-        emailOrder.verify(tokens).deleteEmailChangeCode("email");
+        emailOrder.verify(credentials).deleteEmailChangeCode("email");
         emailOrder.verify(revocation).revokeForSecurityFieldChange(11L);
     }
 
@@ -121,6 +125,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         org.mockito.Mockito.doThrow(failure).when(revocation).revokeForSecurityFieldChange(12L);
         BaseContext.setCurrentId(12L);
         UserUserServiceImpl service = service(users, mock(TokenSessionService.class),
+                mock(AccountVerificationCredentialService.class),
                 mock(UserProfileEventPublisher.class), revocation);
 
         org.assertj.core.api.Assertions.assertThatThrownBy(service::deleteCurrentUser).isSameAs(failure);
@@ -129,11 +134,13 @@ class UserAuthorizationCodeRevocationWritePathTest {
     }
 
     private static UserUserServiceImpl service(UserMapper users, TokenSessionService tokens,
+                                               AccountVerificationCredentialService credentials,
                                                UserProfileEventPublisher events,
                                                AccountAuthorizationStateRevocationService revocation) {
         UserUserServiceImpl service = new UserUserServiceImpl(revocation);
         ReflectionTestUtils.setField(service, "userMapper", users);
         ReflectionTestUtils.setField(service, "tokenSessionService", tokens);
+        ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);
         ReflectionTestUtils.setField(service, "passwordEncoder", mock(PasswordEncoder.class));
         return service;
