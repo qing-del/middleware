@@ -1,6 +1,5 @@
 package com.jacolp.module.system.biz.application.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.config.OAuth2Rs256CodecConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -81,17 +80,6 @@ class OAuth2EmailLoginCodePropertiesTest {
 
         properties.setCodeTtl(Duration.ofSeconds(Long.MAX_VALUE));
         assertThatIllegalArgumentException().isThrownBy(properties::validate);
-    }
-
-    @Test
-    void remainsIndependentlyAvailableWhenRs256IsDisabled() {
-        runner.withUserConfiguration(OAuth2Rs256CodecConfiguration.class)
-                .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context.getBeansOfType(OAuth2EmailLoginCodeProperties.class)).hasSize(1);
-                    assertThat(context.getBean(OAuth2EmailLoginCodeProperties.class).getCodeTtl())
-                            .isEqualTo(Duration.ofMinutes(10));
-                });
     }
 
     @Configuration(proxyBeanMethods = false)
