@@ -93,15 +93,12 @@ class CoreAgentRefreshTokenAuthenticationConverterTest {
     }
 
     @Test
-    void redactsSocketDetailsAndCreatesConverterOnlyWhenRs256IsEnabled() {
+    void redactsSocketDetailsAndRegistersConverterRegardlessOfTheLegacyFlag() {
         CoreAgentRefreshTokenRequestDetails details = new CoreAgentRefreshTokenRequestDetails("192.0.2.24", true);
         assertThat(details.toString()).contains("<redacted>").doesNotContain("192.0.2.24");
         runner.run(context -> assertThat(context.getBeansOfType(
-                CoreAgentRefreshTokenAuthenticationConverter.class)).isEmpty());
+                CoreAgentRefreshTokenAuthenticationConverter.class)).hasSize(1));
         runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentRefreshTokenAuthenticationConverter.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=true")
                 .run(context -> assertThat(context.getBeansOfType(
                         CoreAgentRefreshTokenAuthenticationConverter.class)).hasSize(1));
     }

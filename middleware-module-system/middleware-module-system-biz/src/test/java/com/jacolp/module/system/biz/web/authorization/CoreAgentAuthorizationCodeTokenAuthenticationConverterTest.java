@@ -102,17 +102,10 @@ class CoreAgentAuthorizationCodeTokenAuthenticationConverterTest {
     }
 
     @Test
-    void disabledOrMissingRs256PropertyDoesNotCreateConverter() {
+    void registersConverterRegardlessOfTheLegacyFlag() {
         runner.run(context -> assertThat(context.getBeansOfType(
-                CoreAgentAuthorizationCodeTokenAuthenticationConverter.class)).isEmpty());
+                CoreAgentAuthorizationCodeTokenAuthenticationConverter.class)).hasSize(1));
         runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentAuthorizationCodeTokenAuthenticationConverter.class)).isEmpty());
-    }
-
-    @Test
-    void enabledRs256PropertyCreatesOneConverter() {
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=true")
                 .run(context -> assertThat(context.getBeansOfType(
                         CoreAgentAuthorizationCodeTokenAuthenticationConverter.class)).hasSize(1));
     }

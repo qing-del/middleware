@@ -145,17 +145,17 @@ class CoreAgentPublicClientAuthenticationTest {
     }
 
     @Test
-    void componentsAreConditionalAndContainNoSasAuthorizationPersistenceOrSecretLogging() throws IOException {
+    void componentsAreAlwaysRegisteredAndContainNoSasAuthorizationPersistenceOrSecretLogging() throws IOException {
         Fixture fixture = fixture();
         assertThat(fixture.provider.supports(OAuth2ClientAuthenticationToken.class)).isTrue();
         assertThat(fixture.provider.supports(UsernamePasswordAuthenticationToken.class)).isFalse();
-        runner.run(context -> assertThat(context.getBeansOfType(
-                CoreAgentPublicClientAuthenticationConverter.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentPublicClientAuthenticationProvider.class)).isEmpty());
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> {
+                    assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationConverter.class)).hasSize(1);
+                    assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationProvider.class)).hasSize(1);
+                });
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> {
                     assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationConverter.class)).hasSize(1);
                     assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationProvider.class)).hasSize(1);

@@ -55,15 +55,9 @@ class CoreAgentBrowserLoginControllerTest {
     }
 
     @Test
-    void missingOrDisabledRs256PropertyDoesNotCreateController() {
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserLoginController.class)).isEmpty());
+    void registersControllerRegardlessOfTheLegacyFlag() {
+        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserLoginController.class)).hasSize(1));
         runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserLoginController.class)).isEmpty());
-    }
-
-    @Test
-    void enabledRs256PropertyCreatesExactlyOneController() {
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=true")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserLoginController.class)).hasSize(1));
     }
 

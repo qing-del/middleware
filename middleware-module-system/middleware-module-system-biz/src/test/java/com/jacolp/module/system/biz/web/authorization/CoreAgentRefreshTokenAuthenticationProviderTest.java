@@ -109,10 +109,9 @@ class CoreAgentRefreshTokenAuthenticationProviderTest {
         String source = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/authorization/"
                 + "CoreAgentRefreshTokenAuthenticationProvider.java"));
         assertThat(source).doesNotContain("OAuth2AuthorizationService", "OAuth2TokenGenerator", "Logger", "rawRefreshToken=");
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenAuthenticationProvider.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenAuthenticationProvider.class)).isEmpty());
-        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenAuthenticationProvider.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenAuthenticationProvider.class)).hasSize(1));
     }
 

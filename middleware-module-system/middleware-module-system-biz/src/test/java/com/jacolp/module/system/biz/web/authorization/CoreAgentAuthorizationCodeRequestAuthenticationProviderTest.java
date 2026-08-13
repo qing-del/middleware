@@ -219,19 +219,17 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
     }
 
     @Test
-    void supportsOnlySasAuthorizationCodeRequestTokensAndIsConditionallyRegistered() {
+    void supportsOnlySasAuthorizationCodeRequestTokensAndIsAlwaysRegistered() {
         Fixture fixture = fixture();
         assertThat(fixture.provider.supports(OAuth2AuthorizationCodeRequestAuthenticationToken.class)).isTrue();
         assertThat(fixture.provider.supports(OAuth2AuthorizationConsentAuthenticationToken.class)).isFalse();
         assertThat(fixture.provider.supports(UsernamePasswordAuthenticationToken.class)).isFalse();
 
-        runner.run(context -> assertThat(context.getBeansOfType(
-                CoreAgentAuthorizationCodeRequestAuthenticationProvider.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentAuthorizationCodeRequestAuthenticationProvider.class)).isEmpty());
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(
+                        CoreAgentAuthorizationCodeRequestAuthenticationProvider.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(
                         CoreAgentAuthorizationCodeRequestAuthenticationProvider.class)).hasSize(1));
     }

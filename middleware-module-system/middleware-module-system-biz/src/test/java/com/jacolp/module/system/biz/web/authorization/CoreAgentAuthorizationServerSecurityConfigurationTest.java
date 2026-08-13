@@ -188,13 +188,12 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
     }
 
     @Test
-    void disabledContextLeavesOnlyTheLegacyFallbackAndDoesNotExposeCoreAgentRoutes() {
-        try (AnnotationConfigWebApplicationContext context = disabledContext()) {
+    void falseLegacyFlagStillRegistersCoreAgentSecurityChain() {
+        try (AnnotationConfigWebApplicationContext context = falseFlagContext()) {
             FilterChainProxy chains = context.getBean("springSecurityFilterChain", FilterChainProxy.class);
-            assertThat(chains.getFilterChains()).hasSize(1);
-            MockMvc mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(chains).build();
-            mvc.perform(get("/oauth2/authorize")).andExpect(status().isNotFound());
-            mvc.perform(get("/oauth/login")).andExpect(status().isNotFound());
+            assertThat(chains.getFilterChains()).hasSize(2);
+            assertThat(chains.getFilters("/oauth2/authorize")).anyMatch(CsrfFilter.class::isInstance);
+            assertThat(chains.getFilters("/oauth2/revoke")).isNotEmpty();
         } catch (Exception exception) {
             throw new AssertionError(exception);
         }
@@ -222,19 +221,17 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
     private static AnnotationConfigWebApplicationContext enabledContext() {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
-        context.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("test",
-                java.util.Map.of("jacolp.oauth2.rs256.enabled", "true")));
         context.register(EnabledConfiguration.class);
         context.refresh();
         return context;
     }
 
-    private static AnnotationConfigWebApplicationContext disabledContext() {
+    private static AnnotationConfigWebApplicationContext falseFlagContext() {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
         context.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("test",
                 java.util.Map.of("jacolp.oauth2.rs256.enabled", "false")));
-        context.register(DisabledConfiguration.class);
+        context.register(EnabledConfiguration.class);
         context.refresh();
         return context;
     }
@@ -274,18 +271,4 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
         }
     }
 
-    @Configuration(proxyBeanMethods = false)
-    @EnableWebSecurity
-    @Import(SecurityFilterConfiguration.class)
-    static class DisabledConfiguration {
-        @Bean StringRedisTemplate redis() { return mock(StringRedisTemplate.class); }
-        @Bean JwtProperties jwtProperties() {
-            JwtProperties properties = new JwtProperties();
-            properties.setUserSecretKey("test-user-secret");
-            properties.setAdminSecretKey("test-admin-secret");
-            properties.setActiveSecretKey("test-active-secret");
-            return properties;
-        }
-        @Bean QpsCounter qpsCounter() { return mock(QpsCounter.class); }
-    }
 }

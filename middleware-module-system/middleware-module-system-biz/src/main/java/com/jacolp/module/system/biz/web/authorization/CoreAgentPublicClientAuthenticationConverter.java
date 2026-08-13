@@ -2,7 +2,6 @@ package com.jacolp.module.system.biz.web.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.CoreAgentRegisteredClientPolicyResolver;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.core.Authentication;
@@ -28,7 +27,6 @@ import java.util.Set;
  * authorization-code exchange service is the sole verifier for that proof.</p>
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentPublicClientAuthenticationConverter implements AuthenticationConverter {
 
     private static final Set<String> SUPPORTED_GRANTS = Set.of(

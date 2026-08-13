@@ -157,17 +157,15 @@ class CoreAgentAuthorizationCodeTokenAuthenticationProviderTest {
     }
 
     @Test
-    void supportsOnlyOfficialAuthorizationCodeTokenAndHonorsConditionalRegistration() {
+    void supportsOnlyOfficialAuthorizationCodeTokenAndIsAlwaysRegistered() {
         Fixture fixture = fixture();
         assertThat(fixture.provider.supports(OAuth2AuthorizationCodeAuthenticationToken.class)).isTrue();
         assertThat(fixture.provider.supports(OAuth2ClientAuthenticationToken.class)).isFalse();
-        runner.run(context -> assertThat(context.getBeansOfType(
-                CoreAgentAuthorizationCodeTokenAuthenticationProvider.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentAuthorizationCodeTokenAuthenticationProvider.class)).isEmpty());
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(
+                        CoreAgentAuthorizationCodeTokenAuthenticationProvider.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(
                         CoreAgentAuthorizationCodeTokenAuthenticationProvider.class)).hasSize(1));
     }

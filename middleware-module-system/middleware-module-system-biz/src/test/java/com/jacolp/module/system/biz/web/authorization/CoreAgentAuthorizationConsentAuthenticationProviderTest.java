@@ -227,7 +227,7 @@ class CoreAgentAuthorizationConsentAuthenticationProviderTest {
     }
 
     @Test
-    void requiresOfficialConsentTokenTrustedDetailsAndBrowserPrincipalAndIsConditionallyRegistered() {
+    void requiresOfficialConsentTokenTrustedDetailsAndBrowserPrincipalAndIsAlwaysRegistered() {
         Fixture fixture = fixture();
         assertThat(fixture.provider.supports(OAuth2AuthorizationConsentAuthenticationToken.class)).isTrue();
         assertThat(fixture.provider.supports(OAuth2AuthorizationCodeRequestAuthenticationToken.class)).isFalse();
@@ -244,13 +244,11 @@ class CoreAgentAuthorizationConsentAuthenticationProviderTest {
                 CoreAgentAuthorizationEndpointRequestDetails.ConsentAction.APPROVE));
         assertUnboundInvalid(() -> fixture.provider.authenticate(wrongPrincipal));
 
-        runner.run(context -> assertThat(context.getBeansOfType(
-                CoreAgentAuthorizationConsentAuthenticationProvider.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentAuthorizationConsentAuthenticationProvider.class)).isEmpty());
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(
+                        CoreAgentAuthorizationConsentAuthenticationProvider.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(
                         CoreAgentAuthorizationConsentAuthenticationProvider.class)).hasSize(1));
     }

@@ -6,7 +6,6 @@ import com.jacolp.module.system.biz.application.authorization.CoreAgentRegistere
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentRefreshTokenRequest;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentRefreshTokens;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -29,7 +28,6 @@ import java.util.Set;
 
 /** Maps only SAS's official refresh token request into the project-owned CORE AGENT refresh service. */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentRefreshTokenAuthenticationProvider implements AuthenticationProvider {
 
     private static final String INVALID_GRANT_DESCRIPTION = "Invalid CORE AGENT refresh token grant";

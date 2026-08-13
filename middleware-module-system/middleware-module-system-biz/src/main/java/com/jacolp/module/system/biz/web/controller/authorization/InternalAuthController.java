@@ -8,7 +8,6 @@ import com.jacolp.module.system.biz.application.dto.authorization.InternalTokenH
 import com.jacolp.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 /** Handles the internal USER and ADMIN password or email-code login endpoint. */
 @RestController
 @RequestMapping("/auth")
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class InternalAuthController {
 
     static final String INVALID_REQUEST_MESSAGE = "Invalid internal login request";

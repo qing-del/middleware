@@ -47,11 +47,10 @@ class InternalLogoutControllerTest {
     }
 
     @Test
-    void enabledAndDisabledContextsAreBoundedAndSourceAvoidsSensitiveApis() throws Exception {
-        runner.run(context -> assertThat(context.getBeansOfType(InternalLogoutController.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(InternalLogoutController.class)).isEmpty());
-        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+    void contextsAreBoundedAndSourceAvoidsSensitiveApis() throws Exception {
+        runner.withUserConfiguration(Dependencies.class)
+                .run(context -> assertThat(context.getBeansOfType(InternalLogoutController.class)).hasSize(1));
+        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(InternalLogoutController.class)).hasSize(1));
         String source = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/controller/authorization/InternalLogoutController.java"));
         assertThat(source).doesNotContain("RequestBody", "getHeader", "getRemoteAddr", "Logger", "log.", "tokenValue");

@@ -14,7 +14,6 @@ import com.jacolp.module.system.biz.application.authorization.model.CoreAgentReg
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationCode;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -38,7 +37,6 @@ import java.util.Set;
  * are bound together.
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationConsentAuthenticationProvider implements AuthenticationProvider {
 
     static final String INVALID_REQUEST_DESCRIPTION = "Invalid CORE AGENT consent request";

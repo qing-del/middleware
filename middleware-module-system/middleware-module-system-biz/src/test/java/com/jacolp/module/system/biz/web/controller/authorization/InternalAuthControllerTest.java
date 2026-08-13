@@ -144,16 +144,10 @@ class InternalAuthControllerTest {
     }
 
     @Test
-    void disabledOrMissingRs256PropertyDoesNotCreateController() {
-        runner.run(context -> assertThat(context.getBeansOfType(InternalAuthController.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(InternalAuthController.class)).isEmpty());
-    }
-
-    @Test
-    void enabledRs256PropertyCreatesExactlyOneController() {
+    void registersControllerRegardlessOfTheLegacyFlag() {
         runner.withUserConfiguration(ServiceConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(InternalAuthController.class)).hasSize(1));
+        runner.withUserConfiguration(ServiceConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(InternalAuthController.class)).hasSize(1));
     }
 

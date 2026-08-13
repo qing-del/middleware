@@ -2,7 +2,6 @@ package com.jacolp.module.system.biz.web.authorization;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -21,7 +20,6 @@ import org.springframework.stereotype.Component;
  * OAuth parameter parsing and its protocol errors remain entirely owned by the SAS 7.0.4 delegates.
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationEndpointAuthenticationConverter implements AuthenticationConverter {
 
     static final String CONSENT_ACTION_PARAMETER = "consent_action";

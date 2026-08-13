@@ -3,7 +3,6 @@ package com.jacolp.module.system.biz.web.authorization;
 import com.jacolp.module.system.biz.application.authorization.CoreAgentRegisteredClientPolicyResolver;
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.module.system.biz.infrastructure.authorization.ActiveRegisteredClientRepository;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -25,7 +24,6 @@ import java.util.Set;
  * only PKCE verifier, which avoids an incompatible SAS authorization-record dependency.</p>
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentPublicClientAuthenticationProvider implements AuthenticationProvider {
 
     private static final Set<AuthorizationGrantType> EXPECTED_GRANT_TYPES = Set.of(

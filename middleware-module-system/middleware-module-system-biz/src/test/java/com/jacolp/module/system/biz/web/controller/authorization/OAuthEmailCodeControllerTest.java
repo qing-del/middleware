@@ -97,16 +97,10 @@ class OAuthEmailCodeControllerTest {
     }
 
     @Test
-    void disabledOrMissingRs256PropertyDoesNotCreateController() {
-        runner.run(context -> assertThat(context.getBeansOfType(OAuthEmailCodeController.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(OAuthEmailCodeController.class)).isEmpty());
-    }
-
-    @Test
-    void enabledRs256PropertyCreatesExactlyOneController() {
+    void registersControllerRegardlessOfTheLegacyFlag() {
         runner.withUserConfiguration(ServiceConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(OAuthEmailCodeController.class)).hasSize(1));
+        runner.withUserConfiguration(ServiceConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(OAuthEmailCodeController.class)).hasSize(1));
     }
 

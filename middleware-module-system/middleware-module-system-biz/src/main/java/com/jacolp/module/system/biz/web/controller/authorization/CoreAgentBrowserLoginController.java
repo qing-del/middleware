@@ -1,6 +1,5 @@
 package com.jacolp.module.system.biz.web.controller.authorization;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestParam;
  * configuration owns credential processing so this controller never handles credentials.</p>
  */
 @Controller
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentBrowserLoginController {
 
     static final String GENERIC_LOGIN_ERROR_MESSAGE = "登录失败，请检查账号或密码后重试。";

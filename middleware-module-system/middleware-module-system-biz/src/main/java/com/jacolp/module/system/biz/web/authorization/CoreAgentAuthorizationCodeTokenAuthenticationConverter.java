@@ -1,7 +1,6 @@
 package com.jacolp.module.system.biz.web.authorization;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationToken;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
  * attaching only the direct socket peer needed by the project token provider.
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationCodeTokenAuthenticationConverter implements AuthenticationConverter {
 
     private final RequestMatcher tokenEndpointMatcher =

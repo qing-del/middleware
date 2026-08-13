@@ -14,7 +14,6 @@ import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthori
 import com.jacolp.module.system.biz.web.authorization.HttpSessionCoreAgentPendingAuthorizationHandleStore;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,7 +39,6 @@ import java.util.Set;
  * controller never reads or writes a raw authorization code.</p>
  */
 @Controller
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationConsentController {
 
     static final String CONSENT_PATH = "/oauth/consent";

@@ -6,7 +6,6 @@ import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCo
 import com.jacolp.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 /** Issues a non-enumerating email login code response for internal clients. */
 @RestController
 @RequestMapping("/oauth")
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class OAuthEmailCodeController {
 
     static final String INVALID_REQUEST_MESSAGE = "Invalid email-code request";

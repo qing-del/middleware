@@ -208,11 +208,10 @@ class CoreAgentAuthorizationConsentControllerTest {
         mvc.perform(post(CoreAgentAuthorizationConsentController.CONSENT_PATH))
                 .andExpect(status().isMethodNotAllowed());
 
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentController.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentController.class)).isEmpty());
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentController.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentController.class)).hasSize(1));
     }
 

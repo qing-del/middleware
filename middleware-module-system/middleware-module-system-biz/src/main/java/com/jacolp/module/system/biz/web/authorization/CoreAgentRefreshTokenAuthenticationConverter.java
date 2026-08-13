@@ -1,7 +1,6 @@
 package com.jacolp.module.system.biz.web.authorization;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2RefreshTokenAuthenticationToken;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
  * provenance and whether the caller supplied a scope parameter.
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentRefreshTokenAuthenticationConverter implements AuthenticationConverter {
 
     private final RequestMatcher tokenEndpointMatcher =

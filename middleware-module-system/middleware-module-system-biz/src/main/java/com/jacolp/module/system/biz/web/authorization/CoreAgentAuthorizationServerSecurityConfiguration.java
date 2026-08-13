@@ -2,7 +2,6 @@ package com.jacolp.module.system.biz.web.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAuthenticationProvider;
 import com.jacolp.module.system.biz.infrastructure.authorization.CoreAgentAuthorizationServerConfigurerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -39,7 +38,6 @@ import java.util.List;
  * PAR, introspection, and revocation paths cannot become reachable by enabling Phase 4.</p>
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class CoreAgentAuthorizationServerSecurityConfiguration {
 
     static final String AUTHORIZE_PATH = "/oauth2/authorize";

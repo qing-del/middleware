@@ -12,7 +12,6 @@ import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAg
 import com.jacolp.module.system.biz.application.authorization.model.VerifiedCoreAgentAuthorizationCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -37,7 +36,6 @@ import java.util.Set;
  * It deliberately does not use Spring Authorization Server's authorization persistence or token generator.
  */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationCodeTokenAuthenticationProvider implements AuthenticationProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CoreAgentAuthorizationCodeTokenAuthenticationProvider.class);
