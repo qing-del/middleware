@@ -19,16 +19,10 @@ class CoreAgentAuthorizationCodeTokenServiceContextTest {
             .withUserConfiguration(ServiceOnlyConfiguration.class);
 
     @Test
-    void disabledOrMissingPropertyDoesNotCreateTokenServiceOrRequireDependencies() {
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeTokenService.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeTokenService.class)).isEmpty());
-    }
-
-    @Test
-    void enabledPropertyCreatesExactlyOneTokenService() {
+    void createsExactlyOneTokenServiceRegardlessOfTheLegacyFlag() {
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeTokenService.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeTokenService.class)).hasSize(1));
     }
 

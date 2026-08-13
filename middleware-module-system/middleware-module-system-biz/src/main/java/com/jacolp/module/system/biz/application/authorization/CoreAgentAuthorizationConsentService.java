@@ -6,7 +6,6 @@ import com.jacolp.module.system.biz.application.authorization.model.CoreAgentReg
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.PermissionScopePattern;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentAuthorizationConsentStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ import java.util.Set;
  * patterns. Token issuance must still intersect consent with the current permission catalogue.</p>
  */
 @Service
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationConsentService {
 
     private final CoreAgentConsentScopeService consentScopeService;

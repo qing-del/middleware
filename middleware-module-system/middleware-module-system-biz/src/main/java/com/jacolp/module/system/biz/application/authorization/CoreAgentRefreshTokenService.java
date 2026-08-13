@@ -15,7 +15,6 @@ import com.jacolp.module.system.biz.application.authorization.model.CoreAgentReg
 import com.jacolp.module.system.biz.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentRefreshTokens;
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,7 +26,6 @@ import java.util.Set;
  * Reauthorizes and rotates a CORE AGENT refresh session without trusting its persisted scopes as current rights.
  */
 @Service
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentRefreshTokenService {
 
     private final CoreAgentRegisteredClientPolicyResolver policyResolver;

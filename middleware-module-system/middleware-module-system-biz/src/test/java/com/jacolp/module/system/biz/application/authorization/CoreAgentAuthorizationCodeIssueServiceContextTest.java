@@ -22,16 +22,10 @@ class CoreAgentAuthorizationCodeIssueServiceContextTest {
             .withUserConfiguration(ServiceOnlyConfiguration.class);
 
     @Test
-    void disabledOrMissingPropertyDoesNotCreateTheIssueServiceOrRequireItsDependencies() {
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeIssueService.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeIssueService.class)).isEmpty());
-    }
-
-    @Test
-    void enabledPropertyCreatesOneServiceWithAllRuntimeDependencies() {
+    void createsOneServiceWithAllRuntimeDependenciesRegardlessOfTheLegacyFlag() {
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeIssueService.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeIssueService.class)).hasSize(1));
     }
 

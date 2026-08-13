@@ -18,7 +18,6 @@ import com.jacolp.module.system.biz.application.authorization.model.PermissionSc
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -32,7 +31,6 @@ import java.util.Optional;
 
 /** Creates pending browser authorization state and converts it atomically into a CORE AGENT code. */
 @Service
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationCodeIssueService {
 
     private final Clock clock;

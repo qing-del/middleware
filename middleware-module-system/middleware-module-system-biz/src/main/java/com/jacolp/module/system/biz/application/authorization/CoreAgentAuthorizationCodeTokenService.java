@@ -15,7 +15,6 @@ import com.jacolp.module.system.biz.application.authorization.model.EffectiveRol
 import com.jacolp.module.system.biz.application.authorization.model.IssuedCoreAgentAuthorizationCodeTokens;
 import com.jacolp.module.system.biz.application.authorization.model.VerifiedCoreAgentAuthorizationCode;
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,7 +30,6 @@ import java.util.Set;
  * Authorization Server authorization persistence dependency.</p>
  */
 @Service
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAuthorizationCodeTokenService {
 
     private final CoreAgentRegisteredClientPolicyResolver policyResolver;

@@ -1,7 +1,6 @@
 package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.model.CoreAgentBrowserPrincipal;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -13,7 +12,6 @@ import java.util.Objects;
 
 /** Spring Security adapter for the application-only CORE AGENT browser account authenticator. */
 @Component
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentBrowserAuthenticationProvider implements AuthenticationProvider {
 
     static final String BAD_CREDENTIALS_MESSAGE = "CORE AGENT browser credentials rejected";

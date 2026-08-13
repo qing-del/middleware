@@ -184,12 +184,11 @@ class CoreAgentRefreshTokenServiceTest {
     }
 
     @Test
-    void conditionallyRegistersTheService() {
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenService.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenService.class)).isEmpty());
+    void registersTheServiceRegardlessOfTheLegacyFlag() {
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenService.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenService.class)).hasSize(1));
     }
 

@@ -17,15 +17,10 @@ class CoreAgentLogoutServiceContextTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
     @Test
-    void missingOrFalsePropertyCreatesNoService() {
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutService.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutService.class)).isEmpty());
-    }
-
-    @Test
-    void enabledPropertyCreatesOneService() {
-        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+    void createsOneServiceRegardlessOfTheLegacyFlag() {
+        runner.withUserConfiguration(Dependencies.class)
+                .run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutService.class)).hasSize(1));
+        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutService.class)).hasSize(1));
     }
 

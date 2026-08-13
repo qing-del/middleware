@@ -15,16 +15,10 @@ class CoreAgentBrowserAuthenticationProviderContextTest {
             .withUserConfiguration(ProviderOnlyConfiguration.class);
 
     @Test
-    void missingOrDisabledPropertyDoesNotCreateTheProviderOrRequireTheAuthenticator() {
-        runner.run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserAuthenticationProvider.class)).isEmpty());
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserAuthenticationProvider.class)).isEmpty());
-    }
-
-    @Test
-    void enabledPropertyCreatesOneProvider() {
+    void createsOneProviderRegardlessOfTheLegacyFlag() {
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserAuthenticationProvider.class)).hasSize(1));
+        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserAuthenticationProvider.class)).hasSize(1));
     }
 
