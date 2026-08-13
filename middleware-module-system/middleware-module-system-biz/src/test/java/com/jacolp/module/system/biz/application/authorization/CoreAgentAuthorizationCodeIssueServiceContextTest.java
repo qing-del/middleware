@@ -22,10 +22,8 @@ class CoreAgentAuthorizationCodeIssueServiceContextTest {
             .withUserConfiguration(ServiceOnlyConfiguration.class);
 
     @Test
-    void createsOneServiceWithAllRuntimeDependenciesRegardlessOfTheLegacyFlag() {
+    void createsOneServiceWithAllRuntimeDependencies() {
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeIssueService.class)).hasSize(1));
-        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeIssueService.class)).hasSize(1));
     }
 

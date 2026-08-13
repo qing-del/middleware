@@ -49,8 +49,6 @@ class CoreAgentLogoutControllerTest {
     void contextsAreBoundedAndSourceNeverReadsBearerMaterial() throws Exception {
         runner.withUserConfiguration(Dependencies.class)
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutController.class)).hasSize(1));
-        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutController.class)).hasSize(1));
 
         String source = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/controller/authorization/"
                 + "CoreAgentLogoutController.java"));

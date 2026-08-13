@@ -113,12 +113,9 @@ class CoreAgentAuthorizationEndpointAuthenticationConverterTest {
     }
 
     @Test
-    void registersConverterRegardlessOfTheLegacyFlag() {
+    void registersConverter() {
         runner.run(context -> assertThat(context.getBeansOfType(
                 CoreAgentAuthorizationEndpointAuthenticationConverter.class)).hasSize(1));
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentAuthorizationEndpointAuthenticationConverter.class)).hasSize(1));
     }
 
     private static OAuth2AuthorizationConsentAuthenticationToken consentToken(

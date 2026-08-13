@@ -32,12 +32,6 @@ class FailClosedOAuth2AuthorizationServiceTest {
             assertThat(context.getBean(OAuth2AuthorizationService.class))
                     .isInstanceOf(FailClosedOAuth2AuthorizationService.class);
         });
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> {
-                    assertThat(context.getBeansOfType(OAuth2AuthorizationService.class)).hasSize(1);
-                    assertThat(context.getBean(OAuth2AuthorizationService.class))
-                            .isInstanceOf(FailClosedOAuth2AuthorizationService.class);
-                });
     }
 
     @Test

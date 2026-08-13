@@ -111,7 +111,7 @@ CREATE TABLE `sys_permission` (
 -- SAS 7.0.4 JsonMapper-compatible settings. The fixed first-release catalogue is
 -- user, admin, and core_agent only. user/admin are server-side internal clients
 -- with no shared secret and active login grants; core_agent is the active public
--- PKCE client. Runtime exposure remains conditional on jacolp.oauth2.rs256.enabled.
+-- PKCE client. Runtime exposure is mandatory under the RS256-only authorization chain.
 INSERT INTO `oauth2_registered_client` (
     `id`, `client_id`, `client_name`, `client_authentication_methods`,
     `authorization_grant_types`, `redirect_uris`, `post_logout_redirect_uris`,

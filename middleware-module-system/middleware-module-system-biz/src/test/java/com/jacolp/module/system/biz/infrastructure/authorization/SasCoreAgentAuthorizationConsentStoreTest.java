@@ -123,12 +123,6 @@ class SasCoreAgentAuthorizationConsentStoreTest {
                     assertThat(context.getBeansOfType(OAuth2AuthorizationConsentService.class)).hasSize(1);
                     assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentStore.class)).hasSize(1);
                 });
-        runner.withBean(JdbcOperations.class, () -> mock(JdbcOperations.class))
-                .withBean(RegisteredClientRepository.class, () -> mock(RegisteredClientRepository.class))
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=false").run(context -> {
-                    assertThat(context.getBeansOfType(OAuth2AuthorizationConsentService.class)).hasSize(1);
-                    assertThat(context.getBeansOfType(CoreAgentAuthorizationConsentStore.class)).hasSize(1);
-                });
     }
 
     private static OAuth2AuthorizationConsent consent(String clientId, String principalName,

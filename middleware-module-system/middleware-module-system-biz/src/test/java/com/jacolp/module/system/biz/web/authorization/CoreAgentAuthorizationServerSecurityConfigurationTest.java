@@ -188,8 +188,8 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
     }
 
     @Test
-    void falseLegacyFlagStillRegistersCoreAgentSecurityChain() {
-        try (AnnotationConfigWebApplicationContext context = falseFlagContext()) {
+    void registersCoreAgentSecurityChain() {
+        try (AnnotationConfigWebApplicationContext context = enabledContext()) {
             FilterChainProxy chains = context.getBean("springSecurityFilterChain", FilterChainProxy.class);
             assertThat(chains.getFilterChains()).hasSize(2);
             assertThat(chains.getFilters("/oauth2/authorize")).anyMatch(CsrfFilter.class::isInstance);
@@ -221,16 +221,6 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
     private static AnnotationConfigWebApplicationContext enabledContext() {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
-        context.register(EnabledConfiguration.class);
-        context.refresh();
-        return context;
-    }
-
-    private static AnnotationConfigWebApplicationContext falseFlagContext() {
-        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
-        context.setServletContext(new MockServletContext());
-        context.getEnvironment().getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("test",
-                java.util.Map.of("jacolp.oauth2.rs256.enabled", "false")));
         context.register(EnabledConfiguration.class);
         context.refresh();
         return context;

@@ -15,10 +15,8 @@ class CoreAgentBrowserAuthenticationProviderContextTest {
             .withUserConfiguration(ProviderOnlyConfiguration.class);
 
     @Test
-    void createsOneProviderRegardlessOfTheLegacyFlag() {
+    void createsOneProvider() {
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserAuthenticationProvider.class)).hasSize(1));
-        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserAuthenticationProvider.class)).hasSize(1));
     }
 

@@ -228,10 +228,6 @@ class CoreAgentAuthorizationCodeRequestAuthenticationProviderTest {
         runner.withUserConfiguration(DependencyConfiguration.class)
                 .run(context -> assertThat(context.getBeansOfType(
                         CoreAgentAuthorizationCodeRequestAuthenticationProvider.class)).hasSize(1));
-        runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentAuthorizationCodeRequestAuthenticationProvider.class)).hasSize(1));
     }
 
     private static void assertUnboundInvalid(org.assertj.core.api.ThrowableAssert.ThrowingCallable callable) {

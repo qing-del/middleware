@@ -20,11 +20,10 @@ class OAuth2Rs256PropertiesTest {
             .withConfiguration(AutoConfigurations.of(PropertiesConfiguration.class));
 
     @Test
-    void defaultsKeepRs256DisabledWithoutKeyLocations() {
+    void defaultsKeepIssuerAudienceAndKeyLocationsUnconfigured() {
         contextRunner.run(context -> {
             OAuth2Rs256Properties properties = context.getBean(OAuth2Rs256Properties.class);
 
-            assertThat(properties.isEnabled()).isFalse();
             assertThat(properties.getIssuer()).isEqualTo("core-node");
             assertThat(properties.getAudience()).isEqualTo("core-node-api");
             assertThat(properties.getPrivateKeyLocation()).isNull();
@@ -42,7 +41,6 @@ class OAuth2Rs256PropertiesTest {
         Path publicKey = Files.createFile(temporaryDirectory.resolve("public.pem"));
 
         contextRunner.withPropertyValues(
-                "jacolp.oauth2.rs256.enabled=true",
                 "jacolp.oauth2.rs256.issuer=test-issuer",
                 "jacolp.oauth2.rs256.audience=test-audience",
                 "jacolp.oauth2.rs256.private-key-location=" + privateKey.toUri(),
@@ -50,7 +48,6 @@ class OAuth2Rs256PropertiesTest {
                 .run(context -> {
                     OAuth2Rs256Properties properties = context.getBean(OAuth2Rs256Properties.class);
 
-                    assertThat(properties.isEnabled()).isTrue();
                     assertThat(properties.getIssuer()).isEqualTo("test-issuer");
                     assertThat(properties.getAudience()).isEqualTo("test-audience");
                     assertThat(properties.getPrivateKeyLocation().exists()).isTrue();

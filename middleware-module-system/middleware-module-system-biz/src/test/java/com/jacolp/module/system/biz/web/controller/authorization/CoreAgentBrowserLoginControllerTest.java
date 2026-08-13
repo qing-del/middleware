@@ -55,10 +55,8 @@ class CoreAgentBrowserLoginControllerTest {
     }
 
     @Test
-    void registersControllerRegardlessOfTheLegacyFlag() {
+    void registersController() {
         runner.run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserLoginController.class)).hasSize(1));
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentBrowserLoginController.class)).hasSize(1));
     }
 
     @Test

@@ -154,12 +154,6 @@ class CoreAgentPublicClientAuthenticationTest {
                     assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationConverter.class)).hasSize(1);
                     assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationProvider.class)).hasSize(1);
                 });
-        runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> {
-                    assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationConverter.class)).hasSize(1);
-                    assertThat(context.getBeansOfType(CoreAgentPublicClientAuthenticationProvider.class)).hasSize(1);
-                });
 
         String providerSource = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/authorization/"
                 + "CoreAgentPublicClientAuthenticationProvider.java"));

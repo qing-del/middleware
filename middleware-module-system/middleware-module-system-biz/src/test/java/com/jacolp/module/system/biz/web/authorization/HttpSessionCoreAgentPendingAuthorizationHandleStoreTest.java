@@ -35,12 +35,9 @@ class HttpSessionCoreAgentPendingAuthorizationHandleStoreTest {
             .withUserConfiguration(StoreConfiguration.class);
 
     @Test
-    void registersTheSessionHandleStoreRegardlessOfTheLegacyFlag() {
+    void registersTheSessionHandleStore() {
         runner.run(context -> assertThat(context.getBeansOfType(HttpSessionCoreAgentPendingAuthorizationHandleStore.class))
                 .hasSize(1));
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(HttpSessionCoreAgentPendingAuthorizationHandleStore.class))
-                        .hasSize(1));
     }
 
     @Test

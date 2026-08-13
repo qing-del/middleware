@@ -5,26 +5,17 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 /**
- * External configuration for the disabled RS256 OAuth2 token capability.
+ * External configuration for the mandatory RS256 OAuth2 token capability.
  * Token lifetimes intentionally remain client-owned {@code token_settings} data.
  */
 @Component
 @ConfigurationProperties(prefix = "jacolp.oauth2.rs256")
 public class OAuth2Rs256Properties {
 
-    private boolean enabled;
     private String issuer = "core-node";
     private String audience = "core-node-api";
     private Resource privateKeyLocation;
     private Resource publicKeyLocation;
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
 
     public String getIssuer() {
         return issuer;

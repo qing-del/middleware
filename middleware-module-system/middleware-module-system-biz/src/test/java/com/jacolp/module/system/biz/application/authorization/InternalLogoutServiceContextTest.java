@@ -16,10 +16,8 @@ class InternalLogoutServiceContextTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
     @Test
-    void createsOneBeanWithThreeDependenciesRegardlessOfTheLegacyFlag() {
+    void createsOneBeanWithThreeDependencies() {
         runner.withUserConfiguration(Dependencies.class)
-                .run(context -> assertThat(context.getBeansOfType(InternalLogoutService.class)).hasSize(1));
-        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(InternalLogoutService.class)).hasSize(1));
     }
 

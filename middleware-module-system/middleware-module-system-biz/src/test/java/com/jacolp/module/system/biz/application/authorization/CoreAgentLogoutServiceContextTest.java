@@ -17,10 +17,8 @@ class CoreAgentLogoutServiceContextTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
     @Test
-    void createsOneServiceRegardlessOfTheLegacyFlag() {
+    void createsOneService() {
         runner.withUserConfiguration(Dependencies.class)
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutService.class)).hasSize(1));
-        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentLogoutService.class)).hasSize(1));
     }
 

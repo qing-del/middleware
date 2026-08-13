@@ -144,10 +144,8 @@ class InternalAuthControllerTest {
     }
 
     @Test
-    void registersControllerRegardlessOfTheLegacyFlag() {
+    void registersController() {
         runner.withUserConfiguration(ServiceConfiguration.class)
-                .run(context -> assertThat(context.getBeansOfType(InternalAuthController.class)).hasSize(1));
-        runner.withUserConfiguration(ServiceConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertThat(context.getBeansOfType(InternalAuthController.class)).hasSize(1));
     }
 

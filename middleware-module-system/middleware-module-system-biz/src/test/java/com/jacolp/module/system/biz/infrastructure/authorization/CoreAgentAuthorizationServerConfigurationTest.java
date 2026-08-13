@@ -162,12 +162,6 @@ class CoreAgentAuthorizationServerConfigurationTest {
                     assertThat(context.getBeansOfType(AuthorizationServerSettings.class)).hasSize(1);
                     assertThat(context.getBeansOfType(CoreAgentAuthorizationServerConfigurerFactory.class)).hasSize(1);
                 });
-        runner.withUserConfiguration(DependenciesConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> {
-                    assertThat(context.getBeansOfType(AuthorizationServerSettings.class)).hasSize(1);
-                    assertThat(context.getBeansOfType(CoreAgentAuthorizationServerConfigurerFactory.class)).hasSize(1);
-                });
     }
 
     @Test

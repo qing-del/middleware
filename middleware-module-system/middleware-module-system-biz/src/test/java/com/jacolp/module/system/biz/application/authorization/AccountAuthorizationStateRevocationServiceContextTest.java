@@ -19,9 +19,6 @@ class AccountAuthorizationStateRevocationServiceContextTest {
         runner.withUserConfiguration(Dependencies.class)
                 .run(context -> assertSingleImplementation(context,
                         CoreAgentAccountAuthorizationStateRevocationService.class));
-        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertSingleImplementation(context,
-                        CoreAgentAccountAuthorizationStateRevocationService.class));
     }
 
     private static void assertSingleImplementation(org.springframework.boot.test.context.assertj.AssertableApplicationContext context,

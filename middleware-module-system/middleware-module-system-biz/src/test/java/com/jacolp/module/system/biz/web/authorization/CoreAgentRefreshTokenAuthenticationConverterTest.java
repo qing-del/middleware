@@ -93,14 +93,11 @@ class CoreAgentRefreshTokenAuthenticationConverterTest {
     }
 
     @Test
-    void redactsSocketDetailsAndRegistersConverterRegardlessOfTheLegacyFlag() {
+    void redactsSocketDetailsAndRegistersConverter() {
         CoreAgentRefreshTokenRequestDetails details = new CoreAgentRefreshTokenRequestDetails("192.0.2.24", true);
         assertThat(details.toString()).contains("<redacted>").doesNotContain("192.0.2.24");
         runner.run(context -> assertThat(context.getBeansOfType(
                 CoreAgentRefreshTokenAuthenticationConverter.class)).hasSize(1));
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(
-                        CoreAgentRefreshTokenAuthenticationConverter.class)).hasSize(1));
     }
 
     private static OAuth2RefreshTokenAuthenticationToken convert(CoreAgentRefreshTokenAuthenticationConverter converter,

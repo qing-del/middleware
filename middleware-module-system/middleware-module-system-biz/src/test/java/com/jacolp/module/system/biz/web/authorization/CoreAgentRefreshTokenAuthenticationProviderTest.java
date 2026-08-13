@@ -111,8 +111,6 @@ class CoreAgentRefreshTokenAuthenticationProviderTest {
         assertThat(source).doesNotContain("OAuth2AuthorizationService", "OAuth2TokenGenerator", "Logger", "rawRefreshToken=");
         runner.withUserConfiguration(DependencyConfiguration.class)
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenAuthenticationProvider.class)).hasSize(1));
-        runner.withUserConfiguration(DependencyConfiguration.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(CoreAgentRefreshTokenAuthenticationProvider.class)).hasSize(1));
     }
 
     private static void assertSuccess(Authentication result, Fixture fixture) {
