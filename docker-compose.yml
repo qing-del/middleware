@@ -104,10 +104,6 @@ services:
       jacolp.oauth2.rs256.audience: ${OAUTH2_RS256_AUDIENCE:-core-node-api}
       jacolp.oauth2.rs256.private-key-location: ${OAUTH2_RS256_PRIVATE_KEY_LOCATION:-file:/run/secrets/oauth2-rs256/private.pem}
       jacolp.oauth2.rs256.public-key-location: ${OAUTH2_RS256_PUBLIC_KEY_LOCATION:-file:/run/secrets/oauth2-rs256/public.pem}
-      jwt.admin-secret-key: ${JWT_ADMIN_SECRET_KEY}
-      jwt.admin-token-name: ${JWT_ADMIN_TOKEN_NAME:-adminToken}
-      jwt.user-secret-key: ${JWT_USER_SECRET_KEY}
-      jwt.user-token-name: ${JWT_USER_TOKEN_NAME:-userToken}
       jacolp.jwt.active-secret-key: ${JACOLP_JWT_ACTIVE_SECRET_KEY}
       jacolp.jwt.active-token-name: ${JACOLP_JWT_ACTIVE_TOKEN_NAME:-activeToken}
       OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID}

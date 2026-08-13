@@ -298,8 +298,6 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         @Bean StringRedisTemplate redis() { return org.mockito.Mockito.mock(StringRedisTemplate.class); }
         @Bean JwtProperties jwtProperties() {
             JwtProperties properties = new JwtProperties();
-            properties.setUserSecretKey("test-user-secret");
-            properties.setAdminSecretKey("test-admin-secret");
             properties.setActiveSecretKey("test-active-secret");
             return properties;
         }
