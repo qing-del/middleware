@@ -21,7 +21,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * Stateless RS256 resource-server chain for the executable Phase 5 business route catalogue.
- * The matcher is intentionally limited to catalogue entries so legacy/activation exceptions fall through.
+ * The matcher is intentionally limited to catalogue entries so the four public activation exceptions fall through.
  */
 @Configuration(proxyBeanMethods = false)
 public class BusinessRouteResourceServerSecurityConfiguration {
