@@ -222,7 +222,7 @@
 - 浏览器授权首版仅 username/password；`email-code`仍只服务`user`、`admin` internal client。
 - 浏览器 session 为 10 分钟，Cookie 为 HttpOnly、SameSite=Lax，生产 Secure；SAS 7.0.4 会忽略完整 endpoint matcher 的 CSRF，普通 DSL 无法精确撤销。因此增加独立 browser CSRF filter，仅匹配`POST /oauth/login`和`POST /oauth2/authorize`；`/oauth/token`与 Bearer`/oauth/logout`不匹配该 filter，保持精确豁免。
 - scope 缺省时使用 core_agent `auto_approve`作为 consent 候选；auto_approve 为强制项，用户不可取消，只可增加其余可选 scope。保存 consent 后，相同范围可复用，新增范围必须再次确认。
-- Phase 4 migration 将 core_agent 改为 active；`jacolp.oauth2.rs256.enabled=false`时保留既有签名/校验链，Phase 2-4 新 RS256 组件不接线；true 后新授权 token 均使用 RS256，Phase 5 再完成全量 Resource Server 切换。
+- Phase 4 migration 将 core_agent 改为 active；迁移期`jacolp.oauth2.rs256.enabled=false`保留既有签名/校验链，true 后新授权 token 均使用 RS256，Phase 5 再完成全量 Resource Server 切换。该开关是临时迁移措施，Phase 6 必须删除，不能作为最终运行模式。
 
 ```text
 请先读取仓库内授权升级方案文档，以及前面阶段已经实现/确认的授权基础，然后规划 Phase 4。
@@ -335,6 +335,9 @@
 10. 不修改 frontend/。
 11. 授权目标已明确删除旧 `/user/user/login`、`/admin/user/login`、`/user/user/logout`、`/admin/user/logout`；本阶段核验无后端引用后完成路由、测试和配置清理，不保留 compatibility adapter。
 12. activation token 保持 legacy，除非后续单独授权重构；不得因本清理阶段一并改变其协议或语义。
+13. 删除迁移期开关`jacolp.oauth2.rs256.enabled`及所有依赖它的条件分支；最终后端只能运行 RS256 授权链，不能以`false`、缺失配置或备用链退回 HS256。
+14. RSA private/public PEM 为最终部署前置条件：应用必须在 key 缺失、不可读、格式错误或不匹配时 fail-closed。部署先配置并验证外部 PEM，再升级删除旧链路的版本。
+15. 旧`adminId:*`、`userId:*` Redis 单 token key 只能在确认旧应用版本及外部消费者均已下线后，由运维通过分页`SCAN`和批量`UNLINK`清理；禁止`KEYS`，不在应用启动时自动扫描或删除。
 
 输出：
 - legacy reference inventory
