@@ -15,17 +15,11 @@ class AccountAuthorizationStateRevocationServiceContextTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner().withUserConfiguration(Config.class);
 
     @Test
-    void missingOrFalsePropertyProvidesOnlyTheExplicitNoOp() {
-        runner.run(context -> assertSingleImplementation(context,
-                NoOpAccountAuthorizationStateRevocationService.class));
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
+    void redisBackedImplementationIsAlwaysTheOnlyImplementation() {
+        runner.withUserConfiguration(Dependencies.class)
                 .run(context -> assertSingleImplementation(context,
-                        NoOpAccountAuthorizationStateRevocationService.class));
-    }
-
-    @Test
-    void enabledPropertyProvidesOnlyTheRedisBackedImplementation() {
-        runner.withUserConfiguration(EnabledDependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=true")
+                        CoreAgentAccountAuthorizationStateRevocationService.class));
+        runner.withUserConfiguration(Dependencies.class).withPropertyValues("jacolp.oauth2.rs256.enabled=false")
                 .run(context -> assertSingleImplementation(context,
                         CoreAgentAccountAuthorizationStateRevocationService.class));
     }
@@ -38,13 +32,12 @@ class AccountAuthorizationStateRevocationServiceContextTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @Import({CoreAgentAccountAuthorizationStateRevocationService.class,
-            NoOpAccountAuthorizationStateRevocationService.class})
+    @Import(CoreAgentAccountAuthorizationStateRevocationService.class)
     static class Config {
     }
 
     @Configuration(proxyBeanMethods = false)
-    static class EnabledDependencies {
+    static class Dependencies {
         @Bean CoreAgentAuthorizationCodeStore authorizationCodeStore() { return mock(CoreAgentAuthorizationCodeStore.class); }
     }
 }

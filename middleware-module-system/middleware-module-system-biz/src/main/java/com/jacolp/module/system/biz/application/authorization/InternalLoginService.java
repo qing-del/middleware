@@ -14,7 +14,6 @@ import com.jacolp.module.system.biz.application.authorization.model.InternalIssu
 import com.jacolp.module.system.biz.application.authorization.model.InternalLoginRequest;
 import com.jacolp.module.system.biz.application.authorization.model.InternalRegisteredClientPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,7 +22,6 @@ import java.util.Set;
 
 /** Orchestrates one password or email-code login and issues the two internal tokens. */
 @Service
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class InternalLoginService {
 
     private final InternalRegisteredClientPolicyResolver policyResolver;

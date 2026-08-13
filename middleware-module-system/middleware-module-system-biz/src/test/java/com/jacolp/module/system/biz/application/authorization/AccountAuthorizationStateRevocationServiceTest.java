@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 class AccountAuthorizationStateRevocationServiceTest {
 
     @Test
-    void enabledServiceRevokesOnlyTheExactCoreAgentPointerAndOrchestratesThroughTheSingleMethod() {
+    void serviceRevokesOnlyTheExactCoreAgentPointerAndOrchestratesThroughTheSingleMethod() {
         CoreAgentAuthorizationCodeStore store = mock(CoreAgentAuthorizationCodeStore.class);
         CoreAgentAccountAuthorizationStateRevocationService service =
                 new CoreAgentAccountAuthorizationStateRevocationService(store);
@@ -47,11 +47,4 @@ class AccountAuthorizationStateRevocationServiceTest {
         verify(store).invalidateCurrent(7L, "core_agent");
     }
 
-    @Test
-    void disabledNoOpStillRejectsInvalidUserIdWithoutRedisDependency() {
-        NoOpAccountAuthorizationStateRevocationService service = new NoOpAccountAuthorizationStateRevocationService();
-
-        service.revokeForSecurityFieldChange(7L);
-        assertThatIllegalArgumentException().isThrownBy(() -> service.revokeCurrentCoreAgentAuthorizationCode(-1L));
-    }
 }

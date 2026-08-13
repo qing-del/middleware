@@ -1,14 +1,12 @@
 package com.jacolp.module.system.biz.application.authorization;
 
 import com.jacolp.module.system.biz.application.port.out.CoreAgentAuthorizationCodeStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
 
-/** Enabled implementation that revokes the exact Redis-backed CORE AGENT authorization-code pointer. */
+/** Revokes the exact Redis-backed CORE AGENT authorization-code pointer. */
 @Service
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public final class CoreAgentAccountAuthorizationStateRevocationService
         implements AccountAuthorizationStateRevocationService {
 

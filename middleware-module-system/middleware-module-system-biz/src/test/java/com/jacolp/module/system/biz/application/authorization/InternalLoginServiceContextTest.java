@@ -17,20 +17,8 @@ class InternalLoginServiceContextTest {
             .withUserConfiguration(ServiceOnlyConfiguration.class);
 
     @Test
-    void missingPropertyDoesNotCreateServiceOrRequireSevenDependencies() {
-        runner.run(context -> assertThat(context.getBeansOfType(InternalLoginService.class)).isEmpty());
-    }
-
-    @Test
-    void falsePropertyDoesNotCreateServiceOrRequireSevenDependencies() {
-        runner.withPropertyValues("jacolp.oauth2.rs256.enabled=false")
-                .run(context -> assertThat(context.getBeansOfType(InternalLoginService.class)).isEmpty());
-    }
-
-    @Test
-    void enabledPropertyCreatesExactlyOneServiceWithSevenDependencies() {
+    void createsExactlyOneServiceWithSevenDependenciesRegardlessOfTheLegacyFlag() {
         runner.withUserConfiguration(DependencyConfiguration.class)
-                .withPropertyValues("jacolp.oauth2.rs256.enabled=true")
                 .run(context -> {
                     assertThat(context.getBeansOfType(InternalLoginService.class)).hasSize(1);
                     assertThat(context.getBeansOfType(InternalRegisteredClientPolicyResolver.class)).hasSize(1);
@@ -41,6 +29,9 @@ class InternalLoginServiceContextTest {
                     assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).hasSize(1);
                     assertThat(context.getBeansOfType(OAuth2RefreshTokenSessionService.class)).hasSize(1);
                 });
+        runner.withUserConfiguration(DependencyConfiguration.class)
+                .withPropertyValues("jacolp.oauth2.rs256.enabled=false")
+                .run(context -> assertThat(context.getBeansOfType(InternalLoginService.class)).hasSize(1));
     }
 
     @Configuration(proxyBeanMethods = false)

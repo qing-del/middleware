@@ -6,7 +6,6 @@ import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionRevocatio
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionRevocationStore;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionState;
 import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
@@ -14,7 +13,6 @@ import java.util.Optional;
 
 /** Revokes only the authenticated USER or ADMIN client session using bounded CAS retries. */
 @Service
-@ConditionalOnProperty(prefix = "jacolp.oauth2.rs256", name = "enabled", havingValue = "true")
 public class InternalLogoutService {
     private static final int MAX_REVOCATION_ATTEMPTS = 3;
 
