@@ -26,6 +26,7 @@ public class InternalRegisteredClientPolicyResolver {
     private static final Set<String> INTERNAL_CLIENT_IDS = Set.of("user", "admin");
     private static final Set<String> LOGIN_GRANT_TYPES = Set.of("password", "email-code");
     private static final String REFRESH_TOKEN_GRANT = AuthorizationGrantType.REFRESH_TOKEN.getValue();
+    private static final Set<String> REQUIRED_GRANT_TYPES = Set.of("password", "email-code", REFRESH_TOKEN_GRANT);
     private static final String INTERNAL_AUTHENTICATION_METHOD = "internal";
     private static final String ACTIVE_STATUS = "active";
 
@@ -39,7 +40,18 @@ public class InternalRegisteredClientPolicyResolver {
         if (!LOGIN_GRANT_TYPES.contains(requestedGrantType)) {
             throw invalid("Only password and email-code internal login grants are supported");
         }
+        return resolveInternalPolicy(clientId, requestedGrantType);
+    }
 
+    /** Resolves the technical refresh policy without treating refresh_token as a login grant. */
+    public InternalRegisteredClientPolicy resolveRefresh(String clientId) {
+        if (!INTERNAL_CLIENT_IDS.contains(clientId)) {
+            throw invalid("Only user and admin internal clients are supported");
+        }
+        return resolveInternalPolicy(clientId, REFRESH_TOKEN_GRANT);
+    }
+
+    private InternalRegisteredClientPolicy resolveInternalPolicy(String clientId, String requestedGrantType) {
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(clientId);
         if (registeredClient == null) {
             throw invalid("Registered client is missing or disabled");
@@ -104,11 +116,9 @@ public class InternalRegisteredClientPolicyResolver {
                 .map(AuthorizationGrantType::getValue)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
         Set<String> metadataGrantTypes = parseCsv(metadata.authorizationGrantTypes(), "client authorization grants");
-        if (!registeredGrantTypes.contains(requestedGrantType)
-                || !registeredGrantTypes.contains(REFRESH_TOKEN_GRANT)
-                || !metadataGrantTypes.contains(requestedGrantType)
-                || !metadataGrantTypes.contains(REFRESH_TOKEN_GRANT)) {
-            throw invalid("Internal client is missing a required login or refresh grant");
+        if (!registeredGrantTypes.equals(REQUIRED_GRANT_TYPES) || !metadataGrantTypes.equals(REQUIRED_GRANT_TYPES)
+                || !registeredGrantTypes.contains(requestedGrantType)) {
+            throw invalid("Internal client grants must exactly match the supported login and refresh grants");
         }
     }
 

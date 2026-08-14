@@ -39,6 +39,15 @@ class InternalRegisteredClientPolicyResolverTest {
     }
 
     @Test
+    void refreshUsesTheDedicatedTechnicalPolicyResolutionPath() {
+        Fixture user = fixture("user", registeredClient("user", null, internalMethods(), validGrants(), validSettings()),
+                metadata("user"));
+
+        assertThat(user.resolver.resolveRefresh("user")).isEqualTo(policy("user", "refresh_token"));
+        verifyLookup(user, "user");
+    }
+
+    @Test
     void coreAgentAndUnsupportedGrantsAreRejectedBeforeAnyRead() {
         RegisteredClientRepository clients = mock(RegisteredClientRepository.class);
         OAuth2RegisteredClientMetadataRepository metadata = mock(OAuth2RegisteredClientMetadataRepository.class);
@@ -108,6 +117,19 @@ class InternalRegisteredClientPolicyResolverTest {
                 metadata("user", "active", null, "internal", "password,email-code", "*:read,*:write", "*:read"));
         assertThatIllegalStateException().isThrownBy(() -> metadataMissingRefresh.resolver.resolve("user", "password"));
         verifyLookup(metadataMissingRefresh, "user");
+
+        Fixture extraRegisteredGrant = fixture("user", registeredClient("user", null, internalMethods(),
+                Set.of(new AuthorizationGrantType("password"), new AuthorizationGrantType("email-code"),
+                        AuthorizationGrantType.REFRESH_TOKEN, AuthorizationGrantType.CLIENT_CREDENTIALS), validSettings()),
+                metadata("user"));
+        assertThatIllegalStateException().isThrownBy(() -> extraRegisteredGrant.resolver.resolveRefresh("user"));
+        verifyLookup(extraRegisteredGrant, "user");
+
+        Fixture extraMetadataGrant = fixture("user", registeredClient("user", null, internalMethods(), validGrants(), validSettings()),
+                metadata("user", "active", null, "internal", "password,email-code,refresh_token,client_credentials",
+                        "*:read,*:write", "*:read"));
+        assertThatIllegalStateException().isThrownBy(() -> extraMetadataGrant.resolver.resolveRefresh("user"));
+        verifyLookup(extraMetadataGrant, "user");
     }
 
     @Test
