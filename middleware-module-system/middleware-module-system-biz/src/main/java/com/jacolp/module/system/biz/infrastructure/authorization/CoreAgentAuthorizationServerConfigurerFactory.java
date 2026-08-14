@@ -5,15 +5,22 @@ import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCode
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationConsentAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationEndpointAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationEndpointAuthenticationDetailsSource;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentTokenEndpointAuthenticationDetailsSource;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationConverter;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationConverter;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationProvider;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.core.Authentication;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter;
+import org.springframework.security.oauth2.server.authorization.web.OAuth2TokenEndpointFilter;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 
 import java.util.List;
@@ -35,15 +42,20 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
     private final AuthorizationServerSettings authorizationServerSettings;
     private final CoreAgentPublicClientAuthenticationConverter publicClientAuthenticationConverter;
     private final CoreAgentPublicClientAuthenticationProvider publicClientAuthenticationProvider;
+    private final CoreAgentAuthorizationEndpointAuthenticationDetailsSource authorizationEndpointAuthenticationDetailsSource;
+    private final CoreAgentTokenEndpointAuthenticationDetailsSource tokenEndpointAuthenticationDetailsSource;
     private final CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter;
     private final CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider;
     private final CoreAgentAuthorizationConsentAuthenticationProvider authorizationConsentAuthenticationProvider;
     private final OAuth2AuthorizationCodeRequestAuthenticationProvider sasAuthorizationValidatorBootstrapProvider;
+    private final AuthenticationProvider runtimeDisabledSasAuthorizationValidatorBootstrapProvider =
+            new RuntimeDisabledSasAuthorizationValidatorBootstrapProvider();
     private final CoreAgentAuthorizationCodeTokenAuthenticationConverter authorizationCodeTokenAuthenticationConverter;
     private final CoreAgentRefreshTokenAuthenticationConverter refreshTokenAuthenticationConverter;
     private final CoreAgentAuthorizationCodeTokenAuthenticationProvider authorizationCodeTokenAuthenticationProvider;
     private final CoreAgentRefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider;
 
+    @Autowired
     public CoreAgentAuthorizationServerConfigurerFactory(
             ActiveRegisteredClientRepository registeredClientRepository,
             FailClosedOAuth2AuthorizationService authorizationService,
@@ -51,6 +63,8 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
             AuthorizationServerSettings authorizationServerSettings,
             CoreAgentPublicClientAuthenticationConverter publicClientAuthenticationConverter,
             CoreAgentPublicClientAuthenticationProvider publicClientAuthenticationProvider,
+            CoreAgentAuthorizationEndpointAuthenticationDetailsSource authorizationEndpointAuthenticationDetailsSource,
+            CoreAgentTokenEndpointAuthenticationDetailsSource tokenEndpointAuthenticationDetailsSource,
             CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter,
             CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider,
             CoreAgentAuthorizationConsentAuthenticationProvider authorizationConsentAuthenticationProvider,
@@ -66,6 +80,10 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
                 "publicClientAuthenticationConverter");
         this.publicClientAuthenticationProvider = Objects.requireNonNull(publicClientAuthenticationProvider,
                 "publicClientAuthenticationProvider");
+        this.authorizationEndpointAuthenticationDetailsSource = Objects.requireNonNull(
+                authorizationEndpointAuthenticationDetailsSource, "authorizationEndpointAuthenticationDetailsSource");
+        this.tokenEndpointAuthenticationDetailsSource = Objects.requireNonNull(tokenEndpointAuthenticationDetailsSource,
+                "tokenEndpointAuthenticationDetailsSource");
         this.authorizationEndpointAuthenticationConverter = Objects.requireNonNull(authorizationEndpointAuthenticationConverter,
                 "authorizationEndpointAuthenticationConverter");
         this.authorizationCodeRequestAuthenticationProvider = Objects.requireNonNull(
@@ -84,10 +102,56 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
                 "refreshTokenAuthenticationProvider");
     }
 
+    CoreAgentAuthorizationServerConfigurerFactory(
+            ActiveRegisteredClientRepository registeredClientRepository,
+            FailClosedOAuth2AuthorizationService authorizationService,
+            OAuth2AuthorizationConsentService authorizationConsentService,
+            AuthorizationServerSettings authorizationServerSettings,
+            CoreAgentPublicClientAuthenticationConverter publicClientAuthenticationConverter,
+            CoreAgentPublicClientAuthenticationProvider publicClientAuthenticationProvider,
+            CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter,
+            CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider,
+            CoreAgentAuthorizationConsentAuthenticationProvider authorizationConsentAuthenticationProvider,
+            CoreAgentAuthorizationCodeTokenAuthenticationConverter authorizationCodeTokenAuthenticationConverter,
+            CoreAgentRefreshTokenAuthenticationConverter refreshTokenAuthenticationConverter,
+            CoreAgentAuthorizationCodeTokenAuthenticationProvider authorizationCodeTokenAuthenticationProvider,
+            CoreAgentRefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider) {
+        this(registeredClientRepository, authorizationService, authorizationConsentService, authorizationServerSettings,
+                publicClientAuthenticationConverter, publicClientAuthenticationProvider,
+                new CoreAgentAuthorizationEndpointAuthenticationDetailsSource(),
+                new CoreAgentTokenEndpointAuthenticationDetailsSource(), authorizationEndpointAuthenticationConverter,
+                authorizationCodeRequestAuthenticationProvider, authorizationConsentAuthenticationProvider,
+                authorizationCodeTokenAuthenticationConverter, refreshTokenAuthenticationConverter,
+                authorizationCodeTokenAuthenticationProvider, refreshTokenAuthenticationProvider);
+    }
+
     /** Applies only explicit project implementations; it never creates or applies an HttpSecurity chain. */
     public void configure(OAuth2AuthorizationServerConfigurer configurer) {
         Objects.requireNonNull(configurer, "configurer");
-        configurer.registeredClientRepository(registeredClientRepository)
+        configurer.withObjectPostProcessor(new ObjectPostProcessor<OAuth2AuthorizationEndpointFilter>() {
+                    @Override
+                    public OAuth2AuthorizationEndpointFilter postProcess(OAuth2AuthorizationEndpointFilter filter) {
+                        filter.setAuthenticationDetailsSource(authorizationEndpointAuthenticationDetailsSource);
+                        return filter;
+                    }
+                })
+                .withObjectPostProcessor(new ObjectPostProcessor<OAuth2TokenEndpointFilter>() {
+                    @Override
+                    public OAuth2TokenEndpointFilter postProcess(OAuth2TokenEndpointFilter filter) {
+                        filter.setAuthenticationDetailsSource(tokenEndpointAuthenticationDetailsSource);
+                        return filter;
+                    }
+                })
+                .withObjectPostProcessor(new ObjectPostProcessor<AuthenticationProvider>() {
+                    @Override
+                    public AuthenticationProvider postProcess(AuthenticationProvider provider) {
+                        if (provider == sasAuthorizationValidatorBootstrapProvider) {
+                            return runtimeDisabledSasAuthorizationValidatorBootstrapProvider;
+                        }
+                        return provider;
+                    }
+                })
+                .registeredClientRepository(registeredClientRepository)
                 .authorizationService(authorizationService)
                 .authorizationConsentService(authorizationConsentService)
                 .authorizationServerSettings(authorizationServerSettings)
@@ -175,5 +239,22 @@ public final class CoreAgentAuthorizationServerConfigurerFactory {
         }
         target.clear();
         target.addAll(replacements);
+    }
+
+    /**
+     * Keeps SAS's concrete authorization-code provider available while the configurer extracts its
+     * package-private validator, but prevents that bootstrap provider from participating at runtime.
+     */
+    private static final class RuntimeDisabledSasAuthorizationValidatorBootstrapProvider implements AuthenticationProvider {
+
+        @Override
+        public Authentication authenticate(Authentication authentication) {
+            return null;
+        }
+
+        @Override
+        public boolean supports(Class<?> authentication) {
+            return false;
+        }
     }
 }

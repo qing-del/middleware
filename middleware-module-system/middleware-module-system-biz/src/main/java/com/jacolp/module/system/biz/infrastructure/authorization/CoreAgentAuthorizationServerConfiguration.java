@@ -5,6 +5,8 @@ import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCode
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationConsentAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationEndpointAuthenticationConverter;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationEndpointAuthenticationDetailsSource;
+import com.jacolp.module.system.biz.web.authorization.CoreAgentTokenEndpointAuthenticationDetailsSource;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationConverter;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentPublicClientAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentRefreshTokenAuthenticationConverter;
@@ -35,6 +37,16 @@ public class CoreAgentAuthorizationServerConfiguration {
     }
 
     @Bean
+    CoreAgentAuthorizationEndpointAuthenticationDetailsSource coreAgentAuthorizationEndpointAuthenticationDetailsSource() {
+        return new CoreAgentAuthorizationEndpointAuthenticationDetailsSource();
+    }
+
+    @Bean
+    CoreAgentTokenEndpointAuthenticationDetailsSource coreAgentTokenEndpointAuthenticationDetailsSource() {
+        return new CoreAgentTokenEndpointAuthenticationDetailsSource();
+    }
+
+    @Bean
     CoreAgentAuthorizationServerConfigurerFactory coreAgentAuthorizationServerConfigurerFactory(
             ActiveRegisteredClientRepository registeredClientRepository,
             FailClosedOAuth2AuthorizationService authorizationService,
@@ -42,6 +54,8 @@ public class CoreAgentAuthorizationServerConfiguration {
             AuthorizationServerSettings coreAgentAuthorizationServerSettings,
             CoreAgentPublicClientAuthenticationConverter publicClientAuthenticationConverter,
             CoreAgentPublicClientAuthenticationProvider publicClientAuthenticationProvider,
+            CoreAgentAuthorizationEndpointAuthenticationDetailsSource authorizationEndpointAuthenticationDetailsSource,
+            CoreAgentTokenEndpointAuthenticationDetailsSource tokenEndpointAuthenticationDetailsSource,
             CoreAgentAuthorizationEndpointAuthenticationConverter authorizationEndpointAuthenticationConverter,
             CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider,
             CoreAgentAuthorizationConsentAuthenticationProvider authorizationConsentAuthenticationProvider,
@@ -51,7 +65,8 @@ public class CoreAgentAuthorizationServerConfiguration {
             CoreAgentRefreshTokenAuthenticationProvider refreshTokenAuthenticationProvider) {
         return new CoreAgentAuthorizationServerConfigurerFactory(registeredClientRepository, authorizationService,
                 authorizationConsentService, coreAgentAuthorizationServerSettings, publicClientAuthenticationConverter,
-                publicClientAuthenticationProvider, authorizationEndpointAuthenticationConverter,
+                publicClientAuthenticationProvider, authorizationEndpointAuthenticationDetailsSource,
+                tokenEndpointAuthenticationDetailsSource, authorizationEndpointAuthenticationConverter,
                 authorizationCodeRequestAuthenticationProvider, authorizationConsentAuthenticationProvider,
                 authorizationCodeTokenAuthenticationConverter, refreshTokenAuthenticationConverter,
                 authorizationCodeTokenAuthenticationProvider, refreshTokenAuthenticationProvider);

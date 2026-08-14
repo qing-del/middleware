@@ -42,11 +42,11 @@ class CoreAgentRefreshTokenAuthenticationConverterTest {
         assertThat(absent.getRefreshToken()).isEqualTo("opaque-refresh-token");
         assertThat(absent.getScopes()).isEmpty();
         assertThat(absent.getPrincipal()).isSameAs(client);
-        assertDetails(absent, false);
+        assertDetails(absent, refreshRequest(null), false);
 
         OAuth2RefreshTokenAuthenticationToken explicit = convert(converter, refreshRequest("note:read sys:read"));
         assertThat(explicit.getScopes()).containsExactlyInAnyOrder("note:read", "sys:read");
-        assertDetails(explicit, true);
+        assertDetails(explicit, refreshRequest("note:read sys:read"), true);
     }
 
     @Test
@@ -120,9 +120,11 @@ class CoreAgentRefreshTokenAuthenticationConverterTest {
         return request;
     }
 
-    private static void assertDetails(OAuth2RefreshTokenAuthenticationToken token, boolean scopePresent) {
-        assertThat(token.getDetails()).isInstanceOf(CoreAgentRefreshTokenRequestDetails.class);
-        CoreAgentRefreshTokenRequestDetails details = (CoreAgentRefreshTokenRequestDetails) token.getDetails();
+    private static void assertDetails(OAuth2RefreshTokenAuthenticationToken token, MockHttpServletRequest request,
+                                      boolean scopePresent) {
+        assertThat(token.getDetails()).isNull();
+        CoreAgentRefreshTokenRequestDetails details = (CoreAgentRefreshTokenRequestDetails)
+                new CoreAgentTokenEndpointAuthenticationDetailsSource().buildDetails(request);
         assertThat(details.socketRemoteAddress()).isEqualTo("192.0.2.24");
         assertThat(details.originalScopeParameterPresent()).isEqualTo(scopePresent);
         assertThat(details.toString()).contains("<redacted>").doesNotContain("192.0.2.24");

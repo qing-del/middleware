@@ -28,8 +28,6 @@ public final class CoreAgentRefreshTokenAuthenticationConverter implements Authe
         }
         Authentication authentication = delegate.convert(request);
         if (authentication instanceof OAuth2RefreshTokenAuthenticationToken token) {
-            token.setDetails(new CoreAgentRefreshTokenRequestDetails(request.getRemoteAddr(),
-                    request.getParameterMap().containsKey("scope")));
             return token;
         }
         return null;

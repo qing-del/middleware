@@ -47,8 +47,7 @@ public final class CoreAgentPublicClientAuthenticationConverter implements Authe
         String clientId = requiredClientId(request);
         rejectCredentials(request);
         OAuth2ClientAuthenticationToken authentication = new OAuth2ClientAuthenticationToken(clientId,
-                ClientAuthenticationMethod.NONE, null, Map.of());
-        authentication.setDetails(new CoreAgentPublicClientAuthenticationDetails(grantType));
+                ClientAuthenticationMethod.NONE, null, Map.of("core_agent_grant_type", grantType));
         return authentication;
     }
 

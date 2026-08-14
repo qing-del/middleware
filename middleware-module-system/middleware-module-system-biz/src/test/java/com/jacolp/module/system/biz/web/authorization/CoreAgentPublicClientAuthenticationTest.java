@@ -175,7 +175,8 @@ class CoreAgentPublicClientAuthenticationTest {
         assertThat(authentication.getPrincipal()).isEqualTo("core_agent");
         assertThat(authentication.getClientAuthenticationMethod()).isEqualTo(ClientAuthenticationMethod.NONE);
         assertThat(authentication.getCredentials()).isNull();
-        assertThat(authentication.getDetails()).isEqualTo(new CoreAgentPublicClientAuthenticationDetails(grantType));
+        assertThat(authentication.getDetails()).isNull();
+        assertThat(authentication.getAdditionalParameters()).isEqualTo(Map.of("core_agent_grant_type", grantType));
     }
 
     private static MockHttpServletRequest tokenRequest(String grantType) {
@@ -188,9 +189,8 @@ class CoreAgentPublicClientAuthenticationTest {
     private static OAuth2ClientAuthenticationToken publicClientRequest(String clientId,
                                                                         ClientAuthenticationMethod method,
                                                                         String grantType) {
-        OAuth2ClientAuthenticationToken request = new OAuth2ClientAuthenticationToken(clientId, method, null, Map.of());
-        request.setDetails(new CoreAgentPublicClientAuthenticationDetails(grantType));
-        return request;
+        return new OAuth2ClientAuthenticationToken(clientId, method, null,
+                Map.of("core_agent_grant_type", grantType));
     }
 
     private static Fixture fixture() {

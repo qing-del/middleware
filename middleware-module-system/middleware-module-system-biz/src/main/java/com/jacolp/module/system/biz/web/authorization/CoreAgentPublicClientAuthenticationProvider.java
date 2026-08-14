@@ -49,12 +49,15 @@ public final class CoreAgentPublicClientAuthenticationProvider implements Authen
                 || !CoreAgentRegisteredClientPolicyResolver.CORE_AGENT_CLIENT_ID.equals(request.getPrincipal())) {
             throw invalidClient();
         }
-        if (!(request.getDetails() instanceof CoreAgentPublicClientAuthenticationDetails details)) {
+        Object grantType = request.getAdditionalParameters().get("core_agent_grant_type");
+        if (!(grantType instanceof String requestedGrantType)
+                || !Set.of(AuthorizationGrantType.AUTHORIZATION_CODE.getValue(), AuthorizationGrantType.REFRESH_TOKEN.getValue())
+                .contains(requestedGrantType)) {
             throw invalidClient();
         }
         CoreAgentRegisteredClientPolicy policy = requiredPolicy();
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(policy.clientId());
-        if (!matchesPolicy(registeredClient, policy, details.grantType())) {
+        if (!matchesPolicy(registeredClient, policy, requestedGrantType)) {
             throw unauthorizedClient();
         }
         return new OAuth2ClientAuthenticationToken(registeredClient, ClientAuthenticationMethod.NONE, null);

@@ -37,7 +37,7 @@ class CoreAgentAuthorizationEndpointAuthenticationConverterTest {
     }
 
     @Test
-    void getAuthorizationRequestUsesTheOfficialTokenAndCreatesRedactedDetails() {
+    void getAuthorizationRequestUsesTheOfficialTokenAndTheDetailsSourceCreatesRedactedDetails() {
         installAuthorizationServerContext();
         authenticateBrowser();
         MockHttpServletRequest request = authorizationRequest();
@@ -51,9 +51,9 @@ class CoreAgentAuthorizationEndpointAuthenticationConverterTest {
         OAuth2AuthorizationCodeRequestAuthenticationToken token =
                 (OAuth2AuthorizationCodeRequestAuthenticationToken) converted;
         assertThat(token.getClientId()).isEqualTo("core_agent");
-        assertThat(token.getDetails()).isInstanceOf(CoreAgentAuthorizationEndpointRequestDetails.class);
+        assertThat(token.getDetails()).isNull();
         CoreAgentAuthorizationEndpointRequestDetails details =
-                (CoreAgentAuthorizationEndpointRequestDetails) token.getDetails();
+                new CoreAgentAuthorizationEndpointAuthenticationDetailsSource().buildDetails(request);
         assertThat(details.session()).isSameAs(request.getSession(false));
         assertThat(details.sessionId()).isEqualTo(request.getSession(false).getId());
         assertThat(details.socketRemoteAddress()).isEqualTo("192.0.2.24");
@@ -63,7 +63,7 @@ class CoreAgentAuthorizationEndpointAuthenticationConverterTest {
     }
 
     @Test
-    void postConsentUsesTheOfficialTokenAndStrictApproveOrDenyAction() {
+    void postConsentUsesTheOfficialTokenAndDetailsSourceStrictlyParsesApproveOrDenyAction() {
         installAuthorizationServerContext();
         authenticateBrowser();
         CoreAgentAuthorizationEndpointAuthenticationConverter converter =
@@ -73,30 +73,34 @@ class CoreAgentAuthorizationEndpointAuthenticationConverterTest {
         OAuth2AuthorizationConsentAuthenticationToken deny = consentToken(converter, "deny", true);
 
         assertThat(approve.getScopes()).isEmpty();
-        assertDetails(approve, CoreAgentAuthorizationEndpointRequestDetails.ConsentAction.APPROVE, false);
-        assertDetails(deny, CoreAgentAuthorizationEndpointRequestDetails.ConsentAction.DENY, true);
+        assertThat(approve.getDetails()).isNull();
+        assertThat(deny.getDetails()).isNull();
+        assertDetails(consentDetails("approve", false),
+                CoreAgentAuthorizationEndpointRequestDetails.ConsentAction.APPROVE, false);
+        assertDetails(consentDetails("deny", true),
+                CoreAgentAuthorizationEndpointRequestDetails.ConsentAction.DENY, true);
     }
 
     @Test
-    void consentRejectsMissingRepeatedOrInvalidActionAndMissingSessionWithFixedInvalidRequest() {
+    void detailsSourceRejectsMissingRepeatedOrInvalidConsentActionAndCreatesItsSession() {
         installAuthorizationServerContext();
         authenticateBrowser();
-        CoreAgentAuthorizationEndpointAuthenticationConverter converter =
-                new CoreAgentAuthorizationEndpointAuthenticationConverter();
+        CoreAgentAuthorizationEndpointAuthenticationDetailsSource detailsSource =
+                new CoreAgentAuthorizationEndpointAuthenticationDetailsSource();
 
         for (String[] actions : new String[][]{null, {"approve", "deny"}, {""}, {"Approve"}, {"other"}}) {
             MockHttpServletRequest request = consentRequest(null, false);
             if (actions != null) {
                 request.addParameter(CoreAgentAuthorizationEndpointAuthenticationConverter.CONSENT_ACTION_PARAMETER, actions);
             }
-            assertInvalidRequest(() -> converter.convert(request),
+            assertInvalidRequest(() -> detailsSource.buildDetails(request),
                     CoreAgentAuthorizationEndpointAuthenticationConverter.INVALID_CONSENT_ACTION_DESCRIPTION);
         }
 
         MockHttpServletRequest noSession = consentRequest(null, false);
         noSession.addParameter(CoreAgentAuthorizationEndpointAuthenticationConverter.CONSENT_ACTION_PARAMETER, "approve");
-        assertInvalidRequest(() -> converter.convert(noSession),
-                CoreAgentAuthorizationEndpointAuthenticationConverter.INVALID_CONSENT_SESSION_DESCRIPTION);
+        CoreAgentAuthorizationEndpointRequestDetails details = detailsSource.buildDetails(noSession);
+        assertThat(details.session()).isSameAs(noSession.getSession(false));
     }
 
     @Test
@@ -177,12 +181,15 @@ class CoreAgentAuthorizationEndpointAuthenticationConverterTest {
         });
     }
 
-    private static void assertDetails(OAuth2AuthorizationConsentAuthenticationToken token,
+    private static CoreAgentAuthorizationEndpointRequestDetails consentDetails(String action, boolean includeScope) {
+        MockHttpServletRequest request = consentRequest(new org.springframework.mock.web.MockHttpSession(), includeScope);
+        request.addParameter(CoreAgentAuthorizationEndpointAuthenticationConverter.CONSENT_ACTION_PARAMETER, action);
+        return new CoreAgentAuthorizationEndpointAuthenticationDetailsSource().buildDetails(request);
+    }
+
+    private static void assertDetails(CoreAgentAuthorizationEndpointRequestDetails details,
                                       CoreAgentAuthorizationEndpointRequestDetails.ConsentAction expectedAction,
                                       boolean scopePresent) {
-        assertThat(token.getDetails()).isInstanceOf(CoreAgentAuthorizationEndpointRequestDetails.class);
-        CoreAgentAuthorizationEndpointRequestDetails details =
-                (CoreAgentAuthorizationEndpointRequestDetails) token.getDetails();
         assertThat(details.consentAction()).isEqualTo(expectedAction);
         assertThat(details.originalScopeParameterPresent()).isEqualTo(scopePresent);
     }

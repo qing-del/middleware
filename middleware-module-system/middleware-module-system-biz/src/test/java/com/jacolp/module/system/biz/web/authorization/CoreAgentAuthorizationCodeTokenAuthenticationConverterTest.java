@@ -31,7 +31,7 @@ class CoreAgentAuthorizationCodeTokenAuthenticationConverterTest {
     }
 
     @Test
-    void delegatesValidAuthorizationCodeParametersAndAddsOnlyRedactedSocketDetail() {
+    void delegatesValidAuthorizationCodeParametersAndLeavesSocketDetailsToTheEndpointFilter() {
         UsernamePasswordAuthenticationToken client = UsernamePasswordAuthenticationToken.authenticated("core_agent", null,
                 java.util.List.of());
         SecurityContextHolder.getContext().setAuthentication(client);
@@ -49,9 +49,10 @@ class CoreAgentAuthorizationCodeTokenAuthenticationConverterTest {
         assertThat(token.getPrincipal()).isSameAs(client);
         assertThat(token.getAdditionalParameters()).containsEntry("code_verifier", "A".repeat(43));
         assertThat(token.getAdditionalParameters()).doesNotContainKey("code");
-        assertThat(token.getDetails()).isInstanceOf(CoreAgentAuthorizationCodeTokenRequestDetails.class);
+        assertThat(token.getDetails()).isNull();
         CoreAgentAuthorizationCodeTokenRequestDetails details =
-                (CoreAgentAuthorizationCodeTokenRequestDetails) token.getDetails();
+                (CoreAgentAuthorizationCodeTokenRequestDetails) new CoreAgentTokenEndpointAuthenticationDetailsSource()
+                        .buildDetails(request);
         assertThat(details.socketRemoteAddress()).isEqualTo("192.0.2.24");
         assertThat(details.toString()).contains("<redacted>").doesNotContain("192.0.2.24");
     }

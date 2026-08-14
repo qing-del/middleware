@@ -28,7 +28,6 @@ public final class CoreAgentAuthorizationCodeTokenAuthenticationConverter implem
         }
         Authentication authentication = delegate.convert(request);
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken token) {
-            token.setDetails(new CoreAgentAuthorizationCodeTokenRequestDetails(request.getRemoteAddr()));
             return token;
         }
         return null;
