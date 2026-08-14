@@ -81,10 +81,12 @@ class RedisEmailLoginCodeIssueRateLimiterTest {
         assertThat(lua).contains(
                 "KEYS[1]", "KEYS[2]", "KEYS[3]", "KEYS[4]",
                 "GET", "PTTL", "SET", "INCR", "PEXPIRE", "return -2",
+                "value == '0' or string.match(value, '^[1-9][0-9]*$')",
                 "local cooldown = ARGV[1]", "local window = ARGV[2]",
                 "local limit_exceeded = false",
                 "if tonumber(value) >= maximum then limit_exceeded = true end",
                 "if limit_exceeded then return -1 end");
+        assertThat(lua).doesNotContain("(0|");
         assertThat(lua.indexOf("redis.call('GET'"))
                 .isLessThan(lua.indexOf("redis.call('SET'"));
         assertThat(lua.indexOf("redis.call('PTTL'"))

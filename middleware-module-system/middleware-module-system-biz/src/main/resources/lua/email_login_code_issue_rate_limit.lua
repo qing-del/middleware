@@ -3,7 +3,8 @@ local function is_positive_integer(value)
 end
 
 local function is_canonical_counter(value)
-  return type(value) == 'string' and string.match(value, '^(0|[1-9][0-9]*)$') ~= nil
+  return type(value) == 'string'
+      and (value == '0' or string.match(value, '^[1-9][0-9]*$') ~= nil)
 end
 
 if not is_positive_integer(ARGV[1])
