@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Handles the internal USER and ADMIN password or email-code login endpoint. */
+/** Handles USER/ADMIN password, email-code, and refresh-token grants on the one internal login endpoint. */
 @RestController
 @RequestMapping("/auth")
 public class InternalAuthController {

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.module.system.biz.application.authorization.InternalAccountAuthenticationRejectedException;
 import com.jacolp.module.system.biz.application.authorization.InternalLoginService;
+import com.jacolp.module.system.biz.application.authorization.InternalRefreshTokenRejectedException;
 import com.jacolp.module.system.biz.application.authorization.model.InternalIssuedTokens;
 import com.jacolp.module.system.biz.application.authorization.model.InternalLoginRequest;
 import com.jacolp.module.system.biz.application.dto.authorization.InternalLoginHttpRequest;
@@ -100,6 +101,25 @@ class InternalAuthControllerTest {
     }
 
     @Test
+    void refreshLoginConvertsOnlyTheRefreshCredential() {
+        InternalLoginService service = mock(InternalLoginService.class);
+        InternalAuthController controller = new InternalAuthController(service);
+        when(service.login(any())).thenReturn(tokens());
+        String refreshToken = "A".repeat(43);
+
+        controller.login(new InternalLoginHttpRequest("user", "refresh_token", null, null, null, null,
+                "note:read", refreshToken), request("192.0.2.1"), new MockHttpServletResponse());
+
+        ArgumentCaptor<InternalLoginRequest> captor = ArgumentCaptor.forClass(InternalLoginRequest.class);
+        verify(service).login(captor.capture());
+        assertThat(captor.getValue().rawRefreshToken()).isEqualTo(refreshToken);
+        assertThat(captor.getValue().username()).isNull();
+        assertThat(captor.getValue().rawPassword()).isNull();
+        assertThat(captor.getValue().email()).isNull();
+        assertThat(captor.getValue().rawEmailCode()).isNull();
+    }
+
+    @Test
     void invalidOrNullDtoReturnsBadRequestWithoutCallingService() {
         InternalLoginService service = mock(InternalLoginService.class);
         InternalAuthController controller = new InternalAuthController(service);
@@ -126,6 +146,14 @@ class InternalAuthControllerTest {
         when(authenticationFailure.login(any())).thenThrow(rejected);
         assertThatThrownBy(() -> authenticationController.login(passwordRequest(), request("192.0.2.1"),
                 new MockHttpServletResponse())).isSameAs(rejected);
+
+        InternalLoginService refreshFailure = mock(InternalLoginService.class);
+        InternalAuthController refreshController = new InternalAuthController(refreshFailure);
+        InternalRefreshTokenRejectedException refreshRejected = new InternalRefreshTokenRejectedException();
+        when(refreshFailure.login(any())).thenThrow(refreshRejected);
+        assertThatThrownBy(() -> refreshController.login(new InternalLoginHttpRequest("user", "refresh_token", null,
+                null, null, null, null, "A".repeat(43)), request("192.0.2.1"), new MockHttpServletResponse()))
+                .isSameAs(refreshRejected);
 
         InternalLoginService runtimeFailure = mock(InternalLoginService.class);
         InternalAuthController runtimeController = new InternalAuthController(runtimeFailure);
