@@ -24,10 +24,10 @@ import com.jacolp.module.system.biz.application.authorization.EffectiveRolePermi
 import com.jacolp.module.system.biz.application.authorization.OAuth2ScopeResolver;
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
-import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
 import com.jacolp.module.system.biz.infrastructure.authorization.ActiveRegisteredClientRepository;
 import com.jacolp.module.system.biz.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
 import com.jacolp.module.system.biz.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
+import com.jacolp.module.system.biz.infrastructure.authorization.RedisCoreAgentPendingAuthorizationStore;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeRequestAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationConverter;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationProvider;
@@ -43,6 +43,7 @@ import com.jacolp.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -50,6 +51,7 @@ import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockServletContext;
@@ -152,6 +154,7 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         try (AnnotationConfigWebApplicationContext context = aggregateContext()) {
             assertThat(context.getBeansOfType(Clock.class)).isEmpty();
             assertThat(context.getBean(CoreAgentAuthorizationCodeIssueService.class)).isNotNull();
+            assertThat(AopUtils.isCglibProxy(context.getBean(RedisCoreAgentPendingAuthorizationStore.class))).isTrue();
         }
     }
 
@@ -341,8 +344,15 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @Import(CoreAgentAuthorizationCodeIssueService.class)
+    @Import({CoreAgentAuthorizationCodeIssueService.class, RedisCoreAgentPendingAuthorizationStore.class})
     static class AggregateCodeIssuerDependencies {
+        @Bean
+        static PersistenceExceptionTranslationPostProcessor persistenceExceptionTranslationPostProcessor() {
+            PersistenceExceptionTranslationPostProcessor processor = new PersistenceExceptionTranslationPostProcessor();
+            processor.setProxyTargetClass(true);
+            return processor;
+        }
+
         @Bean SecureOAuth2TokenGenerator tokenGenerator() { return new SecureOAuth2TokenGenerator(); }
         @Bean CoreAgentRegisteredClientPolicyResolver policyResolver() {
             return org.mockito.Mockito.mock(CoreAgentRegisteredClientPolicyResolver.class);
@@ -361,9 +371,6 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         }
         @Bean CoreAgentPendingAuthorizationHandleGenerator pendingHandleGenerator(SecureOAuth2TokenGenerator generator) {
             return new CoreAgentPendingAuthorizationHandleGenerator(generator);
-        }
-        @Bean CoreAgentPendingAuthorizationStore pendingAuthorizationStore() {
-            return org.mockito.Mockito.mock(CoreAgentPendingAuthorizationStore.class);
         }
         @Bean CoreAgentPendingAuthorizationCodeTransitionStore transitionStore() {
             return org.mockito.Mockito.mock(CoreAgentPendingAuthorizationCodeTransitionStore.class);

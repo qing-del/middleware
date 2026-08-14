@@ -22,7 +22,7 @@ import java.util.Optional;
 
 /** Redis Hash persistence for full, ten-minute CORE AGENT pending authorization state. */
 @Repository
-public final class RedisCoreAgentPendingAuthorizationStore implements CoreAgentPendingAuthorizationStore {
+public class RedisCoreAgentPendingAuthorizationStore implements CoreAgentPendingAuthorizationStore {
 
     private static final String KEY_PREFIX = "oauth2:authorize:pending:";
 
