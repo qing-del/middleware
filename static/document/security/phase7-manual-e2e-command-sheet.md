@@ -91,7 +91,7 @@ Token/code 仅可在当前 PowerShell 进程的变量中暂存，并在 case 结
 | Case | 请求/动作 | 必须验证的结果 |
 | --- | --- | --- |
 | H1 | `POST /auth/login`：user/password；再 admin/password。 | 仅 `user/admin` 接受，无 client secret；返回 RS256 access/refresh，但证据只记字段名与 HTTP status。 |
-| H2 | 使用 H1 的 refresh 调用 `POST /oauth/token`。 | 只发新 access/refresh；旧 refresh 立即失败；两个并发 refresh 仅一个成功。 |
+| H2 | 使用 H1 的 refresh 调用 `POST /auth/login`，并携带 `grant_type=refresh_token`；`/oauth/token` 必须拒绝 user/admin。 | 只发新 access/refresh；旧 refresh 立即失败；两个并发 refresh 仅一个成功。 |
 | H3 | 使用 H1 access 调用 `POST /auth/logout`。 | 当前 access 后续为 401，当前 refresh/session 删除，另一 client 同用户会话不受影响。 |
 | H4 | `POST /oauth/email-code`，从 SMTP stub/test inbox 取得 code 后以 `grant_type=email-code` 调用 `/auth/login`。 | 防枚举响应、60 秒冷却、每小时 5 次、10 分钟 TTL、一次兑换、第五次错误失效；SMTP 故障时 state 删除而限流保留。 |
 | H5 | 浏览器按 `/oauth2/authorize` → `/oauth/login` → `/oauth/consent` → callback 流程完成 `core_agent` PKCE S256。 | 仅 `core_agent`、精确 redirect URI、original state、auto_approve 不可取消；deny 返回 RFC `access_denied`。 |
