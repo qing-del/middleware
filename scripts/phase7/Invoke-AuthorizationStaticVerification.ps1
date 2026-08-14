@@ -113,8 +113,14 @@ try {
             $summary = $null
         } else {
             $startedAtUtc = [DateTime]::UtcNow
-            & $maven.Source @mavenArguments 2>&1 | Tee-Object -FilePath $logPath | Out-Host
-            $mavenExitCode = $LASTEXITCODE
+            $savedMavenErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                & $maven.Source @mavenArguments 2>&1 | Tee-Object -FilePath $logPath | Out-Host
+                $mavenExitCode = $LASTEXITCODE
+            } finally {
+                $ErrorActionPreference = $savedMavenErrorActionPreference
+            }
             $summary = Get-SurefireSummary $repositoryRoot $startedAtUtc
         }
     } finally {
