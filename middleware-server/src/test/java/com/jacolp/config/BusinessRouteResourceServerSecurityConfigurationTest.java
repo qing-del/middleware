@@ -2,6 +2,7 @@ package com.jacolp.config;
 
 import com.jacolp.context.BaseContext;
 import com.jacolp.context.PermissionContext;
+import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
 import com.jacolp.middleware.common.security.oauth2.config.OAuth2Rs256CodecConfiguration;
 import com.jacolp.middleware.common.security.oauth2.config.OAuth2Rs256Properties;
 import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
@@ -9,11 +10,21 @@ import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaim
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
 import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
 import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.middleware.common.core.metrics.QpsCounter;
 import com.jacolp.middleware.common.security.jwt.JwtProperties;
 import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAccountAuthenticator;
 import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAuthenticationProvider;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentAuthorizationCodeIssueService;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentConsentScopeService;
 import com.jacolp.module.system.biz.application.authorization.CoreAgentLogoutService;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentPendingAuthorizationHandleGenerator;
+import com.jacolp.module.system.biz.application.authorization.CoreAgentRegisteredClientPolicyResolver;
+import com.jacolp.module.system.biz.application.authorization.EffectiveRolePermissionResolver;
+import com.jacolp.module.system.biz.application.authorization.OAuth2ScopeResolver;
+import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
+import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
 import com.jacolp.module.system.biz.infrastructure.authorization.ActiveRegisteredClientRepository;
 import com.jacolp.module.system.biz.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
 import com.jacolp.module.system.biz.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
@@ -34,6 +45,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.MapPropertySource;
@@ -64,6 +76,7 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
@@ -131,6 +144,14 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
             Jwt decoded = context.getBean(JwtDecoder.class).decode(issued.tokenValue());
             assertThat(decoded.getSubject()).isEqualTo("42");
             assertThat(decoded.getClaimAsString("client_id")).isEqualTo("user");
+        }
+    }
+
+    @Test
+    void aggregateContextStartsCoreAgentCodeIssuerWithoutClockBean() {
+        try (AnnotationConfigWebApplicationContext context = aggregateContext()) {
+            assertThat(context.getBeansOfType(Clock.class)).isEmpty();
+            assertThat(context.getBean(CoreAgentAuthorizationCodeIssueService.class)).isNotNull();
         }
     }
 
@@ -221,7 +242,7 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
     private static AnnotationConfigWebApplicationContext aggregateContext() {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
-        context.register(TestWebConfiguration.class, AggregateOAuthDependencies.class,
+        context.register(TestWebConfiguration.class, AggregateOAuthDependencies.class, AggregateCodeIssuerDependencies.class,
                 SecurityFilterConfiguration.class, CoreAgentAuthorizationServerConfiguration.class,
                 CoreAgentAuthorizationServerSecurityConfiguration.class, CoreAgentLogoutController.class,
                 BusinessRouteScopeCatalogConfiguration.class, BusinessRouteResourceServerSecurityConfiguration.class);
@@ -316,6 +337,36 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         @Bean CoreAgentBrowserAccountAuthenticator browserAccountAuthenticator() { return org.mockito.Mockito.mock(CoreAgentBrowserAccountAuthenticator.class); }
         @Bean CoreAgentBrowserAuthenticationProvider browserAuthenticationProvider(CoreAgentBrowserAccountAuthenticator authenticator) {
             return new CoreAgentBrowserAuthenticationProvider(authenticator);
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @Import(CoreAgentAuthorizationCodeIssueService.class)
+    static class AggregateCodeIssuerDependencies {
+        @Bean SecureOAuth2TokenGenerator tokenGenerator() { return new SecureOAuth2TokenGenerator(); }
+        @Bean CoreAgentRegisteredClientPolicyResolver policyResolver() {
+            return org.mockito.Mockito.mock(CoreAgentRegisteredClientPolicyResolver.class);
+        }
+        @Bean AuthorizationAccountRepository accountRepository() {
+            return org.mockito.Mockito.mock(AuthorizationAccountRepository.class);
+        }
+        @Bean AccountGrantTypeResolver accountGrantTypeResolver() {
+            return new AccountGrantTypeResolver(AccountGrantTypeResolver.requiredDefaultGrantTypes());
+        }
+        @Bean EffectiveRolePermissionResolver rolePermissionResolver() {
+            return org.mockito.Mockito.mock(EffectiveRolePermissionResolver.class);
+        }
+        @Bean CoreAgentConsentScopeService consentScopeService() {
+            return new CoreAgentConsentScopeService(new OAuth2ScopeResolver());
+        }
+        @Bean CoreAgentPendingAuthorizationHandleGenerator pendingHandleGenerator(SecureOAuth2TokenGenerator generator) {
+            return new CoreAgentPendingAuthorizationHandleGenerator(generator);
+        }
+        @Bean CoreAgentPendingAuthorizationStore pendingAuthorizationStore() {
+            return org.mockito.Mockito.mock(CoreAgentPendingAuthorizationStore.class);
+        }
+        @Bean CoreAgentPendingAuthorizationCodeTransitionStore transitionStore() {
+            return org.mockito.Mockito.mock(CoreAgentPendingAuthorizationCodeTransitionStore.class);
         }
     }
 
