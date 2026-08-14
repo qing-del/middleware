@@ -1,6 +1,7 @@
 package com.jacolp.module.system.biz.infrastructure.security;
 
 import com.jacolp.module.system.biz.application.port.out.EmailLoginCodeProtector;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
@@ -12,6 +13,7 @@ public final class BCryptEmailLoginCodeProtector implements EmailLoginCodeProtec
     private final PasswordEncoder passwordEncoder;
     private final String dummyVerifier;
 
+    @Autowired
     public BCryptEmailLoginCodeProtector(PasswordEncoder passwordEncoder) {
         this(passwordEncoder, passwordEncoder.encode(DUMMY_RAW_CODE));
     }

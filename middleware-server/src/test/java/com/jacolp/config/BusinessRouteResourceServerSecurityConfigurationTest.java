@@ -28,6 +28,9 @@ import com.jacolp.module.system.biz.infrastructure.authorization.ActiveRegistere
 import com.jacolp.module.system.biz.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
 import com.jacolp.module.system.biz.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
 import com.jacolp.module.system.biz.infrastructure.authorization.RedisCoreAgentPendingAuthorizationStore;
+import com.jacolp.module.system.biz.infrastructure.security.BCryptEmailLoginCodeProtector;
+import com.jacolp.module.system.biz.infrastructure.security.BCryptPasswordCredentialVerifier;
+import com.jacolp.module.system.biz.infrastructure.security.PasswordEncoder;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeRequestAuthenticationProvider;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationConverter;
 import com.jacolp.module.system.biz.web.authorization.CoreAgentAuthorizationCodeTokenAuthenticationProvider;
@@ -155,6 +158,8 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
             assertThat(context.getBeansOfType(Clock.class)).isEmpty();
             assertThat(context.getBean(CoreAgentAuthorizationCodeIssueService.class)).isNotNull();
             assertThat(AopUtils.isCglibProxy(context.getBean(RedisCoreAgentPendingAuthorizationStore.class))).isTrue();
+            assertThat(context.getBean(BCryptPasswordCredentialVerifier.class)).isNotNull();
+            assertThat(context.getBean(BCryptEmailLoginCodeProtector.class)).isNotNull();
         }
     }
 
@@ -344,7 +349,8 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @Import({CoreAgentAuthorizationCodeIssueService.class, RedisCoreAgentPendingAuthorizationStore.class})
+    @Import({CoreAgentAuthorizationCodeIssueService.class, RedisCoreAgentPendingAuthorizationStore.class,
+            PasswordEncoder.class, BCryptPasswordCredentialVerifier.class, BCryptEmailLoginCodeProtector.class})
     static class AggregateCodeIssuerDependencies {
         @Bean
         static PersistenceExceptionTranslationPostProcessor persistenceExceptionTranslationPostProcessor() {

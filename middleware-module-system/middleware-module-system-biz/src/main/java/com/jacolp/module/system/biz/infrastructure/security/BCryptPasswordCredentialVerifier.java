@@ -1,6 +1,7 @@
 package com.jacolp.module.system.biz.infrastructure.security;
 
 import com.jacolp.module.system.biz.application.port.out.PasswordCredentialVerifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
@@ -16,6 +17,7 @@ public final class BCryptPasswordCredentialVerifier implements PasswordCredentia
     private final PasswordEncoder passwordEncoder;
     private final String dummyPasswordHash;
 
+    @Autowired
     public BCryptPasswordCredentialVerifier(PasswordEncoder passwordEncoder) {
         this(passwordEncoder, passwordEncoder.encode(DUMMY_RAW_PASSWORD));
     }
