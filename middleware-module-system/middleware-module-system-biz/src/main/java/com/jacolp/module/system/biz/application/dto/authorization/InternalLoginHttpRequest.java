@@ -14,7 +14,13 @@ public record InternalLoginHttpRequest(
         @JsonProperty("password") String password,
         @JsonProperty("email") String email,
         @JsonProperty("code") String code,
-        @JsonProperty("scope") String scope) {
+        @JsonProperty("scope") String scope,
+        @JsonProperty("refresh_token") String refreshToken) {
+
+    public InternalLoginHttpRequest(String clientId, String grantType, String username, String password,
+                                    String email, String code, String scope) {
+        this(clientId, grantType, username, password, email, code, scope, null);
+    }
 
     public InternalLoginRequest toDomain(String socketRemoteAddress) {
         return new InternalLoginRequest(
@@ -25,7 +31,8 @@ public record InternalLoginHttpRequest(
                 email,
                 code,
                 parseScopes(scope),
-                socketRemoteAddress);
+                socketRemoteAddress,
+                refreshToken);
     }
 
     @Override

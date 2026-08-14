@@ -27,7 +27,8 @@ class InternalLoginHttpDtoTest {
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(request));
         assertThat(json.fieldNames()).toIterable()
-                .containsExactly("client_id", "grant_type", "username", "password", "email", "code", "scope");
+                .containsExactly("client_id", "grant_type", "username", "password", "email", "code", "scope",
+                        "refresh_token");
         assertThat(json.get("client_id").asText()).isEqualTo("user");
         assertThat(json.get("grant_type").asText()).isEqualTo("password");
         assertThat(json.get("password").asText()).isEqualTo("secret");
@@ -40,6 +41,7 @@ class InternalLoginHttpDtoTest {
         assertThat(domain.rawPassword()).isEqualTo("secret");
         assertThat(domain.email()).isNull();
         assertThat(domain.rawEmailCode()).isNull();
+        assertThat(domain.rawRefreshToken()).isNull();
         assertThat(domain.requestedScopes()).containsExactlyInAnyOrder("note:read", "profile:read");
         assertThat(request.toString()).doesNotContain("alice", "secret", "note:read", "192.0.2.1");
     }
@@ -54,6 +56,7 @@ class InternalLoginHttpDtoTest {
         assertThat(codeDomain.rawEmailCode()).isEqualTo("012345");
         assertThat(codeDomain.username()).isNull();
         assertThat(codeDomain.rawPassword()).isNull();
+        assertThat(codeDomain.rawRefreshToken()).isNull();
         assertThat(codeDomain.requestedScopes()).isNull();
 
         InternalLoginRequest emptyScopes = new InternalLoginHttpRequest(
@@ -73,6 +76,30 @@ class InternalLoginHttpDtoTest {
         InternalLoginHttpRequest conflicting = new InternalLoginHttpRequest(
                 "user", "password", "alice", "secret", "alice@example.test", null, null);
         assertThatIllegalArgumentException().isThrownBy(() -> conflicting.toDomain("192.0.2.1"));
+    }
+
+    @Test
+    void convertsOnlyRefreshTokenCredentialsAndRedactsThem() {
+        String refreshToken = "a".repeat(43);
+        InternalLoginHttpRequest request = new InternalLoginHttpRequest(
+                "user", "refresh_token", null, null, null, null, "note:read", refreshToken);
+
+        InternalLoginRequest domain = request.toDomain("192.0.2.1");
+
+        assertThat(domain.rawRefreshToken()).isEqualTo(refreshToken);
+        assertThat(domain.username()).isNull();
+        assertThat(domain.rawPassword()).isNull();
+        assertThat(domain.email()).isNull();
+        assertThat(domain.rawEmailCode()).isNull();
+        assertThat(request.toString()).doesNotContain(refreshToken);
+        for (InternalLoginHttpRequest conflicting : List.of(
+                new InternalLoginHttpRequest("user", "refresh_token", "alice", null, null, null, null, refreshToken),
+                new InternalLoginHttpRequest("user", "refresh_token", null, "secret", null, null, null, refreshToken),
+                new InternalLoginHttpRequest("user", "refresh_token", null, null, "a@example.test", null, null, refreshToken),
+                new InternalLoginHttpRequest("user", "refresh_token", null, null, null, "012345", null, refreshToken),
+                new InternalLoginHttpRequest("user", "refresh_token", null, null, null, null, null, "bad"))) {
+            assertThatIllegalArgumentException().isThrownBy(() -> conflicting.toDomain("192.0.2.1"));
+        }
     }
 
     @Test
