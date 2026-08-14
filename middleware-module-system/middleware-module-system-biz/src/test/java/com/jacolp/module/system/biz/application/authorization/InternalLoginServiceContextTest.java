@@ -17,7 +17,7 @@ class InternalLoginServiceContextTest {
             .withUserConfiguration(ServiceOnlyConfiguration.class);
 
     @Test
-    void createsExactlyOneServiceWithSevenDependencies() {
+    void createsExactlyOneServiceWithEightDependencies() {
         runner.withUserConfiguration(DependencyConfiguration.class)
                 .run(context -> {
                     assertThat(context.getBeansOfType(InternalLoginService.class)).hasSize(1);
@@ -28,6 +28,7 @@ class InternalLoginServiceContextTest {
                     assertThat(context.getBeansOfType(OAuth2ScopeResolver.class)).hasSize(1);
                     assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).hasSize(1);
                     assertThat(context.getBeansOfType(OAuth2RefreshTokenSessionService.class)).hasSize(1);
+                    assertThat(context.getBeansOfType(InternalRefreshTokenService.class)).hasSize(1);
                 });
     }
 
@@ -71,6 +72,11 @@ class InternalLoginServiceContextTest {
         @Bean
         OAuth2RefreshTokenSessionService refreshTokenSessionService() {
             return mock(OAuth2RefreshTokenSessionService.class);
+        }
+
+        @Bean
+        InternalRefreshTokenService internalRefreshTokenService() {
+            return mock(InternalRefreshTokenService.class);
         }
     }
 }
