@@ -10,6 +10,7 @@ import com.jacolp.module.system.biz.application.authorization.model.EffectiveRol
 import com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.module.system.biz.application.authorization.model.InternalIssuedTokens;
 import com.jacolp.module.system.biz.application.authorization.model.InternalLoginRequest;
+import com.jacolp.module.system.biz.application.authorization.model.InternalRefreshTokenRequest;
 import com.jacolp.module.system.biz.application.authorization.model.InternalRegisteredClientPolicy;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -95,6 +96,25 @@ class InternalLoginServiceTest {
 
         verify(fixture.email).authenticate(eq(fixture.policy), any());
         verify(fixture.password, never()).authenticate(any(), any(), any());
+    }
+
+    @Test
+    void refreshGrantDispatchesOnlyToTheDedicatedInternalRefreshService() {
+        Fixture fixture = fixture("password");
+        InternalIssuedTokens refreshed = new InternalIssuedTokens("new-access", "new-refresh", "Bearer", NOW,
+                NOW.plus(Duration.ofMinutes(5)), NOW.plus(Duration.ofHours(24)), List.of("note:read"));
+        when(fixture.internalRefresh.refresh(new InternalRefreshTokenRequest("user", "B".repeat(43),
+                List.of("note:read"), "192.0.2.7"))).thenReturn(refreshed);
+
+        assertThat(fixture.service.login(new InternalLoginRequest("user", "refresh_token", null, null, null, null,
+                Set.of("note:read"), "192.0.2.7", "B".repeat(43)))).isSameAs(refreshed);
+
+        verify(fixture.internalRefresh).refresh(new InternalRefreshTokenRequest("user", "B".repeat(43),
+                List.of("note:read"), "192.0.2.7"));
+        verify(fixture.policyResolver, never()).resolve(any(), any());
+        verify(fixture.password, never()).authenticate(any(), any(), any());
+        verify(fixture.email, never()).authenticate(any(), any());
+        verify(fixture.refresh, never()).issue(any());
     }
 
     @Test
@@ -251,6 +271,7 @@ class InternalLoginServiceTest {
         OAuth2ScopeResolver scopes = mock(OAuth2ScopeResolver.class);
         Rs256AccessTokenIssuer accessIssuer = mock(Rs256AccessTokenIssuer.class);
         OAuth2RefreshTokenSessionService refreshService = mock(OAuth2RefreshTokenSessionService.class);
+        InternalRefreshTokenService internalRefreshService = mock(InternalRefreshTokenService.class);
         when(policyResolver.resolve(policy.clientId(), policy.grantType())).thenReturn(policy);
         InternalAuthenticatedAccount account = new InternalAuthenticatedAccount(7L, "alice", "alice@example.test",
                 3L, "USER", 3);
@@ -259,8 +280,9 @@ class InternalLoginServiceTest {
                 NOW.plus(Duration.ofMinutes(5)));
         IssuedRefreshToken issuedRefresh = new IssuedRefreshToken("refresh-token", NOW, NOW.plus(Duration.ofHours(24)));
         return new Fixture(new InternalLoginService(policyResolver, password, email, roles, scopes,
-                accessIssuer, refreshService), policyResolver, password, email, roles, scopes, accessIssuer,
-                refreshService, policy, account, effective, List.of("note:read"), issuedAccess, issuedRefresh);
+                accessIssuer, refreshService, internalRefreshService), policyResolver, password, email, roles, scopes, accessIssuer,
+                refreshService, internalRefreshService, policy, account, effective, List.of("note:read"), issuedAccess,
+                issuedRefresh);
     }
 
     private static InternalRegisteredClientPolicy policy(String clientId, String grantType, String allowedIps) {
@@ -281,6 +303,7 @@ class InternalLoginServiceTest {
                            InternalPasswordAccountAuthenticator password, EmailLoginCodeAuthenticator email,
                            EffectiveRolePermissionResolver roles, OAuth2ScopeResolver scopes,
                            Rs256AccessTokenIssuer access, OAuth2RefreshTokenSessionService refresh,
+                           InternalRefreshTokenService internalRefresh,
                            InternalRegisteredClientPolicy policy, InternalAuthenticatedAccount account,
                            EffectiveRolePermissions effective, List<String> grantedScopes,
                            IssuedAccessToken accessToken, IssuedRefreshToken refreshToken) {

@@ -73,7 +73,7 @@ public class InternalAccountEligibilityService {
         return role;
     }
 
-    private static boolean isRoleAllowedForClient(String clientId, String roleCode) {
+    static boolean isRoleAllowedForClient(String clientId, String roleCode) {
         return ("user".equals(clientId) && "USER".equals(roleCode))
                 || ("admin".equals(clientId) && ("ADMIN".equals(roleCode) || "CREATOR".equals(roleCode)));
     }

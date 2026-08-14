@@ -1,5 +1,6 @@
 package com.jacolp.module.system.biz.application.authorization;
 
+import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
 import com.jacolp.middleware.common.security.oauth2.token.AccessTokenSessionReference;
 import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
@@ -12,10 +13,12 @@ import com.jacolp.module.system.biz.application.authorization.model.EmailLoginCo
 import com.jacolp.module.system.biz.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.module.system.biz.application.authorization.model.InternalIssuedTokens;
 import com.jacolp.module.system.biz.application.authorization.model.InternalLoginRequest;
+import com.jacolp.module.system.biz.application.authorization.model.InternalRefreshTokenRequest;
 import com.jacolp.module.system.biz.application.authorization.model.InternalRegisteredClientPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -31,6 +34,7 @@ public class InternalLoginService {
     private final OAuth2ScopeResolver scopeResolver;
     private final Rs256AccessTokenIssuer accessTokenIssuer;
     private final OAuth2RefreshTokenSessionService refreshTokenSessionService;
+    private final InternalRefreshTokenService refreshTokenService;
 
     @Autowired
     public InternalLoginService(
@@ -40,7 +44,8 @@ public class InternalLoginService {
             EffectiveRolePermissionResolver rolePermissionResolver,
             OAuth2ScopeResolver scopeResolver,
             Rs256AccessTokenIssuer accessTokenIssuer,
-            OAuth2RefreshTokenSessionService refreshTokenSessionService) {
+            OAuth2RefreshTokenSessionService refreshTokenSessionService,
+            InternalRefreshTokenService refreshTokenService) {
         this.policyResolver = Objects.requireNonNull(policyResolver, "policyResolver");
         this.passwordAuthenticator = Objects.requireNonNull(passwordAuthenticator, "passwordAuthenticator");
         this.emailCodeAuthenticator = Objects.requireNonNull(emailCodeAuthenticator, "emailCodeAuthenticator");
@@ -49,10 +54,16 @@ public class InternalLoginService {
         this.accessTokenIssuer = Objects.requireNonNull(accessTokenIssuer, "accessTokenIssuer");
         this.refreshTokenSessionService = Objects.requireNonNull(refreshTokenSessionService,
                 "refreshTokenSessionService");
+        this.refreshTokenService = Objects.requireNonNull(refreshTokenService, "refreshTokenService");
     }
 
     public InternalIssuedTokens login(InternalLoginRequest request) {
         Objects.requireNonNull(request, "request");
+        if (AccountGrantTypeResolver.REFRESH_TOKEN.equals(request.grantType())) {
+            return refreshTokenService.refresh(new InternalRefreshTokenRequest(request.clientId(), request.rawRefreshToken(),
+                    request.requestedScopes() == null ? null : new ArrayList<>(request.requestedScopes()),
+                    request.socketRemoteAddress()));
+        }
         InternalRegisteredClientPolicy policy = policyResolver.resolve(request.clientId(), request.grantType());
         validateResolvedPolicy(policy, request);
         enforceSocketAllowed(policy, request.socketRemoteAddress());
