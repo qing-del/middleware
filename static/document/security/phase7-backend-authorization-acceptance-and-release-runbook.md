@@ -36,7 +36,7 @@ JDK 版本与 Surefire 汇总，不能只记录“已通过”。
 | 业务链与 HTTP 401/403 | `BusinessRouteResourceServerSecurityConfigurationTest`、`BusinessRouteAuthorizationManagerTest`、`GlobalExceptionHandlerTest` | RS256 business chain、客户端边界和目录 scope 必须保持既定语义。 |
 | JWT claim/blacklist | `CoreNodeAccessTokenClaimsValidatorTest`、`AccessTokenBlacklistJwtValidatorTest`、`RedisAccessTokenBlacklistStoreTest` | `iss/aud/time/jti/client/grant/roles/scope` 严格校验，blacklist 到期前拒绝。 |
 | refresh rotation、当前会话注销 | `OAuth2RefreshTokenSessionServiceTest`、`RedisOAuth2TokenStateStoreTest`、`RedisOAuth2SessionRevocationStoreTest` | refresh 指纹不存明文；rotation 和 revoke 使用 Redis 原子脚本。 |
-| internal login、email-code | `InternalLoginServiceTest`、`InternalLogoutServiceTest`、`EmailLoginCode*Test`、`InternalAuthControllerTest` | 仅 `user/admin`、无 client secret、password/email-code 与 scope 交集规则。 |
+| internal login、email-code、refresh | `InternalLoginServiceTest`、`InternalRefreshTokenServiceTest`、`InternalLogoutServiceTest`、`EmailLoginCode*Test`、`InternalAuthControllerTest` | 仅 `user/admin`、无 client secret；password/email-code 与 scope 交集规则；refresh 必须重新校验 client、IP、账户、角色和当前权限后 CAS rotation。 |
 | PKCE、consent 与 code | `CoreAgentAuthorizationCode*Test`、`CoreAgentAuthorizationConsent*Test`、`CoreAgentAuthorizationServerSecurityConfigurationTest` | 固定 `core_agent`、S256、精确 redirect URI、原始 state、项目 Provider 链。 |
 | 安全字段吊销和事务顺序 | `AccountAuthorizationStateRevocationService*Test` 及 user/admin write-path tests | MySQL 业务操作完成后、commit 前同步吊销；Redis 失败使事务回滚。 |
 | legacy 收口与 activation 例外 | `LegacyUserAdminLoginRoutesRemovalTest`、`ContextCompatibilityTest`、activation tests | 旧 user/admin JWT/路由不复活；activation 协议保持独立。 |
@@ -157,9 +157,12 @@ Testcontainers 也明确不纳入首发验收。真实 Redis、MySQL、SMTP 和 
 3. **email-code：** 使用 SMTP stub/测试邮箱确认邮件不进入 outbox/event；验证 60 秒/IP+email 限流、
    一小时 5 次、10 分钟 TTL、一次消费、5 次失败失效。强制 SMTP 失败后 state 必须删除，而已占用
    rate-limit key 必须保留。
-4. **refresh/logout/revoke：** user 和 admin 分别登录；refresh rotation 后旧 refresh 失败；logout 仅
-   注销当前 `(client,user)`，旧 access 因 blacklist 返回 401，另一个 client 的 session 仍可用。对
-   `core_agent` 验证 1h access/24h refresh/rotation 与 `/oauth/logout` 同样的隔离语义。
+4. **refresh/logout/revoke：** user 和 admin 分别登录；internal refresh 只可通过
+   `POST /auth/login` 且 `grant_type=refresh_token`，不得接受 `/oauth/token`。验证 refresh 时重新读取
+   client/IP/account active 状态/当前角色与权限，明确 scope 只能维持或收窄；并发兑换同一 refresh
+   恰一成功，rotation 后旧 refresh 失败。logout 仅注销当前 `(client,user)`，旧 access 因 blacklist
+   返回 401，另一个 client 的 session 仍可用。对 `core_agent` 验证 1h access/24h refresh/rotation 与
+   `/oauth/logout` 同样的隔离语义。
 5. **authorization code：** 从 `/oauth2/authorize` 到 browser login、consent、registered callback、
    `/oauth/token` 完整跑通；检查 S256、精确 redirect URI、original state、auto_approve 不可撤销、deny
    返回 RFC `access_denied`，并验证 code 一次性和 IP 变化仅告警。
