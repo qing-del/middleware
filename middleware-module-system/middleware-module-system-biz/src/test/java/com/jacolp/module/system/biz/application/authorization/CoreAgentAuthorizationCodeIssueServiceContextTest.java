@@ -11,8 +11,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
-import java.time.Clock;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -22,7 +20,7 @@ class CoreAgentAuthorizationCodeIssueServiceContextTest {
             .withUserConfiguration(ServiceOnlyConfiguration.class);
 
     @Test
-    void createsOneServiceWithAllRuntimeDependencies() {
+    void createsOneServiceWithAllRuntimeDependenciesWithoutClockBean() {
         runner.withUserConfiguration(DependencyConfiguration.class)
                 .run(context -> assertThat(context.getBeansOfType(CoreAgentAuthorizationCodeIssueService.class)).hasSize(1));
     }
@@ -34,7 +32,6 @@ class CoreAgentAuthorizationCodeIssueServiceContextTest {
 
     @Configuration(proxyBeanMethods = false)
     static class DependencyConfiguration {
-        @Bean Clock clock() { return Clock.systemUTC(); }
         @Bean SecureOAuth2TokenGenerator tokenGenerator() { return new SecureOAuth2TokenGenerator(); }
         @Bean CoreAgentRegisteredClientPolicyResolver policyResolver() { return mock(CoreAgentRegisteredClientPolicyResolver.class); }
         @Bean AuthorizationAccountRepository accountRepository() { return mock(AuthorizationAccountRepository.class); }

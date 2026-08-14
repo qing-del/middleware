@@ -18,6 +18,7 @@ import com.jacolp.module.system.biz.application.authorization.model.PermissionSc
 import com.jacolp.module.system.biz.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
 import com.jacolp.module.system.biz.application.port.out.CoreAgentPendingAuthorizationStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -44,7 +45,23 @@ public final class CoreAgentAuthorizationCodeIssueService {
     private final CoreAgentPendingAuthorizationStore pendingAuthorizationStore;
     private final CoreAgentPendingAuthorizationCodeTransitionStore transitionStore;
 
+    @Autowired
     public CoreAgentAuthorizationCodeIssueService(
+            SecureOAuth2TokenGenerator tokenGenerator,
+            CoreAgentRegisteredClientPolicyResolver policyResolver,
+            AuthorizationAccountRepository accountRepository,
+            AccountGrantTypeResolver accountGrantTypeResolver,
+            EffectiveRolePermissionResolver rolePermissionResolver,
+            CoreAgentConsentScopeService consentScopeService,
+            CoreAgentPendingAuthorizationHandleGenerator pendingHandleGenerator,
+            CoreAgentPendingAuthorizationStore pendingAuthorizationStore,
+            CoreAgentPendingAuthorizationCodeTransitionStore transitionStore) {
+        this(Clock.systemUTC(), tokenGenerator, policyResolver, accountRepository, accountGrantTypeResolver,
+                rolePermissionResolver, consentScopeService, pendingHandleGenerator, pendingAuthorizationStore,
+                transitionStore);
+    }
+
+    CoreAgentAuthorizationCodeIssueService(
             Clock clock,
             SecureOAuth2TokenGenerator tokenGenerator,
             CoreAgentRegisteredClientPolicyResolver policyResolver,
