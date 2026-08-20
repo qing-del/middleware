@@ -11,9 +11,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 type AuthView = 'login' | 'register' | 'admin' | 'activation'
+type LoginMethod = 'password' | 'email-code'
 
 // 视图状态：login, register, admin, activation
 const currentView = ref<AuthView>('login')
+const loginMethod = ref<LoginMethod>('password')
 const showFeatures = ref(false)
 const isAnimating = ref(false)
 
@@ -23,11 +25,19 @@ const formData = reactive({
   email: '',
   password: '',
   confirmPassword: '',
+  loginCode: '',
   activationCode: ''
 })
 const activationAccount = ref('')
 const isResendingActivation = ref(false)
 const isVerifyingActivationCode = ref(false)
+const isRequestingLoginCode = ref(false)
+const loginCodeCooldown = ref(0)
+let loginCodeTimer: number | null = null
+
+const isEmailCodeLogin = computed(() =>
+  (currentView.value === 'login' || currentView.value === 'admin') && loginMethod.value === 'email-code'
+)
 
 // DOM refs
 const cardRef = ref<HTMLElement | null>(null)
@@ -328,6 +338,49 @@ function isAccountNotActivatedMessage(message: string) {
   return message.includes('未激活') || message.includes('激活账号')
 }
 
+function safeErrorMessage(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message.trim() : ''
+  if (!message || /access[_ -]?token|refresh[_ -]?token|bearer|password/i.test(message)) return fallback
+  return message
+}
+
+function startLoginCodeCooldown() {
+  if (loginCodeTimer) window.clearInterval(loginCodeTimer)
+  loginCodeCooldown.value = 60
+  loginCodeTimer = window.setInterval(() => {
+    if (loginCodeCooldown.value <= 1) {
+      loginCodeCooldown.value = 0
+      if (loginCodeTimer) window.clearInterval(loginCodeTimer)
+      loginCodeTimer = null
+      return
+    }
+    loginCodeCooldown.value -= 1
+  }, 1000)
+}
+
+async function handleRequestLoginCode() {
+  if (isRequestingLoginCode.value || loginCodeCooldown.value > 0) return
+
+  const email = formData.email.trim()
+  if (!email) {
+    showToast('请输入邮箱地址', 'error')
+    return
+  }
+
+  isRequestingLoginCode.value = true
+  try {
+    const clientId = currentView.value === 'admin' ? 'admin' : 'user'
+    await authStore.requestEmailCode(email, clientId)
+    // Keep the response deliberately generic: the endpoint must not reveal account eligibility.
+    showToast('如果账号符合条件，登录验证码已发送', 'success')
+    startLoginCodeCooldown()
+  } catch (error) {
+    showToast(safeErrorMessage(error, '验证码申请失败，请稍后重试'), 'error')
+  } finally {
+    isRequestingLoginCode.value = false
+  }
+}
+
 async function handleResendActivation() {
   if (isResendingActivation.value) return
 
@@ -376,6 +429,11 @@ async function handleVerifyActivationCode() {
 async function handleSubmit() {
   if (isAnimating.value) return
 
+  if (isEmailCodeLogin.value && (!formData.email.trim() || !/^\d{6}$/.test(formData.loginCode.trim()))) {
+    showToast('请输入邮箱和 6 位登录验证码', 'error')
+    return
+  }
+
   const btn = document.getElementById('submit-btn') as HTMLButtonElement
   if (!btn) return
 
@@ -386,7 +444,11 @@ async function handleSubmit() {
 
   try {
     if (currentView.value === 'admin') {
-      await authStore.adminLogin({ username: formData.username, password: formData.password })
+      if (isEmailCodeLogin.value) {
+        await authStore.adminLoginWithEmailCode({ email: formData.email.trim(), code: formData.loginCode.trim() })
+      } else {
+        await authStore.adminLogin({ username: formData.username, password: formData.password })
+      }
       showToast('安全认证通过...', 'success')
       setTimeout(() => {
         router.push('/admin')
@@ -404,14 +466,18 @@ async function handleSubmit() {
         setView('activation')
       }, 1200)
     } else {
-      await authStore.login({ username: formData.username, password: formData.password })
+      if (isEmailCodeLogin.value) {
+        await authStore.loginWithEmailCode({ email: formData.email.trim(), code: formData.loginCode.trim() })
+      } else {
+        await authStore.login({ username: formData.username, password: formData.password })
+      }
       showToast('安全认证通过...', 'success')
       setTimeout(() => {
         router.push('/user')
       }, 1000)
     }
   } catch (error: any) {
-    const message = error.message || '操作失败'
+    const message = safeErrorMessage(error, '操作失败')
     if (currentView.value === 'login' && isAccountNotActivatedMessage(message)) {
       activationAccount.value = formData.username
       setTimeout(() => {
@@ -443,6 +509,10 @@ onUnmounted(() => {
   }
   if (toastTimeoutRef.value) {
     clearTimeout(toastTimeoutRef.value)
+  }
+  if (loginCodeTimer) {
+    clearInterval(loginCodeTimer)
+    loginCodeTimer = null
   }
   window.removeEventListener('resize', resizeCanvas)
   window.removeEventListener('mousemove', handleMouseMove)
@@ -535,11 +605,19 @@ onUnmounted(() => {
             <template v-if="currentView !== 'activation'">
             <form id="auth-form" @submit.prevent="handleSubmit" class="flex flex-col">
               <!-- 用户名 -->
-              <div class="relative group transition-all duration-300">
+              <div v-if="!isEmailCodeLogin" class="relative group transition-all duration-300">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                   <User class="w-[18px] h-[18px]" />
                 </div>
                 <input type="text" v-model="formData.username" name="username" placeholder="用户名" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
+              </div>
+
+              <!-- 登录邮箱（仅 email-code 模式） -->
+              <div v-if="isEmailCodeLogin" class="relative group transition-all duration-300">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Mail class="w-[18px] h-[18px]" />
+                </div>
+                <input type="email" v-model="formData.email" name="loginEmail" placeholder="邮箱地址" autocomplete="email" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
               </div>
 
               <!-- 邮箱（通过 v-if 接管，不再使用繁重的 CSS 展开动画） -->
@@ -551,11 +629,25 @@ onUnmounted(() => {
               </div>
 
               <!-- 密码 -->
-              <div class="relative group transition-all duration-300 mt-4">
+              <div v-if="currentView === 'register' || !isEmailCodeLogin" class="relative group transition-all duration-300 mt-4">
                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                   <Lock class="w-[18px] h-[18px]" />
                 </div>
                 <input type="password" v-model="formData.password" name="password" placeholder="密码" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
+              </div>
+
+              <!-- 登录验证码 -->
+              <div v-if="isEmailCodeLogin" class="mt-4 grid grid-cols-[1fr_auto] gap-3">
+                <div class="relative group">
+                  <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                    <KeyRound class="w-[18px] h-[18px]" />
+                  </div>
+                  <input type="text" v-model="formData.loginCode" name="code" inputmode="numeric" maxlength="6" placeholder="6 位登录验证码" autocomplete="one-time-code" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
+                </div>
+                <button type="button" @click="handleRequestLoginCode" :disabled="isRequestingLoginCode || loginCodeCooldown > 0" class="h-full min-w-28 rounded-2xl border border-indigo-400/25 bg-indigo-400/10 px-3 text-[10px] font-black tracking-wider text-indigo-200 transition-all hover:border-indigo-300/60 hover:bg-indigo-400/20 disabled:cursor-not-allowed disabled:opacity-50">
+                  <Loader2 v-if="isRequestingLoginCode" class="mx-auto h-4 w-4 animate-spin" />
+                  <span v-else>{{ loginCodeCooldown > 0 ? `${loginCodeCooldown}s 后重试` : '获取验证码' }}</span>
+                </button>
               </div>
 
               <!-- 确认密码 -->
@@ -564,6 +656,12 @@ onUnmounted(() => {
                   <ShieldCheck class="w-[18px] h-[18px]" />
                 </div>
                 <input type="password" v-model="formData.confirmPassword" name="confirmPassword" placeholder="确认密码" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
+              </div>
+
+              <div v-if="currentView === 'login' || currentView === 'admin'" class="mt-4 flex justify-end">
+                <button type="button" @click="loginMethod = isEmailCodeLogin ? 'password' : 'email-code'" class="text-[10px] font-bold tracking-wider text-slate-500 transition-colors hover:text-indigo-300">
+                  {{ isEmailCodeLogin ? '使用密码登录' : '使用邮箱验证码登录' }}
+                </button>
               </div>
 
               <!-- 提交按钮 -->
@@ -578,7 +676,7 @@ onUnmounted(() => {
 
                 <div class="relative flex items-center justify-center space-x-3 text-white font-black uppercase tracking-[0.2em] text-xs">
                   <Loader2 ref="loaderIconRef" id="loader-icon" class="w-5 h-5 animate-spin hidden" />
-                  <span ref="submitTextRef" id="submit-text">{{ currentView === 'admin' ? '管理员核验' : currentView === 'register' ? '注册并加入' : '身份认证' }}</span>
+                  <span ref="submitTextRef" id="submit-text">{{ currentView === 'admin' ? '管理员核验' : currentView === 'register' ? '注册并加入' : isEmailCodeLogin ? '验证码认证' : '身份认证' }}</span>
                   <ArrowRight ref="submitIconRef" id="submit-icon" class="w-[18px] h-[18px] group-hover/btn:translate-x-1 transition-transform" />
                 </div>
               </button>
