@@ -94,6 +94,8 @@ jacolp:
     email: ${jacolp.admin.email}
   default-password: ${jacolp.default-password}  # 默认测试密码
   oauth2:
+    browser-login:
+      csrf-enabled: ${jacolp.oauth2.browser-login.csrf-enabled:false}
     rs256:
       issuer: ${OAUTH2_RS256_ISSUER:core-node}
       audience: ${OAUTH2_RS256_AUDIENCE:core-node-api}

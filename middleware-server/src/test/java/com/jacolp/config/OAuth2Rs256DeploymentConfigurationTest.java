@@ -10,14 +10,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OAuth2Rs256DeploymentConfigurationTest {
 
     @Test
-    void applicationConfigurationRequiresExternalFilePemLocations() throws Exception {
+    void applicationConfigurationUsesProfileProvidedPemLocations() throws Exception {
         String yaml = Files.readString(Path.of("src/main/resources/application.yaml"));
 
         assertThat(yaml).contains(
+                "browser-login:",
+                "csrf-enabled: false",
                 "issuer: ${OAUTH2_RS256_ISSUER:core-node}",
                 "audience: ${OAUTH2_RS256_AUDIENCE:core-node-api}",
-                "private-key-location: ${OAUTH2_RS256_PRIVATE_KEY_LOCATION:file:/run/secrets/oauth2-rs256/private.pem}",
-                "public-key-location: ${OAUTH2_RS256_PUBLIC_KEY_LOCATION:file:/run/secrets/oauth2-rs256/public.pem}");
+                "private-key-location: ${jacolp.oauth2.rs256.private-key-location}",
+                "public-key-location: ${jacolp.oauth2.rs256.public-key-location}");
     }
 
     @Test
@@ -27,6 +29,8 @@ class OAuth2Rs256DeploymentConfigurationTest {
         String environmentTemplate = Files.readString(Path.of("..", ".env.example"));
 
         assertThat(dockerYaml).contains(
+                "browser-login:",
+                "csrf-enabled: false",
                 "private-key-location: ${OAUTH2_RS256_PRIVATE_KEY_LOCATION:file:/run/secrets/oauth2-rs256/private.pem}",
                 "public-key-location: ${OAUTH2_RS256_PUBLIC_KEY_LOCATION:file:/run/secrets/oauth2-rs256/public.pem}");
         assertThat(compose).contains(

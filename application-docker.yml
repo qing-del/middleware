@@ -29,6 +29,8 @@ jacolp:
     password: ${jacolp.admin.password}
   default-password: ${jacolp.default-password:123456}
   oauth2:
+    browser-login:
+      csrf-enabled: false
     rs256:
       issuer: ${OAUTH2_RS256_ISSUER:core-node}
       audience: ${OAUTH2_RS256_AUDIENCE:core-node-api}

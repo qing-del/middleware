@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -127,12 +128,33 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
                     .andExpect(status().isForbidden());
             mvc.perform(post("/oauth/login"))
                     .andExpect(status().isForbidden());
+            mvc.perform(post("/oauth/login").param("_csrf", "wrong-token"))
+                    .andExpect(status().isForbidden());
             mvc.perform(post("/oauth/token").param("grant_type", "unsupported"))
                     .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotIn(401, 403));
             mvc.perform(post("/oauth/logout"))
                     .andExpect(status().isUnauthorized());
             mvc.perform(get("/oauth2/revoke"))
                     .andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    void disablingLoginCsrfDoesNotDisableAuthorizationCsrf() throws Exception {
+        try (AnnotationConfigWebApplicationContext context = disabledCsrfContext()) {
+            CoreAgentBrowserAccountAuthenticator accountAuthenticator = context.getBean(CoreAgentBrowserAccountAuthenticator.class);
+            when(accountAuthenticator.authenticate("alice", "password"))
+                    .thenReturn(new CoreAgentBrowserPrincipal(7L, "alice", 3L, "USER", 1));
+            MockMvc mvc = MockMvcBuilders.webAppContextSetup(context)
+                    .addFilters(context.getBean("springSecurityFilterChain", FilterChainProxy.class)).build();
+
+            mvc.perform(post("/oauth/login").param("username", "alice").param("password", "password"))
+                    .andExpect(status().is3xxRedirection());
+            verify(accountAuthenticator).authenticate("alice", "password");
+            mvc.perform(post("/oauth2/authorize"))
+                    .andExpect(status().isForbidden());
+        } finally {
+            SecurityContextHolder.clearContext();
         }
     }
 
@@ -301,11 +323,11 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
     }
 
     private static CoreAgentPreparedPendingAuthorization prepared(String sessionId) {
-        Instant expiresAt = Instant.parse("2026-08-15T01:10:00Z");
+        Instant expiresAt = Instant.parse("2036-08-15T01:10:00Z");
         return new CoreAgentPreparedPendingAuthorization(new IssuedCoreAgentAuthorizationPendingHandle("A".repeat(43), expiresAt),
                 new CoreAgentPendingAuthorizationState("core_agent", "http://127.0.0.1:9090/oauth/callback", null,
                         "A".repeat(43), "S256", "opaque-state", "127.0.0.1", 7L, sessionId,
-                        Instant.parse("2026-08-15T01:00:00Z"), expiresAt));
+                        Instant.parse("2036-08-15T01:00:00Z"), expiresAt));
     }
 
     @Test
@@ -340,17 +362,24 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
     }
 
     private static AnnotationConfigWebApplicationContext enabledContext() {
-        AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
-        context.setServletContext(new MockServletContext());
-        context.register(EnabledConfiguration.class);
-        context.refresh();
-        return context;
+        return configuredContext(true, EnabledConfiguration.class);
+    }
+
+    private static AnnotationConfigWebApplicationContext disabledCsrfContext() {
+        return configuredContext(false, EnabledConfiguration.class);
     }
 
     private static AnnotationConfigWebApplicationContext realProviderContext() {
+        return configuredContext(true, RealProviderEnabledConfiguration.class);
+    }
+
+    private static AnnotationConfigWebApplicationContext configuredContext(boolean csrfEnabled,
+                                                                           Class<?> configuration) {
         AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
         context.setServletContext(new MockServletContext());
-        context.register(RealProviderEnabledConfiguration.class);
+        context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("test",
+                Map.of("jacolp.oauth2.browser-login.csrf-enabled", Boolean.toString(csrfEnabled))));
+        context.register(configuration);
         context.refresh();
         return context;
     }

@@ -2,6 +2,7 @@ package com.jacolp.module.system.biz.web.authorization;
 
 import com.jacolp.module.system.biz.application.authorization.CoreAgentBrowserAuthenticationProvider;
 import com.jacolp.module.system.biz.infrastructure.authorization.CoreAgentAuthorizationServerConfigurerFactory;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -38,6 +39,7 @@ import java.util.List;
  * PAR, introspection, and revocation paths cannot become reachable by enabling Phase 4.</p>
  */
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(CoreAgentBrowserLoginProperties.class)
 public class CoreAgentAuthorizationServerSecurityConfiguration {
 
     static final String AUTHORIZE_PATH = "/oauth2/authorize";
@@ -88,6 +90,7 @@ public class CoreAgentAuthorizationServerSecurityConfiguration {
     @Order(1)
     SecurityFilterChain coreAgentAuthorizationServerSecurityFilterChain(
             HttpSecurity http,
+            CoreAgentBrowserLoginProperties browserLoginProperties,
             CoreAgentAuthorizationServerConfigurerFactory authorizationServerConfigurerFactory,
             CoreAgentBrowserAuthenticationProvider browserAuthenticationProvider,
             CsrfTokenRepository coreAgentBrowserCsrfTokenRepository,
@@ -105,9 +108,14 @@ public class CoreAgentAuthorizationServerSecurityConfiguration {
                 .requestCache(requestCache -> requestCache.requestCache(coreAgentBrowserRequestCache))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .sessionFixation(fixation -> fixation.changeSessionId()))
-                .csrf(csrf -> csrf.csrfTokenRepository(coreAgentBrowserCsrfTokenRepository)
-                        .csrfTokenRequestHandler(coreAgentBrowserCsrfTokenRequestHandler)
-                        .ignoringRequestMatchers(postPath(TOKEN_PATH), postPath(LOGOUT_PATH)))
+                .csrf(csrf -> {
+                    csrf.csrfTokenRepository(coreAgentBrowserCsrfTokenRepository)
+                            .csrfTokenRequestHandler(coreAgentBrowserCsrfTokenRequestHandler)
+                            .ignoringRequestMatchers(postPath(TOKEN_PATH), postPath(LOGOUT_PATH));
+                    if (!browserLoginProperties.isCsrfEnabled()) {
+                        csrf.ignoringRequestMatchers(postPath(LOGIN_PATH));
+                    }
+                })
                 .formLogin(formLogin -> formLogin.loginPage(LOGIN_PATH)
                         .loginProcessingUrl(LOGIN_PATH)
                         .failureUrl(LOGIN_PATH + "?error")
