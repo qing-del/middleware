@@ -74,3 +74,4 @@ AGENTS.md
 ### RSA key material ###
 /resource/key/
 **/src/main/resources/key/
+/middleware-module-system/middleware-module-system-biz/src/main/resources/oauth2-rs256/

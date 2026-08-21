@@ -97,8 +97,8 @@ jacolp:
     rs256:
       issuer: ${OAUTH2_RS256_ISSUER:core-node}
       audience: ${OAUTH2_RS256_AUDIENCE:core-node-api}
-      private-key-location: ${OAUTH2_RS256_PRIVATE_KEY_LOCATION:file:/run/secrets/oauth2-rs256/private.pem}
-      public-key-location: ${OAUTH2_RS256_PUBLIC_KEY_LOCATION:file:/run/secrets/oauth2-rs256/public.pem}
+      private-key-location: ${jacolp.oauth2.rs256.private-key-location}
+      public-key-location: ${jacolp.oauth2.rs256.public-key-location}
   jwt:
     active-secret-key: ${jacolp.jwt.active-secret-key}
     active-ttl: 900000  # 15 分钟

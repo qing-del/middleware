@@ -1,6 +1,0 @@
-# 生产部署必须使用 TLS；如显式覆盖 OAUTH_SESSION_COOKIE_SECURE，不得降级为 false。
-server:
-  servlet:
-    session:
-      cookie:
-        secure: ${OAUTH_SESSION_COOKIE_SECURE:true}
