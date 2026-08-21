@@ -1,15 +1,15 @@
 package com.jacolp.middleware.module.system.biz.infrastructure.persistence;
 
-import com.jacolp.module.system.biz.application.authorization.model.PermissionMetadata;
-import com.jacolp.module.system.biz.application.authorization.model.RolePermissionMetadata;
-import com.jacolp.module.system.biz.application.port.out.PermissionMetadataRepository;
-import com.jacolp.module.system.biz.application.port.out.RolePermissionMetadataRepository;
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.PermissionDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.RolePermissionDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.PermissionMapper;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.RolePermissionMapper;
-import com.jacolp.module.system.biz.infrastructure.persistence.repository.MyBatisPermissionMetadataRepository;
-import com.jacolp.module.system.biz.infrastructure.persistence.repository.MyBatisRolePermissionMetadataRepository;
+import com.jacolp.system.application.authorization.model.PermissionMetadata;
+import com.jacolp.system.application.authorization.model.RolePermissionMetadata;
+import com.jacolp.system.application.port.out.PermissionMetadataRepository;
+import com.jacolp.system.application.port.out.RolePermissionMetadataRepository;
+import com.jacolp.system.infrastructure.persistence.dataobject.PermissionDO;
+import com.jacolp.system.infrastructure.persistence.dataobject.RolePermissionDO;
+import com.jacolp.system.infrastructure.persistence.mapper.PermissionMapper;
+import com.jacolp.system.infrastructure.persistence.mapper.RolePermissionMapper;
+import com.jacolp.system.infrastructure.persistence.repository.MyBatisPermissionMetadataRepository;
+import com.jacolp.system.infrastructure.persistence.repository.MyBatisRolePermissionMetadataRepository;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.session.Configuration;
 import org.junit.jupiter.api.Test;

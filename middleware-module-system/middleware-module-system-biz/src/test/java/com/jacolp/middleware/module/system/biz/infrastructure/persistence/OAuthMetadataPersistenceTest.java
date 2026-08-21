@@ -1,15 +1,15 @@
 package com.jacolp.middleware.module.system.biz.infrastructure.persistence;
 
-import com.jacolp.module.system.biz.application.authorization.model.OAuth2AuthorizationConsentMetadata;
-import com.jacolp.module.system.biz.application.authorization.model.OAuth2RegisteredClientMetadata;
-import com.jacolp.module.system.biz.application.port.out.OAuth2AuthorizationConsentMetadataRepository;
-import com.jacolp.module.system.biz.application.port.out.OAuth2RegisteredClientMetadataRepository;
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.OAuth2AuthorizationConsentDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.OAuth2AuthorizationConsentMapper;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper;
-import com.jacolp.module.system.biz.infrastructure.persistence.repository.MyBatisOAuth2AuthorizationConsentMetadataRepository;
-import com.jacolp.module.system.biz.infrastructure.persistence.repository.MyBatisOAuth2RegisteredClientMetadataRepository;
+import com.jacolp.system.application.authorization.model.OAuth2AuthorizationConsentMetadata;
+import com.jacolp.system.application.authorization.model.OAuth2RegisteredClientMetadata;
+import com.jacolp.system.application.port.out.OAuth2AuthorizationConsentMetadataRepository;
+import com.jacolp.system.application.port.out.OAuth2RegisteredClientMetadataRepository;
+import com.jacolp.system.infrastructure.persistence.dataobject.OAuth2AuthorizationConsentDO;
+import com.jacolp.system.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO;
+import com.jacolp.system.infrastructure.persistence.mapper.OAuth2AuthorizationConsentMapper;
+import com.jacolp.system.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper;
+import com.jacolp.system.infrastructure.persistence.repository.MyBatisOAuth2AuthorizationConsentMetadataRepository;
+import com.jacolp.system.infrastructure.persistence.repository.MyBatisOAuth2RegisteredClientMetadataRepository;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.session.Configuration;
 import org.junit.jupiter.api.Test;

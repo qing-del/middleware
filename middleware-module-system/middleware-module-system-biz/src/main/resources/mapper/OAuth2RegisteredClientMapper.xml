@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.jacolp.module.system.biz.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper">
+<mapper namespace="com.jacolp.system.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper">
 
     <sql id="registeredClientColumns">
         id, client_id, client_id_issued_at, client_secret, client_secret_expires_at, client_name,
@@ -10,21 +10,21 @@
     </sql>
 
     <select id="selectById"
-            resultType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
+            resultType="com.jacolp.system.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
         SELECT <include refid="registeredClientColumns"/>
         FROM oauth2_registered_client
         WHERE id = #{id}
     </select>
 
     <select id="selectByClientId"
-            resultType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
+            resultType="com.jacolp.system.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
         SELECT <include refid="registeredClientColumns"/>
         FROM oauth2_registered_client
         WHERE client_id = #{clientId}
     </select>
 
     <select id="selectByStatus"
-            resultType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
+            resultType="com.jacolp.system.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
         SELECT <include refid="registeredClientColumns"/>
         FROM oauth2_registered_client
         WHERE status = #{status}
@@ -32,7 +32,7 @@
     </select>
 
     <insert id="insert"
-            parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
+            parameterType="com.jacolp.system.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
         INSERT INTO oauth2_registered_client (
             id, client_id, client_id_issued_at, client_secret, client_secret_expires_at, client_name,
             client_authentication_methods, authorization_grant_types, redirect_uris, post_logout_redirect_uris,
@@ -46,7 +46,7 @@
     </insert>
 
     <update id="updateById"
-            parameterType="com.jacolp.module.system.biz.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
+            parameterType="com.jacolp.system.infrastructure.persistence.dataobject.OAuth2RegisteredClientDO">
         UPDATE oauth2_registered_client
         SET client_id = #{clientId},
             client_id_issued_at = COALESCE(#{clientIdIssuedAt}, client_id_issued_at),

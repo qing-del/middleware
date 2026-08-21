@@ -1,14 +1,14 @@
 package com.jacolp.middleware.module.system.biz.application.service.impl;
 
-import com.jacolp.constant.RoleConstant;
+import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.module.system.biz.support.TestSecurityContext;
+import com.jacolp.system.support.TestSecurityContext;
 import com.jacolp.exception.BaseException;
 import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
-import com.jacolp.module.system.biz.application.authorization.AccountAuthorizationStateRevocationService;
-import com.jacolp.module.system.biz.application.service.impl.UserUserServiceImpl;
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.system.application.authorization.AccountAuthorizationStateRevocationService;
+import com.jacolp.system.application.service.impl.UserUserServiceImpl;
+import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;

@@ -1,9 +1,9 @@
 package com.jacolp.middleware.module.system.biz.infrastructure.persistence;
 
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.RoleDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.dataobject.UserDO;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.RoleMapper;
-import com.jacolp.module.system.biz.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.system.infrastructure.persistence.dataobject.RoleDO;
+import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.system.infrastructure.persistence.mapper.RoleMapper;
+import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import org.apache.ibatis.annotations.Select;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
