@@ -7,6 +7,9 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
@@ -38,14 +41,45 @@ class RsaPemKeyMaterialLoaderTest {
     }
 
     @Test
-    void rejectsClasspathAndNonFileResources(@TempDir Path temporaryDirectory) throws Exception {
+    void loadsClasspathAndByteArrayResources(@TempDir Path temporaryDirectory) throws Exception {
         KeyPair pair = rsaPair(2048);
         Resource publicResource = pemFile(temporaryDirectory, "public.pem", "PUBLIC KEY", pair.getPublic().getEncoded());
+        Path classpathDirectory = Files.createDirectory(temporaryDirectory.resolve("classpath"));
+        Files.writeString(classpathDirectory.resolve("private.pem"),
+                pemContents("PRIVATE KEY", pair.getPrivate().getEncoded()));
+        Files.writeString(classpathDirectory.resolve("public.pem"),
+                pemContents("PUBLIC KEY", pair.getPublic().getEncoded()));
 
-        assertThatThrownBy(() -> loader.load(new ClassPathResource("application.yaml"), publicResource))
-                .hasMessage("RSA private key must use an external file: resource");
-        assertThatThrownBy(() -> loader.load(new ByteArrayResource(pair.getPrivate().getEncoded()), publicResource))
-                .hasMessage("RSA private key must use an external file: resource");
+        RsaKeyMaterial classpathMaterial;
+        try (URLClassLoader classLoader = new URLClassLoader(
+                new URL[]{classpathDirectory.toUri().toURL()}, getClass().getClassLoader())) {
+            classpathMaterial = loader.load(
+                    new ClassPathResource("private.pem", classLoader),
+                    new ClassPathResource("public.pem", classLoader));
+        }
+        RsaKeyMaterial byteArrayMaterial = loader.load(
+                new ByteArrayResource(pemContents("PRIVATE KEY", pair.getPrivate().getEncoded())
+                        .getBytes(StandardCharsets.US_ASCII)),
+                publicResource);
+
+        assertThat(classpathMaterial.privateKey()).isInstanceOf(RSAPrivateKey.class);
+        assertThat(classpathMaterial.publicKey()).isInstanceOf(RSAPublicKey.class);
+        assertThat(byteArrayMaterial.privateKey()).isInstanceOf(RSAPrivateKey.class);
+    }
+
+    @Test
+    void rejectsNullAndUnreadableResourcesWithClearMessages(@TempDir Path temporaryDirectory) throws Exception {
+        KeyPair pair = rsaPair(2048);
+        Resource privateResource = pemFile(temporaryDirectory, "private.pem", "PRIVATE KEY", pair.getPrivate().getEncoded());
+        Resource publicResource = pemFile(temporaryDirectory, "public.pem", "PUBLIC KEY", pair.getPublic().getEncoded());
+        Resource missingResource = new FileSystemResource(temporaryDirectory.resolve("missing.pem"));
+
+        assertThatThrownBy(() -> loader.load(null, publicResource))
+                .hasMessage("RSA private key resource is required");
+        assertThatThrownBy(() -> loader.load(privateResource, null))
+                .hasMessage("RSA public key resource is required");
+        assertThatThrownBy(() -> loader.load(missingResource, publicResource))
+                .hasMessage("Unable to read RSA private key resource");
     }
 
     @Test
@@ -89,9 +123,13 @@ class RsaPemKeyMaterialLoaderTest {
     }
 
     private static Resource pemFile(Path directory, String name, String type, byte[] encoded) throws Exception {
-        return textFile(directory, name, "-----BEGIN " + type + "-----\n"
-                + Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(encoded)
-                + "\n-----END " + type + "-----\n");
+        return textFile(directory, name, pemContents(type, encoded));
+    }
+
+    private static String pemContents(String type, byte[] encoded) {
+        return "-----BEGIN " + type + "-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(encoded)
+                + "\n-----END " + type + "-----\n";
     }
 
     private static Resource textFile(Path directory, String name, String text) throws Exception {

@@ -1,10 +1,8 @@
 package com.jacolp.middleware.common.security.oauth2.key;
 
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import java.io.IOException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -17,15 +15,15 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
-/** Loads external PKCS#8/X.509 RSA PEM files without registering runtime security infrastructure. */
+/** Loads PKCS#8/X.509 RSA PEM resources without registering runtime security infrastructure. */
 public final class RsaPemKeyMaterialLoader {
 
     private static final int MINIMUM_RSA_MODULUS_BITS = 2048;
 
     public RsaKeyMaterial load(Resource privateKeyResource, Resource publicKeyResource) {
-        byte[] privateKeyDer = decodePem(readExternalFile(privateKeyResource, "private"),
+        byte[] privateKeyDer = decodePem(readResource(privateKeyResource, "private"),
                 "-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----", "private");
-        byte[] publicKeyDer = decodePem(readExternalFile(publicKeyResource, "public"),
+        byte[] publicKeyDer = decodePem(readResource(publicKeyResource, "public"),
                 "-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----", "public");
         RSAPrivateKey privateKey = toRsaPrivateKey(privateKeyDer);
         RSAPublicKey publicKey = toRsaPublicKey(publicKeyDer);
@@ -38,27 +36,16 @@ public final class RsaPemKeyMaterialLoader {
         return new RsaKeyMaterial(privateKey, publicKey, keyId(publicKeyDer));
     }
 
-    private static byte[] readExternalFile(Resource resource, String keyType) {
-        if (resource == null || resource instanceof ClassPathResource) {
-            throw new IllegalArgumentException("RSA " + keyType + " key must use an external file: resource");
-        }
-        URL url;
-        try {
-            url = resource.getURL();
-        } catch (IOException exception) {
-            throw new IllegalArgumentException("RSA " + keyType + " key must use an external file: resource");
-        }
-        if (!"file".equalsIgnoreCase(url.getProtocol())) {
-            throw new IllegalArgumentException("RSA " + keyType + " key must use an external file: resource");
+    private static byte[] readResource(Resource resource, String keyType) {
+        if (resource == null) {
+            throw new IllegalArgumentException("RSA " + keyType + " key resource is required");
         }
         try {
             try (var input = resource.getInputStream()) {
                 return input.readAllBytes();
             }
-        } catch (IllegalArgumentException exception) {
-            throw exception;
         } catch (IOException exception) {
-            throw new IllegalArgumentException("Unable to read RSA " + keyType + " key resource");
+            throw new IllegalArgumentException("Unable to read RSA " + keyType + " key resource", exception);
         }
     }
 
