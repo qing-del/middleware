@@ -14,7 +14,7 @@ import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.CoreAgentRefreshTokenRequest;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
-import com.jacolp.common.core.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
+import com.jacolp.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

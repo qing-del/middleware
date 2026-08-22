@@ -5,7 +5,7 @@ import com.jacolp.system.application.authorization.CoreAgentRefreshTokenService;
 import com.jacolp.system.application.authorization.CoreAgentRegisteredClientPolicyResolver;
 import com.jacolp.system.application.authorization.model.CoreAgentRefreshTokenRequest;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
-import com.jacolp.common.core.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
+import com.jacolp.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -105,7 +105,7 @@ class CoreAgentRefreshTokenAuthenticationProviderTest {
         Fixture fixture = fixture();
         assertThat(fixture.provider.supports(OAuth2RefreshTokenAuthenticationToken.class)).isTrue();
         assertThat(fixture.provider.supports(OAuth2ClientAuthenticationToken.class)).isFalse();
-        String source = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/authorization/"
+        String source = Files.readString(Path.of("src/main/java/com/jacolp/system/web/authorization/"
                 + "CoreAgentRefreshTokenAuthenticationProvider.java"));
         assertThat(source).doesNotContain("OAuth2AuthorizationService", "OAuth2TokenGenerator", "Logger", "rawRefreshToken=");
         runner.withUserConfiguration(DependencyConfiguration.class)

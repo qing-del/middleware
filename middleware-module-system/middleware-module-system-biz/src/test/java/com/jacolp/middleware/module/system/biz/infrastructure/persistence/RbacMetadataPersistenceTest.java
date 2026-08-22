@@ -6,7 +6,7 @@ import com.jacolp.system.application.port.out.PermissionMetadataRepository;
 import com.jacolp.system.application.port.out.RolePermissionMetadataRepository;
 import com.jacolp.system.infrastructure.persistence.dataobject.PermissionDO;
 import com.jacolp.system.infrastructure.persistence.dataobject.RolePermissionDO;
-import com.jacolp.common.core.system.infrastructure.persistence.mapper.PermissionMapper;
+import com.jacolp.system.infrastructure.persistence.mapper.PermissionMapper;
 import com.jacolp.system.infrastructure.persistence.mapper.RolePermissionMapper;
 import com.jacolp.system.infrastructure.persistence.repository.MyBatisPermissionMetadataRepository;
 import com.jacolp.system.infrastructure.persistence.repository.MyBatisRolePermissionMetadataRepository;
@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class RbacMetadataPersistenceTest {
@@ -44,11 +45,11 @@ class RbacMetadataPersistenceTest {
         parse(configuration, "mapper/RolePermissionMapper.xml");
 
         assertThat(configuration.hasStatement(
-                "com.jacolp.module.system.biz.infrastructure.persistence.mapper.PermissionMapper.selectByCode")).isTrue();
+                "com.jacolp.system.infrastructure.persistence.mapper.PermissionMapper.selectByCode")).isTrue();
         assertThat(configuration.hasStatement(
-                "com.jacolp.module.system.biz.infrastructure.persistence.mapper.PermissionMapper.selectActiveByRoleIds")).isTrue();
+                "com.jacolp.system.infrastructure.persistence.mapper.PermissionMapper.selectActiveByRoleIds")).isTrue();
         assertThat(configuration.hasStatement(
-                "com.jacolp.module.system.biz.infrastructure.persistence.mapper.RolePermissionMapper.selectByRoleIds")).isTrue();
+                "com.jacolp.system.infrastructure.persistence.mapper.RolePermissionMapper.selectByRoleIds")).isTrue();
 
         assertThat(content("mapper/PermissionMapper.xml"))
                 .contains("p.status = 'active'")

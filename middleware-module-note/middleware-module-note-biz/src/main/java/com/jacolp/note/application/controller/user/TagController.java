@@ -2,13 +2,11 @@ package com.jacolp.note.application.controller.user;
 
 import java.util.List;
 
-import com.jacolp.common.core.note.application.dto.tag.*;
 import com.jacolp.common.core.result.PageResult;
 import com.jacolp.common.core.result.Result;
 import com.jacolp.common.core.utils.IdParserUtil;
 import com.jacolp.note.application.dto.tag.*;
 import com.jacolp.note.application.vo.tag.TagBatchAddVO;
-import com.jacolp.module.note.biz.application.dto.tag.*;
 import com.jacolp.note.application.service.TagService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;

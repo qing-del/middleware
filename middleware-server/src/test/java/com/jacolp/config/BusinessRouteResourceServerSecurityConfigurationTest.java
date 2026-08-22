@@ -27,7 +27,7 @@ import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
 import com.jacolp.system.infrastructure.authorization.ActiveRegisteredClientRepository;
 import com.jacolp.system.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
-import com.jacolp.common.core.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
+import com.jacolp.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
 import com.jacolp.system.infrastructure.authorization.RedisCoreAgentPendingAuthorizationStore;
 import com.jacolp.system.infrastructure.security.BCryptEmailLoginCodeProtector;
 import com.jacolp.system.infrastructure.security.BCryptPasswordCredentialVerifier;

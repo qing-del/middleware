@@ -1,6 +1,6 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.common.core.system.application.authorization.model.*;
+import com.jacolp.system.application.authorization.model.*;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeDeliveryRequest;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeIssueRateLimitRequest;

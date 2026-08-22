@@ -37,13 +37,13 @@ class OAuthMetadataPersistenceTest {
         parse(configuration, "mapper/OAuth2AuthorizationConsentMapper.xml");
 
         assertThat(configuration.hasStatement(
-                "com.jacolp.module.system.biz.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper.selectByClientId"))
+                "com.jacolp.system.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper.selectByClientId"))
                 .isTrue();
         assertThat(configuration.hasStatement(
-                "com.jacolp.module.system.biz.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper.updateById"))
+                "com.jacolp.system.infrastructure.persistence.mapper.OAuth2RegisteredClientMapper.updateById"))
                 .isTrue();
         assertThat(configuration.hasStatement(
-                "com.jacolp.module.system.biz.infrastructure.persistence.mapper.OAuth2AuthorizationConsentMapper.updateAuthorities"))
+                "com.jacolp.system.infrastructure.persistence.mapper.OAuth2AuthorizationConsentMapper.updateAuthorities"))
                 .isTrue();
 
         assertThat(content("mapper/OAuth2RegisteredClientMapper.xml"))

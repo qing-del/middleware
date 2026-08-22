@@ -11,7 +11,7 @@ public final class RsaKeyMaterial {
     private final RSAPublicKey publicKey;
     private final String keyId;
 
-    RsaKeyMaterial(RSAPrivateKey privateKey, RSAPublicKey publicKey, String keyId) {
+    public RsaKeyMaterial(RSAPrivateKey privateKey, RSAPublicKey publicKey, String keyId) {
         this.privateKey = Objects.requireNonNull(privateKey, "privateKey must not be null");
         this.publicKey = Objects.requireNonNull(publicKey, "publicKey must not be null");
         this.keyId = Objects.requireNonNull(keyId, "keyId must not be null");

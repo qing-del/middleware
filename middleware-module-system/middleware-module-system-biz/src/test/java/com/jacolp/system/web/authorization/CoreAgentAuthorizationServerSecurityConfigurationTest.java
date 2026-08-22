@@ -5,7 +5,7 @@ import com.jacolp.common.security.jwt.JwtProperties;
 import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
 import com.jacolp.system.infrastructure.authorization.ActiveRegisteredClientRepository;
 import com.jacolp.system.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
-import com.jacolp.common.core.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
+import com.jacolp.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
 import com.jacolp.system.web.controller.authorization.CoreAgentLogoutController;
 import com.jacolp.common.web.config.SecurityFilterConfiguration;
 import com.jacolp.system.application.authorization.CoreAgentBrowserAccountAuthenticator;
@@ -70,6 +70,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -99,7 +100,7 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
 
     @Test
     void sourceNeverUsesTheBroadSasEndpointMatcherOrAddsAuthorizationPersistence() throws IOException {
-        String source = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/authorization/"
+        String source = Files.readString(Path.of("src/main/java/com/jacolp/system/web/authorization/"
                 + "CoreAgentAuthorizationServerSecurityConfiguration.java"));
 
         assertThat(source).doesNotContain("getEndpointsMatcher", "OAuth2AuthorizationService", "OAuth2TokenGenerator",

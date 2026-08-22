@@ -28,7 +28,7 @@ public final class RedisOAuth2SessionRevocationStore implements OAuth2SessionRev
         this(redis, Clock.systemUTC(), revokeScript());
     }
 
-    RedisOAuth2SessionRevocationStore(StringRedisTemplate redis, Clock clock, DefaultRedisScript<Long> script) {
+    public RedisOAuth2SessionRevocationStore(StringRedisTemplate redis, Clock clock, DefaultRedisScript<Long> script) {
         this.redis = Objects.requireNonNull(redis, "redis must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.script = Objects.requireNonNull(script, "script must not be null");

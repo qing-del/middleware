@@ -18,7 +18,7 @@ public final class SecureOAuth2TokenGenerator {
         this(new SecureRandom());
     }
 
-    SecureOAuth2TokenGenerator(SecureRandom secureRandom) {
+    public SecureOAuth2TokenGenerator(SecureRandom secureRandom) {
         this.secureRandom = Objects.requireNonNull(secureRandom, "secureRandom must not be null");
     }
 

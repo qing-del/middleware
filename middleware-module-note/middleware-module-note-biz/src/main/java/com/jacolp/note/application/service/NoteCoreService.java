@@ -2,13 +2,11 @@ package com.jacolp.note.application.service;
 
 import com.jacolp.common.security.context.PermissionContext;
 import com.jacolp.common.core.exception.BaseException;
-import com.jacolp.common.core.note.application.dto.note.*;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.common.core.result.PageResult;
 import com.jacolp.note.application.dto.note.*;
 import com.jacolp.note.application.vo.note.NoteStatsVO;
 import com.jacolp.note.application.vo.note.NoteVO;
-import com.jacolp.module.note.biz.application.dto.note.*;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;

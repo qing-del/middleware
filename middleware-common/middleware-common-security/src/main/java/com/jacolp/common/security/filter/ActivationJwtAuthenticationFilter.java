@@ -60,7 +60,7 @@ public final class ActivationJwtAuthenticationFilter extends OncePerRequestFilte
         }
     }
 
-    boolean matchesActivationPath(HttpServletRequest request) {
+    public boolean matchesActivationPath(HttpServletRequest request) {
         return ACTIVE.matches(PathContainer.parsePath(applicationPath(request)));
     }
 
