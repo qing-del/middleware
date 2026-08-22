@@ -155,6 +155,21 @@ class InternalLoginServiceTest {
     }
 
     @Test
+    void ipv6LoopbackIsAllowedByTheDualStackInternalClientPolicy() {
+        Fixture allowed = fixture(policy("user", "password", "0.0.0.0/0,::/0"));
+        when(allowed.password.authenticate(allowed.policy, "alice", "secret")).thenReturn(allowed.account);
+        when(allowed.roles.resolve(3L)).thenReturn(allowed.effective);
+        when(allowed.scopes.resolve(allowed.effective, allowed.policy.scopes(), allowed.policy.autoApproveScopes(), null))
+                .thenReturn(allowed.grantedScopes);
+        when(allowed.access.issue(any(AccessTokenIssueRequest.class))).thenReturn(allowed.accessToken);
+        when(allowed.refresh.issue(any(RefreshTokenIssueRequest.class))).thenReturn(allowed.refreshToken);
+
+        allowed.service.login(passwordRequest(null, "0:0:0:0:0:0:0:1"));
+
+        verify(allowed.password).authenticate(allowed.policy, "alice", "secret");
+    }
+
+    @Test
     void invalidIpConfigurationFailsAsIllegalStateBeforeAuthentication() {
         Fixture fixture = fixture(policy("user", "password", "192.0.2.0/33"));
         when(fixture.policyResolver.resolve("user", "password")).thenReturn(fixture.policy);

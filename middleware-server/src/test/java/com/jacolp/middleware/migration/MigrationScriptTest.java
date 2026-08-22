@@ -90,6 +90,22 @@ class MigrationScriptTest {
                 .contains("'note:read,note:write,sys:read,media:read'");
     }
 
+    @Test
+    void internalClientDefaultsShouldAllowIpv4AndIpv6WithoutChangingCoreAgent() throws IOException {
+        String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
+        String migration = readMigration("20260822_internal_client_ipv6_allowed_ips.sql");
+
+        assertThat(bootstrap)
+                .containsPattern("'user',[\\s\\S]*?'active',\\s*'0\\.0\\.0\\.0/0,::/0'")
+                .containsPattern("'admin',[\\s\\S]*?'active',\\s*'0\\.0\\.0\\.0/0,::/0'")
+                .containsPattern("'core_agent',[\\s\\S]*?'active',\\s*'0\\.0\\.0\\.0/0'");
+        assertThat(migration)
+                .contains("BINARY `client_id` IN ('user', 'admin')")
+                .contains("BINARY `allowed_ips` = '0.0.0.0/0'")
+                .contains("SET `allowed_ips` = '0.0.0.0/0,::/0'")
+                .doesNotContain("core_agent");
+    }
+
     private static String readMigration(String fileName) throws IOException {
         Path migration = MIGRATION_DIRECTORY.resolve(fileName);
         assertThat(migration)

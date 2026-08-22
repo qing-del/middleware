@@ -179,7 +179,7 @@ class InternalAuthControllerTest {
 
     @Test
     void productionControllerDoesNotReferenceForwardedHeadersLogsOrLegacyFlows() throws IOException {
-        String source = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/controller/authorization/"
+        String source = Files.readString(Path.of("src/main/java/com/jacolp/system/web/controller/authorization/"
                 + "InternalAuthController.java"));
 
         assertThat(source).doesNotContain("getHeader", "X-Forwarded-For", "Forwarded", "Outbox",

@@ -226,7 +226,8 @@ class InternalRegisteredClientPolicyResolverTest {
     private static OAuth2RegisteredClientMetadata metadata(String clientId, String status, String secret,
                                                             String authenticationMethods, String grants, String scopes,
                                                             String autoApprove) {
-        return metadata(clientId, status, secret, authenticationMethods, grants, scopes, autoApprove, "0.0.0.0/0");
+        return metadata(clientId, status, secret, authenticationMethods, grants, scopes, autoApprove,
+                "0.0.0.0/0,::/0");
     }
 
     private static OAuth2RegisteredClientMetadata metadata(String clientId, String status, String secret,
@@ -243,7 +244,7 @@ class InternalRegisteredClientPolicyResolverTest {
 
     private static InternalRegisteredClientPolicy policy(String clientId, String grantType) {
         return new InternalRegisteredClientPolicy(clientId + "-id", clientId, grantType,
-                Set.of("*:read", "*:write"), Set.of("*:read"), "0.0.0.0/0",
+                Set.of("*:read", "*:write"), Set.of("*:read"), "0.0.0.0/0,::/0",
                 Duration.ofHours(3), Duration.ofHours(72));
     }
 

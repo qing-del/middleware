@@ -8,14 +8,12 @@ import com.jacolp.system.application.dto.authorization.InternalTokenHttpResponse
 import com.jacolp.system.application.authorization.InternalLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /** Handles USER/ADMIN password, email-code, and refresh-token grants on the one internal login endpoint. */
 @RestController
 @RequestMapping("/auth")
+@CrossOrigin("*")
 public class InternalAuthController {
 
     static final String INVALID_REQUEST_MESSAGE = "Invalid internal login request";

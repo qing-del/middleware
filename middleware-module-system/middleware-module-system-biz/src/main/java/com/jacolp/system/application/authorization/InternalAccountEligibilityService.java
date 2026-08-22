@@ -7,6 +7,7 @@ import com.jacolp.system.application.authorization.model.InternalRegisteredClien
 import com.jacolp.system.application.authorization.model.RoleMetadata;
 import com.jacolp.system.application.port.out.RoleMetadataRepository;
 import com.jacolp.constant.UserConstant;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -16,6 +17,7 @@ import java.util.Set;
  * Clears an already-loaded account for a fixed internal client without inspecting credentials or issuing tokens.
  */
 @Service
+@Slf4j
 public class InternalAccountEligibilityService {
 
     private static final Set<String> INTERNAL_CLIENT_IDS = Set.of("user", "admin");
@@ -73,9 +75,30 @@ public class InternalAccountEligibilityService {
         return role;
     }
 
+    /**
+     * 校验角色是否可以使用当前客户端进行登录
+     * <p>首发允许 ADMIN 和 CREATOR 使用 admin 和 user 客户端登录</p>
+     * <p>而 USER 仅仅只可以使用 user 客户端登录</p>
+     * @param clientId 客户端 ID
+     * @param roleCode 角色 Code
+     * @return 是否允许登录
+     */
     static boolean isRoleAllowedForClient(String clientId, String roleCode) {
-        return ("user".equals(clientId) && "USER".equals(roleCode))
-                || ("admin".equals(clientId) && ("ADMIN".equals(roleCode) || "CREATOR".equals(roleCode)));
+//        return ("user".equals(clientId) && "USER".equals(roleCode))
+//                || ("admin".equals(clientId) && ("ADMIN".equals(roleCode) || "CREATOR".equals(roleCode)));
+        // 先做非空校验
+        if (clientId == null || roleCode == null) {
+            log.warn("the null clientId or roleCode, please inspecting!");
+            return false;
+        }
+
+        // 判断是不是 ADMIN | CREATOR
+        if ("ADMIN".equals(roleCode) || "CREATOR".equals(roleCode)) {
+            return true;
+        }
+
+        // USER 只能使用 user 客户端登录
+        return ("user".equals(clientId) && "USER".equals(roleCode));
     }
 
     private static InternalAccountAuthenticationRejectedException rejected() {

@@ -46,9 +46,14 @@ class ClientAllowedIpPolicyTest {
     }
 
     @Test
-    void familySpecificZeroPrefixesMatchEveryLiteralOfTheirOwnFamily() {
+    void familySpecificZeroPrefixesMatchEveryLiteralOfTheirOwnFamilyAndDualStackMatchesBoth() {
         assertThat(ClientAllowedIpPolicy.parse("0.0.0.0/0").allows("203.0.113.7")).isTrue();
         assertThat(ClientAllowedIpPolicy.parse("::/0").allows("2001:db8:1::7")).isTrue();
+
+        ClientAllowedIpPolicy dualStack = ClientAllowedIpPolicy.parse("0.0.0.0/0,::/0");
+        assertThat(dualStack.allows("::1")).isTrue();
+        assertThat(dualStack.allows("0:0:0:0:0:0:0:1")).isTrue();
+        assertThat(dualStack.allows("203.0.113.7")).isTrue();
     }
 
     @Test
