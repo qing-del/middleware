@@ -4,6 +4,7 @@ import com.jacolp.system.application.authorization.CreatorAccountSynchronization
 import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.system.infrastructure.persistence.mapper.RoleMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -30,6 +31,6 @@ class DataInitializerCreatorSynchronizationTest {
         org.mockito.InOrder order = org.mockito.Mockito.inOrder(roles, synchronization);
         order.verify(roles).getAll();
         order.verify(synchronization).synchronize(eq("creator"), eq("secret"), eq("creator@example.com"),
-                eq(RoleConstant.USER_MAX_STORAGE_BYTES));
+                ArgumentMatchers.eq(RoleConstant.USER_MAX_STORAGE_BYTES));
     }
 }

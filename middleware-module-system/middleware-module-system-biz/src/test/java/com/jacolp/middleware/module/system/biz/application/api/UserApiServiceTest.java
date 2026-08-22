@@ -1,8 +1,8 @@
 package com.jacolp.middleware.module.system.biz.application.api;
 
-import com.jacolp.module.system.api.UserProfileApi;
-import com.jacolp.module.system.api.quota.ConsumeQuotaCommand;
-import com.jacolp.module.system.api.quota.ConsumeQuotaResult;
+import com.jacolp.system.api.UserProfileApi;
+import com.jacolp.system.api.quota.ConsumeQuotaCommand;
+import com.jacolp.system.api.quota.ConsumeQuotaResult;
 import com.jacolp.system.application.api.UserProfileApiService;
 import com.jacolp.system.application.api.UserQuotaApiService;
 import com.jacolp.system.application.dto.user.UserQuoteStorageDTO;

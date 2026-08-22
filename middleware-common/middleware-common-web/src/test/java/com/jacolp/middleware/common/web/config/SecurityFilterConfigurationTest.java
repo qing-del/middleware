@@ -1,8 +1,8 @@
 package com.jacolp.middleware.common.web.config;
 
-import com.jacolp.middleware.common.security.filter.ActivationJwtAuthenticationFilter;
-import com.jacolp.middleware.common.security.jwt.JwtProperties;
-import com.jacolp.web.config.SecurityFilterConfiguration;
+import com.jacolp.common.security.filter.ActivationJwtAuthenticationFilter;
+import com.jacolp.common.security.jwt.JwtProperties;
+import com.jacolp.common.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;

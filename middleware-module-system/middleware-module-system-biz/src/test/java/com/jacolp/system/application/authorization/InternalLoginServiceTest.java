@@ -1,11 +1,11 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedRefreshToken;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
-import com.jacolp.middleware.common.security.oauth2.token.RefreshTokenIssueRequest;
-import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.common.security.oauth2.token.AccessTokenIssueRequest;
+import com.jacolp.common.security.oauth2.token.IssuedAccessToken;
+import com.jacolp.common.security.oauth2.token.IssuedRefreshToken;
+import com.jacolp.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.common.security.oauth2.token.RefreshTokenIssueRequest;
+import com.jacolp.common.security.oauth2.token.Rs256AccessTokenIssuer;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.system.application.authorization.model.InternalIssuedTokens;
@@ -13,6 +13,7 @@ import com.jacolp.system.application.authorization.model.InternalLoginRequest;
 import com.jacolp.system.application.authorization.model.InternalRefreshTokenRequest;
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeAuthenticationRequest;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -108,7 +109,7 @@ class InternalLoginServiceTest {
         when(fixture.internalRefresh.refresh(new InternalRefreshTokenRequest("user", "B".repeat(43),
                 List.of("note:read"), "192.0.2.7"))).thenReturn(refreshed);
 
-        assertThat(fixture.service.login(new InternalLoginRequest("user", "refresh_token", null, null, null, null,
+        Assertions.assertThat(fixture.service.login(new InternalLoginRequest("user", "refresh_token", null, null, null, null,
                 Set.of("note:read"), "192.0.2.7", "B".repeat(43)))).isSameAs(refreshed);
 
         verify(fixture.internalRefresh).refresh(new InternalRefreshTokenRequest("user", "B".repeat(43),

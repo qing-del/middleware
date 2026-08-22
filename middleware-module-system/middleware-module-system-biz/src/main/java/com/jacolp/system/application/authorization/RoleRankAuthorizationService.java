@@ -1,6 +1,6 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.exception.PermissionDeniedException;
+import com.jacolp.common.core.exception.PermissionDeniedException;
 import com.jacolp.system.application.authorization.model.RoleMetadata;
 import com.jacolp.system.application.port.out.RoleMetadataRepository;
 import org.springframework.stereotype.Service;

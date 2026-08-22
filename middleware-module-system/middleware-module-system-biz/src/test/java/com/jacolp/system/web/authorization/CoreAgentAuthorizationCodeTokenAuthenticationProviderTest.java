@@ -1,15 +1,15 @@
 package com.jacolp.system.web.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeExchangeRequest;
+import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
+import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCodeTokens;
+import com.jacolp.system.application.authorization.model.VerifiedCoreAgentAuthorizationCode;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeExchangeRejectedException;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeExchangeService;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeTokenRejectedException;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeTokenService;
 import com.jacolp.system.application.authorization.CoreAgentRegisteredClientPolicyResolver;
-import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeExchangeRequest;
-import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
-import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCodeTokens;
-import com.jacolp.system.application.authorization.model.VerifiedCoreAgentAuthorizationCode;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

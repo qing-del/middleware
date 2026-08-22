@@ -5,6 +5,7 @@ import com.jacolp.system.application.port.out.RoleMetadataRepository;
 import com.jacolp.system.infrastructure.persistence.dataobject.RoleDO;
 import com.jacolp.system.infrastructure.persistence.mapper.RoleMapper;
 import com.jacolp.system.infrastructure.persistence.repository.MyBatisRoleMetadataRepository;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -37,8 +38,8 @@ class RoleMetadataPersistenceTest {
         RoleDO role = role(2L, "管理员", "ADMIN", 2);
         when(mapper.getById(2L)).thenReturn(role);
 
-        assertThat(repository.findById(2L)).contains(metadata(role));
-        assertThat(repository.findById(null)).isEmpty();
+        Assertions.assertThat(repository.findById(2L)).contains(metadata(role));
+        Assertions.assertThat(repository.findById(null)).isEmpty();
 
         verify(mapper).getById(2L);
         verifyNoMoreInteractions(mapper);
@@ -53,7 +54,7 @@ class RoleMetadataPersistenceTest {
         RoleDO user = role(3L, "普通用户", "USER", 3);
         when(mapper.getAll()).thenReturn(Arrays.asList(user, null, creator, admin));
 
-        assertThat(repository.findAll()).containsExactly(metadata(creator), metadata(admin), metadata(user));
+        Assertions.assertThat(repository.findAll()).containsExactly(metadata(creator), metadata(admin), metadata(user));
 
         verify(mapper).getAll();
         verifyNoMoreInteractions(mapper);
@@ -65,7 +66,7 @@ class RoleMetadataPersistenceTest {
         MyBatisRoleMetadataRepository repository = new MyBatisRoleMetadataRepository(mapper);
         when(mapper.getAll()).thenReturn(null);
 
-        assertThat(repository.findAll()).isEmpty();
+        Assertions.assertThat(repository.findAll()).isEmpty();
 
         verify(mapper).getAll();
         verifyNoMoreInteractions(mapper);
@@ -76,7 +77,7 @@ class RoleMetadataPersistenceTest {
         RoleMapper mapper = mock(RoleMapper.class);
         MyBatisRoleMetadataRepository repository = new MyBatisRoleMetadataRepository(mapper);
 
-        assertThat(repository.findById(null)).isEmpty();
+        Assertions.assertThat(repository.findById(null)).isEmpty();
 
         verifyNoInteractions(mapper);
     }

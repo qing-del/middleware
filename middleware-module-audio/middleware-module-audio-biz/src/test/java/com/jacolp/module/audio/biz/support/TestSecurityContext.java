@@ -1,7 +1,7 @@
 package com.jacolp.module.audio.biz.support;
 
-import com.jacolp.middleware.common.security.context.SecurityIdentity;
-import com.jacolp.middleware.common.security.context.SecurityPrincipal;
+import com.jacolp.common.security.context.SecurityIdentity;
+import com.jacolp.common.security.context.SecurityPrincipal;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;

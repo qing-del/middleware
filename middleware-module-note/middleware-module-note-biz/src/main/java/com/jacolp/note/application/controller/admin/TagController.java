@@ -1,11 +1,11 @@
 package com.jacolp.note.application.controller.admin;
 
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
+import com.jacolp.common.core.utils.IdParserUtil;
 import com.jacolp.note.application.dto.tag.TagModifyDTO;
 import com.jacolp.note.application.dto.tag.TagQueryDTO;
 import com.jacolp.note.application.service.TagService;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
-import com.jacolp.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;

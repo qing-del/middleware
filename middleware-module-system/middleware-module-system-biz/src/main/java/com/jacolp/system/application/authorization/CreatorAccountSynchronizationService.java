@@ -1,10 +1,10 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.system.constant.RoleConstant;
-import com.jacolp.constant.UserConstant;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.system.infrastructure.security.PasswordEncoder;
+import com.jacolp.system.constant.RoleConstant;
+import com.jacolp.constant.UserConstant;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;

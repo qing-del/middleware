@@ -1,8 +1,8 @@
 package com.jacolp.system.application.service;
 
+import com.jacolp.system.application.dto.user.EmailChangeRequestDTO;
 import com.jacolp.system.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.system.application.dto.user.UserRegisterDTO;
-import com.jacolp.system.application.dto.user.EmailChangeRequestDTO;
 import com.jacolp.system.application.vo.user.UserDetailVO;
 import com.jacolp.system.application.vo.user.UserOverviewVO;
 import jakarta.validation.Valid;

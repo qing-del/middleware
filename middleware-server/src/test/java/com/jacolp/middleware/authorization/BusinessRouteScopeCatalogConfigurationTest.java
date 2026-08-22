@@ -1,7 +1,7 @@
 package com.jacolp.middleware.authorization;
 
 import com.jacolp.config.BusinessRouteScopeCatalogConfiguration;
-import com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationEntry;
+import com.jacolp.common.security.oauth2.authorization.BusinessRouteAuthorizationEntry;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;

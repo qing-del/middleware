@@ -1,18 +1,20 @@
 package com.jacolp.system.application.authorization;
 
 import com.jacolp.constant.UserConstant;
-import com.jacolp.exception.AuthenticationException;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.core.exception.AuthenticationException;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.CoreAgentBrowserPrincipal;
 import com.jacolp.system.application.authorization.model.RoleMetadata;
 import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.application.port.out.PasswordCredentialVerifier;
 import com.jacolp.system.application.port.out.RoleMetadataRepository;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.mockito.Mockito;
 
 import java.util.Optional;
 
@@ -58,14 +60,14 @@ class CoreAgentBrowserAccountAuthenticatorTest {
         when(missing.credentials.matches("raw-password", null)).thenReturn(false);
         assertRejected(() -> missing.authenticator.authenticate("alice", "raw-password"));
         verify(missing.credentials).matches("raw-password", null);
-        verifyNoInteractions(missing.roles);
+        Mockito.verifyNoInteractions(missing.roles);
 
         Fixture wrong = fixture();
         when(wrong.accounts.findByUsername("alice")).thenReturn(Optional.of(account(UserConstant.ACTIVE_STATUS, "")));
         when(wrong.credentials.matches("raw-password", "password-hash")).thenReturn(false);
         assertRejected(() -> wrong.authenticator.authenticate("alice", "raw-password"));
         verify(wrong.credentials).matches("raw-password", "password-hash");
-        verifyNoInteractions(wrong.roles);
+        Mockito.verifyNoInteractions(wrong.roles);
     }
 
     @Test
@@ -84,7 +86,7 @@ class CoreAgentBrowserAccountAuthenticatorTest {
         when(inactive.accounts.findByUsername("alice")).thenReturn(Optional.of(account(9, "")));
         when(inactive.credentials.matches("raw-password", "password-hash")).thenReturn(true);
         assertRejected(() -> inactive.authenticator.authenticate("alice", "raw-password"));
-        verifyNoInteractions(inactive.roles);
+        Mockito.verifyNoInteractions(inactive.roles);
 
         AccountGrantTypeResolver deniedGrantResolver = mock(AccountGrantTypeResolver.class);
         when(deniedGrantResolver.allows(eq(AccountGrantTypeResolver.AUTHORIZATION_CODE), any())).thenReturn(false);
@@ -92,7 +94,7 @@ class CoreAgentBrowserAccountAuthenticatorTest {
         when(denied.accounts.findByUsername("alice")).thenReturn(Optional.of(account(UserConstant.ACTIVE_STATUS, "")));
         when(denied.credentials.matches("raw-password", "password-hash")).thenReturn(true);
         assertRejected(() -> denied.authenticator.authenticate("alice", "raw-password"));
-        verifyNoInteractions(denied.roles);
+        Mockito.verifyNoInteractions(denied.roles);
     }
 
     @Test
@@ -104,7 +106,7 @@ class CoreAgentBrowserAccountAuthenticatorTest {
 
         assertThatIllegalStateException().isThrownBy(() -> fixture.authenticator.authenticate("alice", "raw-password"))
                 .withMessageContaining("grant configuration");
-        verifyNoInteractions(fixture.roles);
+        Mockito.verifyNoInteractions(fixture.roles);
     }
 
     @Test
@@ -144,7 +146,7 @@ class CoreAgentBrowserAccountAuthenticatorTest {
     void principalAndRejectionDiagnosticsDoNotExposeCredentialOrAccountSecrets() {
         CoreAgentBrowserPrincipal principal = new CoreAgentBrowserPrincipal(7L, "alice", 2L, "USER", 3);
         assertThat(principal.toString()).doesNotContain("alice", "password-hash", "alice@example.test");
-        assertThat(new CoreAgentBrowserAuthenticationRejectedException().getMessage())
+        Assertions.assertThat(new CoreAgentBrowserAuthenticationRejectedException().getMessage())
                 .isEqualTo(CoreAgentBrowserAuthenticationRejectedException.MESSAGE)
                 .doesNotContain("alice", "raw-password");
     }

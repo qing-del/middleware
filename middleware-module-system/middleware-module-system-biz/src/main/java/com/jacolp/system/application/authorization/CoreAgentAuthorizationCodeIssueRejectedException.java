@@ -1,6 +1,6 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.exception.AuthenticationException;
+import com.jacolp.common.core.exception.AuthenticationException;
 
 /** Uniform non-enumerating rejection while issuing a CORE AGENT authorization code. */
 public final class CoreAgentAuthorizationCodeIssueRejectedException extends AuthenticationException {

@@ -1,8 +1,10 @@
 package com.jacolp.context;
 
-import com.jacolp.middleware.common.security.context.SecurityIdentity;
-import com.jacolp.middleware.common.security.context.SecurityPrincipal;
-import com.jacolp.exception.AuthenticationException;
+import com.jacolp.common.core.exception.AuthenticationException;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.security.context.SecurityIdentity;
+import com.jacolp.common.security.context.SecurityPrincipal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

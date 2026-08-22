@@ -1,13 +1,13 @@
 package com.jacolp.note.infrastructure.markdown;
 
 import com.jacolp.note.context.NoteImageResolveContext;
-import com.jacolp.framework.markdown.converter.MarkdownPlugin;
-import com.jacolp.module.media.api.MediaFileApi;
-import com.jacolp.module.media.api.model.MediaFileSummary;
-import com.jacolp.note.infrastructure.persistence.mapper.NoteEachMappingMapper;
-import com.jacolp.note.infrastructure.persistence.mapper.NoteImageMappingMapper;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteEachMappingDO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteImageMappingDO;
+import com.jacolp.note.infrastructure.persistence.mapper.NoteEachMappingMapper;
+import com.jacolp.note.infrastructure.persistence.mapper.NoteImageMappingMapper;
+import com.jacolp.framework.markdown.converter.MarkdownPlugin;
+import com.jacolp.media.api.MediaFileApi;
+import com.jacolp.media.api.model.MediaFileSummary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;

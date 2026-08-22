@@ -2,20 +2,19 @@ package com.jacolp.system.web.controller.user;
 
 import java.util.Map;
 
-import com.jacolp.system.application.service.UserUserService;
-import com.jacolp.system.application.vo.user.UserDetailVO;
-import com.jacolp.system.application.vo.user.UserOverviewVO;
+import com.jacolp.common.core.constant.RateLimitConstant;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.system.application.dto.user.UserRegisterDTO;
-import com.jacolp.web.annotation.RateLimit;
-import com.jacolp.constant.RateLimitConstant;
+import com.jacolp.system.application.vo.user.UserDetailVO;
+import com.jacolp.system.application.vo.user.UserOverviewVO;
+import com.jacolp.common.web.annotation.RateLimit;
+import com.jacolp.system.application.service.UserUserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import com.jacolp.context.BaseContext;
-import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

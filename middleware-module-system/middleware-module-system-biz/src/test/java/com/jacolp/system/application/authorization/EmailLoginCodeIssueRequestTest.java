@@ -1,7 +1,7 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.common.core.exception.AuthenticationException;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeIssueRequest;
-import com.jacolp.exception.AuthenticationException;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -3,6 +3,7 @@ package com.jacolp.system.infrastructure.authorization;
 import com.jacolp.system.application.authorization.CoreAgentPendingAuthorizationStateCodec;
 import com.jacolp.system.application.authorization.model.CoreAgentPendingAuthorizationState;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.HashOperations;
@@ -47,7 +48,7 @@ class RedisCoreAgentPendingAuthorizationStoreTest {
 
         verify(redis).execute(eq(save), eq(List.of(key())), eq(arguments));
         assertThat(arguments).contains(HANDLE).doesNotContain("raw_code", "authorization_code");
-        assertThat(new CoreAgentPendingAuthorizationStateCodec().encode(state)).doesNotContainValue(HANDLE);
+        Assertions.assertThat(new CoreAgentPendingAuthorizationStateCodec().encode(state)).doesNotContainValue(HANDLE);
     }
 
     @Test
@@ -59,7 +60,7 @@ class RedisCoreAgentPendingAuthorizationStoreTest {
         CoreAgentPendingAuthorizationState state = state(NOW);
         when(hashes.entries(key())).thenReturn(new LinkedHashMap<>(new CoreAgentPendingAuthorizationStateCodec().encode(state)));
         RedisCoreAgentPendingAuthorizationStore store = store(redis, new DefaultRedisScript<>(), NOW);
-        assertThat(store.find(HANDLE)).contains(state);
+        Assertions.assertThat(store.find(HANDLE)).contains(state);
         when(hashes.entries(key())).thenReturn(Map.of("schema_version", "1"));
         assertThatIllegalArgumentException().isThrownBy(() -> store.find(HANDLE));
 

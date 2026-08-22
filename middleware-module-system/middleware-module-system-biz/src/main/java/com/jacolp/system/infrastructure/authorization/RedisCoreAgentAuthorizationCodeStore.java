@@ -1,12 +1,12 @@
 package com.jacolp.system.infrastructure.authorization;
 
-import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeStateCodec;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeState;
 import com.jacolp.system.application.authorization.model.CoreAgentPendingAuthorizationState;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCode;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
 import com.jacolp.system.application.port.out.CoreAgentAuthorizationCodeStore;
 import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
+import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeStateCodec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;

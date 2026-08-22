@@ -1,6 +1,7 @@
 package com.jacolp.system.application.authorization;
 
 import com.jacolp.system.application.authorization.model.CoreAgentPendingAuthorizationState;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -35,14 +36,14 @@ class CoreAgentPendingAuthorizationStateCodecTest {
                 Map.entry("expires_at_epoch_millis", Long.toString(NOW.plus(Duration.ofMinutes(10)).toEpochMilli()))));
         assertThat(values.keySet()).containsExactlyElementsOf(codec.fieldNames());
         assertThat(values.keySet()).noneMatch(field -> field.contains("code") && field.contains("raw"));
-        assertThat(codec.decode(values)).isEqualTo(state);
+        Assertions.assertThat(codec.decode(values)).isEqualTo(state);
     }
 
     @Test
     void canonicalizesSpecifiedScopesAndFailsClosedForPollutionOrAmbiguousNullability() {
         CoreAgentPendingAuthorizationStateCodec codec = new CoreAgentPendingAuthorizationStateCodec();
         CoreAgentPendingAuthorizationState state = state(List.of("sys:read", "note:read"));
-        assertThat(codec.decode(codec.encode(state)).requestedScopes()).containsExactly("note:read", "sys:read");
+        Assertions.assertThat(codec.decode(codec.encode(state)).requestedScopes()).containsExactly("note:read", "sys:read");
 
         Map<String, String> polluted = new LinkedHashMap<>(codec.encode(state));
         polluted.put("raw_code", opaque((byte) 9));

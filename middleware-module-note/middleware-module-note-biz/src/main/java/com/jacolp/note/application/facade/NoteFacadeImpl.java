@@ -7,11 +7,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.common.messaging.event.StorageReleasedEvent;
 import com.jacolp.note.application.component.JsonOperator;
-import com.jacolp.note.application.dto.note.UploadToInsertNoteDTO;
-import com.jacolp.note.application.vo.image.ImageSimpleVO;
+import com.jacolp.note.context.NoteImageResolveContext;
 import com.jacolp.note.infrastructure.cache.GuestCacheConstant;
 import com.jacolp.note.infrastructure.cache.GuestCacheEvict;
+import com.jacolp.note.application.dto.note.UploadToInsertNoteDTO;
+import com.jacolp.note.application.vo.image.ImageSimpleVO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteChangeDiffDO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteTagMappingDO;
@@ -25,18 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jacolp.context.PermissionContext;
-import com.jacolp.middleware.messaging.event.StorageReleasedEvent;
-import com.jacolp.middleware.messaging.pulisher.StorageReleasedEventPublisher;
-import com.jacolp.module.system.api.quota.StorageHandler;
+import com.jacolp.common.messaging.pulisher.StorageReleasedEventPublisher;
+import com.jacolp.system.api.quota.StorageHandler;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.constant.TopicConstant;
-import com.jacolp.context.BaseContext;
-import com.jacolp.note.context.NoteImageResolveContext;
 import com.jacolp.framework.markdown.converter.MarkdownHtmlEngine;
 import com.jacolp.note.enums.NoteStatus;
-import com.jacolp.module.system.api.quota.StorageOperationType;
-import com.jacolp.exception.BaseException;
+import com.jacolp.system.api.quota.StorageOperationType;
 import com.jacolp.note.application.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteContextDO;
 import com.jacolp.note.application.vo.note.NoteChangeDiffVO;
@@ -66,7 +66,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <h3>权限模型</h3>
  * <p>所有权校验委托 {@link NoteCoreService#getById(Long)}，其内部通过
- * {@link com.jacolp.context.PermissionContext#isAdmin()} 自动区分管理端/用户端。</p>
+ * {@link PermissionContext#isAdmin()} 自动区分管理端/用户端。</p>
  */
 @Service
 @Slf4j

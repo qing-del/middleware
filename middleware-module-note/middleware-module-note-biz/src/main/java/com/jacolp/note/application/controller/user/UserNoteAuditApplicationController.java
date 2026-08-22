@@ -1,8 +1,8 @@
 package com.jacolp.note.application.controller.user;
 
+import com.jacolp.common.core.result.Result;
 import com.jacolp.note.application.service.NoteCoreService;
 import com.jacolp.note.application.service.TagService;
-import com.jacolp.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;

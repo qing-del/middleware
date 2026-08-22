@@ -1,7 +1,7 @@
 package com.jacolp.system.web.controller.authorization;
 
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.authorization.CoreAgentLogoutService;
-import com.jacolp.result.Result;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;

@@ -12,6 +12,7 @@ import com.jacolp.system.infrastructure.persistence.repository.MyBatisOAuth2Auth
 import com.jacolp.system.infrastructure.persistence.repository.MyBatisOAuth2RegisteredClientMetadataRepository;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.session.Configuration;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
@@ -76,9 +77,9 @@ class OAuthMetadataPersistenceTest {
         when(mapper.updateById(any(OAuth2RegisteredClientDO.class))).thenReturn(1);
         when(mapper.deleteById("client-row-1")).thenReturn(1);
 
-        assertThat(repository.findById("client-row-1")).contains(metadata);
-        assertThat(repository.findByClientId("user")).contains(metadata);
-        assertThat(repository.findByStatus("disabled")).containsExactly(metadata);
+        Assertions.assertThat(repository.findById("client-row-1")).contains(metadata);
+        Assertions.assertThat(repository.findByClientId("user")).contains(metadata);
+        Assertions.assertThat(repository.findByStatus("disabled")).containsExactly(metadata);
         assertThat(repository.insert(metadata)).isEqualTo(1);
         assertThat(repository.updateById(metadata)).isEqualTo(1);
         assertThat(repository.deleteById("client-row-1")).isEqualTo(1);
@@ -103,8 +104,8 @@ class OAuthMetadataPersistenceTest {
         when(mapper.updateAuthorities(any(OAuth2AuthorizationConsentDO.class))).thenReturn(1);
         when(mapper.deleteByRegisteredClientIdAndPrincipalName("client-row-1", "42")).thenReturn(1);
 
-        assertThat(repository.findByRegisteredClientIdAndPrincipalName("client-row-1", "42")).contains(metadata);
-        assertThat(repository.findByPrincipalName("42")).containsExactly(metadata);
+        Assertions.assertThat(repository.findByRegisteredClientIdAndPrincipalName("client-row-1", "42")).contains(metadata);
+        Assertions.assertThat(repository.findByPrincipalName("42")).containsExactly(metadata);
         assertThat(repository.insert(metadata)).isEqualTo(1);
         assertThat(repository.updateAuthorities(metadata)).isEqualTo(1);
         assertThat(repository.deleteByRegisteredClientIdAndPrincipalName("client-row-1", "42")).isEqualTo(1);

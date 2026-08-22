@@ -1,6 +1,6 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.exception.AuthenticationException;
+import com.jacolp.common.core.exception.AuthenticationException;
 
 /** Stable, non-sensitive rejection when no eligible CORE AGENT access token is present. */
 public final class CoreAgentLogoutRejectedException extends AuthenticationException {

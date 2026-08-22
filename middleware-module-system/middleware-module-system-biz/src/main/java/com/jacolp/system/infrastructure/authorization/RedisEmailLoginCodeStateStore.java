@@ -1,9 +1,9 @@
 package com.jacolp.system.infrastructure.authorization;
 
-import com.jacolp.system.application.authorization.EmailLoginCodeStateCodec;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeState;
 import com.jacolp.system.application.port.out.EmailLoginCodeFailureDecision;
 import com.jacolp.system.application.port.out.EmailLoginCodeStateStore;
+import com.jacolp.system.application.authorization.EmailLoginCodeStateCodec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;

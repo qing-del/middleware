@@ -1,7 +1,8 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
-import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -27,8 +28,8 @@ class InternalLoginServiceContextTest {
                     assertThat(context.getBeansOfType(EmailLoginCodeAuthenticator.class)).hasSize(1);
                     assertThat(context.getBeansOfType(EffectiveRolePermissionResolver.class)).hasSize(1);
                     assertThat(context.getBeansOfType(OAuth2ScopeResolver.class)).hasSize(1);
-                    assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).hasSize(1);
-                    assertThat(context.getBeansOfType(OAuth2RefreshTokenSessionService.class)).hasSize(1);
+                    Assertions.assertThat(context.getBeansOfType(Rs256AccessTokenIssuer.class)).hasSize(1);
+                    Assertions.assertThat(context.getBeansOfType(OAuth2RefreshTokenSessionService.class)).hasSize(1);
                     assertThat(context.getBeansOfType(InternalRefreshTokenService.class)).hasSize(1);
                 });
     }

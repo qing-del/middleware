@@ -1,8 +1,8 @@
 package com.jacolp.system.application.api;
 
-import com.jacolp.module.system.api.UserProfileApi;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.system.api.UserProfileApi;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;

@@ -1,6 +1,6 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.exception.AuthenticationException;
+import com.jacolp.common.core.exception.AuthenticationException;
 
 /** Uniform non-enumerating invalid_grant rejection for CORE AGENT authorization-code exchange. */
 public final class CoreAgentAuthorizationCodeExchangeRejectedException extends AuthenticationException {

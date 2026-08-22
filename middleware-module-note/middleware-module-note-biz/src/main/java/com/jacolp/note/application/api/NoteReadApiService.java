@@ -1,18 +1,18 @@
 package com.jacolp.note.application.api;
 
-import com.jacolp.note.infrastructure.persistence.mapper.NoteImageMappingMapper;
-import com.jacolp.note.infrastructure.persistence.mapper.NoteMapper;
-import com.jacolp.note.infrastructure.persistence.mapper.TagMapper;
-import com.jacolp.module.note.api.NoteReadApi;
-import com.jacolp.module.note.api.model.NoteLifecycleStatus;
-import com.jacolp.module.note.api.model.NoteSummary;
-import com.jacolp.module.note.api.model.NoteMediaReferenceSummary;
-import com.jacolp.module.note.api.model.TagReviewStatus;
-import com.jacolp.module.note.api.model.TagSummary;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteImageMappingDO;
 import com.jacolp.note.infrastructure.persistence.dataobject.TagDO;
+import com.jacolp.note.infrastructure.persistence.mapper.NoteImageMappingMapper;
+import com.jacolp.note.infrastructure.persistence.mapper.NoteMapper;
+import com.jacolp.note.infrastructure.persistence.mapper.TagMapper;
 import com.jacolp.note.infrastructure.persistence.projection.MappingProjections;
+import com.jacolp.note.api.NoteReadApi;
+import com.jacolp.note.api.model.NoteLifecycleStatus;
+import com.jacolp.note.api.model.NoteSummary;
+import com.jacolp.note.api.model.NoteMediaReferenceSummary;
+import com.jacolp.note.api.model.TagReviewStatus;
+import com.jacolp.note.api.model.TagSummary;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;

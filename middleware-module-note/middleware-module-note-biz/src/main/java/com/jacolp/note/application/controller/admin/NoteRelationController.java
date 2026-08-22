@@ -2,6 +2,7 @@ package com.jacolp.note.application.controller.admin;
 
 import java.util.List;
 
+import com.jacolp.common.core.result.Result;
 import com.jacolp.note.application.vo.note.ImageBacklinkVO;
 import com.jacolp.note.application.vo.note.NoteBacklinkVO;
 import com.jacolp.note.application.vo.note.TagBacklinkVO;
@@ -13,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.jacolp.note.application.facade.NoteRelationFacade;
-import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

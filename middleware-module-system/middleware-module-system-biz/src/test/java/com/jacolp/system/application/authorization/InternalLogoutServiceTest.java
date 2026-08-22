@@ -1,11 +1,11 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.context.CurrentAccessTokenAccessor;
-import com.jacolp.middleware.common.security.context.CurrentAccessTokenReference;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionRevocationRequest;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionRevocationStore;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionState;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
+import com.jacolp.common.security.context.CurrentAccessTokenAccessor;
+import com.jacolp.common.security.context.CurrentAccessTokenReference;
+import com.jacolp.common.security.oauth2.token.OAuth2SessionRevocationRequest;
+import com.jacolp.common.security.oauth2.token.OAuth2SessionRevocationStore;
+import com.jacolp.common.security.oauth2.token.OAuth2SessionState;
+import com.jacolp.common.security.oauth2.token.OAuth2TokenStateStore;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

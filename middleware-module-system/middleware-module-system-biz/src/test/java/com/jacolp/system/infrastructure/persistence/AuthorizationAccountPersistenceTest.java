@@ -5,6 +5,7 @@ import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.system.infrastructure.persistence.repository.MyBatisAuthorizationAccountRepository;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -38,9 +39,9 @@ class AuthorizationAccountPersistenceTest {
         when(mapper.selectById(7L)).thenReturn(user);
         when(mapper.selectById(8L)).thenReturn(null);
 
-        assertThat(repository.findById(7L)).contains(account(user));
-        assertThat(repository.findById(8L)).isEmpty();
-        assertThat(repository.findById(null)).isEmpty();
+        Assertions.assertThat(repository.findById(7L)).contains(account(user));
+        Assertions.assertThat(repository.findById(8L)).isEmpty();
+        Assertions.assertThat(repository.findById(null)).isEmpty();
 
         verify(mapper).selectById(7L);
         verify(mapper).selectById(8L);
@@ -55,9 +56,9 @@ class AuthorizationAccountPersistenceTest {
         when(mapper.selectByUsername("alice")).thenReturn(user);
         when(mapper.selectByUsername("missing")).thenReturn(null);
 
-        assertThat(repository.findByUsername("alice")).contains(account(user));
-        assertThat(repository.findByUsername("missing")).isEmpty();
-        assertThat(repository.findByUsername(null)).isEmpty();
+        Assertions.assertThat(repository.findByUsername("alice")).contains(account(user));
+        Assertions.assertThat(repository.findByUsername("missing")).isEmpty();
+        Assertions.assertThat(repository.findByUsername(null)).isEmpty();
 
         verify(mapper).selectByUsername("alice");
         verify(mapper).selectByUsername("missing");
@@ -72,9 +73,9 @@ class AuthorizationAccountPersistenceTest {
         when(mapper.selectByEmail("alice@example.test")).thenReturn(user);
         when(mapper.selectByEmail("missing@example.test")).thenReturn(null);
 
-        assertThat(repository.findByEmail("alice@example.test")).contains(account(user));
-        assertThat(repository.findByEmail("missing@example.test")).isEmpty();
-        assertThat(repository.findByEmail(null)).isEmpty();
+        Assertions.assertThat(repository.findByEmail("alice@example.test")).contains(account(user));
+        Assertions.assertThat(repository.findByEmail("missing@example.test")).isEmpty();
+        Assertions.assertThat(repository.findByEmail(null)).isEmpty();
 
         verify(mapper).selectByEmail("alice@example.test");
         verify(mapper).selectByEmail("missing@example.test");
@@ -99,7 +100,7 @@ class AuthorizationAccountPersistenceTest {
 
         assertThat(account.email()).isNull();
         assertThat(account.toString()).doesNotContain("stored-secret");
-        assertThat(repository.findById(7L)).contains(account);
+        Assertions.assertThat(repository.findById(7L)).contains(account);
 
         verify(mapper).selectById(7L);
         verifyNoMoreInteractions(mapper);
@@ -128,9 +129,9 @@ class AuthorizationAccountPersistenceTest {
         UserMapper mapper = mock(UserMapper.class);
         MyBatisAuthorizationAccountRepository repository = new MyBatisAuthorizationAccountRepository(mapper);
 
-        assertThat(repository.findById(null)).isEmpty();
-        assertThat(repository.findByUsername(null)).isEmpty();
-        assertThat(repository.findByEmail(null)).isEmpty();
+        Assertions.assertThat(repository.findById(null)).isEmpty();
+        Assertions.assertThat(repository.findByUsername(null)).isEmpty();
+        Assertions.assertThat(repository.findByEmail(null)).isEmpty();
 
         verifyNoInteractions(mapper);
     }

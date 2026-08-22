@@ -1,7 +1,7 @@
 package com.jacolp.system.exception;
 
 import com.jacolp.constant.UserConstant;
-import com.jacolp.exception.BaseException;
+import com.jacolp.common.core.exception.BaseException;
 
 public class PasswordIncorrectException extends BaseException {
     public PasswordIncorrectException(String message) {

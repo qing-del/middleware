@@ -1,7 +1,7 @@
 package com.jacolp.note.infrastructure.web;
 
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.constant.NoteConstant;
-import com.jacolp.exception.BaseException;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;

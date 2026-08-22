@@ -3,6 +3,7 @@ package com.jacolp.system.infrastructure.authorization;
 import com.jacolp.system.application.authorization.EmailLoginCodeStateCodec;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeState;
 import com.jacolp.system.application.port.out.EmailLoginCodeStateStore;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.HashOperations;
@@ -43,7 +44,7 @@ class RedisEmailLoginCodeStateStoreTest {
         EmailLoginCodeState state = state("user", 7L);
         when(hash.entries(USER_KEY)).thenReturn(new LinkedHashMap<>(new EmailLoginCodeStateCodec().encode(state)));
 
-        assertThat(new RedisEmailLoginCodeStateStore(redis).find("user", 7L)).contains(state);
+        Assertions.assertThat(new RedisEmailLoginCodeStateStore(redis).find("user", 7L)).contains(state);
         verify(hash).entries(USER_KEY);
     }
 
@@ -56,8 +57,8 @@ class RedisEmailLoginCodeStateStoreTest {
         when(hash.entries(USER_KEY)).thenReturn(null, Map.of());
         RedisEmailLoginCodeStateStore store = new RedisEmailLoginCodeStateStore(redis);
 
-        assertThat(store.find("user", 7L)).isEmpty();
-        assertThat(store.find("user", 7L)).isEmpty();
+        Assertions.assertThat(store.find("user", 7L)).isEmpty();
+        Assertions.assertThat(store.find("user", 7L)).isEmpty();
     }
 
     @Test

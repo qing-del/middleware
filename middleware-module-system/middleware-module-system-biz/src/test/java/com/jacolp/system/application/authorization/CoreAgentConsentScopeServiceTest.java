@@ -3,6 +3,7 @@ package com.jacolp.system.application.authorization;
 import com.jacolp.system.application.authorization.model.CoreAgentConsentScopeOptions;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -33,9 +34,9 @@ class CoreAgentConsentScopeServiceTest {
     void explicitScopeUsesRequestedIntersectionAndOnlyCreatorMayRequestSuper() {
         CoreAgentRegisteredClientPolicy policy = policy(Set.of("note:write", "*:super"), Set.of());
 
-        assertThat(service.options(role("USER", "note:write", "*:super"), policy,
+        Assertions.assertThat(service.options(role("USER", "note:write", "*:super"), policy,
                 List.of("note:write", "*:super"), null).candidateScopes()).containsExactly("note:write");
-        assertThat(service.options(role("CREATOR", "note:write", "*:super"), policy,
+        Assertions.assertThat(service.options(role("CREATOR", "note:write", "*:super"), policy,
                 List.of("note:write", "*:super"), null).candidateScopes())
                 .containsExactly("*:super", "note:write");
     }

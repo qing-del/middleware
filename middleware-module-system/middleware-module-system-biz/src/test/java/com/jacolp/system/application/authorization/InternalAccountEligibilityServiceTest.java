@@ -1,13 +1,14 @@
 package com.jacolp.system.application.authorization;
 
 import com.jacolp.constant.UserConstant;
-import com.jacolp.exception.AuthenticationException;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.core.exception.AuthenticationException;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.RoleMetadata;
 import com.jacolp.system.application.port.out.RoleMetadataRepository;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -46,8 +47,8 @@ class InternalAccountEligibilityServiceTest {
         when(fixture.roles.findById(2L)).thenReturn(Optional.of(role(2L, "ADMIN", 2)));
         when(fixture.roles.findById(1L)).thenReturn(Optional.of(role(1L, "CREATOR", 1)));
 
-        assertThat(fixture.service.resolve(policy("admin", "email-code"), admin).roleCode()).isEqualTo("ADMIN");
-        assertThat(fixture.service.resolve(policy("admin", "password"), creator).roleCode()).isEqualTo("CREATOR");
+        Assertions.assertThat(fixture.service.resolve(policy("admin", "email-code"), admin).roleCode()).isEqualTo("ADMIN");
+        Assertions.assertThat(fixture.service.resolve(policy("admin", "password"), creator).roleCode()).isEqualTo("CREATOR");
     }
 
     @Test

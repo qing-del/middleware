@@ -3,13 +3,13 @@ package com.jacolp.note.application.component;
 import java.util.List;
 import java.util.Map;
 
+import com.jacolp.common.core.json.JacksonObjectMapper;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.jacolp.json.JacksonObjectMapper;
 
 /**
  * JSON 操作工具 Bean —— 包装 {@link ObjectMapper}，提供常用序列化/反序列化快捷方法。

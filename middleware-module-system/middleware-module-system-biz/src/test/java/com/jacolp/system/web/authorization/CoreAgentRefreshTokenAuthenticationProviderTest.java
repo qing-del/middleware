@@ -5,9 +5,10 @@ import com.jacolp.system.application.authorization.CoreAgentRefreshTokenService;
 import com.jacolp.system.application.authorization.CoreAgentRegisteredClientPolicyResolver;
 import com.jacolp.system.application.authorization.model.CoreAgentRefreshTokenRequest;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
-import com.jacolp.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
+import com.jacolp.common.core.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,7 +37,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class CoreAgentRefreshTokenAuthenticationProviderTest {
@@ -73,7 +73,7 @@ class CoreAgentRefreshTokenAuthenticationProviderTest {
         OAuth2ClientAuthenticationToken invalidClient = new OAuth2ClientAuthenticationToken(secretMethod.registeredClient,
                 ClientAuthenticationMethod.CLIENT_SECRET_BASIC, null);
         assertError(() -> secretMethod.provider.authenticate(request(invalidClient, Set.of(), false)), "invalid_client");
-        verifyNoInteractions(secretMethod.service);
+        Mockito.verifyNoInteractions(secretMethod.service);
 
         Fixture wrongClient = fixture();
         OAuth2ClientAuthenticationToken other = new OAuth2ClientAuthenticationToken(registeredClient("other", "other"),
@@ -84,7 +84,7 @@ class CoreAgentRefreshTokenAuthenticationProviderTest {
         OAuth2RefreshTokenAuthenticationToken request = new OAuth2RefreshTokenAuthenticationToken(RAW_REFRESH,
                 noDetails.client, Set.of(), Map.of());
         assertError(() -> noDetails.provider.authenticate(request), "invalid_grant");
-        verifyNoInteractions(noDetails.service);
+        Mockito.verifyNoInteractions(noDetails.service);
     }
 
     @Test

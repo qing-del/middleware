@@ -1,12 +1,12 @@
 package com.jacolp.note.interfaces.web.admin;
 
 import com.jacolp.note.application.dto.topic.TopicListDTO;
+import com.jacolp.note.application.service.TopicService;
 import com.jacolp.note.application.vo.topic.TopicDetailVO;
 import com.jacolp.note.application.vo.topic.TopicListVO;
-import com.jacolp.note.application.service.TopicService;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
-import com.jacolp.utils.IdParserUtil;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
+import com.jacolp.common.core.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;

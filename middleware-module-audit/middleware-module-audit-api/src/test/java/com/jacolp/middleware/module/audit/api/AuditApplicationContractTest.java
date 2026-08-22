@@ -1,5 +1,7 @@
 package com.jacolp.middleware.module.audit.api;
 
+import com.jacolp.audit.api.*;
+import com.jacolp.common.core.audit.api.*;
 import com.jacolp.module.audit.api.*;
 import org.junit.jupiter.api.Test;
 

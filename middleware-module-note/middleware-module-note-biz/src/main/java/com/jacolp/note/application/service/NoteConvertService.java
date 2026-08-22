@@ -2,9 +2,9 @@ package com.jacolp.note.application.service;
 
 import java.util.List;
 
-import com.jacolp.note.application.vo.note.NoteConvertResultVO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteContextDO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
+import com.jacolp.note.application.vo.note.NoteConvertResultVO;
 
 public interface NoteConvertService {
     String convertAndSave(NoteDO note, NoteContextDO context);

@@ -1,8 +1,8 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.context.CurrentAccessTokenAccessor;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2SessionRevocationStore;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2TokenStateStore;
+import com.jacolp.common.security.context.CurrentAccessTokenAccessor;
+import com.jacolp.common.security.oauth2.token.OAuth2SessionRevocationStore;
+import com.jacolp.common.security.oauth2.token.OAuth2TokenStateStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -27,8 +27,11 @@ class InternalLogoutServiceContextTest {
 
     @Configuration(proxyBeanMethods = false)
     static class Dependencies {
-        @Bean CurrentAccessTokenAccessor access() { return mock(CurrentAccessTokenAccessor.class); }
-        @Bean OAuth2TokenStateStore states() { return mock(OAuth2TokenStateStore.class); }
-        @Bean OAuth2SessionRevocationStore revocations() { return mock(OAuth2SessionRevocationStore.class); }
+        @Bean
+        CurrentAccessTokenAccessor access() { return mock(CurrentAccessTokenAccessor.class); }
+        @Bean
+        OAuth2TokenStateStore states() { return mock(OAuth2TokenStateStore.class); }
+        @Bean
+        OAuth2SessionRevocationStore revocations() { return mock(OAuth2SessionRevocationStore.class); }
     }
 }

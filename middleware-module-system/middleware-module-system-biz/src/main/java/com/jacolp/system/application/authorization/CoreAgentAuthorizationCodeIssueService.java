@@ -1,8 +1,11 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.token.SecureOAuth2TokenGenerator;
+import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
+import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationAccountSnapshot;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeIssueRequest;
@@ -15,9 +18,6 @@ import com.jacolp.system.application.authorization.model.EffectiveRolePermission
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCode;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
 import com.jacolp.system.application.authorization.model.PermissionScopePattern;
-import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
-import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

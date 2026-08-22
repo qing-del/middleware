@@ -2,20 +2,20 @@ package com.jacolp.note.application.service;
 
 import java.util.List;
 
-import com.jacolp.context.PermissionContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.note.infrastructure.persistence.dataobject.TagDO;
+import com.jacolp.note.infrastructure.persistence.dto.TagNoteCountDTO;
+import com.jacolp.common.core.result.PageResult;
 import com.jacolp.note.application.dto.tag.TagAddDTO;
 import com.jacolp.note.application.dto.tag.TagBatchAddDTO;
-import com.jacolp.note.infrastructure.persistence.dto.TagNoteCountDTO;
 import com.jacolp.note.application.dto.tag.TagModifyDTO;
 import com.jacolp.note.application.dto.tag.TagQueryDTO;
 import com.jacolp.note.application.dto.tag.UserTagAssignDTO;
 import com.jacolp.note.application.dto.tag.UserTagQueryDTO;
 import com.jacolp.note.application.dto.tag.UserTagRemoveDTO;
-import com.jacolp.note.infrastructure.persistence.dataobject.TagDO;
 import com.jacolp.note.application.vo.tag.TagBatchAddVO;
 import com.jacolp.note.application.vo.tag.TagStatsVO;
 import com.jacolp.note.application.vo.tag.UserTagSimpleVO;
-import com.jacolp.result.PageResult;
 
 public interface TagService {
 

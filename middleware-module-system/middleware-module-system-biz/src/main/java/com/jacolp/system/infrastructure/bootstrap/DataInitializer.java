@@ -1,9 +1,9 @@
 package com.jacolp.system.infrastructure.bootstrap;
 
-import com.jacolp.system.constant.RoleConstant;
-import com.jacolp.system.application.authorization.CreatorAccountSynchronizationService;
 import com.jacolp.system.infrastructure.persistence.dataobject.RoleDO;
 import com.jacolp.system.infrastructure.persistence.mapper.RoleMapper;
+import com.jacolp.system.constant.RoleConstant;
+import com.jacolp.system.application.authorization.CreatorAccountSynchronizationService;
 import com.jacolp.system.utils.RoleDataComputerUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

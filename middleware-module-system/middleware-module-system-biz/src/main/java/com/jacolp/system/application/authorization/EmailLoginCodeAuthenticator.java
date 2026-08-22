@@ -1,14 +1,14 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.system.application.port.out.EmailLoginCodeFailureDecision;
+import com.jacolp.system.application.port.out.EmailLoginCodeProtector;
+import com.jacolp.system.application.port.out.EmailLoginCodeStateStore;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeAuthenticationRequest;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeState;
 import com.jacolp.system.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
-import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.system.application.port.out.EmailLoginCodeFailureDecision;
-import com.jacolp.system.application.port.out.EmailLoginCodeProtector;
-import com.jacolp.system.application.port.out.EmailLoginCodeStateStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

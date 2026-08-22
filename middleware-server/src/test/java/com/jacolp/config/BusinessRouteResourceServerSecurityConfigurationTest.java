@@ -1,18 +1,19 @@
 package com.jacolp.config;
 
-import com.jacolp.context.BaseContext;
-import com.jacolp.context.PermissionContext;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.config.OAuth2Rs256CodecConfiguration;
-import com.jacolp.middleware.common.security.oauth2.config.OAuth2Rs256Properties;
-import com.jacolp.middleware.common.security.oauth2.key.RsaKeyMaterial;
-import com.jacolp.middleware.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
-import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
-import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
-import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
-import com.jacolp.middleware.common.core.metrics.QpsCounter;
-import com.jacolp.middleware.common.security.jwt.JwtProperties;
+import com.jacolp.common.security.oauth2.authorization.BusinessRouteAuthorizationPolicy;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.config.OAuth2Rs256CodecConfiguration;
+import com.jacolp.common.security.oauth2.config.OAuth2Rs256Properties;
+import com.jacolp.common.security.oauth2.key.RsaKeyMaterial;
+import com.jacolp.common.security.oauth2.jwt.CoreNodeAccessTokenClaimsValidator;
+import com.jacolp.common.security.oauth2.token.AccessTokenIssueRequest;
+import com.jacolp.common.security.oauth2.token.IssuedAccessToken;
+import com.jacolp.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.common.security.oauth2.token.SecureOAuth2TokenGenerator;
+import com.jacolp.common.core.metrics.QpsCounter;
+import com.jacolp.common.security.jwt.JwtProperties;
 import com.jacolp.system.application.authorization.CoreAgentBrowserAccountAuthenticator;
 import com.jacolp.system.application.authorization.CoreAgentBrowserAuthenticationProvider;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeIssueService;
@@ -26,7 +27,7 @@ import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
 import com.jacolp.system.infrastructure.authorization.ActiveRegisteredClientRepository;
 import com.jacolp.system.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
-import com.jacolp.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
+import com.jacolp.common.core.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
 import com.jacolp.system.infrastructure.authorization.RedisCoreAgentPendingAuthorizationStore;
 import com.jacolp.system.infrastructure.security.BCryptEmailLoginCodeProtector;
 import com.jacolp.system.infrastructure.security.BCryptPasswordCredentialVerifier;
@@ -42,7 +43,7 @@ import com.jacolp.system.web.authorization.CoreAgentPublicClientAuthenticationPr
 import com.jacolp.system.web.authorization.CoreAgentRefreshTokenAuthenticationConverter;
 import com.jacolp.system.web.authorization.CoreAgentRefreshTokenAuthenticationProvider;
 import com.jacolp.system.web.controller.authorization.CoreAgentLogoutController;
-import com.jacolp.web.config.SecurityFilterConfiguration;
+import com.jacolp.common.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -168,7 +169,7 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
         Method chain = BusinessRouteResourceServerSecurityConfiguration.class.getDeclaredMethod(
                 "businessRouteResourceServerSecurityFilterChain", org.springframework.security.config.annotation.web.builders.HttpSecurity.class,
                 RequestMatcher.class, RequestMatcher.class,
-                com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationPolicy.class,
+                BusinessRouteAuthorizationPolicy.class,
                 JwtDecoder.class, CoreNodeAccessTokenClaimsValidator.class);
         assertThat(AnnotationUtils.findAnnotation(chain, Order.class).value()).isEqualTo(2);
 

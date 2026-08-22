@@ -1,7 +1,7 @@
 package com.jacolp.system.application.service;
 
-import com.jacolp.system.application.dto.email.EmailSendDTO;
 import com.jacolp.system.application.dto.email.EmailResultDTO;
+import com.jacolp.system.application.dto.email.EmailSendDTO;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 
 public interface EmailSenderService {

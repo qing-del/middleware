@@ -1,6 +1,9 @@
 package com.jacolp.note.application.controller.user;
 
+import com.jacolp.note.infrastructure.persistence.dataobject.NoteContextDO;
 import com.jacolp.note.infrastructure.web.NoteFileLimit;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.constant.NoteConstant;
 import com.jacolp.note.application.dto.note.NoteChangeConfirmDTO;
 import com.jacolp.note.application.dto.note.NoteModifyInfoDTO;
@@ -15,7 +18,6 @@ import com.jacolp.note.application.vo.note.NoteUploadVO;
 import com.jacolp.note.application.service.NoteConvertService;
 import com.jacolp.note.application.service.NoteContextService;
 import com.jacolp.note.application.service.NoteCoreService;
-import com.jacolp.note.infrastructure.persistence.dataobject.NoteContextDO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,8 +26,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.jacolp.note.application.facade.NoteFacade;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

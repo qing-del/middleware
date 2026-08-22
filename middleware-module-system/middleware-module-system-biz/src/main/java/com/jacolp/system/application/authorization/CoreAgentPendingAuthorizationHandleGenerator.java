@@ -1,6 +1,6 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
+import com.jacolp.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
 import org.springframework.stereotype.Service;
 

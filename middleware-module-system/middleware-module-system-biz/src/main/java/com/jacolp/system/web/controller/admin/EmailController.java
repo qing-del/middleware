@@ -1,9 +1,9 @@
 package com.jacolp.system.web.controller.admin;
 
-import com.jacolp.system.application.dto.email.EmailSendDTO;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.dto.email.EmailResultDTO;
+import com.jacolp.system.application.dto.email.EmailSendDTO;
 import com.jacolp.system.application.service.EmailSenderService;
-import com.jacolp.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;

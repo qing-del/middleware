@@ -4,6 +4,8 @@ import com.jacolp.system.application.authorization.CoreAgentAuthorizationConsent
 import com.jacolp.system.application.authorization.CoreAgentBrowserAuthenticationToken;
 import com.jacolp.system.application.authorization.CoreAgentRegisteredClientPolicyResolver;
 import com.jacolp.system.application.authorization.EffectiveRolePermissionResolver;
+import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
+import com.jacolp.system.web.authorization.HttpSessionCoreAgentPendingAuthorizationHandleStore;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationConsentDecision;
 import com.jacolp.system.application.authorization.model.CoreAgentBrowserPrincipal;
 import com.jacolp.system.application.authorization.model.CoreAgentConsentScopeOptions;
@@ -11,8 +13,6 @@ import com.jacolp.system.application.authorization.model.CoreAgentPendingAuthori
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
-import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
-import com.jacolp.system.web.authorization.HttpSessionCoreAgentPendingAuthorizationHandleStore;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -279,7 +279,7 @@ class CoreAgentAuthorizationConsentControllerTest {
     }
 
     private static CoreAgentAuthorizationConsentDecision decision(List<String> candidate, List<String> mandatory,
-                                                                    List<String> optional, List<String> preselected) {
+                                                                  List<String> optional, List<String> preselected) {
         return new CoreAgentAuthorizationConsentDecision(new CoreAgentConsentScopeOptions(candidate, mandatory, optional,
                 preselected), true, List.of());
     }

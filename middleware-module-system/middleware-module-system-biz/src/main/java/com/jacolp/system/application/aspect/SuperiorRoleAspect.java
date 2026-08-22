@@ -1,13 +1,13 @@
 package com.jacolp.system.application.aspect;
 
-import com.jacolp.context.BaseContext;
-import com.jacolp.exception.AuthenticationException;
-import com.jacolp.system.exception.NotFindUserException;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.core.exception.AuthenticationException;
 import com.jacolp.system.application.annotation.RequireSuperiorRole;
 import com.jacolp.system.application.authorization.RoleRankAuthorizationService;
-import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.system.application.provider.TargetUserProvider;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.system.exception.NotFindUserException;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;

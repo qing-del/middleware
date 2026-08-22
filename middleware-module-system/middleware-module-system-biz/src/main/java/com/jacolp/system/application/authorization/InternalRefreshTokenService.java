@@ -1,20 +1,20 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
-import com.jacolp.middleware.common.security.oauth2.token.AccessTokenSessionReference;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedRefreshToken;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
-import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
-import com.jacolp.middleware.common.security.oauth2.token.VerifiedRefreshToken;
+import com.jacolp.common.security.oauth2.token.AccessTokenIssueRequest;
+import com.jacolp.common.security.oauth2.token.AccessTokenSessionReference;
+import com.jacolp.common.security.oauth2.token.IssuedAccessToken;
+import com.jacolp.common.security.oauth2.token.IssuedRefreshToken;
+import com.jacolp.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.common.security.oauth2.token.VerifiedRefreshToken;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.InternalIssuedTokens;
 import com.jacolp.system.application.authorization.model.InternalRefreshTokenRequest;
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
-import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

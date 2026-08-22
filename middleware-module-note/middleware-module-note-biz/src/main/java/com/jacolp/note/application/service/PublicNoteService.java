@@ -1,8 +1,8 @@
 package com.jacolp.note.application.service;
 
+import com.jacolp.common.core.result.PageResult;
 import com.jacolp.note.application.dto.note.PublicNoteQueryDTO;
 import com.jacolp.note.application.vo.note.PublicNoteDetailVO;
-import com.jacolp.result.PageResult;
 
 public interface PublicNoteService {
 

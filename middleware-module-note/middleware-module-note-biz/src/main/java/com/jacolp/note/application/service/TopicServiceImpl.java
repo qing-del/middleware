@@ -4,7 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.jacolp.context.PermissionContext;
+import com.jacolp.common.core.constant.ScopeConstant;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.note.infrastructure.persistence.dataobject.TopicDO;
+import com.jacolp.note.infrastructure.persistence.dto.TopicNoteCountDTO;
+import com.jacolp.note.infrastructure.persistence.mapper.TopicMapper;
+import com.jacolp.common.core.result.PageResult;
 import com.jacolp.note.application.dto.topic.TopicAddDTO;
 import com.jacolp.note.application.dto.topic.TopicListDTO;
 import com.jacolp.note.application.dto.topic.TopicModifyDTO;
@@ -12,9 +19,6 @@ import com.jacolp.note.application.dto.topic.UserTopicQueryDTO;
 import com.jacolp.note.application.vo.topic.TopicDetailVO;
 import com.jacolp.note.application.vo.topic.TopicListVO;
 import com.jacolp.note.application.vo.topic.TopicStatsVO;
-import com.jacolp.note.infrastructure.persistence.dataobject.TopicDO;
-import com.jacolp.note.infrastructure.persistence.dto.TopicNoteCountDTO;
-import com.jacolp.note.infrastructure.persistence.mapper.TopicMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,11 +27,7 @@ import org.springframework.util.StringUtils;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import com.jacolp.constant.ScopeConstant;
 import com.jacolp.constant.TopicConstant;
-import com.jacolp.context.BaseContext;
-import com.jacolp.exception.BaseException;
-import com.jacolp.result.PageResult;
 
 import lombok.extern.slf4j.Slf4j;
 

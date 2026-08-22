@@ -2,6 +2,7 @@ package com.jacolp.system.web.controller.authorization;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.authorization.InternalAccountAuthenticationRejectedException;
 import com.jacolp.system.application.authorization.InternalLoginService;
 import com.jacolp.system.application.authorization.InternalRefreshTokenRejectedException;
@@ -9,7 +10,6 @@ import com.jacolp.system.application.authorization.model.InternalIssuedTokens;
 import com.jacolp.system.application.authorization.model.InternalLoginRequest;
 import com.jacolp.system.application.dto.authorization.InternalLoginHttpRequest;
 import com.jacolp.system.application.dto.authorization.InternalTokenHttpResponse;
-import com.jacolp.result.Result;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

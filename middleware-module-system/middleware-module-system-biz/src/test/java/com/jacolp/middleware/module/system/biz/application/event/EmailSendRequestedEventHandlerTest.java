@@ -1,6 +1,6 @@
 package com.jacolp.middleware.module.system.biz.application.event;
 
-import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.common.messaging.event.EmailSendRequestedEvent;
 import com.jacolp.system.application.event.EmailSendRequestedEventHandler;
 import com.jacolp.system.infrastructure.email.SmtpEmailGateway;
 import org.junit.jupiter.api.Test;

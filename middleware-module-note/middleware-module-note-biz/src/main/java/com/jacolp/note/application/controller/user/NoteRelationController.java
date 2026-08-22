@@ -2,6 +2,7 @@ package com.jacolp.note.application.controller.user;
 
 import java.util.List;
 
+import com.jacolp.common.core.result.Result;
 import com.jacolp.note.application.dto.tag.TagMappingBindDTO;
 import com.jacolp.note.application.vo.note.ImageBacklinkVO;
 import com.jacolp.note.application.vo.note.NoteBacklinkVO;
@@ -23,7 +24,6 @@ import com.jacolp.note.application.dto.image.ImageMappingBindDTO;
 import com.jacolp.note.application.dto.note.EachMappingBindDTO;
 import com.jacolp.note.application.vo.image.ImageSimpleVO;
 import com.jacolp.note.application.vo.note.NoteRelationDetailVO;
-import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

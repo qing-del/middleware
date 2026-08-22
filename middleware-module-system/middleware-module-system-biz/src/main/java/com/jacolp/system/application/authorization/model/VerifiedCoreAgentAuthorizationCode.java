@@ -1,6 +1,6 @@
 package com.jacolp.system.application.authorization.model;
 
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
 
 import java.util.List;
 

@@ -3,7 +3,7 @@ package com.jacolp.note.application.service;
 import java.util.List;
 import java.util.Map;
 
-import com.jacolp.exception.BaseException;
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.note.application.dto.image.ImageMappingBindDTO;
 import com.jacolp.note.application.dto.note.EachMappingBindDTO;
 import com.jacolp.note.application.dto.note.NoteMissingInfoDTO;
@@ -19,7 +19,7 @@ import com.jacolp.note.application.vo.note.NoteCheckBindingVO;
 import com.jacolp.note.application.vo.note.NoteRelationDetailVO;
 import com.jacolp.note.application.vo.note.NoteSimpleVO;
 import com.jacolp.note.application.vo.note.TagBacklinkVO;
-import com.jacolp.module.media.api.model.MediaFileSummary;
+import com.jacolp.media.api.model.MediaFileSummary;
 import org.apache.ibatis.annotations.Param;
 
 public interface NoteRelationService {

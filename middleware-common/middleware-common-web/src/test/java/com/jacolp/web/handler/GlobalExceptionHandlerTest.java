@@ -1,8 +1,9 @@
 package com.jacolp.web.handler;
 
-import com.jacolp.exception.AuthenticationException;
-import com.jacolp.exception.BaseException;
-import com.jacolp.exception.PermissionDeniedException;
+import com.jacolp.common.core.exception.AuthenticationException;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.common.core.exception.PermissionDeniedException;
+import com.jacolp.common.web.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;

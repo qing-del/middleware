@@ -1,7 +1,7 @@
 package com.jacolp.note.application.api;
 
-import com.jacolp.module.note.api.TopicQueryApi;
 import com.jacolp.note.infrastructure.persistence.mapper.TopicMapper;
+import com.jacolp.note.api.TopicQueryApi;
 import org.springframework.stereotype.Service;
 
 @Service

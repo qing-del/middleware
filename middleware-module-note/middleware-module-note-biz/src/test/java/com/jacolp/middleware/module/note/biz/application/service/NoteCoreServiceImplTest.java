@@ -9,13 +9,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.note.support.TestSecurityContext;
 import com.jacolp.note.enums.NoteStatus;
-import com.jacolp.exception.BaseException;
-import com.jacolp.module.audit.api.AuditApplicationApi;
-import com.jacolp.module.audit.api.AuditTargetType;
-import com.jacolp.module.audit.api.CancelAuditApplicationCommand;
-import com.jacolp.module.audit.api.CreateAuditApplicationCommand;
+import com.jacolp.audit.api.AuditApplicationApi;
+import com.jacolp.audit.api.AuditTargetType;
+import com.jacolp.audit.api.CancelAuditApplicationCommand;
+import com.jacolp.audit.api.CreateAuditApplicationCommand;
 import com.jacolp.note.application.service.NoteCoreServiceImpl;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteMapper;

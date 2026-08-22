@@ -1,9 +1,9 @@
 package com.jacolp.system.application.aspect;
 
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.system.application.annotation.RequireValidRole;
-import com.jacolp.exception.BaseException;
-import com.jacolp.system.infrastructure.persistence.mapper.RoleMapper;
 import com.jacolp.system.application.provider.RoleIdProvider;
+import com.jacolp.system.infrastructure.persistence.mapper.RoleMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;

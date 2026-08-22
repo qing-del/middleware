@@ -1,16 +1,19 @@
 package com.jacolp.middleware.module.system.biz.application.service.impl;
 
-import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
-import com.jacolp.middleware.messaging.pulisher.EmailSendEventPublisher;
-import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.common.security.activation.AccountVerificationCredentialService;
+import com.jacolp.common.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.common.messaging.pulisher.EmailSendEventPublisher;
 import com.jacolp.system.application.dto.email.EmailResultDTO;
 import com.jacolp.system.application.dto.email.EmailSendDTO;
 import com.jacolp.system.application.service.impl.EmailSenderServiceImpl;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
+
 import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.thymeleaf.TemplateEngine;
 
@@ -27,7 +30,7 @@ class EmailSenderServiceImplTest {
         EmailSendEventPublisher publisher = mock(EmailSendEventPublisher.class);
         AccountVerificationCredentialService credentials = mock(AccountVerificationCredentialService.class);
         TemplateEngine templates = mock(TemplateEngine.class);
-        EmailSenderServiceImpl service = service(publisher, credentials, templates, mock(UserMapper.class));
+        EmailSenderServiceImpl service = service(publisher, credentials, templates, Mockito.mock(UserMapper.class));
         UserDO user = user(7L, "alice", "alice@example.com");
         when(credentials.issueActivationToken(7L)).thenReturn("opaque-token");
         when(credentials.activationLinkExpiryMinutes()).thenReturn(30L);

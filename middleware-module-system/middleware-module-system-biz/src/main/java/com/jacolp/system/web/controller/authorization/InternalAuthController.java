@@ -1,11 +1,11 @@
 package com.jacolp.system.web.controller.authorization;
 
-import com.jacolp.system.application.authorization.InternalLoginService;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.authorization.model.InternalIssuedTokens;
 import com.jacolp.system.application.authorization.model.InternalLoginRequest;
 import com.jacolp.system.application.dto.authorization.InternalLoginHttpRequest;
 import com.jacolp.system.application.dto.authorization.InternalTokenHttpResponse;
-import com.jacolp.result.Result;
+import com.jacolp.system.application.authorization.InternalLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.PostMapping;

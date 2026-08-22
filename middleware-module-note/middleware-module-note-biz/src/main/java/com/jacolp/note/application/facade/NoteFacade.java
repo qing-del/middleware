@@ -2,17 +2,17 @@ package com.jacolp.note.application.facade;
 
 import java.util.List;
 
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.note.context.NoteImageResolveContext;
+import com.jacolp.note.infrastructure.cache.GuestCacheConstant;
+import com.jacolp.note.infrastructure.cache.GuestCacheEvict;
 import com.jacolp.note.application.vo.note.NoteDetailVO;
 import com.jacolp.note.application.vo.note.NoteDiffVO;
 import com.jacolp.note.application.vo.note.NoteModifyDiffDetailVO;
 import com.jacolp.note.application.vo.note.NoteUploadVO;
-import com.jacolp.note.infrastructure.cache.GuestCacheConstant;
-import com.jacolp.note.infrastructure.cache.GuestCacheEvict;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jacolp.note.context.NoteImageResolveContext;
-import com.jacolp.context.PermissionContext;
-import com.jacolp.exception.BaseException;
 import com.jacolp.note.application.dto.note.NoteChangeConfirmDTO;
 
 public interface NoteFacade {

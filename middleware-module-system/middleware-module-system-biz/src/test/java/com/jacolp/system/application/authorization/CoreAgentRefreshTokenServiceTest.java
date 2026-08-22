@@ -1,19 +1,16 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.common.security.oauth2.token.*;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedRefreshToken;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
-import com.jacolp.middleware.common.security.oauth2.token.VerifiedRefreshToken;
-import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.core.security.oauth2.token.*;
+import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.CoreAgentRefreshTokenRequest;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
-import com.jacolp.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
-import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.common.core.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
+import com.jacolp.security.oauth2.token.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -73,7 +70,7 @@ class CoreAgentRefreshTokenServiceTest {
         assertThat(accessRequest.getValue().grantType()).isEqualTo("refresh_token");
         assertThat(accessRequest.getValue().scopes()).containsExactly("*:read");
         assertThat(accessRequest.getValue().tokenTtl()).isEqualTo(Duration.ofHours(1));
-        verify(fixture.refresh).rotate(RAW_REFRESH, new com.jacolp.middleware.common.security.oauth2.token.AccessTokenSessionReference(
+        verify(fixture.refresh).rotate(RAW_REFRESH, new AccessTokenSessionReference(
                 "A".repeat(22), NOW.plus(Duration.ofHours(1))), List.of("*:read"), Duration.ofHours(24));
         InOrder order = inOrder(fixture.policyResolver, fixture.refresh, fixture.accounts, fixture.roles, fixture.access);
         order.verify(fixture.policyResolver).resolve("core_agent");

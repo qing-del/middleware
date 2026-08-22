@@ -1,9 +1,9 @@
 package com.jacolp.system.web.controller.authorization;
 
-import com.jacolp.system.application.authorization.EmailLoginCodeIssuanceService;
-import com.jacolp.system.application.dto.authorization.EmailLoginCodeHttpRequest;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeIssueRequest;
-import com.jacolp.result.Result;
+import com.jacolp.system.application.dto.authorization.EmailLoginCodeHttpRequest;
+import com.jacolp.system.application.authorization.EmailLoginCodeIssuanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.PostMapping;

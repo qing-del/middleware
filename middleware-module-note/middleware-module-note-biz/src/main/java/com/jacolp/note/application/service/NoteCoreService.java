@@ -1,13 +1,14 @@
 package com.jacolp.note.application.service;
 
-import com.jacolp.context.PermissionContext;
-import com.jacolp.exception.BaseException;
-import com.jacolp.note.application.dto.note.*;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.common.core.note.application.dto.note.*;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.note.application.dto.note.*;
 import com.jacolp.note.application.vo.note.NoteStatsVO;
 import com.jacolp.note.application.vo.note.NoteVO;
 import com.jacolp.module.note.biz.application.dto.note.*;
-import com.jacolp.result.PageResult;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
@@ -85,7 +86,7 @@ public interface NoteCoreService {
      * @param topicId 主题 ID
      * @param titles   笔记标题（如果传入 null 会导致返回 null）
      * @return 存在就返回笔记列表
-     * @throws com.jacolp.exception.BaseException 不存在
+     * @throws BaseException 不存在
      */
     List<NoteDO> getByUserIdAndTopicIdAndTitles(Long userId, Long topicId, List<String> titles);
 

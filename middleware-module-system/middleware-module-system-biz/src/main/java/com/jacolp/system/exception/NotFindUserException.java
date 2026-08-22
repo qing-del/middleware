@@ -1,6 +1,6 @@
 package com.jacolp.system.exception;
 
-import com.jacolp.exception.BaseException;
+import com.jacolp.common.core.exception.BaseException;
 
 public class NotFindUserException extends BaseException {
     public NotFindUserException() {

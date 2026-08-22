@@ -6,12 +6,13 @@ import com.jacolp.system.application.port.out.PermissionMetadataRepository;
 import com.jacolp.system.application.port.out.RolePermissionMetadataRepository;
 import com.jacolp.system.infrastructure.persistence.dataobject.PermissionDO;
 import com.jacolp.system.infrastructure.persistence.dataobject.RolePermissionDO;
-import com.jacolp.system.infrastructure.persistence.mapper.PermissionMapper;
+import com.jacolp.common.core.system.infrastructure.persistence.mapper.PermissionMapper;
 import com.jacolp.system.infrastructure.persistence.mapper.RolePermissionMapper;
 import com.jacolp.system.infrastructure.persistence.repository.MyBatisPermissionMetadataRepository;
 import com.jacolp.system.infrastructure.persistence.repository.MyBatisRolePermissionMetadataRepository;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.session.Configuration;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
@@ -26,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class RbacMetadataPersistenceTest {
@@ -68,11 +68,11 @@ class RbacMetadataPersistenceTest {
         PermissionMetadata permissionMetadata = permissionMetadata();
         when(mapper.selectActiveByRoleIds(List.of(1L, 3L))).thenReturn(List.of(permissionDataObject));
 
-        assertThat(repository.findActiveByRoleIds(Arrays.asList(3L, null, 1L, 3L)))
+        Assertions.assertThat(repository.findActiveByRoleIds(Arrays.asList(3L, null, 1L, 3L)))
                 .containsExactly(permissionMetadata);
         verify(mapper).selectActiveByRoleIds(List.of(1L, 3L));
 
-        assertThat(repository.findActiveByRoleIds(List.of())).isEmpty();
+        Assertions.assertThat(repository.findActiveByRoleIds(List.of())).isEmpty();
         verifyNoMoreInteractions(mapper);
     }
 
@@ -87,7 +87,7 @@ class RbacMetadataPersistenceTest {
         when(mapper.updateById(any(PermissionDO.class))).thenReturn(1);
         when(mapper.deleteById(7L)).thenReturn(1);
 
-        assertThat(repository.findByCode("note:read")).contains(permissionMetadata);
+        Assertions.assertThat(repository.findByCode("note:read")).contains(permissionMetadata);
         assertThat(repository.insert(permissionMetadata)).isEqualTo(1);
         assertThat(repository.updateById(permissionMetadata)).isEqualTo(1);
         assertThat(repository.deleteById(7L)).isEqualTo(1);
@@ -107,7 +107,7 @@ class RbacMetadataPersistenceTest {
         when(mapper.insert(any(RolePermissionDO.class))).thenReturn(1);
         when(mapper.deleteByRoleIdAndPermId(2L, 3L)).thenReturn(1);
 
-        assertThat(repository.findByRoleIds(List.of(2L, 1L, 2L))).containsExactly(rolePermissionMetadata);
+        Assertions.assertThat(repository.findByRoleIds(List.of(2L, 1L, 2L))).containsExactly(rolePermissionMetadata);
         assertThat(repository.insert(rolePermissionMetadata)).isEqualTo(1);
         assertThat(repository.deleteByRoleIdAndPermId(2L, 3L)).isEqualTo(1);
         verify(mapper).selectByRoleIds(List.of(1L, 2L));

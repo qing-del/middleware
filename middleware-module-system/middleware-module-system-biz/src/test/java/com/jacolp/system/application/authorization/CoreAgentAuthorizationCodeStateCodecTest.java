@@ -2,6 +2,7 @@ package com.jacolp.system.application.authorization;
 
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationAccountSnapshot;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeState;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -30,7 +31,7 @@ class CoreAgentAuthorizationCodeStateCodecTest {
         assertThat(values.keySet()).containsExactlyElementsOf(codec.fieldNames());
         assertThat(values).containsEntry("schema_version", "1").containsEntry("email_present", "0")
                 .containsEntry("email", "").doesNotContainValue(state.rawCode());
-        assertThat(codec.decode(state.rawCode(), values)).isEqualTo(state);
+        Assertions.assertThat(codec.decode(state.rawCode(), values)).isEqualTo(state);
         assertThat(codec.toString()).doesNotContain(state.rawCode(), state.codeChallenge(), state.oauthState(),
                 state.originalSocketAddress(), state.accountSnapshot().passwordHash());
     }

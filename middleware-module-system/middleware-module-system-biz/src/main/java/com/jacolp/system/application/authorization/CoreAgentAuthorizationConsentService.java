@@ -1,11 +1,11 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.system.application.port.out.CoreAgentAuthorizationConsentStore;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationConsentDecision;
 import com.jacolp.system.application.authorization.model.CoreAgentConsentScopeOptions;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.PermissionScopePattern;
-import com.jacolp.system.application.port.out.CoreAgentAuthorizationConsentStore;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

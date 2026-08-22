@@ -3,7 +3,7 @@ package com.jacolp.system.infrastructure.persistence.repository;
 import com.jacolp.system.application.authorization.model.PermissionMetadata;
 import com.jacolp.system.application.port.out.PermissionMetadataRepository;
 import com.jacolp.system.infrastructure.persistence.dataobject.PermissionDO;
-import com.jacolp.system.infrastructure.persistence.mapper.PermissionMapper;
+import com.jacolp.common.core.system.infrastructure.persistence.mapper.PermissionMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

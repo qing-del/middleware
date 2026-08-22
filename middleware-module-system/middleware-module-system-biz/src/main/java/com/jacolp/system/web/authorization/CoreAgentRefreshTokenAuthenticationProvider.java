@@ -5,7 +5,7 @@ import com.jacolp.system.application.authorization.CoreAgentRefreshTokenService;
 import com.jacolp.system.application.authorization.CoreAgentRegisteredClientPolicyResolver;
 import com.jacolp.system.application.authorization.model.CoreAgentRefreshTokenRequest;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
-import com.jacolp.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
+import com.jacolp.common.core.system.application.authorization.model.IssuedCoreAgentRefreshTokens;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;

@@ -1,8 +1,8 @@
 package com.jacolp.config;
 
-import com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationEntry;
-import com.jacolp.middleware.common.security.oauth2.authorization.BusinessRouteAuthorizationPolicy;
-import com.jacolp.middleware.common.security.oauth2.authorization.ImmutableBusinessRouteAuthorizationPolicy;
+import com.jacolp.common.security.oauth2.authorization.BusinessRouteAuthorizationEntry;
+import com.jacolp.common.security.oauth2.authorization.BusinessRouteAuthorizationPolicy;
+import com.jacolp.common.security.oauth2.authorization.ImmutableBusinessRouteAuthorizationPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Qualifier;

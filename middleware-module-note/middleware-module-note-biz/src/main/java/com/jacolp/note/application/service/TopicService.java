@@ -2,7 +2,8 @@ package com.jacolp.note.application.service;
 
 import java.util.List;
 
-import com.jacolp.context.PermissionContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.result.PageResult;
 import com.jacolp.note.application.dto.topic.TopicAddDTO;
 import com.jacolp.note.application.dto.topic.TopicListDTO;
 import com.jacolp.note.application.dto.topic.TopicModifyDTO;
@@ -10,7 +11,6 @@ import com.jacolp.note.application.dto.topic.UserTopicQueryDTO;
 import com.jacolp.note.application.vo.topic.TopicDetailVO;
 import com.jacolp.note.application.vo.topic.TopicListVO;
 import com.jacolp.note.application.vo.topic.TopicStatsVO;
-import com.jacolp.result.PageResult;
 
 public interface TopicService {
 

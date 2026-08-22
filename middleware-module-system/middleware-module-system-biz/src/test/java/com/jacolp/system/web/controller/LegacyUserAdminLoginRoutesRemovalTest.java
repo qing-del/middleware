@@ -1,6 +1,6 @@
 package com.jacolp.system.web.controller;
 
-import com.jacolp.system.web.controller.admin.UserController;
+import com.jacolp.system.web.controller.user.UserController;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -13,8 +13,8 @@ class LegacyUserAdminLoginRoutesRemovalTest {
     @Test
     void legacyUserAndAdministratorLoginLogoutRoutesAreNotMapped() throws Exception {
         MockMvc mvc = MockMvcBuilders.standaloneSetup(
-                new com.jacolp.system.web.controller.user.UserController(),
-                new UserController())
+                new UserController(),
+                new com.jacolp.system.web.controller.admin.UserController())
                 .build();
 
         mvc.perform(post("/user/user/login")).andExpect(status().isNotFound());

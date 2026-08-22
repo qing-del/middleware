@@ -2,12 +2,23 @@ package com.jacolp.note.application.service;
 
 import java.util.List;
 
-import com.jacolp.module.note.biz.application.dto.note.*;
-import com.jacolp.note.application.dto.note.*;
+import com.jacolp.audit.api.AuditApplicationApi;
+import com.jacolp.audit.api.AuditTargetType;
+import com.jacolp.audit.api.CancelAuditApplicationCommand;
+import com.jacolp.audit.api.CreateAuditApplicationCommand;
+import com.jacolp.constant.NoteConstant;
+import com.jacolp.constant.UserConstant;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.common.core.note.application.dto.note.*;
 import com.jacolp.note.application.vo.note.NoteStatsVO;
 import com.jacolp.note.application.vo.note.NoteVO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteMapper;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.module.note.biz.application.dto.note.*;
+import com.jacolp.note.application.dto.note.*;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,17 +27,7 @@ import org.springframework.util.StringUtils;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import com.jacolp.constant.NoteConstant;
-import com.jacolp.constant.UserConstant;
-import com.jacolp.context.BaseContext;
-import com.jacolp.context.PermissionContext;
 import com.jacolp.note.enums.NoteStatus;
-import com.jacolp.exception.BaseException;
-import com.jacolp.result.PageResult;
-import com.jacolp.module.audit.api.AuditApplicationApi;
-import com.jacolp.module.audit.api.AuditTargetType;
-import com.jacolp.module.audit.api.CancelAuditApplicationCommand;
-import com.jacolp.module.audit.api.CreateAuditApplicationCommand;
 
 import lombok.extern.slf4j.Slf4j;
 

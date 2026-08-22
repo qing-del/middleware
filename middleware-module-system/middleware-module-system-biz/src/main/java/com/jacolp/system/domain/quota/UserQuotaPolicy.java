@@ -1,6 +1,6 @@
 package com.jacolp.system.domain.quota;
 
-import com.jacolp.module.system.api.quota.QuotaType;
+import com.jacolp.system.api.quota.QuotaType;
 
 /** Pure arithmetic and query-shape rules for the existing user quota flows. */
 public final class UserQuotaPolicy {

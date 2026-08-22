@@ -1,9 +1,9 @@
 package com.jacolp.system.web.controller.authorization;
 
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.authorization.EmailLoginCodeIssuanceService;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeIssueRequest;
 import com.jacolp.system.application.dto.authorization.EmailLoginCodeHttpRequest;
-import com.jacolp.result.Result;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-import com.jacolp.middleware.messaging.pulisher.EmailSendEventPublisher;
-import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.common.security.activation.AccountVerificationCredentialService;
+import com.jacolp.common.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.common.messaging.pulisher.EmailSendEventPublisher;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
-import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.system.application.service.EmailSenderService;
 import com.jacolp.system.application.dto.email.EmailSendDTO;
 import com.jacolp.system.application.dto.email.EmailResultDTO;

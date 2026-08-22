@@ -1,9 +1,12 @@
 package com.jacolp.system.application.authorization;
 
 import com.jacolp.constant.UserConstant;
-import com.jacolp.exception.AuthenticationException;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
+import com.jacolp.common.core.exception.AuthenticationException;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.token.SecureOAuth2TokenGenerator;
+import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
+import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeIssueRequest;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeState;
@@ -13,9 +16,6 @@ import com.jacolp.system.application.authorization.model.CoreAgentPreparedPendin
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCode;
-import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
-import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;

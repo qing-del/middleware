@@ -2,17 +2,16 @@ package com.jacolp.note.interfaces.web.user;
 
 import com.jacolp.note.application.dto.topic.TopicAddDTO;
 import com.jacolp.note.application.dto.topic.TopicModifyDTO;
-import com.jacolp.note.application.vo.topic.TopicListVO;
 import com.jacolp.note.application.dto.topic.UserTopicQueryDTO;
 import com.jacolp.note.application.service.TopicService;
+import com.jacolp.note.application.vo.topic.TopicListVO;
 import com.jacolp.note.application.vo.topic.TopicStatsVO;
-import com.jacolp.utils.IdParserUtil;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
+import com.jacolp.common.core.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;

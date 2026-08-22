@@ -1,7 +1,7 @@
 package com.jacolp.note.application.event;
 
-import com.jacolp.middleware.messaging.event.AuditReviewedEvent;
-import com.jacolp.middleware.messaging.base.EventSequenceGuard;
+import com.jacolp.common.messaging.base.EventSequenceGuard;
+import com.jacolp.common.messaging.event.AuditReviewedEvent;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteEachMappingMapper;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteImageMappingMapper;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteMapper;

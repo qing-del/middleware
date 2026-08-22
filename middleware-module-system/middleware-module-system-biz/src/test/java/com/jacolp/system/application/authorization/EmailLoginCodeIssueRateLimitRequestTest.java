@@ -3,6 +3,7 @@ package com.jacolp.system.application.authorization;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeIssueRateLimitRequest;
 import com.jacolp.system.application.port.out.EmailLoginCodeIssueRateLimitDecision;
 import com.jacolp.system.application.port.out.EmailLoginCodeIssueRateLimiter;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -17,8 +18,8 @@ class EmailLoginCodeIssueRateLimitRequestTest {
 
     @Test
     void acceptsDefaultAndStricterLimits() {
-        assertThat(request(Duration.ofSeconds(60), Duration.ofHours(1), 5)).isNotNull();
-        assertThat(request(Duration.ofMinutes(2), Duration.ofHours(2), 1)).isNotNull();
+        Assertions.assertThat(request(Duration.ofSeconds(60), Duration.ofHours(1), 5)).isNotNull();
+        Assertions.assertThat(request(Duration.ofMinutes(2), Duration.ofHours(2), 1)).isNotNull();
     }
 
     @Test
@@ -61,7 +62,7 @@ class EmailLoginCodeIssueRateLimitRequestTest {
                 .doesNotContain(EMAIL, IP);
         assertThat(EmailLoginCodeIssueRateLimiter.class.getDeclaredMethods()[0].toGenericString())
                 .doesNotContain(".infrastructure.", "dataobject");
-        assertThat(EmailLoginCodeIssueRateLimitDecision.values()).containsExactly(
+        Assertions.assertThat(EmailLoginCodeIssueRateLimitDecision.values()).containsExactly(
                 EmailLoginCodeIssueRateLimitDecision.ALLOWED,
                 EmailLoginCodeIssueRateLimitDecision.COOLDOWN,
                 EmailLoginCodeIssueRateLimitDecision.WINDOW_LIMIT);

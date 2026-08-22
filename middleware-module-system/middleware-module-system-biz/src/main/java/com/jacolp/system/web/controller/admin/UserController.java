@@ -1,15 +1,15 @@
 package com.jacolp.system.web.controller.admin;
 
-import com.jacolp.system.application.annotation.RequireSuperiorRole;
-import com.jacolp.context.BaseContext;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.dto.user.UserAddDTO;
 import com.jacolp.system.application.dto.user.UserListDTO;
 import com.jacolp.system.application.dto.user.UserModifyDTO;
 import com.jacolp.system.application.dto.user.UserStatusDTO;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
+import com.jacolp.system.application.annotation.RequireSuperiorRole;
 import com.jacolp.system.application.service.AdminUserService;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

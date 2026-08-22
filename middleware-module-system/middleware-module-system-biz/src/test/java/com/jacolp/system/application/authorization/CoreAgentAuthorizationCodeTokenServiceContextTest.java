@@ -1,8 +1,8 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
-import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.common.security.oauth2.token.Rs256AccessTokenIssuer;
 import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -33,11 +33,15 @@ class CoreAgentAuthorizationCodeTokenServiceContextTest {
     @Configuration(proxyBeanMethods = false)
     static class DependencyConfiguration {
         @Bean CoreAgentRegisteredClientPolicyResolver policyResolver() { return Mockito.mock(CoreAgentRegisteredClientPolicyResolver.class); }
-        @Bean AuthorizationAccountRepository accountRepository() { return mock(AuthorizationAccountRepository.class); }
-        @Bean AccountGrantTypeResolver accountGrantTypeResolver() { return new AccountGrantTypeResolver(AccountGrantTypeResolver.requiredDefaultGrantTypes()); }
+        @Bean
+        AuthorizationAccountRepository accountRepository() { return mock(AuthorizationAccountRepository.class); }
+        @Bean
+        AccountGrantTypeResolver accountGrantTypeResolver() { return new AccountGrantTypeResolver(AccountGrantTypeResolver.requiredDefaultGrantTypes()); }
         @Bean EffectiveRolePermissionResolver rolePermissionResolver() { return Mockito.mock(EffectiveRolePermissionResolver.class); }
         @Bean OAuth2ScopeResolver scopeResolver() { return Mockito.mock(OAuth2ScopeResolver.class); }
-        @Bean Rs256AccessTokenIssuer accessTokenIssuer() { return mock(Rs256AccessTokenIssuer.class); }
-        @Bean OAuth2RefreshTokenSessionService refreshTokenSessionService() { return mock(OAuth2RefreshTokenSessionService.class); }
+        @Bean
+        Rs256AccessTokenIssuer accessTokenIssuer() { return mock(Rs256AccessTokenIssuer.class); }
+        @Bean
+        OAuth2RefreshTokenSessionService refreshTokenSessionService() { return mock(OAuth2RefreshTokenSessionService.class); }
     }
 }

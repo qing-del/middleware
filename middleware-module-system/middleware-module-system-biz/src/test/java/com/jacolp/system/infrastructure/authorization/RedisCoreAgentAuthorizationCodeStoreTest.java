@@ -5,6 +5,7 @@ import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationA
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeState;
 import com.jacolp.system.application.authorization.model.CoreAgentPendingAuthorizationState;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.HashOperations;
@@ -51,7 +52,7 @@ class RedisCoreAgentAuthorizationCodeStoreTest {
         Object[] expectedArguments = replaceArguments(state, "599900");
         when(redis.execute(eq(replace), eq(List.of(codeKey(RAW_CODE), userKey())), eq(expectedArguments))).thenReturn(1L);
 
-        assertThat(store(redis, replace, new DefaultRedisScript<>(), new DefaultRedisScript<>(), NOW)
+        Assertions.assertThat(store(redis, replace, new DefaultRedisScript<>(), new DefaultRedisScript<>(), NOW)
                 .replaceCurrent(state).rawCode()).isEqualTo(RAW_CODE);
 
         verify(redis).execute(eq(replace), eq(List.of(codeKey(RAW_CODE), userKey())), eq(expectedArguments));
@@ -63,7 +64,7 @@ class RedisCoreAgentAuthorizationCodeStoreTest {
                 Long.toString(NOW.plus(Duration.ofMinutes(10)).minusMillis(100).toEpochMilli()), "user_id", "7",
                 "username", "alice", "role_id", "2", "password_hash", "$2a$10$" + "a".repeat(53), "email_present", "0",
                 "email", "", "extra_grant_types", "agent_client", "status", "0");
-        assertThat(new CoreAgentAuthorizationCodeStateCodec().encode(state)).doesNotContainValue(RAW_CODE);
+        Assertions.assertThat(new CoreAgentAuthorizationCodeStateCodec().encode(state)).doesNotContainValue(RAW_CODE);
     }
 
     @Test
@@ -99,11 +100,11 @@ class RedisCoreAgentAuthorizationCodeStoreTest {
         RedisCoreAgentAuthorizationCodeStore store = store(redis, new DefaultRedisScript<>(), new DefaultRedisScript<>(),
                 new DefaultRedisScript<>(), NOW);
 
-        assertThat(store.findByCode(RAW_CODE)).contains(state);
+        Assertions.assertThat(store.findByCode(RAW_CODE)).contains(state);
         verify(hashes).entries(codeKey(RAW_CODE));
 
         when(hashes.entries(codeKey(OLD_CODE))).thenReturn(Map.of());
-        assertThat(store.findByCode(OLD_CODE)).isEmpty();
+        Assertions.assertThat(store.findByCode(OLD_CODE)).isEmpty();
 
         Map<Object, Object> polluted = new LinkedHashMap<>(entries);
         polluted.put("raw_code", RAW_CODE);

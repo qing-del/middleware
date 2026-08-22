@@ -2,8 +2,13 @@ package com.jacolp.note.application.service;
 
 import java.util.List;
 
-import com.jacolp.note.infrastructure.persistence.dataobject.NoteConvertedDO;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.common.core.json.JacksonObjectMapper;
+import com.jacolp.note.context.NoteImageResolveContext;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteContextDO;
+import com.jacolp.note.infrastructure.persistence.dataobject.NoteConvertedDO;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteDO;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteConvertMapper;
 import org.jspecify.annotations.NonNull;
@@ -14,11 +19,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.constant.NoteConstant;
-import com.jacolp.context.BaseContext;
-import com.jacolp.note.context.NoteImageResolveContext;
-import com.jacolp.context.PermissionContext;
-import com.jacolp.exception.BaseException;
-import com.jacolp.json.JacksonObjectMapper;
 import com.jacolp.framework.markdown.converter.MarkdownHtmlEngine;
 import com.jacolp.framework.markdown.converter.MarkdownHtmlEngine.FrontMatter;
 import com.jacolp.framework.markdown.converter.MarkdownHtmlEngine.HtmlProcessResult;

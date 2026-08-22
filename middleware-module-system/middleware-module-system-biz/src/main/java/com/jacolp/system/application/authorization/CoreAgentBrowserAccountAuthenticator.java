@@ -1,13 +1,13 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.constant.UserConstant;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.CoreAgentBrowserPrincipal;
 import com.jacolp.system.application.authorization.model.RoleMetadata;
 import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.application.port.out.PasswordCredentialVerifier;
 import com.jacolp.system.application.port.out.RoleMetadataRepository;
+import com.jacolp.constant.UserConstant;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;

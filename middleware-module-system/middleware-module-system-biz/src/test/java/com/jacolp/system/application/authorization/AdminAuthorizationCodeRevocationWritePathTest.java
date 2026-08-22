@@ -1,16 +1,16 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.system.support.TestSecurityContext;
-import com.jacolp.exception.PermissionDeniedException;
-import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
+import com.jacolp.common.core.exception.PermissionDeniedException;
+import com.jacolp.common.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.system.application.dto.user.UserAddDTO;
 import com.jacolp.system.application.dto.user.UserModifyDTO;
 import com.jacolp.system.application.service.impl.AdminUserServiceImpl;
+import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.system.infrastructure.security.PasswordEncoder;
+import com.jacolp.system.support.TestSecurityContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -46,7 +46,7 @@ class AdminAuthorizationCodeRevocationWritePathTest {
         when(users.selectById(2L)).thenReturn(target);
         when(users.updateById(any(UserDO.class))).thenReturn(1);
         TestSecurityContext.authenticate(1L, true);
-        AdminUserServiceImpl service = service(users, events, mock(PasswordEncoder.class), revocation);
+        AdminUserServiceImpl service = service(users, events, Mockito.mock(PasswordEncoder.class), revocation);
 
         UserModifyDTO nicknameOnly = new UserModifyDTO();
         nicknameOnly.setId(2L);

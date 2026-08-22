@@ -2,6 +2,7 @@ package com.jacolp.system.infrastructure.authorization;
 
 import com.jacolp.system.application.authorization.EmailLoginCodeStateCodec;
 import com.jacolp.system.application.port.out.EmailLoginCodeFailureDecision;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -38,11 +39,11 @@ class RedisEmailLoginCodeStateStoreFailureTest {
                 .thenReturn(1L, 2L, 0L);
         RedisEmailLoginCodeStateStore store = store(redis, script);
 
-        assertThat(store.recordFailure("user", 7L, VERIFIER_HASH, 5))
+        Assertions.assertThat(store.recordFailure("user", 7L, VERIFIER_HASH, 5))
                 .isEqualTo(EmailLoginCodeFailureDecision.RECORDED);
-        assertThat(store.recordFailure("user", 7L, VERIFIER_HASH, 5))
+        Assertions.assertThat(store.recordFailure("user", 7L, VERIFIER_HASH, 5))
                 .isEqualTo(EmailLoginCodeFailureDecision.INVALIDATED);
-        assertThat(store.recordFailure("user", 7L, VERIFIER_HASH, 5))
+        Assertions.assertThat(store.recordFailure("user", 7L, VERIFIER_HASH, 5))
                 .isEqualTo(EmailLoginCodeFailureDecision.STALE);
         verify(redis, org.mockito.Mockito.times(3)).execute(
                 eq(script), eq(List.of(KEY)), eq(VERIFIER_HASH), eq("5"));

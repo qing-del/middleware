@@ -5,7 +5,9 @@ import com.jacolp.system.application.authorization.model.PermissionMetadata;
 import com.jacolp.system.application.authorization.model.RoleMetadata;
 import com.jacolp.system.application.port.out.PermissionMetadataRepository;
 import com.jacolp.system.application.port.out.RoleMetadataRepository;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -48,7 +50,7 @@ class EffectiveRolePermissionResolverTest {
                 .thenReturn(List.of(permission(1L, "*:manage", "*", "manage"),
                         permission(2L, "*:read", "*", "read")));
 
-        assertThat(fixture.resolver.resolve(2L).permissionCodes())
+        Assertions.assertThat(fixture.resolver.resolve(2L).permissionCodes())
                 .containsExactly("*:manage", "*:read");
         verifySingleBatch(fixture, 2L, List.of(2L, 3L));
     }
@@ -61,7 +63,7 @@ class EffectiveRolePermissionResolverTest {
                         permission(2L, "*:manage", "*", "manage"),
                         permission(3L, "*:read", "*", "read")));
 
-        assertThat(fixture.resolver.resolve(1L).permissionCodes())
+        Assertions.assertThat(fixture.resolver.resolve(1L).permissionCodes())
                 .containsExactly("*:manage", "*:read", "*:super");
         verifySingleBatch(fixture, 1L, List.of(1L, 2L, 3L));
     }
@@ -73,7 +75,7 @@ class EffectiveRolePermissionResolverTest {
         when(fixture.permissions.findActiveByRoleIds(List.of(3L))).thenReturn(List.of(read, read,
                 permission(2L, "*:write", "*", "write")));
 
-        assertThat(fixture.resolver.resolve(3L).permissionCodes()).containsExactly("*:read", "*:write");
+        Assertions.assertThat(fixture.resolver.resolve(3L).permissionCodes()).containsExactly("*:read", "*:write");
         verifySingleBatch(fixture, 3L, List.of(3L));
     }
 
@@ -101,24 +103,24 @@ class EffectiveRolePermissionResolverTest {
         assertThatIllegalStateException().isThrownBy(() -> duplicateRank.resolver.resolve(2L));
         verify(duplicateRank.roles).findById(2L);
         verify(duplicateRank.roles).findAll();
-        verifyNoMoreInteractions(duplicateRank.roles);
-        verifyNoInteractions(duplicateRank.permissions);
+        Mockito.verifyNoMoreInteractions(duplicateRank.roles);
+        Mockito.verifyNoInteractions(duplicateRank.permissions);
 
         Fixture duplicateId = fixture(ADMIN, List.of(CREATOR, ADMIN, role(2L, "OTHER", 4)));
 
         assertThatIllegalStateException().isThrownBy(() -> duplicateId.resolver.resolve(2L));
         verify(duplicateId.roles).findById(2L);
         verify(duplicateId.roles).findAll();
-        verifyNoMoreInteractions(duplicateId.roles);
-        verifyNoInteractions(duplicateId.permissions);
+        Mockito.verifyNoMoreInteractions(duplicateId.roles);
+        Mockito.verifyNoInteractions(duplicateId.permissions);
 
         Fixture inconsistent = fixture(ADMIN, List.of(CREATOR, role(2L, "ADMIN", 4), USER));
 
         assertThatIllegalStateException().isThrownBy(() -> inconsistent.resolver.resolve(2L));
         verify(inconsistent.roles).findById(2L);
         verify(inconsistent.roles).findAll();
-        verifyNoMoreInteractions(inconsistent.roles);
-        verifyNoInteractions(inconsistent.permissions);
+        Mockito.verifyNoMoreInteractions(inconsistent.roles);
+        Mockito.verifyNoInteractions(inconsistent.permissions);
     }
 
     @Test

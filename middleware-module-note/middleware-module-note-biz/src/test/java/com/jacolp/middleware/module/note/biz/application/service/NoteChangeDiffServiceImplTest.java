@@ -12,11 +12,11 @@ import static org.mockito.ArgumentMatchers.anyList;
 
 import java.util.List;
 
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.note.application.service.NoteChangeDiffServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.jacolp.exception.BaseException;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteChangeDiffDO;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteChangeDiffMapper;
 

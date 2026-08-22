@@ -1,14 +1,14 @@
 package com.jacolp.system.web.authorization;
 
+import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeExchangeRequest;
+import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
+import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCodeTokens;
+import com.jacolp.system.application.authorization.model.VerifiedCoreAgentAuthorizationCode;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeExchangeRejectedException;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeExchangeService;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeTokenRejectedException;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeTokenService;
 import com.jacolp.system.application.authorization.CoreAgentRegisteredClientPolicyResolver;
-import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeExchangeRequest;
-import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
-import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCodeTokens;
-import com.jacolp.system.application.authorization.model.VerifiedCoreAgentAuthorizationCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationProvider;

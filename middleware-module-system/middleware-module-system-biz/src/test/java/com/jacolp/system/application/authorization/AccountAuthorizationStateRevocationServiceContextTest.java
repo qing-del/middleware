@@ -35,6 +35,7 @@ class AccountAuthorizationStateRevocationServiceContextTest {
 
     @Configuration(proxyBeanMethods = false)
     static class Dependencies {
-        @Bean CoreAgentAuthorizationCodeStore authorizationCodeStore() { return mock(CoreAgentAuthorizationCodeStore.class); }
+        @Bean
+        CoreAgentAuthorizationCodeStore authorizationCodeStore() { return mock(CoreAgentAuthorizationCodeStore.class); }
     }
 }

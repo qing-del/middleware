@@ -1,6 +1,9 @@
 package com.jacolp.note.application.controller.admin;
 
-import com.jacolp.exception.BaseException;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
+import com.jacolp.common.core.utils.IdParserUtil;
 import com.jacolp.note.application.dto.note.NoteModifyInfoDTO;
 import com.jacolp.note.application.dto.note.NoteQueryDTO;
 import com.jacolp.note.application.vo.note.NoteConvertResultVO;
@@ -8,11 +11,8 @@ import com.jacolp.note.application.vo.note.NoteDetailVO;
 import com.jacolp.note.application.service.NoteContextService;
 import com.jacolp.note.application.service.NoteConvertService;
 import com.jacolp.note.application.service.NoteCoreService;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
 import com.jacolp.note.application.facade.NoteFacade;
 
-import com.jacolp.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;

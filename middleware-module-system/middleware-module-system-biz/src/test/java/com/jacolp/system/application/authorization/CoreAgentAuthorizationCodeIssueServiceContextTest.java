@@ -1,7 +1,7 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.token.SecureOAuth2TokenGenerator;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.token.SecureOAuth2TokenGenerator;
 import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationCodeTransitionStore;
 import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
@@ -33,10 +33,13 @@ class CoreAgentAuthorizationCodeIssueServiceContextTest {
 
     @Configuration(proxyBeanMethods = false)
     static class DependencyConfiguration {
-        @Bean SecureOAuth2TokenGenerator tokenGenerator() { return new SecureOAuth2TokenGenerator(); }
+        @Bean
+        SecureOAuth2TokenGenerator tokenGenerator() { return new SecureOAuth2TokenGenerator(); }
         @Bean CoreAgentRegisteredClientPolicyResolver policyResolver() { return Mockito.mock(CoreAgentRegisteredClientPolicyResolver.class); }
-        @Bean AuthorizationAccountRepository accountRepository() { return mock(AuthorizationAccountRepository.class); }
-        @Bean AccountGrantTypeResolver accountGrantTypeResolver() {
+        @Bean
+        AuthorizationAccountRepository accountRepository() { return mock(AuthorizationAccountRepository.class); }
+        @Bean
+        AccountGrantTypeResolver accountGrantTypeResolver() {
             return new AccountGrantTypeResolver(AccountGrantTypeResolver.requiredDefaultGrantTypes());
         }
         @Bean EffectiveRolePermissionResolver rolePermissionResolver() { return Mockito.mock(EffectiveRolePermissionResolver.class); }
@@ -46,10 +49,12 @@ class CoreAgentAuthorizationCodeIssueServiceContextTest {
         @Bean CoreAgentPendingAuthorizationHandleGenerator pendingHandleGenerator(SecureOAuth2TokenGenerator generator) {
             return new CoreAgentPendingAuthorizationHandleGenerator(generator);
         }
-        @Bean CoreAgentPendingAuthorizationStore pendingAuthorizationStore() {
+        @Bean
+        CoreAgentPendingAuthorizationStore pendingAuthorizationStore() {
             return mock(CoreAgentPendingAuthorizationStore.class);
         }
-        @Bean CoreAgentPendingAuthorizationCodeTransitionStore transitionStore() {
+        @Bean
+        CoreAgentPendingAuthorizationCodeTransitionStore transitionStore() {
             return mock(CoreAgentPendingAuthorizationCodeTransitionStore.class);
         }
     }

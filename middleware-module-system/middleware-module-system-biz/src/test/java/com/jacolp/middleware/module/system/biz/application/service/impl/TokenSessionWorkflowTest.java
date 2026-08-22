@@ -1,17 +1,18 @@
 package com.jacolp.middleware.module.system.biz.application.service.impl;
 
-import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.system.support.TestSecurityContext;
-import com.jacolp.exception.BaseException;
-import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.common.security.activation.AccountVerificationCredentialService;
 import com.jacolp.system.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.system.application.service.impl.UserUserServiceImpl;
+import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.system.support.TestSecurityContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
@@ -94,7 +95,7 @@ class AccountVerificationCredentialWorkflowTest {
     }
 
     private static UserUserServiceImpl user(UserMapper mapper, AccountVerificationCredentialService credentials) {
-        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
+        UserUserServiceImpl service = new UserUserServiceImpl(Mockito.mock(AccountAuthorizationStateRevocationService.class));
         ReflectionTestUtils.setField(service, "userMapper", mapper);
         ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials);
         return service;

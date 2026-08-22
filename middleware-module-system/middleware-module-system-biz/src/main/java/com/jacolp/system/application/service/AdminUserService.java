@@ -2,12 +2,12 @@ package com.jacolp.system.application.service;
 
 import java.util.List;
 
+import com.jacolp.common.core.result.PageResult;
 import com.jacolp.system.application.dto.user.UserAddDTO;
 import com.jacolp.system.application.dto.user.UserListDTO;
 import com.jacolp.system.application.dto.user.UserModifyDTO;
 import com.jacolp.system.application.dto.user.UserQuoteStorageDTO;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
-import com.jacolp.result.PageResult;
 
 public interface AdminUserService {
     PageResult list(UserListDTO userListDTO);

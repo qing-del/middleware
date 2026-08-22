@@ -1,7 +1,13 @@
 package com.jacolp.system.web.authorization;
 
-import com.jacolp.middleware.common.core.metrics.QpsCounter;
-import com.jacolp.middleware.common.security.jwt.JwtProperties;
+import com.jacolp.common.core.metrics.QpsCounter;
+import com.jacolp.common.security.jwt.JwtProperties;
+import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
+import com.jacolp.system.infrastructure.authorization.ActiveRegisteredClientRepository;
+import com.jacolp.system.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
+import com.jacolp.common.core.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
+import com.jacolp.system.web.controller.authorization.CoreAgentLogoutController;
+import com.jacolp.common.web.config.SecurityFilterConfiguration;
 import com.jacolp.system.application.authorization.CoreAgentBrowserAccountAuthenticator;
 import com.jacolp.system.application.authorization.CoreAgentBrowserAuthenticationProvider;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationCodeIssueRejectedException;
@@ -20,13 +26,8 @@ import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClie
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationCode;
 import com.jacolp.system.application.authorization.model.IssuedCoreAgentAuthorizationPendingHandle;
-import com.jacolp.system.infrastructure.authorization.ActiveRegisteredClientRepository;
-import com.jacolp.system.infrastructure.authorization.CoreAgentAuthorizationServerConfiguration;
-import com.jacolp.system.infrastructure.authorization.FailClosedOAuth2AuthorizationService;
-import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
-import com.jacolp.system.web.controller.authorization.CoreAgentLogoutController;
-import com.jacolp.web.config.SecurityFilterConfiguration;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -69,7 +70,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -185,7 +185,7 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
                     .andExpect(status().isOk());
             verify(logoutService).logout();
 
-            doThrow(new CoreAgentLogoutRejectedException()).when(logoutService).logout();
+            Mockito.doThrow(new CoreAgentLogoutRejectedException()).when(logoutService).logout();
             when(decoder.decode("wrong-client-token")).thenReturn(jwt("user"));
             assertThatThrownBy(() -> mvc.perform(post("/oauth/logout")
                     .header("Authorization", "Bearer wrong-client-token")))
@@ -390,12 +390,14 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
             CoreAgentAuthorizationServerSecurityConfiguration.class, CoreAgentLogoutController.class})
     static class EnabledConfiguration {
         @Bean StringRedisTemplate redis() { return mock(StringRedisTemplate.class); }
-        @Bean JwtProperties jwtProperties() {
+        @Bean
+        JwtProperties jwtProperties() {
             JwtProperties properties = new JwtProperties();
             properties.setActiveSecretKey("test-active-secret");
             return properties;
         }
-        @Bean QpsCounter qpsCounter() { return mock(QpsCounter.class); }
+        @Bean
+        QpsCounter qpsCounter() { return mock(QpsCounter.class); }
         @Bean ActiveRegisteredClientRepository registeredClientRepository() { return mock(ActiveRegisteredClientRepository.class); }
         @Bean FailClosedOAuth2AuthorizationService authorizationService() { return mock(FailClosedOAuth2AuthorizationService.class); }
         @Bean OAuth2AuthorizationConsentService authorizationConsentService() { return mock(OAuth2AuthorizationConsentService.class); }
@@ -438,7 +440,8 @@ class CoreAgentAuthorizationServerSecurityConfigurationTest {
         @Bean CoreAgentAuthorizationConsentService coreAgentAuthorizationConsentService() { return mock(CoreAgentAuthorizationConsentService.class); }
         @Bean CoreAgentAuthorizationCodeIssueService coreAgentAuthorizationCodeIssueService() { return mock(CoreAgentAuthorizationCodeIssueService.class); }
         @Bean HttpSessionCoreAgentPendingAuthorizationHandleStore pendingHandleStore() { return new HttpSessionCoreAgentPendingAuthorizationHandleStore(); }
-        @Bean CoreAgentPendingAuthorizationStore pendingAuthorizationStore() { return mock(CoreAgentPendingAuthorizationStore.class); }
+        @Bean
+        CoreAgentPendingAuthorizationStore pendingAuthorizationStore() { return mock(CoreAgentPendingAuthorizationStore.class); }
         @Bean CoreAgentAuthorizationCodeRequestAuthenticationProvider authorizationCodeRequestAuthenticationProvider(
                 CoreAgentRegisteredClientPolicyResolver policyResolver, EffectiveRolePermissionResolver roleResolver,
                 CoreAgentAuthorizationConsentService consentService, CoreAgentAuthorizationCodeIssueService issueService,

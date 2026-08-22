@@ -1,16 +1,16 @@
 package com.jacolp.system.application.authorization;
 
 import com.jacolp.constant.UserConstant;
-import com.jacolp.exception.AuthenticationException;
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.core.exception.AuthenticationException;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.system.application.port.out.CoreAgentAuthorizationCodeStore;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationAccountSnapshot;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeExchangeRequest;
 import com.jacolp.system.application.authorization.model.CoreAgentAuthorizationCodeState;
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.VerifiedCoreAgentAuthorizationCode;
-import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.system.application.port.out.CoreAgentAuthorizationCodeStore;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -91,13 +91,13 @@ class CoreAgentAuthorizationCodeExchangeServiceTest {
         assertRejected(() -> pkce.service.exchange(request("A".repeat(43), "127.0.0.1")));
         verify(pkce.store).findByCode(RAW_CODE);
         verify(pkce.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
-        verifyNoInteractions(pkce.accounts);
+        Mockito.verifyNoInteractions(pkce.accounts);
 
         Fixture staleBinding = fixture(stateWithRedirect("http://127.0.0.1:9090/other"), currentAccount());
         assertRejected(() -> staleBinding.service.exchange(request(VERIFIER, "127.0.0.1")));
         verify(staleBinding.store).findByCode(RAW_CODE);
         verify(staleBinding.store, never()).consume(RAW_CODE, USER_ID, "core_agent");
-        verifyNoInteractions(staleBinding.accounts);
+        Mockito.verifyNoInteractions(staleBinding.accounts);
 
         Fixture wrongCodeIdentity = fixture(stateWithRawCode(code((byte) 11)), currentAccount());
         assertThatIllegalStateException().isThrownBy(() -> wrongCodeIdentity.service.exchange(request(VERIFIER, "127.0.0.1")));

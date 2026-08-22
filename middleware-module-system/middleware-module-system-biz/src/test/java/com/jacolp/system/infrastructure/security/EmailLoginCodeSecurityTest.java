@@ -1,7 +1,7 @@
 package com.jacolp.system.infrastructure.security;
 
-import com.jacolp.system.application.port.out.EmailLoginCodeProtector;
 import com.jacolp.system.application.port.out.EmailLoginCodeGenerator;
+import com.jacolp.system.application.port.out.EmailLoginCodeProtector;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 

@@ -1,6 +1,6 @@
 package com.jacolp.system.application.event;
 
-import com.jacolp.middleware.messaging.event.EmailSendRequestedEvent;
+import com.jacolp.common.messaging.event.EmailSendRequestedEvent;
 import com.jacolp.system.infrastructure.email.SmtpEmailGateway;
 import org.springframework.stereotype.Service;
 

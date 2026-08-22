@@ -1,13 +1,13 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.middleware.common.security.oauth2.config.AccountGrantTypeResolver;
-import com.jacolp.middleware.common.security.oauth2.token.AccessTokenIssueRequest;
-import com.jacolp.middleware.common.security.oauth2.token.AccessTokenSessionReference;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedAccessToken;
-import com.jacolp.middleware.common.security.oauth2.token.IssuedRefreshToken;
-import com.jacolp.middleware.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
-import com.jacolp.middleware.common.security.oauth2.token.RefreshTokenIssueRequest;
-import com.jacolp.middleware.common.security.oauth2.token.Rs256AccessTokenIssuer;
+import com.jacolp.common.security.oauth2.config.AccountGrantTypeResolver;
+import com.jacolp.common.security.oauth2.token.AccessTokenIssueRequest;
+import com.jacolp.common.security.oauth2.token.AccessTokenSessionReference;
+import com.jacolp.common.security.oauth2.token.IssuedAccessToken;
+import com.jacolp.common.security.oauth2.token.IssuedRefreshToken;
+import com.jacolp.common.security.oauth2.token.OAuth2RefreshTokenSessionService;
+import com.jacolp.common.security.oauth2.token.RefreshTokenIssueRequest;
+import com.jacolp.common.security.oauth2.token.Rs256AccessTokenIssuer;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeAuthenticationRequest;
 import com.jacolp.system.application.authorization.model.InternalAuthenticatedAccount;

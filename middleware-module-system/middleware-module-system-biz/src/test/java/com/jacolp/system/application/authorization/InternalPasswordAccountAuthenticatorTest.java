@@ -5,6 +5,7 @@ import com.jacolp.system.application.authorization.model.InternalAuthenticatedAc
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
 import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
 import com.jacolp.system.application.port.out.PasswordCredentialVerifier;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
@@ -34,7 +35,7 @@ class InternalPasswordAccountAuthenticatorTest {
         when(fixture.credentials.matches("raw password", "stored-password-hash")).thenReturn(true);
         when(fixture.eligibility.resolve(policy(), account)).thenReturn(authenticated);
 
-        assertThat(fixture.authenticator.authenticate(policy(), "alice", "raw password")).isSameAs(authenticated);
+        Assertions.assertThat(fixture.authenticator.authenticate(policy(), "alice", "raw password")).isSameAs(authenticated);
 
         InOrder order = inOrder(fixture.accounts, fixture.credentials, fixture.eligibility);
         order.verify(fixture.accounts).findByUsername("alice");

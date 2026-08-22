@@ -1,5 +1,6 @@
 package com.jacolp.system.web.controller.authorization;
 
+import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
 import com.jacolp.system.application.authorization.CoreAgentAuthorizationConsentService;
 import com.jacolp.system.application.authorization.CoreAgentBrowserAuthenticationToken;
 import com.jacolp.system.application.authorization.CoreAgentRegisteredClientPolicyResolver;
@@ -10,7 +11,6 @@ import com.jacolp.system.application.authorization.model.CoreAgentPendingAuthori
 import com.jacolp.system.application.authorization.model.CoreAgentRegisteredClientPolicy;
 import com.jacolp.system.application.authorization.model.EffectiveRolePermissions;
 import com.jacolp.system.application.authorization.model.PermissionScopePattern;
-import com.jacolp.system.application.port.out.CoreAgentPendingAuthorizationStore;
 import com.jacolp.system.web.authorization.HttpSessionCoreAgentPendingAuthorizationHandleStore;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;

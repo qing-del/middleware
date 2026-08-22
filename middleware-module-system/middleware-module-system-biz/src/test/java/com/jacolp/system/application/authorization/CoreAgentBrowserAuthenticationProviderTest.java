@@ -1,6 +1,7 @@
 package com.jacolp.system.application.authorization;
 
 import com.jacolp.system.application.authorization.model.CoreAgentBrowserPrincipal;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -33,7 +34,7 @@ class CoreAgentBrowserAuthenticationProviderTest {
 
         assertThat(authentication).isInstanceOf(CoreAgentBrowserAuthenticationToken.class);
         CoreAgentBrowserAuthenticationToken token = (CoreAgentBrowserAuthenticationToken) authentication;
-        assertThat(token.getPrincipal()).isSameAs(principal);
+        Assertions.assertThat(token.getPrincipal()).isSameAs(principal);
         assertThat(token.getCredentials()).isNull();
         assertThat(token.getName()).isEqualTo("7");
         assertThat(token.getAuthorities()).extracting(Object::toString).containsExactly("ROLE_" + roleCode);

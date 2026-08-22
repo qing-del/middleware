@@ -2,11 +2,14 @@ package com.jacolp.note.application.controller.user;
 
 import java.util.List;
 
+import com.jacolp.common.core.note.application.dto.tag.*;
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
+import com.jacolp.common.core.utils.IdParserUtil;
 import com.jacolp.note.application.dto.tag.*;
 import com.jacolp.note.application.vo.tag.TagBatchAddVO;
 import com.jacolp.module.note.biz.application.dto.tag.*;
 import com.jacolp.note.application.service.TagService;
-import com.jacolp.utils.IdParserUtil;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -16,8 +19,6 @@ import org.springframework.web.bind.annotation.*;
 
 import com.jacolp.note.application.vo.tag.TagStatsVO;
 import com.jacolp.note.application.vo.tag.UserTagSimpleVO;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;

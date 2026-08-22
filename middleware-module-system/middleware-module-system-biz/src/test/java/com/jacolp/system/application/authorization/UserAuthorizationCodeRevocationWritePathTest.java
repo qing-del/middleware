@@ -1,15 +1,15 @@
 package com.jacolp.system.application.authorization;
 
-import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.system.support.TestSecurityContext;
-import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
-import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
+import com.jacolp.common.security.activation.AccountVerificationCredentialService;
+import com.jacolp.common.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.system.application.dto.user.UserProfileUpdateDTO;
 import com.jacolp.system.application.service.impl.UserUserServiceImpl;
+import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.system.infrastructure.security.PasswordEncoder;
+import com.jacolp.system.support.TestSecurityContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
@@ -38,7 +38,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         when(users.selectById(7L)).thenReturn(user);
         when(users.updateById(user)).thenReturn(1);
         TestSecurityContext.authenticate(7L, false);
-        UserUserServiceImpl service = service(users, mock(AccountVerificationCredentialService.class), events, revocation);
+        UserUserServiceImpl service = service(users, Mockito.mock(AccountVerificationCredentialService.class), events, revocation);
 
         UserProfileUpdateDTO emailChange = new UserProfileUpdateDTO();
         emailChange.setEmail("new@example.com");
@@ -136,7 +136,7 @@ class UserAuthorizationCodeRevocationWritePathTest {
         ReflectionTestUtils.setField(service, "userMapper", users);
         ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials);
         ReflectionTestUtils.setField(service, "userProfileEvents", events);
-        ReflectionTestUtils.setField(service, "passwordEncoder", mock(PasswordEncoder.class));
+        ReflectionTestUtils.setField(service, "passwordEncoder", Mockito.mock(PasswordEncoder.class));
         return service;
     }
 

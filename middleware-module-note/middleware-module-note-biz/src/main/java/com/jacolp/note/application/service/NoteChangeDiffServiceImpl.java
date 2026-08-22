@@ -2,7 +2,7 @@ package com.jacolp.note.application.service;
 
 import java.util.List;
 
-import com.jacolp.exception.BaseException;
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteChangeDiffDO;
 import com.jacolp.note.infrastructure.persistence.mapper.NoteChangeDiffMapper;
 import lombok.extern.slf4j.Slf4j;

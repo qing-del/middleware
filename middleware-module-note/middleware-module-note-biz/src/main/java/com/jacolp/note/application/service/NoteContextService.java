@@ -1,5 +1,7 @@
 package com.jacolp.note.application.service;
 
+import com.jacolp.common.security.context.PermissionContext;
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteContextDO;
 
 import java.util.List;
@@ -22,10 +24,10 @@ public interface NoteContextService {
 
     /**
      * 获取笔记源文件
-     * <p>- 自带通过 {@link com.jacolp.context.PermissionContext} 决定是否开启所属权校验</p>
+     * <p>- 自带通过 {@link PermissionContext} 决定是否开启所属权校验</p>
      * @param noteId 笔记 ID
      * @return 笔记内容实体
-     * @throws com.jacolp.exception.BaseException 笔记不存在 / 笔记无权限访问
+     * @throws BaseException 笔记不存在 / 笔记无权限访问
      */
     NoteContextDO getByNoteIdWithValid(Long noteId);
 

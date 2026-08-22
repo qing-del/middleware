@@ -1,10 +1,10 @@
 package com.jacolp.note.application.controller.user;
 
+import com.jacolp.common.core.result.PageResult;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.note.application.dto.note.PublicNoteQueryDTO;
 import com.jacolp.note.application.vo.note.PublicNoteDetailVO;
 import com.jacolp.note.application.service.PublicNoteService;
-import com.jacolp.result.PageResult;
-import com.jacolp.result.Result;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

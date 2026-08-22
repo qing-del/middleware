@@ -1,26 +1,28 @@
 package com.jacolp.middleware.module.system.biz.application.authorization;
 
-import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.constant.UserConstant;
-import com.jacolp.system.support.TestSecurityContext;
-import com.jacolp.middleware.common.security.activation.AccountVerificationCredentialService;
-import com.jacolp.middleware.messaging.pulisher.UserProfileEventPublisher;
-import com.jacolp.system.application.authorization.UserExtraGrantTypePolicy;
+import com.jacolp.common.security.activation.AccountVerificationCredentialService;
+import com.jacolp.common.messaging.pulisher.UserProfileEventPublisher;
 import com.jacolp.system.application.authorization.AccountAuthorizationStateRevocationService;
 import com.jacolp.system.application.authorization.CreatorAccountSynchronizationService;
 import com.jacolp.system.application.authorization.RoleRankAuthorizationService;
+import com.jacolp.system.application.authorization.UserExtraGrantTypePolicy;
 import com.jacolp.system.application.dto.user.UserAddDTO;
 import com.jacolp.system.application.dto.user.UserModifyDTO;
 import com.jacolp.system.application.dto.user.UserRegisterDTO;
 import com.jacolp.system.application.service.EmailSenderService;
 import com.jacolp.system.application.service.impl.AdminUserServiceImpl;
 import com.jacolp.system.application.service.impl.UserUserServiceImpl;
+import com.jacolp.system.constant.RoleConstant;
 import com.jacolp.system.infrastructure.persistence.dataobject.UserDO;
 import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
 import com.jacolp.system.infrastructure.security.PasswordEncoder;
+import com.jacolp.system.support.TestSecurityContext;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,7 +44,7 @@ class UserExtraGrantTypeWritePathTest {
 
     @Test
     void roleDirectoryPolicyWritesNoExtraGrantForTheThreeSupportedRoles() {
-        assertThat(UserExtraGrantTypePolicy.forRoleId(RoleConstant.USER)).isEmpty();
+        Assertions.assertThat(UserExtraGrantTypePolicy.forRoleId(RoleConstant.USER)).isEmpty();
         assertThat(UserExtraGrantTypePolicy.forRoleId(RoleConstant.ADMIN)).isEmpty();
         assertThat(UserExtraGrantTypePolicy.forRoleId(RoleConstant.CREATOR)).isEmpty();
         assertThatThrownBy(() -> UserExtraGrantTypePolicy.forRoleId(99L))
@@ -68,12 +70,12 @@ class UserExtraGrantTypeWritePathTest {
         when(userMapper.selectById(7L)).thenAnswer(invocation -> inserted.get());
         when(credentials.acquireActivationEmailCooldown(7L)).thenReturn(true);
 
-        UserUserServiceImpl service = new UserUserServiceImpl(mock(AccountAuthorizationStateRevocationService.class));
+        UserUserServiceImpl service = new UserUserServiceImpl(Mockito.mock(AccountAuthorizationStateRevocationService.class));
         ReflectionTestUtils.setField(service, "userMapper", userMapper);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
         ReflectionTestUtils.setField(service, "accountVerificationCredentialService", credentials);
-        ReflectionTestUtils.setField(service, "emailSenderService", mock(EmailSenderService.class));
-        ReflectionTestUtils.setField(service, "userProfileEvents", mock(UserProfileEventPublisher.class));
+        ReflectionTestUtils.setField(service, "emailSenderService", Mockito.mock(EmailSenderService.class));
+        ReflectionTestUtils.setField(service, "userProfileEvents", Mockito.mock(UserProfileEventPublisher.class));
         UserRegisterDTO dto = new UserRegisterDTO();
         dto.setUsername("alice");
         dto.setPassword("password");
@@ -95,7 +97,7 @@ class UserExtraGrantTypeWritePathTest {
         ReflectionTestUtils.setField(service, "userMapper", userMapper);
         ReflectionTestUtils.setField(service, "passwordEncoder", passwordEncoder);
         ReflectionTestUtils.setField(service, "userProfileEvents", userProfileEvents);
-        ReflectionTestUtils.setField(service, "roleRankAuthorizationService", mock(RoleRankAuthorizationService.class));
+        ReflectionTestUtils.setField(service, "roleRankAuthorizationService", Mockito.mock(RoleRankAuthorizationService.class));
         TestSecurityContext.authenticate(1L, true);
         UserDO creator = user(1L, RoleConstant.CREATOR);
         when(userMapper.selectById(1L)).thenReturn(creator);

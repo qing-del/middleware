@@ -1,5 +1,6 @@
 package com.jacolp.note.application.service;
 
+import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.note.infrastructure.persistence.dataobject.NoteChangeDiffDO;
 import org.apache.ibatis.annotations.Select;
 
@@ -34,14 +35,14 @@ public interface NoteChangeDiffService {
      * 获取 笔记修改diff记录
      * @param noteId 笔记ID
      * @param noteDiffStatusPending 笔记状态
-     * @throws com.jacolp.exception.BaseException 找不到 diff 记录数据行会报错
+     * @throws BaseException 找不到 diff 记录数据行会报错
      */
     @Select("SELECT * FROM biz_note_change_diff WHERE note_id = #{noteId} AND status = #{noteDiffStatusPending}")
     NoteChangeDiffDO getByNoteIdAndStatus(Long noteId, Integer noteDiffStatusPending);
 
     /**
      * 更新 笔记修改diff记录
-     * @throws com.jacolp.exception.BaseException 更新失败会抛出异常
+     * @throws BaseException 更新失败会抛出异常
      */
     void updateStatus(Long noteId, Integer status);
 }

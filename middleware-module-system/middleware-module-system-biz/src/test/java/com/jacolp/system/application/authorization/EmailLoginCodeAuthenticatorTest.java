@@ -1,14 +1,15 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
+import com.jacolp.system.application.port.out.EmailLoginCodeFailureDecision;
+import com.jacolp.system.application.port.out.EmailLoginCodeProtector;
+import com.jacolp.system.application.port.out.EmailLoginCodeStateStore;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeAuthenticationRequest;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeState;
 import com.jacolp.system.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
-import com.jacolp.system.application.port.out.AuthorizationAccountRepository;
-import com.jacolp.system.application.port.out.EmailLoginCodeFailureDecision;
-import com.jacolp.system.application.port.out.EmailLoginCodeProtector;
-import com.jacolp.system.application.port.out.EmailLoginCodeStateStore;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
@@ -63,7 +64,7 @@ class EmailLoginCodeAuthenticatorTest {
         when(fixture.states.consume("user", 7L, fixture.state.verifierHash())).thenReturn(true);
         when(fixture.eligibility.resolve(eq(fixture.policy), eq(fixture.account))).thenReturn(fixture.cleared);
 
-        assertThat(fixture.authenticator.authenticate(fixture.policy, request())).isEqualTo(fixture.cleared);
+        Assertions.assertThat(fixture.authenticator.authenticate(fixture.policy, request())).isEqualTo(fixture.cleared);
 
         InOrder order = inOrder(fixture.protector, fixture.states, fixture.eligibility);
         order.verify(fixture.protector).matches("012345", fixture.state.verifierHash());

@@ -1,15 +1,21 @@
 package com.jacolp.system.application.aspect;
 
-import com.jacolp.module.system.api.quota.StorageHandler;
-import com.jacolp.constant.UserConstant;
-import com.jacolp.exception.BaseException;
-import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.common.security.context.BaseContext;
+import com.jacolp.common.core.exception.BaseException;
+import com.jacolp.media.api.MediaFileApi;
+import com.jacolp.media.api.MediaUsageApi;
+import com.jacolp.media.api.model.MediaFileSummary;
+import com.jacolp.note.api.NoteReadApi;
+import com.jacolp.note.api.model.NoteSummary;
+import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.dto.user.UserQuoteStorageDTO;
 import com.jacolp.system.application.dto.user.UserStorageHandlerDTO;
-import com.jacolp.system.domain.quota.UserQuotaPolicy;
-import com.jacolp.result.Result;
-import com.jacolp.module.system.api.quota.StorageOperationType;
 import com.jacolp.system.infrastructure.concurrent.LockOperator;
+import com.jacolp.system.infrastructure.persistence.mapper.UserMapper;
+import com.jacolp.system.api.quota.StorageHandler;
+import com.jacolp.constant.UserConstant;
+import com.jacolp.system.domain.quota.UserQuotaPolicy;
+import com.jacolp.system.api.quota.StorageOperationType;
 
 import com.jacolp.system.utils.RoleDataComputerUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -23,13 +29,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.jacolp.context.BaseContext;
-import com.jacolp.module.system.api.quota.StorageUpdateContext;
-import com.jacolp.module.note.api.NoteReadApi;
-import com.jacolp.module.note.api.model.NoteSummary;
-import com.jacolp.module.media.api.MediaFileApi;
-import com.jacolp.module.media.api.MediaUsageApi;
-import com.jacolp.module.media.api.model.MediaFileSummary;
+import com.jacolp.system.api.quota.StorageUpdateContext;
 
 import java.util.ArrayList;
 import java.util.List;
