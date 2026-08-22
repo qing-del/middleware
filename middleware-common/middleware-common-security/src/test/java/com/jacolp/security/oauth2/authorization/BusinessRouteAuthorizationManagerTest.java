@@ -30,6 +30,8 @@ class BusinessRouteAuthorizationManagerTest {
     void allowsOnlyValidatedJwtIdentityWithTheRequiredScope() {
         assertThat(decision(jwt("user", "USER", List.of("note:read")), HttpMethod.GET, "/user/note/9")).isTrue();
         assertThat(decision(jwt("user", "USER", List.of("*:read")), HttpMethod.GET, "/user/note/9")).isTrue();
+        assertThat(decision(jwt("user", "ADMIN", List.of("note:read")), HttpMethod.GET, "/user/note/9")).isTrue();
+        assertThat(decision(jwt("user", "CREATOR", List.of("note:read")), HttpMethod.GET, "/user/note/9")).isTrue();
         assertThat(decision(jwt("user", "USER", List.of("media:read")), HttpMethod.GET, "/user/note/9")).isFalse();
     }
 

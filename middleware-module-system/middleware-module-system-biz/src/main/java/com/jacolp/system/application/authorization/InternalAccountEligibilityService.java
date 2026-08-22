@@ -22,6 +22,7 @@ public class InternalAccountEligibilityService {
 
     private static final Set<String> INTERNAL_CLIENT_IDS = Set.of("user", "admin");
     private static final Set<String> LOGIN_GRANT_TYPES = Set.of("password", "email-code");
+    private static final Set<String> MANAGEMENT_ROLE_CODES = Set.of("ADMIN", "CREATOR");
 
     private final AccountGrantTypeResolver accountGrantTypeResolver;
     private final RoleMetadataRepository roleMetadataRepository;
@@ -84,20 +85,17 @@ public class InternalAccountEligibilityService {
      * @return 是否允许登录
      */
     static boolean isRoleAllowedForClient(String clientId, String roleCode) {
-//        return ("user".equals(clientId) && "USER".equals(roleCode))
-//                || ("admin".equals(clientId) && ("ADMIN".equals(roleCode) || "CREATOR".equals(roleCode)));
-        // 先做非空校验
         if (clientId == null || roleCode == null) {
             log.warn("the null clientId or roleCode, please inspecting!");
             return false;
         }
 
-        // 判断是不是 ADMIN | CREATOR
-        if ("ADMIN".equals(roleCode) || "CREATOR".equals(roleCode)) {
+        // ADMIN and CREATOR may authenticate through either internal client.
+        if (MANAGEMENT_ROLE_CODES.contains(roleCode)) {
             return true;
         }
 
-        // USER 只能使用 user 客户端登录
+        // USER remains limited to the user client.
         return ("user".equals(clientId) && "USER".equals(roleCode));
     }
 

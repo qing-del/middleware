@@ -24,6 +24,7 @@ public final class CoreNodeAccessTokenClaimsValidator implements OAuth2TokenVali
     private static final Pattern POSITIVE_SUBJECT = Pattern.compile("[0-9]+");
     private static final Pattern SCOPE_COMPONENT = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
     private static final Set<String> USER_GRANTS = Set.of("password", "email-code", "refresh_token");
+    private static final Set<String> USER_CLIENT_ROLES = Set.of("USER", "ADMIN", "CREATOR");
     private static final Set<String> ADMIN_GRANTS = Set.of("password", "email-code", "refresh_token");
     private static final Set<String> CORE_AGENT_GRANTS = Set.of("authorization_code", "refresh_token");
     private static final Set<String> CORE_AGENT_ROLES = Set.of("USER", "ADMIN", "CREATOR");
@@ -62,7 +63,7 @@ public final class CoreNodeAccessTokenClaimsValidator implements OAuth2TokenVali
             return false;
         }
         return switch (clientId) {
-            case "user" -> USER_GRANTS.contains(grantType) && "USER".equals(role);
+            case "user" -> USER_GRANTS.contains(grantType) && USER_CLIENT_ROLES.contains(role);
             case "admin" -> ADMIN_GRANTS.contains(grantType) && ("ADMIN".equals(role) || "CREATOR".equals(role));
             case "core_agent" -> CORE_AGENT_GRANTS.contains(grantType) && CORE_AGENT_ROLES.contains(role);
             default -> false;

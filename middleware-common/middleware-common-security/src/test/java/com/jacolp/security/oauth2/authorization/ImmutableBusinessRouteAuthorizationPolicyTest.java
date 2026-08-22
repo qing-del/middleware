@@ -37,9 +37,15 @@ class ImmutableBusinessRouteAuthorizationPolicyTest {
     }
 
     @Test
-    void enforcesClientBoundaryAndExactRoleShapeAndDeniesCoreAgent() {
+    void enforcesClientBoundaryAndAllowsManagementRolesOnUserClient() {
         assertThat(policy.authorize(HttpMethod.GET, "/user/note/7",
                 principal("admin", List.of("ADMIN"), List.of("note:read")))).isEqualTo(CLIENT_MISMATCH);
+        assertThat(policy.authorize(HttpMethod.GET, "/user/note/7",
+                principal("user", List.of("ADMIN"), List.of("note:read")))).isEqualTo(ALLOW);
+        assertThat(policy.authorize(HttpMethod.GET, "/user/note/7",
+                principal("user", List.of("CREATOR"), List.of("note:read")))).isEqualTo(ALLOW);
+        assertThat(policy.authorize(HttpMethod.GET, "/admin/image/notes/7",
+                principal("user", List.of("CREATOR"), List.of("media:read", "note:read")))).isEqualTo(CLIENT_MISMATCH);
         assertThat(policy.authorize(HttpMethod.GET, "/admin/image/notes/7",
                 principal("admin", List.of("USER"), List.of("media:read", "note:read")))).isEqualTo(ROLE_MISMATCH);
         assertThat(policy.authorize(HttpMethod.GET, "/user/note/7",

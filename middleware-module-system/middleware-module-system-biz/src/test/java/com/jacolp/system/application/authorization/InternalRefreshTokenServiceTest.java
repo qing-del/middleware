@@ -90,7 +90,7 @@ class InternalRefreshTokenServiceTest {
     }
 
     @Test
-    void revalidatesClientIpAccountAndClientRoleBeforeIssuing() {
+    void revalidatesClientIpAndAccountAndAllowsManagementRoleBeforeIssuing() {
         Fixture wrongClient = fixture(List.of("note:read"));
         when(wrongClient.refresh.verify(RAW_REFRESH)).thenReturn(Optional.of(verified("admin", List.of("note:read"))));
         assertRejected(() -> wrongClient.service.refresh(request(null, "192.0.2.7")));
@@ -104,7 +104,13 @@ class InternalRefreshTokenServiceTest {
         Fixture wrongRole = fixture(List.of("note:read"));
         when(wrongRole.refresh.verify(RAW_REFRESH)).thenReturn(Optional.of(verified("user", List.of("note:read"))));
         when(wrongRole.roles.resolve(3L)).thenReturn(new EffectiveRolePermissions(3L, "ADMIN", 2, List.of("note:read")));
-        assertRejected(() -> wrongRole.service.refresh(request(null, "192.0.2.7")));
+        when(wrongRole.access.issue(any())).thenReturn(accessToken());
+        when(wrongRole.refresh.rotate(any(), any(), any(), any())).thenReturn(Optional.of(refreshToken()));
+        InternalIssuedTokens managementTokens = wrongRole.service.refresh(request(null, "192.0.2.7"));
+        assertThat(managementTokens.accessToken()).isEqualTo("access-token");
+        ArgumentCaptor<AccessTokenIssueRequest> managementAccessRequest = ArgumentCaptor.forClass(AccessTokenIssueRequest.class);
+        verify(wrongRole.access).issue(managementAccessRequest.capture());
+        assertThat(managementAccessRequest.getValue().role()).isEqualTo("ADMIN");
 
         Fixture blockedIp = fixture(List.of("note:read"));
         assertRejected(() -> blockedIp.service.refresh(request(null, "198.51.100.1")));

@@ -20,6 +20,8 @@ class CoreNodeAccessTokenClaimsValidatorTest {
         assertValid(jwt("user", "password", "USER", List.of("*:read")).build());
         assertValid(jwt("user", "email-code", "USER", List.of()).build());
         assertValid(jwt("user", "refresh_token", "USER", List.of("note:read")).build());
+        assertValid(jwt("user", "password", "ADMIN", List.of("*:read")).build());
+        assertValid(jwt("user", "refresh_token", "CREATOR", List.of("*:manage")).build());
         assertValid(jwt("admin", "password", "ADMIN", List.of("*:manage")).build());
         assertValid(jwt("admin", "email-code", "CREATOR", List.of("*:super")).build());
         assertValid(jwt("admin", "refresh_token", "ADMIN", List.of()).build());
@@ -31,7 +33,6 @@ class CoreNodeAccessTokenClaimsValidatorTest {
     void rejectsUnknownOrCrossClientGrantAndRoleCombinations() {
         assertInvalid(jwt("unknown", "password", "USER", List.of()).build());
         assertInvalid(jwt("user", "authorization_code", "USER", List.of()).build());
-        assertInvalid(jwt("user", "password", "ADMIN", List.of()).build());
         assertInvalid(jwt("admin", "password", "USER", List.of()).build());
         assertInvalid(jwt("core_agent", "password", "USER", List.of()).build());
         assertInvalid(jwt("core_agent", "authorization_code", "VIP", List.of()).build());

@@ -8,12 +8,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Applies a validated, immutable route catalogue. A request matching more than one rule is denied
  * at construction time rather than relying on rule order.
  */
 public final class ImmutableBusinessRouteAuthorizationPolicy implements BusinessRouteAuthorizationPolicy {
+
+    private static final Set<String> USER_CLIENT_ROLES = Set.of("USER", "ADMIN", "CREATOR");
 
     private final List<BusinessRouteAuthorizationEntry> entries;
 
@@ -70,7 +73,7 @@ public final class ImmutableBusinessRouteAuthorizationPolicy implements Business
 
     private static boolean clientRoleMatches(String clientId, List<String> roles) {
         return switch (clientId) {
-            case "user" -> roles.equals(List.of("USER"));
+            case "user" -> roles.size() == 1 && USER_CLIENT_ROLES.contains(roles.getFirst());
             case "admin" -> roles.equals(List.of("ADMIN")) || roles.equals(List.of("CREATOR"));
             default -> false;
         };

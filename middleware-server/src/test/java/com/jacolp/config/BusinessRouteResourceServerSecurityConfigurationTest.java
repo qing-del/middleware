@@ -201,6 +201,8 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
                     .andExpect(status().isOk()).andExpect(content().string("42:false"));
             mvc.perform(get("/user/note/9").header("Authorization", "Bearer user-wildcard"))
                     .andExpect(status().isOk()).andExpect(content().string("42:false"));
+            mvc.perform(get("/user/note/9").header("Authorization", "Bearer user-creator"))
+                    .andExpect(status().isOk()).andExpect(content().string("42:true"));
             mvc.perform(put("/admin/user/user").header("Authorization", "Bearer admin-creator"))
                     .andExpect(status().isOk()).andExpect(content().string("42:true"));
             mvc.perform(post("/auth/logout").header("Authorization", "Bearer user-read"))
@@ -290,6 +292,7 @@ class BusinessRouteResourceServerSecurityConfigurationTest {
                 case "malformed" -> jwt("user", "USER", List.of("note:read")).claim("roles", List.of("USER", "ADMIN")).build();
                 case "user-read" -> jwt("user", "USER", List.of("note:read")).build();
                 case "user-wildcard" -> jwt("user", "USER", List.of("*:read")).build();
+                case "user-creator" -> jwt("user", "CREATOR", List.of("note:read")).build();
                 case "user-no-scope" -> jwt("user", "USER", List.of("media:read")).build();
                 case "user-manage" -> jwt("user", "USER", List.of("*:manage")).build();
                 case "admin-creator" -> jwt("admin", "CREATOR", List.of("account:manage")).build();

@@ -52,14 +52,16 @@ class InternalAccountEligibilityServiceTest {
     }
 
     @Test
-    void clientRoleMismatchesUseTheSameAuthenticationRejection() {
+    void managementRolesCanUseEitherInternalClientWhileUserRemainsClientBound() {
         Fixture fixture = fixture();
         when(fixture.roles.findById(2L)).thenReturn(Optional.of(role(2L, "ADMIN", 2)));
         when(fixture.roles.findById(1L)).thenReturn(Optional.of(role(1L, "CREATOR", 1)));
         when(fixture.roles.findById(3L)).thenReturn(Optional.of(role(3L, "USER", 3)));
 
-        assertRejected(() -> fixture.service.resolve(policy("user", "password"), account(7L, 2L, 1, "")));
-        assertRejected(() -> fixture.service.resolve(policy("user", "password"), account(7L, 1L, 1, "")));
+        assertThat(fixture.service.resolve(policy("user", "password"), account(7L, 2L, 1, "")).roleCode())
+                .isEqualTo("ADMIN");
+        assertThat(fixture.service.resolve(policy("user", "password"), account(7L, 1L, 1, "")).roleCode())
+                .isEqualTo("CREATOR");
         assertRejected(() -> fixture.service.resolve(policy("admin", "password"), account(7L, 3L, 1, "")));
     }
 
