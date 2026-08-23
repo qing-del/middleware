@@ -1,0 +1,243 @@
+package com.jacolp.document.infrastructure.redis;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.domain.Range;
+import org.springframework.data.redis.connection.Limit;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.stream.ByteRecord;
+import org.springframework.data.redis.connection.stream.RecordId;
+import org.springframework.stereotype.Repository;
+
+/**
+ * Binary-safe Redis persistence for document room metadata and pending Yjs updates.
+ *
+ * <p>It intentionally bypasses {@code StringRedisTemplate}: a Yjs update is arbitrary binary and
+ * must reach Redis Stream unchanged.</p>
+ */
+@Repository
+@ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
+public class DocumentRedisRepository {
+
+    private static final byte[] FIELD_DOCUMENT_ID = bytes("documentId");
+    private static final byte[] FIELD_TEAM_ID = bytes("teamId");
+    private static final byte[] FIELD_IS_CLOSE = bytes("isClose");
+    private static final byte[] FIELD_CLOSE_TOKEN = bytes("closeToken");
+    private static final byte[] FIELD_LAST_MODIFY_TIME = bytes("lastModifyTime");
+    private static final byte[] FIELD_LAST_MODIFY_USER_ID = bytes("lastModifyUserId");
+    private static final byte[] FIELD_UPDATE = bytes("update");
+    private static final byte[] FIELD_CLIENT_UPDATE_ID = bytes("clientUpdateId");
+    private static final byte[] FIELD_OPERATOR_ID = bytes("operatorId");
+    private static final byte[] FIELD_OPERATOR_TYPE = bytes("operatorType");
+    private static final byte[] FIELD_CREATED_AT = bytes("createdAt");
+
+    private final RedisConnectionFactory redisConnectionFactory;
+
+    public DocumentRedisRepository(RedisConnectionFactory redisConnectionFactory) {
+        this.redisConnectionFactory = redisConnectionFactory;
+    }
+
+    public void saveRoomMeta(DocumentRoomMeta meta) {
+        Map<byte[], byte[]> fields = new LinkedHashMap<>();
+        fields.put(FIELD_DOCUMENT_ID, bytes(meta.documentId()));
+        fields.put(FIELD_TEAM_ID, bytes(meta.teamId()));
+        fields.put(FIELD_IS_CLOSE, bytes(meta.closeRequested() ? 1 : 0));
+        fields.put(FIELD_LAST_MODIFY_TIME, bytes(meta.lastModifyTime()));
+        if (meta.lastModifyUserId() != null) {
+            fields.put(FIELD_LAST_MODIFY_USER_ID, bytes(meta.lastModifyUserId()));
+        }
+        if (meta.closeToken() != null) {
+            fields.put(FIELD_CLOSE_TOKEN, bytes(meta.closeToken()));
+        }
+
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            byte[] key = bytes(roomMetaKey(meta.documentId()));
+            connection.hMSet(key, fields);
+            if (meta.lastModifyUserId() == null) {
+                connection.hDel(key, FIELD_LAST_MODIFY_USER_ID);
+            }
+            if (meta.closeToken() == null) {
+                connection.hDel(key, FIELD_CLOSE_TOKEN);
+            }
+        }
+    }
+
+    public Optional<DocumentRoomMeta> findRoomMeta(long documentId) {
+        requirePositive(documentId, "documentId");
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            Map<byte[], byte[]> rawFields = connection.hGetAll(bytes(roomMetaKey(documentId)));
+            if (rawFields == null || rawFields.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(toRoomMeta(rawFields));
+        }
+    }
+
+    /** Appends a binary update and returns its Redis Stream ID after XADD succeeds. */
+    public String appendPendingUpdate(DocumentPendingUpdate update) {
+        Map<byte[], byte[]> fields = new LinkedHashMap<>();
+        fields.put(FIELD_UPDATE, update.updateData());
+        fields.put(FIELD_CLIENT_UPDATE_ID, bytes(update.clientUpdateId()));
+        if (update.operatorId() != null) {
+            fields.put(FIELD_OPERATOR_ID, bytes(update.operatorId()));
+        }
+        fields.put(FIELD_OPERATOR_TYPE, bytes(update.operatorType()));
+        fields.put(FIELD_CREATED_AT, bytes(update.createdAt()));
+
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            RecordId recordId = connection.xAdd(bytes(pendingUpdatesKey(update.documentId())), fields);
+            if (recordId == null || recordId.getValue() == null || recordId.getValue().isBlank()) {
+                throw new IllegalStateException("Redis XADD did not return a stream entry ID");
+            }
+            return recordId.getValue();
+        }
+    }
+
+    public List<StoredDocumentPendingUpdate> readPendingUpdates(long documentId, int maxCount) {
+        requirePositive(documentId, "documentId");
+        if (maxCount <= 0) {
+            throw new IllegalArgumentException("maxCount must be positive");
+        }
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            List<ByteRecord> records = connection.xRange(
+                    bytes(pendingUpdatesKey(documentId)), Range.unbounded(), Limit.limit().count(maxCount));
+            if (records == null || records.isEmpty()) {
+                return List.of();
+            }
+            List<StoredDocumentPendingUpdate> updates = new ArrayList<>(records.size());
+            for (ByteRecord record : records) {
+                updates.add(toStoredPendingUpdate(documentId, record));
+            }
+            return List.copyOf(updates);
+        }
+    }
+
+    public long deletePendingUpdates(long documentId, Collection<String> redisOpIds) {
+        requirePositive(documentId, "documentId");
+        if (redisOpIds == null || redisOpIds.isEmpty()) {
+            return 0;
+        }
+        RecordId[] recordIds = redisOpIds.stream().map(DocumentRedisRepository::toRecordId)
+                .toArray(RecordId[]::new);
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            Long deleted = connection.xDel(bytes(pendingUpdatesKey(documentId)), recordIds);
+            return deleted == null ? 0 : deleted;
+        }
+    }
+
+    static String roomMetaKey(long documentId) {
+        requirePositive(documentId, "documentId");
+        return "document:meta:" + documentId;
+    }
+
+    static String pendingUpdatesKey(long documentId) {
+        requirePositive(documentId, "documentId");
+        return "document:updates:" + documentId;
+    }
+
+    private static DocumentRoomMeta toRoomMeta(Map<byte[], byte[]> rawFields) {
+        Map<String, byte[]> fields = stringFields(rawFields);
+        return new DocumentRoomMeta(
+                parseRequiredLong(fields, "documentId"),
+                parseRequiredLong(fields, "teamId"),
+                parseCloseRequested(fields),
+                parseOptionalString(fields, "closeToken"),
+                parseRequiredLong(fields, "lastModifyTime"),
+                parseOptionalLong(fields, "lastModifyUserId"));
+    }
+
+    private static StoredDocumentPendingUpdate toStoredPendingUpdate(long documentId, ByteRecord record) {
+        if (record.getId() == null || record.getId().getValue() == null || record.getId().getValue().isBlank()) {
+            throw new IllegalStateException("Redis Stream record is missing its ID");
+        }
+        Map<String, byte[]> fields = stringFields(record.getValue());
+        byte[] updateData = fields.get("update");
+        if (updateData == null || updateData.length == 0) {
+            throw new IllegalStateException("Redis Stream record is missing a binary update");
+        }
+        return new StoredDocumentPendingUpdate(record.getId().getValue(), new DocumentPendingUpdate(
+                documentId,
+                updateData,
+                requiredString(fields, "clientUpdateId"),
+                parseOptionalLong(fields, "operatorId"),
+                requiredString(fields, "operatorType"),
+                parseRequiredLong(fields, "createdAt")));
+    }
+
+    private static Map<String, byte[]> stringFields(Map<byte[], byte[]> rawFields) {
+        Map<String, byte[]> fields = new LinkedHashMap<>();
+        rawFields.forEach((key, value) -> fields.put(string(key), value));
+        return fields;
+    }
+
+    private static boolean parseCloseRequested(Map<String, byte[]> fields) {
+        String value = requiredString(fields, "isClose");
+        return switch (value) {
+            case "0" -> false;
+            case "1" -> true;
+            default -> throw new IllegalStateException("Redis room meta has an invalid isClose value");
+        };
+    }
+
+    private static long parseRequiredLong(Map<String, byte[]> fields, String fieldName) {
+        try {
+            return Long.parseLong(requiredString(fields, fieldName));
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("Redis field " + fieldName + " must be a long", exception);
+        }
+    }
+
+    private static Long parseOptionalLong(Map<String, byte[]> fields, String fieldName) {
+        String value = parseOptionalString(fields, fieldName);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(value);
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("Redis field " + fieldName + " must be a long", exception);
+        }
+    }
+
+    private static String requiredString(Map<String, byte[]> fields, String fieldName) {
+        String value = parseOptionalString(fields, fieldName);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Redis field " + fieldName + " is required");
+        }
+        return value;
+    }
+
+    private static String parseOptionalString(Map<String, byte[]> fields, String fieldName) {
+        byte[] value = fields.get(fieldName);
+        return value == null ? null : string(value);
+    }
+
+    private static RecordId toRecordId(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("redisOpId must not be blank");
+        }
+        return RecordId.of(value);
+    }
+
+    private static void requirePositive(long value, String fieldName) {
+        if (value <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be positive");
+        }
+    }
+
+    private static byte[] bytes(Object value) {
+        return String.valueOf(value).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static String string(byte[] value) {
+        return new String(value, StandardCharsets.UTF_8);
+    }
+}
