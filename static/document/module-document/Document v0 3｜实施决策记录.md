@@ -73,3 +73,10 @@
 - **决策**：Document 模块复用现有 retry/DLQ 命名与消费失败处理，并额外采用 RabbitMQ 原生的固定 TTL + DLX：将仅包含 `DocumentScheduleMessage` 的 `FLUSH_LOG` 调度信号先投递到专用 delay queue；TTL 到期后死信转发到 document 主调度队列。第一版不引入 RabbitMQ 插件，也不让消息携带 Yjs 正文、Snapshot、Update List 或 Redis Entry List。
 - **影响**：触发时间是近似值（TTL、outbox/publisher confirm 和 broker 调度会带来轻微延后），但消费者必须重新检查 Redis/MySQL 的真实状态，因此重复、延后及 Recovery Scanner 的补发均保持安全。消息发布失败不会撤销已经 XADD 成功的客户端 ACK；后续 Recovery Scanner 负责重新调度仍存在的 pending Stream。后续 `COMPACT` 与 `CLOSE` 复用同一主队列与 retry/DLQ，并按各自固定延迟增加独立 delay queue。
 - **依据**：仓库 `ReliableMessagingConfiguration` 与 `EventRetryPublisher` 的既有实现；用户于 2026-08-24 05:00 前授权对未冻结项记录后按推荐方案继续。
+
+## D-011：COMPACT 的触发与单轮合并边界
+
+- **背景**：现有 `biz_document` 没有 `last_successful_snapshot_at`；`update_time` 会在每次接受编辑及 Snapshot pointer 切换时更新，不能可靠单独表示“距上次成功 Snapshot 的时间”。同时没有跨节点的 per-document 调度去重状态。计划已明确最终并发正确性依赖 immutable MinIO object + MySQL CAS，而非调度消息唯一性。
+- **决策**：每次成功 `FLUSH_LOG` 后发送一个延迟 `COMPACT` 信号（使用 `jacolp.document.compact.interval-ms`）；若刚刷入的 batch 已达到 `max-unmerged-ops` 或 `max-unmerged-bytes`，则额外立即发送一个 `COMPACT` 信号。消费者始终重新检查 MySQL 真实日志；重复或并发 COMPACT 通过 Snapshot pointer CAS 收敛。单轮只读取从当前 `persisted_log_id` 起、最多 `flush-log.batch-size` 条有序 op_log，并以该批最后一条日志 ID 为 cutoff；剩余日志由后续调度继续压实。
+- **影响**：连续编辑时会出现冗余调度或 loser merge，但不会覆盖 winner Snapshot，也不会提前删除日志；代价是额外 CPU/MinIO orphan object，后续可用 Redis lock 优化。重用已有 batch-size 避免把无限日志一次送入 Merge Service，限制单次 HTTP/内存占用；在默认值下，每轮最多合并 500 条。因没有单独的 Snapshot 时间字段，20 秒语义是“刷盘后延迟尝试”，而非精确的全局 Snapshot 周期。
+- **依据**：`biz_document.update_time` 的数据库定义、计划 #13 的 CAS 正确性要求及用户于 2026-08-24 05:00 前的连续实施授权。
