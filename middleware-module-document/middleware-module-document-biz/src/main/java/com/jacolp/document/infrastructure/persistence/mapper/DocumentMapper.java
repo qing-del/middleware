@@ -22,6 +22,11 @@ public interface DocumentMapper {
                                        @Param("lastModifyTime") LocalDateTime lastModifyTime,
                                        @Param("lastModifyUserId") Long lastModifyUserId);
 
+    int updateTitleIfActive(@Param("id") Long id, @Param("teamId") Long teamId,
+                            @Param("title") String title,
+                            @Param("lastModifyTime") LocalDateTime lastModifyTime,
+                            @Param("lastModifyUserId") Long lastModifyUserId);
+
     int updateSnapshotPointerIfPersistedLogId(@Param("id") Long id,
                                               @Param("expectedPersistedLogId") Long expectedPersistedLogId,
                                               @Param("contentObjectKey") String contentObjectKey,

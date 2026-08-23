@@ -64,6 +64,17 @@
           AND deleted = 0
     </update>
 
+    <update id="updateTitleIfActive">
+        UPDATE biz_document
+        SET title = #{title},
+            last_modify_time = #{lastModifyTime},
+            last_modify_user_id = #{lastModifyUserId},
+            version = version + 1
+        WHERE id = #{id}
+          AND team_id = #{teamId}
+          AND deleted = 0
+    </update>
+
     <update id="updateSnapshotPointerIfPersistedLogId">
         UPDATE biz_document
         SET content_object_key = #{contentObjectKey},
