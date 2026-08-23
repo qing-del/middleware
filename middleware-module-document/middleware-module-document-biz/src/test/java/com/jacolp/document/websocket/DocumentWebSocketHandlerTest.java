@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.common.security.context.CurrentPrincipal;
+import com.jacolp.document.application.close.DocumentRoomLifecycleService;
 import com.jacolp.document.config.DocumentProperties;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
@@ -43,6 +44,8 @@ class DocumentWebSocketHandlerTest {
         DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
         DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
         DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
         WebSocketSession session = session("session-a", principal(42L));
         DocumentDO document = document(7L, 42L);
 
@@ -52,7 +55,8 @@ class DocumentWebSocketHandlerTest {
         when(documentMapper.updateLastModificationIfActive(eq(7L), eq(42L), any(LocalDateTime.class), eq(42L))).thenReturn(1);
 
         DocumentWebSocketHandler handler = new DocumentWebSocketHandler(codec, documentMapper, redisRepository,
-                new DocumentRoomManager(properties), bootstrapService, schedulePublisher, properties);
+                new DocumentRoomManager(properties), bootstrapService, schedulePublisher, presenceRegistry,
+                lifecycleService, properties);
         UUID joinRequestId = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
         handler.handleMessage(session, codec.encodeControl(new DocumentWsControlMessage(1,
                 DocumentWsControlType.JOIN_DOCUMENT, joinRequestId, 7L, null, null, null, null)));
@@ -64,6 +68,8 @@ class DocumentWebSocketHandlerTest {
         assertThat(codec.decodeControl((TextMessage) joinMessages.getAllValues().get(1)).type())
                 .isEqualTo(DocumentWsControlType.SYNC_COMPLETE);
         verify(bootstrapService).sendBootstrap(eq(document), any(WebSocketSession.class));
+        verify(presenceRegistry).register(7L, "session-a");
+        verify(lifecycleService).reopen(document, 42L);
 
         UUID updateId = UUID.fromString("123e4567-e89b-12d3-a456-426614174001");
         byte[] update = new byte[] {0, -1, 1};
@@ -94,11 +100,14 @@ class DocumentWebSocketHandlerTest {
         DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
         DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
         DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
         WebSocketSession session = session("session-b", principal(42L));
         when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document(7L, 42L));
         when(redisRepository.findRoomMeta(7L)).thenReturn(Optional.empty());
         DocumentWebSocketHandler handler = new DocumentWebSocketHandler(codec, documentMapper, redisRepository,
-                new DocumentRoomManager(properties), bootstrapService, schedulePublisher, properties);
+                new DocumentRoomManager(properties), bootstrapService, schedulePublisher, presenceRegistry,
+                lifecycleService, properties);
 
         handler.handleMessage(session, codec.encodeControl(new DocumentWsControlMessage(1,
                 DocumentWsControlType.JOIN_DOCUMENT, UUID.randomUUID(), 7L, null, null, null, null)));

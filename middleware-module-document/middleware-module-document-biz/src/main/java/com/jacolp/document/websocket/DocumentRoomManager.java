@@ -45,4 +45,13 @@ public class DocumentRoomManager {
         });
         return removed.get();
     }
+
+    /** There is no local Room only after restart or final cleanup; both mean this JVM has no live session. */
+    public boolean hasNoLocalSessions(long documentId) {
+        return find(documentId).map(room -> room.sessionCount() == 0).orElse(true);
+    }
+
+    public boolean beginClosingIfEmpty(long documentId) {
+        return find(documentId).map(DocumentRoom::beginClosingIfEmpty).orElse(true);
+    }
 }

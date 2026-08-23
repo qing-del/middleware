@@ -40,8 +40,8 @@ public class DocumentRoom {
         if (principal.userId() != teamId) {
             throw new DocumentRoomAccessException("document does not belong to the authenticated personal scope");
         }
-        if (lifecycleState == DocumentRoomLifecycleState.CLOSED || lifecycleState == DocumentRoomLifecycleState.CLOSING) {
-            throw new DocumentRoomAccessException("document room is closing");
+        if (lifecycleState == DocumentRoomLifecycleState.CLOSED) {
+            throw new DocumentRoomAccessException("document room is closed");
         }
         DocumentSessionContext existing = sessions.get(session.getId());
         if (existing != null) {
@@ -74,6 +74,15 @@ public class DocumentRoom {
     public void markActive(String sessionId) {
         DocumentSessionContext context = requireSession(sessionId);
         context.markActive();
+    }
+
+    /** Starts final close only while no local session is present; a later JOIN reopens the Room. */
+    public synchronized boolean beginClosingIfEmpty() {
+        if (!sessions.isEmpty() || lifecycleState == DocumentRoomLifecycleState.CLOSED) {
+            return false;
+        }
+        lifecycleState = DocumentRoomLifecycleState.CLOSING;
+        return true;
     }
 
     public void broadcast(WebSocketMessage<?> message, String excludedSessionId) {

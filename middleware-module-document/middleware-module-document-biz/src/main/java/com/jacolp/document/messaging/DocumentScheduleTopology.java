@@ -25,6 +25,7 @@ public class DocumentScheduleTopology {
     public static final String DEAD_LETTER_QUEUE = QUEUE + ".dlq";
     public static final String FLUSH_LOG_DELAY_QUEUE = "document.schedule.flush-log.delay";
     public static final String COMPACT_DELAY_QUEUE = "document.schedule.compact.delay";
+    public static final String CLOSE_DELAY_QUEUE = "document.schedule.close.delay";
 
     private final DocumentProperties documentProperties;
     private final ReliableMessagingProperties messagingProperties;
@@ -83,6 +84,15 @@ public class DocumentScheduleTopology {
                 .deadLetterExchange(EXCHANGE)
                 .deadLetterRoutingKey(ROUTING_KEY)
                 .ttl(toQueueTtl(documentProperties.getCompact().getIntervalMs(), "jacolp.document.compact.interval-ms"))
+                .build();
+    }
+
+    @Bean
+    public Queue documentCloseDelayQueue() {
+        return QueueBuilder.durable(CLOSE_DELAY_QUEUE)
+                .deadLetterExchange(EXCHANGE)
+                .deadLetterRoutingKey(ROUTING_KEY)
+                .ttl(toQueueTtl(documentProperties.getCloseDelayMs(), "jacolp.document.close-delay-ms"))
                 .build();
     }
 

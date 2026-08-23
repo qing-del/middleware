@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.common.messaging.pulisher.EventRetryPublisher;
 import com.jacolp.document.api.model.DocumentScheduleType;
 import com.jacolp.document.application.compact.DocumentCompactService;
+import com.jacolp.document.application.close.DocumentCloseService;
 import com.jacolp.document.application.flush.DocumentFlushLogResult;
 import com.jacolp.document.application.flush.DocumentFlushLogService;
 import com.jacolp.document.config.DocumentProperties;
@@ -25,16 +26,19 @@ public class DocumentScheduleConsumer {
     private final ObjectMapper objectMapper;
     private final DocumentFlushLogService flushLogService;
     private final DocumentCompactService compactService;
+    private final DocumentCloseService closeService;
     private final DocumentSchedulePublisher schedulePublisher;
     private final DocumentProperties documentProperties;
     private final EventRetryPublisher retryPublisher;
 
     public DocumentScheduleConsumer(ObjectMapper objectMapper, DocumentFlushLogService flushLogService,
-                                    DocumentCompactService compactService, DocumentSchedulePublisher schedulePublisher,
-                                    DocumentProperties documentProperties, EventRetryPublisher retryPublisher) {
+                                    DocumentCompactService compactService, DocumentCloseService closeService,
+                                    DocumentSchedulePublisher schedulePublisher, DocumentProperties documentProperties,
+                                    EventRetryPublisher retryPublisher) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
         this.flushLogService = Objects.requireNonNull(flushLogService, "flushLogService must not be null");
         this.compactService = Objects.requireNonNull(compactService, "compactService must not be null");
+        this.closeService = Objects.requireNonNull(closeService, "closeService must not be null");
         this.schedulePublisher = Objects.requireNonNull(schedulePublisher, "schedulePublisher must not be null");
         this.documentProperties = Objects.requireNonNull(documentProperties, "documentProperties must not be null");
         this.retryPublisher = Objects.requireNonNull(retryPublisher, "retryPublisher must not be null");
@@ -54,6 +58,8 @@ public class DocumentScheduleConsumer {
                 }
             } else if (schedule.type() == DocumentScheduleType.COMPACT) {
                 compactService.compact(schedule.documentId());
+            } else if (schedule.type() == DocumentScheduleType.CLOSE) {
+                closeService.close(schedule.documentId(), schedule.closeToken());
             } else {
                 throw new IllegalArgumentException("unsupported document schedule type: " + schedule.type());
             }

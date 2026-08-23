@@ -18,5 +18,8 @@ public record DocumentScheduleMessage(
         if (triggerTime == null || triggerTime < 0) {
             throw new IllegalArgumentException("triggerTime must be non-negative");
         }
+        if (type == DocumentScheduleType.CLOSE && (closeToken == null || closeToken.isBlank())) {
+            throw new IllegalArgumentException("closeToken is required for CLOSE");
+        }
     }
 }

@@ -51,6 +51,12 @@ public class DocumentSchedulePublisher {
         publish(DocumentScheduleTopology.QUEUE, message);
     }
 
+    public void scheduleClose(long documentId, String closeToken) {
+        Message message = newScheduleMessage(documentId, DocumentScheduleType.CLOSE,
+                System.currentTimeMillis() + documentProperties.getCloseDelayMs(), closeToken);
+        publish(DocumentScheduleTopology.CLOSE_DELAY_QUEUE, message);
+    }
+
     private void publish(String queue, Message message) {
         rabbitTemplate.invoke(operations -> {
             operations.send("", queue, message);

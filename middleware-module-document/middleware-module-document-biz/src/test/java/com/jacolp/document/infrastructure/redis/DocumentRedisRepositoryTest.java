@@ -148,6 +148,24 @@ class DocumentRedisRepositoryTest {
         verify(cursor).close();
     }
 
+    @Test
+    void shouldMaintainEphemeralPresenceAndDeleteOnlyRoomRuntimeKeys() {
+        @SuppressWarnings("unchecked")
+        Cursor<byte[]> cursor = mock(Cursor.class);
+        when(connection.scan(any(ScanOptions.class))).thenReturn(cursor);
+        when(cursor.hasNext()).thenReturn(true, false);
+        when(cursor.next()).thenReturn("document:presence:18:node:session".getBytes(UTF_8));
+
+        repository.savePresence("document:presence:18:node:session", 60_000L);
+        repository.deletePresence("document:presence:18:node:session");
+        assertThat(repository.countPresence(18L)).isEqualTo(1L);
+        repository.deleteRoomRuntime(18L);
+
+        verify(connection).set(any(byte[].class), any(byte[].class), any(), any());
+        verify(connection).del("document:presence:18:node:session".getBytes(UTF_8));
+        verify(connection).del("document:meta:18".getBytes(UTF_8), "document:updates:18".getBytes(UTF_8));
+    }
+
     private static Map<byte[], byte[]> bytesMap(Map<String, String> values) {
         Map<byte[], byte[]> result = new LinkedHashMap<>();
         values.forEach((key, value) -> result.put(key.getBytes(UTF_8), value.getBytes(UTF_8)));

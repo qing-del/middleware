@@ -1,6 +1,7 @@
 package com.jacolp.document.websocket;
 
 import com.jacolp.common.security.context.CurrentPrincipal;
+import com.jacolp.document.application.close.DocumentRoomLifecycleService;
 import com.jacolp.document.config.DocumentProperties;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
@@ -45,19 +46,24 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private final DocumentRoomManager roomManager;
     private final DocumentBootstrapService bootstrapService;
     private final DocumentSchedulePublisher schedulePublisher;
+    private final DocumentSessionPresenceRegistry presenceRegistry;
+    private final DocumentRoomLifecycleService lifecycleService;
     private final DocumentProperties properties;
     private final ConcurrentHashMap<String, Long> joinedDocumentIds = new ConcurrentHashMap<>();
 
     public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
                                     DocumentRedisRepository documentRedisRepository, DocumentRoomManager roomManager,
                                     DocumentBootstrapService bootstrapService, DocumentSchedulePublisher schedulePublisher,
-                                    DocumentProperties properties) {
+                                    DocumentSessionPresenceRegistry presenceRegistry,
+                                    DocumentRoomLifecycleService lifecycleService, DocumentProperties properties) {
         this.codec = Objects.requireNonNull(codec, "codec must not be null");
         this.documentMapper = Objects.requireNonNull(documentMapper, "documentMapper must not be null");
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
         this.roomManager = Objects.requireNonNull(roomManager, "roomManager must not be null");
         this.bootstrapService = Objects.requireNonNull(bootstrapService, "bootstrapService must not be null");
         this.schedulePublisher = Objects.requireNonNull(schedulePublisher, "schedulePublisher must not be null");
+        this.presenceRegistry = Objects.requireNonNull(presenceRegistry, "presenceRegistry must not be null");
+        this.lifecycleService = Objects.requireNonNull(lifecycleService, "lifecycleService must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
     }
 
@@ -152,7 +158,8 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         room.join(session, principal);
         joinedDocumentIds.put(session.getId(), documentId);
         try {
-            updateRoomMeta(document, principal.userId());
+            presenceRegistry.register(documentId, session.getId());
+            lifecycleService.reopen(document, principal.userId());
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
                     control.requestId(), documentId, null, null, null, null));
             bootstrapService.sendBootstrap(document, room.requireSession(session.getId()).session());
@@ -225,13 +232,23 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         if (existing.isPresent() && existing.get().teamId() != userId) {
             throw new DocumentRoomAccessException("Redis room meta does not match authenticated personal scope");
         }
-        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(documentId, userId, false, null, lastModifiedAt, userId));
+        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(documentId, userId, false,
+                UUID.randomUUID().toString(), lastModifiedAt, userId));
     }
 
     private void leaveSession(WebSocketSession session) {
         Long documentId = joinedDocumentIds.remove(session.getId());
+        presenceRegistry.unregister(session.getId());
         if (documentId != null) {
-            roomManager.find(documentId).ifPresent(room -> room.leave(session.getId()));
+            roomManager.find(documentId).ifPresent(room -> {
+                if (room.leave(session.getId()) && room.sessionCount() == 0) {
+                    try {
+                        lifecycleService.requestClose(documentId, room.teamId());
+                    } catch (RuntimeException exception) {
+                        log.warn("Could not request delayed CLOSE for documentId={}: {}", documentId, exception.getMessage());
+                    }
+                }
+            });
         }
     }
 

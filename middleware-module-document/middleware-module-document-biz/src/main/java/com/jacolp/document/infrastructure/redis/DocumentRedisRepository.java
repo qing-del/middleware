@@ -13,10 +13,12 @@ import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.Limit;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
 import org.springframework.data.redis.connection.stream.ByteRecord;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -157,6 +159,51 @@ public class DocumentRedisRepository {
             }
         }
         return List.copyOf(metas);
+    }
+
+    /** Creates or renews an ephemeral cross-instance session presence lease. */
+    public void savePresence(String presenceKey, long ttlMs) {
+        if (presenceKey == null || presenceKey.isBlank()) {
+            throw new IllegalArgumentException("presenceKey must not be blank");
+        }
+        if (ttlMs <= 0) {
+            throw new IllegalArgumentException("ttlMs must be positive");
+        }
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            connection.set(bytes(presenceKey), bytes("1"), Expiration.milliseconds(ttlMs), SetOption.UPSERT);
+        }
+    }
+
+    public void deletePresence(String presenceKey) {
+        if (presenceKey == null || presenceKey.isBlank()) {
+            return;
+        }
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            connection.del(bytes(presenceKey));
+        }
+    }
+
+    /** Counts non-expired session leases for one document across all core instances. */
+    public long countPresence(long documentId) {
+        requirePositive(documentId, "documentId");
+        long count = 0L;
+        try (RedisConnection connection = redisConnectionFactory.getConnection();
+             Cursor<byte[]> keys = connection.scan(ScanOptions.scanOptions()
+                     .match("document:presence:" + documentId + ":*").count(100).build())) {
+            while (keys.hasNext()) {
+                keys.next();
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** Clears only redis runtime state after final persistence; session lease keys are checked separately. */
+    public void deleteRoomRuntime(long documentId) {
+        requirePositive(documentId, "documentId");
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            connection.del(bytes(roomMetaKey(documentId)), bytes(pendingUpdatesKey(documentId)));
+        }
     }
 
     static String roomMetaKey(long documentId) {

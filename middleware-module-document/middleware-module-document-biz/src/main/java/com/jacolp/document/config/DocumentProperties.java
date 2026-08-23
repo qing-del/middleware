@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class DocumentProperties {
     private boolean enabled;
     private long closeDelayMs = 30_000L;
+    private long sessionPresenceRefreshMs = 10_000L;
     private Websocket websocket = new Websocket();
     private FlushLog flushLog = new FlushLog();
     private Compact compact = new Compact();
@@ -16,6 +17,8 @@ public class DocumentProperties {
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public long getCloseDelayMs() { return closeDelayMs; }
     public void setCloseDelayMs(long closeDelayMs) { this.closeDelayMs = closeDelayMs; }
+    public long getSessionPresenceRefreshMs() { return sessionPresenceRefreshMs; }
+    public void setSessionPresenceRefreshMs(long sessionPresenceRefreshMs) { this.sessionPresenceRefreshMs = sessionPresenceRefreshMs; }
     public Websocket getWebsocket() { return websocket; }
     public void setWebsocket(Websocket websocket) { this.websocket = websocket == null ? new Websocket() : websocket; }
     public FlushLog getFlushLog() { return flushLog; }

@@ -50,6 +50,17 @@ class DocumentRoomManagerTest {
                 .isInstanceOf(DocumentRoomAccessException.class);
     }
 
+    @Test
+    void closingRoomAcceptsNewJoinAndReturnsToActiveForReopenRace() {
+        DocumentRoom room = new DocumentRoomManager(properties(2)).getOrCreate(9L, 42L);
+
+        assertThat(room.beginClosingIfEmpty()).isTrue();
+        room.join(session("returning"), principal(42L));
+
+        assertThat(room.lifecycleState()).isEqualTo(DocumentRoomLifecycleState.ACTIVE);
+        assertThat(room.sessionCount()).isEqualTo(1);
+    }
+
     private static DocumentProperties properties(int maxRoomSessions) {
         DocumentProperties properties = new DocumentProperties();
         properties.getWebsocket().setMaxRoomSessions(maxRoomSessions);
