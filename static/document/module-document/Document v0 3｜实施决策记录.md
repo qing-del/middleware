@@ -66,3 +66,10 @@
 - **决策**：收到合法 `LEAVE_DOCUMENT` 后，服务端立即移除该 session 对 Room 的归属；不额外发送 control ACK。连接保持打开，此后可 JOIN 另一文档；未 JOIN 时发送二进制更新会被拒绝。重复 LEAVE 是幂等 no-op。
 - **影响**：不增加未冻结的公开响应类型；客户端以发送成功/本地状态为准，并可直接发送新的 JOIN。最后一个 session 离开后 Room 进入 PRE_CLOSE，实际延迟关闭仍由后续 final flush/compact 流程决定。
 - **依据**：用户于 2026-08-24 授权窗口内按推荐方案继续。
+
+## D-010：Document 调度的延迟队列实现
+
+- **背景**：仓库已有可靠消息规范：持久化消息、主队列配套 `.retry` 队列（TTL 后回主队列）及 `.dlq`，消费者复用 `EventRetryPublisher`；但没有 RabbitMQ delayed-message 插件或既有 delayed exchange。`FLUSH_LOG` 需要约 2 秒的去抖延迟，且计划明确禁止在无既有约定时私自引入插件。
+- **决策**：Document 模块复用现有 retry/DLQ 命名与消费失败处理，并额外采用 RabbitMQ 原生的固定 TTL + DLX：将仅包含 `DocumentScheduleMessage` 的 `FLUSH_LOG` 调度信号先投递到专用 delay queue；TTL 到期后死信转发到 document 主调度队列。第一版不引入 RabbitMQ 插件，也不让消息携带 Yjs 正文、Snapshot、Update List 或 Redis Entry List。
+- **影响**：触发时间是近似值（TTL、outbox/publisher confirm 和 broker 调度会带来轻微延后），但消费者必须重新检查 Redis/MySQL 的真实状态，因此重复、延后及 Recovery Scanner 的补发均保持安全。消息发布失败不会撤销已经 XADD 成功的客户端 ACK；后续 Recovery Scanner 负责重新调度仍存在的 pending Stream。后续 `COMPACT` 与 `CLOSE` 复用同一主队列与 retry/DLQ，并按各自固定延迟增加独立 delay queue。
+- **依据**：仓库 `ReliableMessagingConfiguration` 与 `EventRetryPublisher` 的既有实现；用户于 2026-08-24 05:00 前授权对未冻结项记录后按推荐方案继续。
