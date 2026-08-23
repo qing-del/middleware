@@ -87,3 +87,10 @@
 - **决策**：每个成功 JOIN 的 session 在 Redis 创建带 TTL 的 presence key：`document:presence:{documentId}:{instanceToken}:{sessionId}`。本实例定时续租本地仍在 Room 内的 key；LEAVE/连接关闭主动删除。CLOSE 消费时扫描该文档的 presence key，只有全局计数为零、`isClose=true` 且 closeToken 匹配时才能进入 final FLUSH_LOG/COMPACT 和清理。TTL 至少覆盖两个 close-delay 周期，续租周期作为 `jacolp.document.session-presence-refresh-ms`（默认 10 秒）配置。
 - **影响**：实例崩溃时遗留 presence 会在 TTL 后自动消失，因此 CLOSE 最多延后一个 lease 周期，不会冒险提前清理。Redis 仍不存正文；presence 仅是可过期运行态。JOIN 会写入新的 closeToken 并将 `isClose=false`，失效旧 CLOSE 消息；final 流程在 flush/compact 后再次检查 token、presence 和本地 Room，避免 reopen race。该方案以保守延迟换取跨实例安全，后续若项目出现统一 session registry，应迁移复用。
 - **依据**：计划 #11 要求 CLOSE 同时校验 `roomSessionCount(documentId)==0`、closeToken 和 reopen race；用户于 2026-08-24 05:00 前授权对未冻结项记录后继续实施。
+
+## D-013：第一版 HTTP Meta 与活跃文档删除语义
+
+- **背景**：仓库用户侧资源控制器统一使用 `/user/{resource}` 路径与 `BaseContext.getCurrentId()`；v0.3 明确 Meta 创建/读取/标题修改，但未冻结“有活跃 WebSocket Room 时删除”应强制断链还是拒绝。计划要求在正常规则下对此分支阻塞。
+- **决策**：新增 `/user/document` 的 create、list、meta get、title patch、soft delete 接口；所有 scope 从认证用户 ID 推导，Request 不公开 `teamId` 或 Snapshot object key。删除前查询跨实例 Redis presence；只要仍有任一活跃 WebSocket session，则拒绝删除，不强制断开客户端，也不修改 CRDT/Redis/MinIO。presence 为零时按已有 `deleted=1` 逻辑删除。
+- **影响**：删除操作的调用方需要先离开协作会话再重试，保证不会出现已删除 Meta 仍接收 Update 的语义分裂。第一版不提供直接正文 HTTP 读取，也不创建未冻结的 ES 搜索索引；正文恢复继续只走 WebSocket bootstrap。后续产品若需要“删除时踢出所有协作者”，需定义 WS 错误帧、跨节点广播和 UI 行为后再扩展。
+- **依据**：仓库 `NoteController` / `UserImageController` 的路由与认证风格、v0.3 #8.4 的未冻结删除分支，以及用户于 2026-08-24 05:00 前的连续实施授权。
