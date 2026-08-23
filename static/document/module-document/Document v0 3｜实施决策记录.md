@@ -94,3 +94,10 @@
 - **决策**：新增 `/user/document` 的 create、list、meta get、title patch、soft delete 接口；所有 scope 从认证用户 ID 推导，Request 不公开 `teamId` 或 Snapshot object key。删除前查询跨实例 Redis presence；只要仍有任一活跃 WebSocket session，则拒绝删除，不强制断开客户端，也不修改 CRDT/Redis/MinIO。presence 为零时按已有 `deleted=1` 逻辑删除。
 - **影响**：删除操作的调用方需要先离开协作会话再重试，保证不会出现已删除 Meta 仍接收 Update 的语义分裂。第一版不提供直接正文 HTTP 读取，也不创建未冻结的 ES 搜索索引；正文恢复继续只走 WebSocket bootstrap。后续产品若需要“删除时踢出所有协作者”，需定义 WS 错误帧、跨节点广播和 UI 行为后再扩展。
 - **依据**：仓库 `NoteController` / `UserImageController` 的路由与认证风格、v0.3 #8.4 的未冻结删除分支，以及用户于 2026-08-24 05:00 前的连续实施授权。
+
+## D-014：Document Core 的指标注册与默认暴露边界
+
+- **背景**：v0.3 #20 已列出 Document Core 必需指标；仓库 Server 已引入 Spring Boot Actuator / Micrometer，但基础 `application.yaml` 当前只对外暴露 health 端点，没有既有模块的 MeterRegistry 使用范式。
+- **决策**：Document Biz 向现有 `MeterRegistry` 注册 `document_*` 与 `yjs_merge_service_duration` 指标，复用 Server 提供的 Actuator registry；不在本轮修改基础 profile 的 management endpoint exposure，不擅自公开 `/actuator/metrics`。生产环境若已有受控管理网关，可通过其现有 profile/部署配置开启 metrics 端点或 exporter。
+- **影响**：Document 的计数器、Timer、DistributionSummary 和低基数全局 Gauge 会在应用内正常采集；`document_ws_sessions` / `document_active_rooms` 是单实例值，可由监控系统跨实例聚合。Redis pending / unmerged gauges 为读取当前 Document runtime keyspace 的实时聚合，不以 documentId 作为 metric tag，避免高基数。不会记录或导出任何 Yjs binary 正文。
+- **依据**：仓库 `middleware-server/pom.xml` 的 `spring-boot-starter-actuator` 依赖、基础 profile 的 health-only exposure，及用户于 2026-08-24 05:00 前的连续实施授权。
