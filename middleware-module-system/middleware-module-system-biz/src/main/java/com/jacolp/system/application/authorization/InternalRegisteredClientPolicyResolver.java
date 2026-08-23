@@ -35,10 +35,12 @@ public class InternalRegisteredClientPolicyResolver {
 
     public InternalRegisteredClientPolicy resolve(String clientId, String requestedGrantType) {
         if (!INTERNAL_CLIENT_IDS.contains(clientId)) {
-            throw invalid("Only user and admin internal clients are supported");
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.UNSUPPORTED_CLIENT);
         }
         if (!LOGIN_GRANT_TYPES.contains(requestedGrantType)) {
-            throw invalid("Only password and email-code internal login grants are supported");
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.UNSUPPORTED_GRANT_TYPE);
         }
         return resolveInternalPolicy(clientId, requestedGrantType);
     }
@@ -46,7 +48,8 @@ public class InternalRegisteredClientPolicyResolver {
     /** Resolves the technical refresh policy without treating refresh_token as a login grant. */
     public InternalRegisteredClientPolicy resolveRefresh(String clientId) {
         if (!INTERNAL_CLIENT_IDS.contains(clientId)) {
-            throw invalid("Only user and admin internal clients are supported");
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.UNSUPPORTED_CLIENT);
         }
         return resolveInternalPolicy(clientId, REFRESH_TOKEN_GRANT);
     }

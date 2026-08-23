@@ -93,13 +93,14 @@ class InternalRefreshTokenServiceTest {
     void revalidatesClientIpAndAccountAndAllowsManagementRoleBeforeIssuing() {
         Fixture wrongClient = fixture(List.of("note:read"));
         when(wrongClient.refresh.verify(RAW_REFRESH)).thenReturn(Optional.of(verified("admin", List.of("note:read"))));
-        assertRejected(() -> wrongClient.service.refresh(request(null, "192.0.2.7")));
+        assertRejected(() -> wrongClient.service.refresh(request(null, "192.0.2.7")),
+                InternalRefreshTokenRejectedException.MESSAGE);
         verifyNoInteractions(wrongClient.accounts, wrongClient.roles, wrongClient.access);
 
         Fixture inactive = fixture(List.of("note:read"));
         when(inactive.refresh.verify(RAW_REFRESH)).thenReturn(Optional.of(verified("user", List.of("note:read"))));
         when(inactive.accounts.findById(7L)).thenReturn(Optional.of(account(UserConstant.ACTIVE_STATUS + 1)));
-        assertRejected(() -> inactive.service.refresh(request(null, "192.0.2.7")));
+        assertRejected(() -> inactive.service.refresh(request(null, "192.0.2.7")), "账号未激活，请先激活账号");
 
         Fixture wrongRole = fixture(List.of("note:read"));
         when(wrongRole.refresh.verify(RAW_REFRESH)).thenReturn(Optional.of(verified("user", List.of("note:read"))));
@@ -113,7 +114,8 @@ class InternalRefreshTokenServiceTest {
         assertThat(managementAccessRequest.getValue().role()).isEqualTo("ADMIN");
 
         Fixture blockedIp = fixture(List.of("note:read"));
-        assertRejected(() -> blockedIp.service.refresh(request(null, "198.51.100.1")));
+        assertRejected(() -> blockedIp.service.refresh(request(null, "198.51.100.1")),
+                "当前 IP 不在允许的登录范围内");
         verifyNoInteractions(blockedIp.refresh, blockedIp.accounts, blockedIp.roles, blockedIp.access);
     }
 
@@ -121,14 +123,15 @@ class InternalRefreshTokenServiceTest {
     void revokedScopesAndRefreshCasMissProduceNoSuccessfulResponse() {
         Fixture revoked = fixture(List.of("media:read"));
         when(revoked.refresh.verify(RAW_REFRESH)).thenReturn(Optional.of(verified("user", List.of("note:read"))));
-        assertRejected(() -> revoked.service.refresh(request(null, "192.0.2.7")));
+        assertRejected(() -> revoked.service.refresh(request(null, "192.0.2.7")), "当前账号没有可用的访问权限");
         verify(revoked.access, never()).issue(any());
 
         Fixture casMiss = fixture(List.of("note:read"));
         when(casMiss.refresh.verify(RAW_REFRESH)).thenReturn(Optional.of(verified("user", List.of("note:read"))));
         when(casMiss.access.issue(any())).thenReturn(accessToken());
         when(casMiss.refresh.rotate(any(), any(), any(), any())).thenReturn(Optional.empty());
-        assertRejected(() -> casMiss.service.refresh(request(null, "192.0.2.7")));
+        assertRejected(() -> casMiss.service.refresh(request(null, "192.0.2.7")),
+                InternalRefreshTokenRejectedException.MESSAGE);
     }
 
     @Test
@@ -145,9 +148,8 @@ class InternalRefreshTokenServiceTest {
                 .run(context -> assertThat(context.getBeansOfType(InternalRefreshTokenService.class)).hasSize(1));
     }
 
-    private static void assertRejected(org.junit.jupiter.api.function.Executable executable) {
-        assertThatThrownBy(() -> executable.execute()).isInstanceOf(InternalRefreshTokenRejectedException.class)
-                .hasMessage(InternalRefreshTokenRejectedException.MESSAGE);
+    private static void assertRejected(org.junit.jupiter.api.function.Executable executable, String message) {
+        assertThatThrownBy(() -> executable.execute()).hasMessage(message);
     }
 
     private static Fixture fixture(List<String> effectivePermissions) {

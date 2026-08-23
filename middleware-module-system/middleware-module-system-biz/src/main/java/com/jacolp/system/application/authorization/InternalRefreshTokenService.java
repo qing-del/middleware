@@ -103,10 +103,10 @@ public class InternalRefreshTokenService {
         }
         try {
             if (!allowedIps.allows(socketRemoteAddress)) {
-                throw rejected();
+                throw ipRejected();
             }
         } catch (IllegalArgumentException exception) {
-            throw rejected();
+            throw ipRejected();
         }
     }
 
@@ -131,7 +131,7 @@ public class InternalRefreshTokenService {
             throw new IllegalStateException("Internal refresh account identity is inconsistent");
         }
         if (account.status() != UserConstant.ACTIVE_STATUS) {
-            throw rejected();
+            throw accountStatusRejected(account.status());
         }
         return account;
     }
@@ -145,7 +145,8 @@ public class InternalRefreshTokenService {
             throw new IllegalStateException("Internal refresh effective role identity is inconsistent");
         }
         if (!InternalAccountEligibilityService.isRoleAllowedForClient(policy.clientId(), effectiveRole.roleCode())) {
-            throw rejected();
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.ROLE_NOT_ALLOWED);
         }
         return effectiveRole;
     }
@@ -165,9 +166,23 @@ public class InternalRefreshTokenService {
             throw new IllegalStateException("Internal refresh scope narrowing returned null");
         }
         if (scopes.isEmpty()) {
-            throw rejected();
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.NO_EFFECTIVE_PERMISSION);
         }
         return scopes;
+    }
+
+    private static InternalAccountAuthenticationRejectedException ipRejected() {
+        return new InternalAccountAuthenticationRejectedException(
+                InternalAccountAuthenticationRejectedException.Reason.IP_NOT_ALLOWED);
+    }
+
+    private static InternalAccountAuthenticationRejectedException accountStatusRejected(Integer status) {
+        InternalAccountAuthenticationRejectedException.Reason reason = status != null
+                && status == UserConstant.UNACTIVE_STATUS
+                ? InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_NOT_ACTIVATED
+                : InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_DISABLED;
+        return new InternalAccountAuthenticationRejectedException(reason);
     }
 
     private static InternalRefreshTokenRejectedException rejected() {

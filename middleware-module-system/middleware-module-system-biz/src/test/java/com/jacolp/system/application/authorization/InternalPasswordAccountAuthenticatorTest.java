@@ -1,5 +1,6 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.system.exception.PasswordIncorrectException;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
@@ -44,12 +45,14 @@ class InternalPasswordAccountAuthenticatorTest {
     }
 
     @Test
-    void missingAccountAndWrongPasswordShareOneUniformRejectionAndOneVerifierCallEach() {
+    void missingAccountAndWrongPasswordShareOneChinesePasswordMessageButHaveDistinctEnglishLogReasons() {
         Fixture missing = fixture();
         when(missing.accounts.findByUsername("alice")).thenReturn(Optional.empty());
         when(missing.credentials.matches("raw password", null)).thenReturn(false);
 
-        assertRejected(() -> missing.authenticator.authenticate(policy(), "alice", "raw password"));
+        Throwable missingFailure = catchThrowable(() -> missing.authenticator.authenticate(
+                policy(), "alice", "raw password"));
+        assertPasswordRejected(missingFailure, "Internal login account was not found");
         verify(missing.accounts).findByUsername("alice");
         verify(missing.credentials).matches("raw password", null);
         verifyNoInteractions(missing.eligibility);
@@ -59,7 +62,9 @@ class InternalPasswordAccountAuthenticatorTest {
         when(wrongPassword.accounts.findByUsername("alice")).thenReturn(Optional.of(account));
         when(wrongPassword.credentials.matches("raw password", "stored-password-hash")).thenReturn(false);
 
-        assertRejected(() -> wrongPassword.authenticator.authenticate(policy(), "alice", "raw password"));
+        Throwable wrongPasswordFailure = catchThrowable(() -> wrongPassword.authenticator.authenticate(
+                policy(), "alice", "raw password"));
+        assertPasswordRejected(wrongPasswordFailure, "Internal login password does not match");
         verify(wrongPassword.accounts).findByUsername("alice");
         verify(wrongPassword.credentials).matches("raw password", "stored-password-hash");
         verifyNoInteractions(wrongPassword.eligibility);
@@ -94,10 +99,14 @@ class InternalPasswordAccountAuthenticatorTest {
     void nullAndBlankInputsAreUniformRejectionsWithoutLookupOrCredentialLeakage() {
         Fixture fixture = fixture();
 
-        assertRejected(() -> fixture.authenticator.authenticate(policy(), null, "raw password"));
-        assertRejected(() -> fixture.authenticator.authenticate(policy(), " ", "raw password"));
-        assertRejected(() -> fixture.authenticator.authenticate(policy(), "alice", null));
-        assertRejected(() -> fixture.authenticator.authenticate(policy(), "alice", " "));
+        assertPasswordRejected(catchThrowable(() -> fixture.authenticator.authenticate(policy(), null, "raw password")),
+                "Internal login credentials are invalid");
+        assertPasswordRejected(catchThrowable(() -> fixture.authenticator.authenticate(policy(), " ", "raw password")),
+                "Internal login credentials are invalid");
+        assertPasswordRejected(catchThrowable(() -> fixture.authenticator.authenticate(policy(), "alice", null)),
+                "Internal login credentials are invalid");
+        assertPasswordRejected(catchThrowable(() -> fixture.authenticator.authenticate(policy(), "alice", " ")),
+                "Internal login credentials are invalid");
         verifyNoInteractions(fixture.accounts, fixture.credentials, fixture.eligibility);
     }
 
@@ -124,6 +133,14 @@ class InternalPasswordAccountAuthenticatorTest {
         assertThat(thrown).isInstanceOf(InternalAccountAuthenticationRejectedException.class);
         assertThat(thrown.getMessage()).isEqualTo(InternalAccountAuthenticationRejectedException.MESSAGE)
                 .doesNotContain("alice", "raw password");
+    }
+
+    private static void assertPasswordRejected(Throwable thrown, String logMessage) {
+        assertThat(thrown).isInstanceOf(PasswordIncorrectException.class)
+                .isInstanceOf(com.jacolp.common.core.exception.AuthenticationException.class);
+        assertThat(thrown.getMessage()).isEqualTo(PasswordIncorrectException.MESSAGE)
+                .doesNotContain("alice", "raw password");
+        assertThat(((PasswordIncorrectException) thrown).getLogMessage()).isEqualTo(logMessage);
     }
 
     private static Fixture fixture() {

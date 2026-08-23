@@ -1,5 +1,6 @@
 package com.jacolp.system.application.authorization;
 
+import com.jacolp.system.exception.PasswordIncorrectException;
 import com.jacolp.system.application.authorization.model.AuthorizationAccount;
 import com.jacolp.system.application.authorization.model.InternalAuthenticatedAccount;
 import com.jacolp.system.application.authorization.model.InternalRegisteredClientPolicy;
@@ -35,7 +36,7 @@ public class InternalPasswordAccountAuthenticator {
             throw invalidPolicy();
         }
         if (username == null || username.isBlank() || rawPassword == null || rawPassword.isBlank()) {
-            throw rejected();
+            throw new PasswordIncorrectException();
         }
 
         Optional<AuthorizationAccount> accountOptional = authorizationAccountRepository.findByUsername(username);
@@ -44,18 +45,16 @@ public class InternalPasswordAccountAuthenticator {
         }
         if (accountOptional.isEmpty()) {
             passwordCredentialVerifier.matches(rawPassword, null);
-            throw rejected();
+            throw new PasswordIncorrectException(PasswordIncorrectException.MESSAGE,
+                    "Internal login account was not found");
         }
 
         AuthorizationAccount account = accountOptional.get();
         if (!passwordCredentialVerifier.matches(rawPassword, account.passwordHash())) {
-            throw rejected();
+            throw new PasswordIncorrectException(PasswordIncorrectException.MESSAGE,
+                    "Internal login password does not match");
         }
         return internalAccountEligibilityService.resolve(policy, account);
-    }
-
-    private static InternalAccountAuthenticationRejectedException rejected() {
-        return new InternalAccountAuthenticationRejectedException();
     }
 
     private static IllegalStateException invalidPolicy() {

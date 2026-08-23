@@ -145,12 +145,16 @@ class InternalLoginServiceTest {
         Fixture denied = fixture(policy("user", "password", "198.51.100.0/24"));
         when(denied.policyResolver.resolve("user", "password")).thenReturn(denied.policy);
         assertThatThrownBy(() -> denied.service.login(passwordRequest(null, "192.0.2.7")))
-                .isInstanceOf(InternalAccountAuthenticationRejectedException.class);
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("当前 IP 不在允许的登录范围内")
+                .satisfies(thrown -> assertThat(((InternalAccountAuthenticationRejectedException) thrown).reason())
+                        .isEqualTo(InternalAccountAuthenticationRejectedException.Reason.IP_NOT_ALLOWED));
         verify(denied.password, never()).authenticate(any(), any(), any());
 
         Fixture invalidRemote = fixture("password");
         assertThatThrownBy(() -> invalidRemote.service.login(passwordRequest(null, "not-an-ip")))
-                .isInstanceOf(InternalAccountAuthenticationRejectedException.class);
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("当前 IP 不在允许的登录范围内");
         verify(invalidRemote.password, never()).authenticate(any(), any(), any());
     }
 
@@ -200,6 +204,12 @@ class InternalLoginServiceTest {
         when(scopesNull.scopes.resolve(any(), any(), any(), isNull())).thenReturn(null);
         assertThatThrownBy(() -> scopesNull.service.login(passwordRequest(null, "192.0.2.7")))
                 .isInstanceOf(IllegalStateException.class);
+
+        Fixture scopesEmpty = preparedFixture();
+        when(scopesEmpty.scopes.resolve(any(), any(), any(), isNull())).thenReturn(List.of());
+        assertThatThrownBy(() -> scopesEmpty.service.login(passwordRequest(null, "192.0.2.7")))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("当前账号没有可用的访问权限");
 
         Fixture accessNull = preparedFixture();
         when(accessNull.access.issue(any())).thenReturn(null);

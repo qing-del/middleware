@@ -35,8 +35,11 @@ public class InternalAccountEligibilityService {
 
     public InternalAuthenticatedAccount resolve(InternalRegisteredClientPolicy policy, AuthorizationAccount account) {
         validatePolicy(policy);
-        if (account == null || account.status() != UserConstant.ACTIVE_STATUS) {
+        if (account == null) {
             throw rejected();
+        }
+        if (account.status() != UserConstant.ACTIVE_STATUS) {
+            throw accountStatusRejected(account.status());
         }
         final boolean allowed;
         try {
@@ -45,12 +48,12 @@ public class InternalAccountEligibilityService {
             throw invalidConfiguration();
         }
         if (!allowed) {
-            throw rejected();
+            throw rejected(InternalAccountAuthenticationRejectedException.Reason.GRANT_TYPE_NOT_ALLOWED);
         }
 
         RoleMetadata role = loadRole(account.roleId());
         if (!isRoleAllowedForClient(policy.clientId(), role.roleCode())) {
-            throw rejected();
+            throw rejected(InternalAccountAuthenticationRejectedException.Reason.ROLE_NOT_ALLOWED);
         }
         return new InternalAuthenticatedAccount(account.userId(), account.username(), account.email(), account.roleId(),
                 role.roleCode(), role.rank());
@@ -99,8 +102,20 @@ public class InternalAccountEligibilityService {
         return ("user".equals(clientId) && "USER".equals(roleCode));
     }
 
+    private static InternalAccountAuthenticationRejectedException accountStatusRejected(Integer status) {
+        if (status != null && status == UserConstant.UNACTIVE_STATUS) {
+            return rejected(InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_NOT_ACTIVATED);
+        }
+        return rejected(InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_DISABLED);
+    }
+
     private static InternalAccountAuthenticationRejectedException rejected() {
         return new InternalAccountAuthenticationRejectedException();
+    }
+
+    private static InternalAccountAuthenticationRejectedException rejected(
+            InternalAccountAuthenticationRejectedException.Reason reason) {
+        return new InternalAccountAuthenticationRejectedException(reason);
     }
 
     private static IllegalStateException invalidConfiguration() {

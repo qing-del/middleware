@@ -101,12 +101,7 @@ public class EmailLoginCodeAuthenticator {
         if (!stateStore.consume(policy.clientId(), account.userId(), state.verifierHash())) {
             throw rejected();
         }
-        InternalAuthenticatedAccount cleared;
-        try {
-            cleared = eligibilityService.resolve(policy, account);
-        } catch (InternalAccountAuthenticationRejectedException exception) {
-            throw rejected();
-        }
+        InternalAuthenticatedAccount cleared = eligibilityService.resolve(policy, account);
         if (cleared == null || !account.userId().equals(cleared.userId()) || cleared.email() == null
                 || !requestedFingerprint.equals(fingerprint.email(cleared.email()))) {
             throw new IllegalStateException("Email-code account identity is inconsistent");
@@ -127,6 +122,7 @@ public class EmailLoginCodeAuthenticator {
     }
 
     private static InternalAccountAuthenticationRejectedException rejected() {
-        return new InternalAccountAuthenticationRejectedException();
+        return new InternalAccountAuthenticationRejectedException(
+                InternalAccountAuthenticationRejectedException.Reason.EMAIL_CODE_INVALID);
     }
 }

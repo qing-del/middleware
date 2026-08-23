@@ -161,14 +161,17 @@ class EmailLoginCodeAuthenticatorTest {
     }
 
     @Test
-    void eligibilityOrdinaryRejectionIsUniformAfterConsumption() {
+    void eligibilityRejectionReasonIsPreservedAfterConsumption() {
         Fixture fixture = preparedFixture();
         when(fixture.protector.matches("012345", fixture.state.verifierHash())).thenReturn(true);
         when(fixture.states.consume("user", 7L, fixture.state.verifierHash())).thenReturn(true);
         when(fixture.eligibility.resolve(fixture.policy, fixture.account))
-                .thenThrow(new InternalAccountAuthenticationRejectedException());
+                .thenThrow(new InternalAccountAuthenticationRejectedException(
+                        InternalAccountAuthenticationRejectedException.Reason.ROLE_NOT_ALLOWED));
 
-        assertRejected(fixture);
+        assertThatThrownBy(() -> fixture.authenticator.authenticate(fixture.policy, request()))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("当前账号角色不允许使用该登录客户端");
     }
 
     @Test
@@ -268,7 +271,8 @@ class EmailLoginCodeAuthenticatorTest {
 
     private static void assertRejected(Fixture fixture) {
         assertThatThrownBy(() -> fixture.authenticator.authenticate(fixture.policy, request()))
-                .isInstanceOf(InternalAccountAuthenticationRejectedException.class);
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("邮箱验证码错误或已过期");
     }
 
     private static EmailLoginCodeAuthenticationRequest request() {

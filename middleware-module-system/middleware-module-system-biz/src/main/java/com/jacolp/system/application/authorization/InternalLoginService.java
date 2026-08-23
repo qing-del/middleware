@@ -77,6 +77,10 @@ public class InternalLoginService {
         if (grantedScopes == null) {
             throw new IllegalStateException("Internal login scope resolution returned null");
         }
+        if (grantedScopes.isEmpty()) {
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.NO_EFFECTIVE_PERMISSION);
+        }
 
         IssuedAccessToken accessToken = accessTokenIssuer.issue(new AccessTokenIssueRequest(
                 account.userId(), policy.clientId(), policy.grantType(), account.username(), account.roleCode(),
@@ -101,7 +105,8 @@ public class InternalLoginService {
             case "password" -> passwordAuthenticator.authenticate(policy, request.username(), request.rawPassword());
             case "email-code" -> emailCodeAuthenticator.authenticate(policy,
                     new EmailLoginCodeAuthenticationRequest(request.email(), request.rawEmailCode()));
-            default -> throw new IllegalStateException("Invalid internal login grant type");
+            default -> throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.UNSUPPORTED_GRANT_TYPE);
         };
     }
 
@@ -114,10 +119,12 @@ public class InternalLoginService {
         }
         try {
             if (!allowedIps.allows(remoteAddress)) {
-                throw new InternalAccountAuthenticationRejectedException();
+                throw new InternalAccountAuthenticationRejectedException(
+                        InternalAccountAuthenticationRejectedException.Reason.IP_NOT_ALLOWED);
             }
         } catch (IllegalArgumentException exception) {
-            throw new InternalAccountAuthenticationRejectedException();
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.IP_NOT_ALLOWED);
         }
     }
 

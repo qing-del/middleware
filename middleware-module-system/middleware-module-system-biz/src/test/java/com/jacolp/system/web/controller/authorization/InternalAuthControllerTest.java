@@ -16,8 +16,11 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -34,6 +37,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class InternalAuthControllerTest {
 
@@ -125,7 +131,7 @@ class InternalAuthControllerTest {
         InternalAuthController controller = new InternalAuthController(service);
 
         for (InternalLoginHttpRequest dto : new InternalLoginHttpRequest[]{
-                null, new InternalLoginHttpRequest("core_agent", "password", "alice", "secret", null, null, null),
+                null, new InternalLoginHttpRequest("user", null, "alice", "secret", null, null, null),
                 new InternalLoginHttpRequest("user", "password", "alice", "secret", null, null, "note:read note:read")}) {
             MockHttpServletResponse servletResponse = new MockHttpServletResponse();
 
@@ -135,6 +141,37 @@ class InternalAuthControllerTest {
             assertThat(result.getCode()).isEqualTo(Result.FAIL);
             assertThat(result.getMsg()).isEqualTo(InternalAuthController.INVALID_REQUEST_MESSAGE);
         }
+        verify(service, never()).login(any());
+    }
+
+    @Test
+    void malformedHttpBodyReturnsChineseBadRequestWithoutCallingService() throws Exception {
+        InternalLoginService service = mock(InternalLoginService.class);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new InternalAuthController(service)).build();
+
+        mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(Result.FAIL))
+                .andExpect(jsonPath("$.msg").value(InternalAuthController.INVALID_REQUEST_MESSAGE));
+
+        verify(service, never()).login(any());
+    }
+
+    @Test
+    void unsupportedClientAndGrantReturnIdentifiableAuthenticationFailures() {
+        InternalLoginService service = mock(InternalLoginService.class);
+        InternalAuthController controller = new InternalAuthController(service);
+
+        assertThatThrownBy(() -> controller.login(
+                new InternalLoginHttpRequest("core_agent", "password", "alice", "secret", null, null, null),
+                request("192.0.2.1"), new MockHttpServletResponse()))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("不支持当前登录客户端");
+        assertThatThrownBy(() -> controller.login(
+                new InternalLoginHttpRequest("user", "authorization_code", "alice", "secret", null, null, null),
+                request("192.0.2.1"), new MockHttpServletResponse()))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("不支持当前登录方式");
         verify(service, never()).login(any());
     }
 

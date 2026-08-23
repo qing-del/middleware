@@ -47,7 +47,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     public Result authExceptionHandler(AuthenticationException ex, HttpServletResponse response){
-        log.error("Exception information:{}", ex.getMessage());
+        log.error("Authentication failure: {}", ex.getLogMessage());
         // 设置 401 状态码
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         return Result.error(ex.getMessage());

@@ -62,19 +62,25 @@ class InternalAccountEligibilityServiceTest {
                 .isEqualTo("ADMIN");
         assertThat(fixture.service.resolve(policy("user", "password"), account(7L, 1L, 1, "")).roleCode())
                 .isEqualTo("CREATOR");
-        assertRejected(() -> fixture.service.resolve(policy("admin", "password"), account(7L, 3L, 1, "")));
+        assertRejected(() -> fixture.service.resolve(policy("admin", "password"), account(7L, 3L, 1, "")),
+                InternalAccountAuthenticationRejectedException.Reason.ROLE_NOT_ALLOWED);
     }
 
     @Test
     void inactiveAccountAndDeniedGrantUseTheSameAuthenticationRejection() {
         Fixture inactiveFixture = fixture();
-        assertRejected(() -> inactiveFixture.service.resolve(policy("user", "password"), account(7L, 3L, 0, "")));
+        assertRejected(() -> inactiveFixture.service.resolve(policy("user", "password"),
+                        account(7L, 3L, UserConstant.UNACTIVE_STATUS, "")),
+                InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_NOT_ACTIVATED);
+        assertRejected(() -> inactiveFixture.service.resolve(policy("user", "password"), account(7L, 3L, 0, "")),
+                InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_DISABLED);
 
         AccountGrantTypeResolver grants = mock(AccountGrantTypeResolver.class);
         RoleMetadataRepository roles = mock(RoleMetadataRepository.class);
         when(grants.allows("password", "")).thenReturn(false);
         InternalAccountEligibilityService deniedService = new InternalAccountEligibilityService(grants, roles);
-        assertRejected(() -> deniedService.resolve(policy("user", "password"), account(7L, 3L, 1, "")));
+        assertRejected(() -> deniedService.resolve(policy("user", "password"), account(7L, 3L, 1, "")),
+                InternalAccountAuthenticationRejectedException.Reason.GRANT_TYPE_NOT_ALLOWED);
     }
 
     @Test
@@ -118,11 +124,14 @@ class InternalAccountEligibilityServiceTest {
                 account(7L, 3L, 1, "")));
     }
 
-    private static void assertRejected(org.assertj.core.api.ThrowableAssert.ThrowingCallable callable) {
+    private static void assertRejected(org.assertj.core.api.ThrowableAssert.ThrowingCallable callable,
+                                       InternalAccountAuthenticationRejectedException.Reason reason) {
         assertThatThrownBy(callable)
                 .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
                 .isInstanceOf(AuthenticationException.class)
-                .hasMessage(InternalAccountAuthenticationRejectedException.MESSAGE);
+                .hasMessage(reason.message())
+                .satisfies(thrown -> assertThat(((InternalAccountAuthenticationRejectedException) thrown).reason())
+                        .isEqualTo(reason));
     }
 
     private static Fixture fixture() {

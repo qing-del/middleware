@@ -17,6 +17,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -48,13 +49,17 @@ class InternalRegisteredClientPolicyResolverTest {
     }
 
     @Test
-    void coreAgentAndUnsupportedGrantsAreRejectedBeforeAnyRead() {
+    void coreAgentAndUnsupportedGrantsAreRejectedWithIdentifiableReasonsBeforeAnyRead() {
         RegisteredClientRepository clients = mock(RegisteredClientRepository.class);
         OAuth2RegisteredClientMetadataRepository metadata = mock(OAuth2RegisteredClientMetadataRepository.class);
         InternalRegisteredClientPolicyResolver resolver = new InternalRegisteredClientPolicyResolver(clients, metadata);
 
-        assertThatIllegalStateException().isThrownBy(() -> resolver.resolve("core_agent", "authorization_code"));
-        assertThatIllegalStateException().isThrownBy(() -> resolver.resolve("user", "refresh_token"));
+        assertThatThrownBy(() -> resolver.resolve("core_agent", "authorization_code"))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("不支持当前登录客户端");
+        assertThatThrownBy(() -> resolver.resolve("user", "refresh_token"))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .hasMessage("不支持当前登录方式");
 
         verifyNoInteractions(clients, metadata);
     }
