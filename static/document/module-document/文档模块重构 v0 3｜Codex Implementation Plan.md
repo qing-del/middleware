@@ -77,7 +77,16 @@ jacolp:
     port: 5672
   minio:
     endpoint: http://localhost:9000
-    document-bucket: document
+    access-key: minioadmin
+    secret-key: change-me
+    bucket:
+      document: document
+  elasticsearch:
+    uris: http://localhost:9200
+    username:
+    password:
+    index:
+      document: document
   yjs-merge-service:
     base-url: http://localhost:3100
   document:
@@ -87,10 +96,29 @@ jacolp:
 原则：
 
 - 不要为了 document 模块把已经存在的 Redis / RabbitMQ / Datasource 连接参数复制成另一套命名空间。
-- 新基础设施使用与现有项目一致的一级 `jacolp.*` 风格，例如 `jacolp.minio.*`、`jacolp.yjs-merge-service.*`。
+- 新基础设施使用与现有项目一致的一级 `jacolp.*` 风格，例如 `jacolp.minio.*`、`jacolp.elasticsearch.*`、`jacolp.yjs-merge-service.*`。
 - Document 行为参数使用 `jacolp.document.*`，例如 close delay、batch size、snapshot threshold。
 - 尽量不要使用 `${ENV_NAME:...}` 作为首选配置方式；只有项目已有部署机制明确要求时才复用。
 - 密码、Secret 等敏感项不得硬编码；如何管理敏感值服从仓库现有约定。若无法确认，则作为 blocker 询问。
+
+### 1.3 已确认：通用 MinIO / Elasticsearch 自动配置
+
+MinIO 与 Elasticsearch 必须在 `middleware-framework` 中按现有 Aliyun OSS 的模式拆成
+`autoconfigure + starter`：
+
+```
+middleware-minio-autoconfigure
+middleware-minio-starter
+middleware-elasticsearch-autoconfigure
+middleware-elasticsearch-starter
+```
+
+自动配置只绑定连接参数并提供通用 Client：MinIO 提供 `MinioClient`，Elasticsearch 提供
+官方 Java API `ElasticsearchClient`。它们不得携带 `document` 业务逻辑、Snapshot 路径或
+SearchEntity mapping。`jacolp.minio.bucket.*` 和 `jacolp.elasticsearch.index.*` 使用通用
+逻辑名映射；Document 模块只读取 `bucket.document` 与 `index.document`。因此
+`jacolp.yjs-merge-service.*`、`jacolp.document.*` 必须与 `minio`、`elasticsearch` 同级，
+绝不嵌套于 `jacolp.minio.*`。
 
 ---
 
@@ -262,6 +290,12 @@ MinIO current state.bin
 # 6. Java 新 `document` 模块设计
 
 Codex 应先检查当前仓库的 Maven/Gradle 模块结构、package 命名、Controller/Service/Repository 规范，然后在不改旧模块的前提下创建新的 `document` 模块或等价独立 package。若仓库结构无法判断“模块”应是 Maven module 还是业务 package，先阻塞询问。
+
+当前仓库已确认业务模块使用 `api + biz` 双 Maven 子模块，因此新模块固定为
+`middleware-module-document/middleware-module-document-api` 与
+`middleware-module-document/middleware-module-document-biz`。Document Biz 依赖 MinIO /
+Elasticsearch Starter，但只使用其通用 Client；业务侧的 `MinioDocumentStorage` 负责
+Document 专属 immutable Snapshot object key，不属于框架自动配置。
 
 建议逻辑分层：
 
@@ -1021,7 +1055,17 @@ jacolp:
 
   minio:
     endpoint: http://...
-    document-bucket: document
+    access-key: ...
+    secret-key: ...
+    bucket:
+      document: document
+
+  elasticsearch:
+    uris: http://...
+    username:
+    password:
+    index:
+      document: document
 
   yjs-merge-service:
     base-url: http://...
@@ -1135,6 +1179,7 @@ closeToken（适用时）
 
 完成：
 
+- `middleware-minio-*`、`middleware-elasticsearch-*` 通用自动配置与 Starter 骨架。
 - 新模块/package。
 - `DocumentProperties`。
 - 基础 DTO/Enum。

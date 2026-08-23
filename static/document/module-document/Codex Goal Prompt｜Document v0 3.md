@@ -260,10 +260,22 @@ application-prod.yml
 新配置优先使用：
 
 ```
+jacolp.elasticsearch.*
 jacolp.minio.*
 jacolp.yjs-merge-service.*
 jacolp.document.*
 ```
+
+已确认 Elasticsearch 与 MinIO 必须以框架层通用自动配置提供，遵循现有 Aliyun OSS 的
+`autoconfigure + starter` 模式。自动配置只负责创建通用 Client，不能知道 document
+业务；Document 模块只能注入这些 Client，不得自行重复创建连接。`jacolp.minio.bucket.*`
+与 `jacolp.elasticsearch.index.*` 是通用的逻辑资源名映射，Document 分别使用
+`bucket.document` 与 `index.document`。
+
+配置层级固定为：`jacolp.minio.*` 仅包含 MinIO 连接与 bucket 映射，
+`jacolp.elasticsearch.*` 仅包含 Elasticsearch 连接与 index 映射，
+`jacolp.yjs-merge-service.*` 与 `jacolp.document.*` 均为 `jacolp` 的一级子树，
+不得错误嵌套在 `jacolp.minio.*` 下。
 
 Redis / RabbitMQ / Datasource 已有配置必须复用，不为 document 重复创建第二套连接配置。
 
