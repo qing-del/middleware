@@ -5,10 +5,12 @@ import com.jacolp.document.application.compact.DocumentCompactService;
 import com.jacolp.document.application.flush.DocumentFlushLogResult;
 import com.jacolp.document.application.flush.DocumentFlushLogService;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
+import com.jacolp.document.metrics.DocumentMetrics;
 import com.jacolp.document.websocket.DocumentRoomManager;
 import com.jacolp.document.websocket.DocumentSessionPresenceRegistry;
 import java.util.Objects;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /** Executes final FLUSH_LOG + COMPACT and removes runtime state only after every close guard passes twice. */
@@ -22,6 +24,7 @@ public class DocumentCloseService {
     private final DocumentFlushLogService flushLogService;
     private final DocumentCompactService compactService;
     private final DocumentRedisRepository documentRedisRepository;
+    private final DocumentMetrics metrics;
 
     public DocumentCloseService(DocumentRoomLifecycleService lifecycleService,
                                 DocumentSessionPresenceRegistry presenceRegistry,
@@ -29,26 +32,43 @@ public class DocumentCloseService {
                                 DocumentFlushLogService flushLogService,
                                 DocumentCompactService compactService,
                                 DocumentRedisRepository documentRedisRepository) {
+        this(lifecycleService, presenceRegistry, roomManager, flushLogService, compactService,
+                documentRedisRepository, DocumentMetrics.noop());
+    }
+
+    @Autowired
+    public DocumentCloseService(DocumentRoomLifecycleService lifecycleService,
+                                DocumentSessionPresenceRegistry presenceRegistry,
+                                DocumentRoomManager roomManager,
+                                DocumentFlushLogService flushLogService,
+                                DocumentCompactService compactService,
+                                DocumentRedisRepository documentRedisRepository, DocumentMetrics metrics) {
         this.lifecycleService = Objects.requireNonNull(lifecycleService, "lifecycleService must not be null");
         this.presenceRegistry = Objects.requireNonNull(presenceRegistry, "presenceRegistry must not be null");
         this.roomManager = Objects.requireNonNull(roomManager, "roomManager must not be null");
         this.flushLogService = Objects.requireNonNull(flushLogService, "flushLogService must not be null");
         this.compactService = Objects.requireNonNull(compactService, "compactService must not be null");
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
+        this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
     public DocumentCloseResult close(long documentId, String closeToken) {
-        if (!closeGuardsPass(documentId, closeToken) || !roomManager.beginClosingIfEmpty(documentId)) {
-            return new DocumentCloseResult(documentId, DocumentCloseResult.Status.IGNORED);
+        try {
+            if (!closeGuardsPass(documentId, closeToken) || !roomManager.beginClosingIfEmpty(documentId)) {
+                return new DocumentCloseResult(documentId, DocumentCloseResult.Status.IGNORED);
+            }
+            flushAll(documentId);
+            compactAll(documentId);
+            if (!closeGuardsPass(documentId, closeToken) || !roomManager.hasNoLocalSessions(documentId)) {
+                return new DocumentCloseResult(documentId, DocumentCloseResult.Status.REOPENED);
+            }
+            roomManager.removeIfEmpty(documentId);
+            documentRedisRepository.deleteRoomRuntime(documentId);
+            return new DocumentCloseResult(documentId, DocumentCloseResult.Status.CLOSED);
+        } catch (RuntimeException exception) {
+            metrics.recordCloseFailed();
+            throw exception;
         }
-        flushAll(documentId);
-        compactAll(documentId);
-        if (!closeGuardsPass(documentId, closeToken) || !roomManager.hasNoLocalSessions(documentId)) {
-            return new DocumentCloseResult(documentId, DocumentCloseResult.Status.REOPENED);
-        }
-        roomManager.removeIfEmpty(documentId);
-        documentRedisRepository.deleteRoomRuntime(documentId);
-        return new DocumentCloseResult(documentId, DocumentCloseResult.Status.CLOSED);
     }
 
     private boolean closeGuardsPass(long documentId, String closeToken) {

@@ -29,6 +29,7 @@ class BusinessRouteScopeCatalogConfigurationTest {
             "com.jacolp.audio.controller.user.AudioController",
             "com.jacolp.audit.application.controller.admin.AuditController",
             "com.jacolp.audit.application.controller.admin.ImageAuditReviewCompatibilityController",
+            "com.jacolp.document.controller.DocumentController",
             "com.jacolp.media.controller.AdminImageController",
             "com.jacolp.media.controller.UserImageController",
             "com.jacolp.media.controller.UserImageAuditApplicationController",
@@ -55,11 +56,11 @@ class BusinessRouteScopeCatalogConfigurationTest {
         Map<String, Long> policyRoutes = BusinessRouteScopeCatalogConfiguration.entries().stream()
                 .collect(Collectors.groupingBy(BusinessRouteScopeCatalogConfigurationTest::route, Collectors.counting()));
 
-        assertThat(mappedRoutes).hasSize(120);
+        assertThat(mappedRoutes).hasSize(125);
         assertThat(mappedRoutes).containsAll(EXCEPTIONS);
         assertThat(EXCEPTIONS).hasSize(4);
-        assertThat(protectedRoutes).hasSize(116);
-        assertThat(policyRoutes).hasSize(116);
+        assertThat(protectedRoutes).hasSize(121);
+        assertThat(policyRoutes).hasSize(121);
         assertThat(policyRoutes.keySet()).containsExactlyInAnyOrderElementsOf(protectedRoutes);
         assertThat(policyRoutes.values()).allMatch(count -> count == 1L);
     }
@@ -70,14 +71,15 @@ class BusinessRouteScopeCatalogConfigurationTest {
                 "static/document/security/phase5-business-route-scope-catalog.md"));
         long documentedEntries = document.lines().filter(line -> line.matches("\\| \\d+ \\|.*")).count();
 
-        assertThat(documentedEntries).isEqualTo(116);
+        assertThat(documentedEntries).isEqualTo(121);
         assertThat(document.lines().filter(line -> line.startsWith("## `/user/**`")).toList())
-                .containsExactly("## `/user/**`：user client（71 bearer routes）");
+                .containsExactly("## `/user/**`：user client（76 bearer routes）");
         assertThat(document.lines().filter(line -> line.startsWith("## `/admin/**`")).toList())
                 .containsExactly("## `/admin/**`：admin client（45 bearer routes）");
-        assertThat(document).contains("120 个", "75 个 user", "45 个 admin", "116 个是 bearer", "4 个是下文明确排除");
+        assertThat(document).contains("125 个", "80 个 user", "45 个 admin", "121 个是 bearer", "4 个是下文明确排除");
         assertThat(document).contains("`GET /user/note/source/{id}`", "`audit:write`", "`audit:manage`",
-                "`note:read` + `media:read`", "`note:write` + `media:read`");
+                "`note:read` + `media:read`", "`note:write` + `media:read`", "`document:read`",
+                "`document:write`");
     }
 
     private static Set<String> mappedBusinessRoutes() throws Exception {

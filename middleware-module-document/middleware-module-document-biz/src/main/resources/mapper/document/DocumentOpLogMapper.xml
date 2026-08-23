@@ -34,6 +34,13 @@
         <if test="limit != null">LIMIT #{limit}</if>
     </select>
 
+    <select id="countByDocumentIdAfterId" resultType="long">
+        SELECT COUNT(1)
+        FROM document_op_log
+        WHERE document_id = #{documentId}
+          AND id &gt; #{afterId}
+    </select>
+
     <delete id="deleteByDocumentIdThroughId">
         DELETE FROM document_op_log
         WHERE document_id = #{documentId}

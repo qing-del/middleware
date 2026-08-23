@@ -44,6 +44,19 @@ class DocumentWebSocketHandshakeInterceptorTest {
                 new TextWebSocketHandler(), new ConcurrentHashMap<>())).isFalse();
     }
 
+    @Test
+    void rejectsAuthenticatedPrincipalWithoutDocumentWriteScopeOrUserClientBoundary() {
+        DocumentWebSocketHandshakeInterceptor readOnly = new DocumentWebSocketHandshakeInterceptor(token ->
+                jwt("user", List.of("document:read")));
+        DocumentWebSocketHandshakeInterceptor wrongClient = new DocumentWebSocketHandshakeInterceptor(token ->
+                jwt("core_agent", List.of("document:write")));
+
+        assertThat(readOnly.beforeHandshake(request("bearer.read-only"), response(), new TextWebSocketHandler(),
+                new ConcurrentHashMap<>())).isFalse();
+        assertThat(wrongClient.beforeHandshake(request("bearer.wrong-client"), response(), new TextWebSocketHandler(),
+                new ConcurrentHashMap<>())).isFalse();
+    }
+
     private static ServletServerHttpRequest request(String protocol) {
         MockHttpServletRequest request = new MockHttpServletRequest();
         if (protocol != null) {
@@ -57,15 +70,19 @@ class DocumentWebSocketHandshakeInterceptorTest {
     }
 
     private static Jwt jwt() {
+        return jwt("user", List.of("document:write"));
+    }
+
+    private static Jwt jwt(String clientId, List<String> scopes) {
         Instant now = Instant.now();
         return Jwt.withTokenValue("valid-jwt")
                 .header("alg", "RS256")
                 .subject("42")
                 .claim("username", "alice")
-                .claim("client_id", "user")
+                .claim("client_id", clientId)
                 .claim("grant_type", "password")
                 .claim("roles", List.of("USER"))
-                .claim("scope", List.of("document:write"))
+                .claim("scope", scopes)
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(300))
                 .build();

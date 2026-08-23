@@ -2,6 +2,7 @@ package com.jacolp.document.websocket;
 
 import com.jacolp.common.security.context.CurrentPrincipal;
 import com.jacolp.common.security.context.SecurityContextCurrentPrincipalAccessor;
+import com.jacolp.common.security.oauth2.authorization.PermissionScopeMatcher;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.http.HttpHeaders;
@@ -44,6 +45,10 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
         try {
             Jwt jwt = jwtDecoder.decode(token);
             CurrentPrincipal principal = SecurityContextCurrentPrincipalAccessor.fromJwt(jwt);
+            if (!"user".equals(principal.clientId())
+                    || !PermissionScopeMatcher.grants(principal.scopes(), "document:write")) {
+                return false;
+            }
             attributes.put(PRINCIPAL_ATTRIBUTE, principal);
             return true;
         } catch (RuntimeException exception) {

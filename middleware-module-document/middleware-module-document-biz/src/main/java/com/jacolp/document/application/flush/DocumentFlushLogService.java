@@ -5,6 +5,8 @@ import com.jacolp.document.infrastructure.persistence.dataobject.DocumentOpLogDO
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentOpLogMapper;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.infrastructure.redis.StoredDocumentPendingUpdate;
+import com.jacolp.document.metrics.DocumentMetrics;
+import io.micrometer.core.instrument.Timer;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -12,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -26,15 +29,25 @@ public class DocumentFlushLogService {
     private final DocumentOpLogMapper documentOpLogMapper;
     private final TransactionTemplate transactionTemplate;
     private final DocumentProperties properties;
+    private final DocumentMetrics metrics;
 
     public DocumentFlushLogService(DocumentRedisRepository documentRedisRepository,
                                    DocumentOpLogMapper documentOpLogMapper,
                                    TransactionTemplate transactionTemplate,
                                    DocumentProperties properties) {
+        this(documentRedisRepository, documentOpLogMapper, transactionTemplate, properties, DocumentMetrics.noop());
+    }
+
+    @Autowired
+    public DocumentFlushLogService(DocumentRedisRepository documentRedisRepository,
+                                   DocumentOpLogMapper documentOpLogMapper,
+                                   TransactionTemplate transactionTemplate,
+                                   DocumentProperties properties, DocumentMetrics metrics) {
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
         this.documentOpLogMapper = Objects.requireNonNull(documentOpLogMapper, "documentOpLogMapper must not be null");
         this.transactionTemplate = Objects.requireNonNull(transactionTemplate, "transactionTemplate must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
+        this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
     /**
@@ -43,19 +56,27 @@ public class DocumentFlushLogService {
      */
     public DocumentFlushLogResult flush(long documentId) {
         requirePositive(documentId);
-        List<StoredDocumentPendingUpdate> pending = documentRedisRepository.readPendingUpdates(documentId,
-                Math.max(1, properties.getFlushLog().getBatchSize()));
-        FlushBatch batch = toBoundedBatch(documentId, pending);
-        if (batch.logs().isEmpty()) {
-            return DocumentFlushLogResult.empty(documentId);
-        }
+        Timer.Sample sample = metrics.startFlush();
+        boolean failed = true;
+        try {
+            List<StoredDocumentPendingUpdate> pending = documentRedisRepository.readPendingUpdates(documentId,
+                    Math.max(1, properties.getFlushLog().getBatchSize()));
+            FlushBatch batch = toBoundedBatch(documentId, pending);
+            if (batch.logs().isEmpty()) {
+                failed = false;
+                return DocumentFlushLogResult.empty(documentId);
+            }
 
-        transactionTemplate.execute(status -> {
-            documentOpLogMapper.insertBatchIgnoringDuplicates(batch.logs());
-            return null;
-        });
-        long deleted = documentRedisRepository.deletePendingUpdates(documentId, batch.redisOpIds());
-        return new DocumentFlushLogResult(documentId, batch.logs().size(), batch.binaryBytes(), deleted);
+            transactionTemplate.execute(status -> {
+                documentOpLogMapper.insertBatchIgnoringDuplicates(batch.logs());
+                return null;
+            });
+            long deleted = documentRedisRepository.deletePendingUpdates(documentId, batch.redisOpIds());
+            failed = false;
+            return new DocumentFlushLogResult(documentId, batch.logs().size(), batch.binaryBytes(), deleted);
+        } finally {
+            metrics.completeFlush(sample, failed);
+        }
     }
 
     private FlushBatch toBoundedBatch(long documentId, List<StoredDocumentPendingUpdate> pending) {

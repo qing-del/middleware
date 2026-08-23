@@ -19,6 +19,8 @@ public interface DocumentOpLogMapper {
                                                     @Param("afterId") Long afterId,
                                                     @Param("limit") Integer limit);
 
+    long countByDocumentIdAfterId(@Param("documentId") Long documentId, @Param("afterId") Long afterId);
+
     int deleteByDocumentIdThroughId(@Param("documentId") Long documentId,
                                     @Param("throughId") Long throughId);
 }

@@ -51,6 +51,37 @@ test('base snapshot and incremental updates restore the latest document state', 
   assert.equal(readText(result.mergedState), 'base + update');
 });
 
+test('independent concurrent client edits converge regardless of flush order', () => {
+  const initial = new Y.Doc();
+  initial.getText('content').insert(0, 'base');
+  const baseState = Y.encodeStateAsUpdate(initial);
+
+  const clientA = new Y.Doc();
+  const clientB = new Y.Doc();
+  Y.applyUpdate(clientA, baseState);
+  Y.applyUpdate(clientB, baseState);
+  const baseVector = Y.encodeStateVector(initial);
+
+  clientA.getText('content').insert(4, ' from A');
+  clientB.getText('content').insert(4, ' from B');
+  const updateA = Y.encodeStateAsUpdate(clientA, baseVector);
+  const updateB = Y.encodeStateAsUpdate(clientB, baseVector);
+
+  const flushedAB = mergeYjsState({
+    baseState: toBase64(baseState),
+    updates: [toBase64(updateA), toBase64(updateB)],
+  });
+  const flushedBA = mergeYjsState({
+    baseState: toBase64(baseState),
+    updates: [toBase64(updateB), toBase64(updateA)],
+  });
+
+  assert.equal(readText(flushedAB.mergedState), readText(flushedBA.mergedState));
+  assert.match(readText(flushedAB.mergedState), /^base/);
+  assert.match(readText(flushedAB.mergedState), / from A/);
+  assert.match(readText(flushedAB.mergedState), / from B/);
+});
+
 test('invalid base64 is rejected before it reaches Yjs', () => {
   assert.throws(
     () => mergeYjsState({ baseState: 'not base64!', updates: [] }),

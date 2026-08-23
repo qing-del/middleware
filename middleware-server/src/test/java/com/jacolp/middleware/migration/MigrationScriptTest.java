@@ -66,7 +66,9 @@ class MigrationScriptTest {
             throws IOException {
         String migration = readMigration("20260812_phase5_business_route_scopes.sql");
         String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
-        String userScopes = "account:read,account:write,audio:read,audio:write,audit:read,audit:write,media:read,media:write,note:read,note:write";
+        String phaseFiveUserScopes = "account:read,account:write,audio:read,audio:write,audit:read,audit:write,media:read,media:write,note:read,note:write";
+        String bootstrapUserScopes = "account:read,account:write,audio:read,audio:write,audit:read,audit:write,"
+                + "document:read,document:write,media:read,media:write,note:read,note:write";
         String adminScopes = "account:read,account:manage,audio:read,audio:manage,audit:read,audit:manage,media:read,media:manage,note:read,note:manage";
 
         assertThat(migration)
@@ -79,10 +81,10 @@ class MigrationScriptTest {
                 .contains("BINARY `client_id` = 'core_agent'")
                 .contains("BINARY `scopes` = 'note:read,note:write,sys:read,media:read'")
                 .contains("'*:read', '*:write', '*:manage', '*:super'")
-                .contains(userScopes)
+                .contains(phaseFiveUserScopes)
                 .contains(adminScopes);
         assertThat(bootstrap)
-                .contains(userScopes)
+                .contains(bootstrapUserScopes)
                 .contains(adminScopes)
                 .contains("('account:read', NULL, 'account', 'read', 'active'")
                 .contains("('audit:manage', NULL, 'audit', 'manage', 'active'")
@@ -129,6 +131,27 @@ class MigrationScriptTest {
                 .contains("UNIQUE KEY `uk_document_redis_op` (`document_id`, `redis_op_id`)")
                 .contains("UNIQUE KEY `uk_document_client_update` (`document_id`, `client_update_id`)")
                 .contains("KEY `idx_document_log` (`document_id`, `id`)");
+    }
+
+    @Test
+    void documentScopesShouldBeAvailableToTheUserClientAndPermissionCatalogue() throws IOException {
+        String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
+        String migration = readMigration("20260824_document_oauth_scopes.sql");
+        String userScopes = "account:read,account:write,audio:read,audio:write,audit:read,audit:write,"
+                + "document:read,document:write,media:read,media:write,note:read,note:write";
+
+        assertThat(bootstrap)
+                .contains(userScopes)
+                .contains("('document:read', NULL, 'document', 'read', 'active'")
+                .contains("('document:write', NULL, 'document', 'write', 'active'");
+        assertThat(migration)
+                .contains("document_oauth_scopes_preflight")
+                .contains("document_oauth_scopes_postflight")
+                .contains("'document:read'")
+                .contains("'document:write'")
+                .contains(userScopes)
+                .contains("v_document_permission_count <> 2")
+                .contains("v_user_client_count <> 1");
     }
 
     private static String readMigration(String fileName) throws IOException {

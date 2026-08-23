@@ -9,6 +9,7 @@ import com.jacolp.document.infrastructure.redis.DocumentPendingUpdate;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.infrastructure.redis.DocumentRoomMeta;
 import com.jacolp.document.messaging.DocumentSchedulePublisher;
+import com.jacolp.document.metrics.DocumentMetrics;
 import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
 import com.jacolp.document.websocket.protocol.DocumentWsCodec;
 import com.jacolp.document.websocket.protocol.DocumentWsControlMessage;
@@ -22,6 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
@@ -49,6 +51,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private final DocumentSessionPresenceRegistry presenceRegistry;
     private final DocumentRoomLifecycleService lifecycleService;
     private final DocumentProperties properties;
+    private final DocumentMetrics metrics;
     private final ConcurrentHashMap<String, Long> joinedDocumentIds = new ConcurrentHashMap<>();
 
     public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
@@ -56,6 +59,17 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                                     DocumentBootstrapService bootstrapService, DocumentSchedulePublisher schedulePublisher,
                                     DocumentSessionPresenceRegistry presenceRegistry,
                                     DocumentRoomLifecycleService lifecycleService, DocumentProperties properties) {
+        this(codec, documentMapper, documentRedisRepository, roomManager, bootstrapService, schedulePublisher,
+                presenceRegistry, lifecycleService, properties, DocumentMetrics.noop());
+    }
+
+    @Autowired
+    public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
+                                    DocumentRedisRepository documentRedisRepository, DocumentRoomManager roomManager,
+                                    DocumentBootstrapService bootstrapService, DocumentSchedulePublisher schedulePublisher,
+                                    DocumentSessionPresenceRegistry presenceRegistry,
+                                    DocumentRoomLifecycleService lifecycleService, DocumentProperties properties,
+                                    DocumentMetrics metrics) {
         this.codec = Objects.requireNonNull(codec, "codec must not be null");
         this.documentMapper = Objects.requireNonNull(documentMapper, "documentMapper must not be null");
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
@@ -65,6 +79,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         this.presenceRegistry = Objects.requireNonNull(presenceRegistry, "presenceRegistry must not be null");
         this.lifecycleService = Objects.requireNonNull(lifecycleService, "lifecycleService must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
+        this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
     @Override
@@ -104,6 +119,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         try {
             frame = codec.decodeBinary(message);
         } catch (DocumentWsProtocolException exception) {
+            metrics.recordUpdateRejected();
             sendError(session, UUID.randomUUID(), protocolErrorCode(exception), exception.getMessage());
             return;
         }
@@ -114,11 +130,14 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             } else if (frame.type() == DocumentWsFrameType.AWARENESS) {
                 broadcastAwareness(session, frame);
             } else {
+                metrics.recordUpdateRejected();
                 sendError(session, frame.eventId(), "DOCUMENT_PROTOCOL_ERROR", "binary frame type is not accepted from clients");
             }
         } catch (DocumentRoomAccessException exception) {
+            metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_FORBIDDEN", exception.getMessage());
         } catch (RuntimeException exception) {
+            metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_UPDATE_ACCEPT_FAILED", "document update could not be accepted");
         }
     }
@@ -157,6 +176,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         DocumentRoom room = roomManager.getOrCreate(documentId, principal.userId());
         room.join(session, principal);
         joinedDocumentIds.put(session.getId(), documentId);
+        roomManager.refreshRuntimeMetrics();
         try {
             presenceRegistry.register(documentId, session.getId());
             lifecycleService.reopen(document, principal.userId());
@@ -175,10 +195,12 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private void acceptClientUpdate(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
         if (frame.payload().length > properties.getWebsocket().getMaxUpdateBytes()) {
+            metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_UPDATE_TOO_LARGE", "Yjs update exceeds configured maximum size");
             return;
         }
         if (frame.payload().length == 0) {
+            metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_PROTOCOL_ERROR", "Yjs update must not be empty");
             return;
         }
@@ -196,6 +218,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         saveRoomMeta(room.documentId(), principal.userId(), now);
         sendControl(room.requireSession(session.getId()).session(), new DocumentWsControlMessage(protocolVersion(),
                 DocumentWsControlType.UPDATE_ACCEPTED, frame.eventId(), room.documentId(), frame.eventId(), redisOpId, null, null));
+        metrics.recordUpdateAccepted();
         room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.CRDT_UPDATE,
                 frame.eventId(), frame.payload())), session.getId());
         scheduleFlushLog(room.documentId());
@@ -248,6 +271,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                         log.warn("Could not request delayed CLOSE for documentId={}: {}", documentId, exception.getMessage());
                     }
                 }
+                roomManager.refreshRuntimeMetrics();
             });
         }
     }
