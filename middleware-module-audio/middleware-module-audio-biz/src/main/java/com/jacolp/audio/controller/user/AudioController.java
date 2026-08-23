@@ -17,7 +17,6 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController("User-AudioController")
 @RequestMapping("/user/audio")
-@Slf4j @CrossOrigin("*") @Validated
+@Slf4j @Validated
 @Schema(description = "User - 音频生成")
 @Tag(name = "User-音频生成", description = "用户端音频生成任务接口")
 public class AudioController {

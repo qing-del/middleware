@@ -20,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 /** Non-review admin image endpoints. The review endpoint intentionally remains server-owned. */
 @RestController("Admin-ImageController")
 @RequestMapping("/admin/image")
-@CrossOrigin("*")
 @Slf4j
 @Schema(description = "Admin - 图片管理")
 @Tag(name = "Admin-图片管理", description = "图片上传、审核、查询与删除接口")

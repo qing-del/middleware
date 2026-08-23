@@ -21,7 +21,6 @@ import java.util.List;
 @RestController("Admin-TagController")
 @RequestMapping("/admin/tag")
 @Slf4j
-@CrossOrigin("*")
 @Validated
 @Schema(description = "Admin - 标签管理")
 @Tag(name = "Admin-标签管理", description = "标签新增、批量新增、修改、删除与分页查询接口")

@@ -7,7 +7,6 @@ import com.jacolp.note.application.vo.note.ImageBacklinkVO;
 import com.jacolp.note.application.vo.note.NoteBacklinkVO;
 import com.jacolp.note.application.vo.note.TagBacklinkVO;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 @Schema(description = "Admin - 笔记关联管理")
 @Tag(name = "Admin-笔记关联管理", description = "管理端笔记关联查询接口")
 @Slf4j
-@CrossOrigin("*")
 public class NoteRelationController {
 
     @Autowired private NoteRelationFacade noteRelationFacade;

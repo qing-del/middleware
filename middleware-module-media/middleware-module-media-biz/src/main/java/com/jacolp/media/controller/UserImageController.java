@@ -20,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 /** User image HTTP endpoints, now owned by media. */
 @RestController("User-ImageController")
 @RequestMapping("/user/image")
-@CrossOrigin("*")
 @Slf4j
 @Schema(description = "User - 图片管理")
 @Tag(name = "User-图片管理", description = "用户端图片管理接口")

@@ -76,6 +76,16 @@ management:
         enabled: true
 
 jacolp:
+  web:
+    cors:
+      # Keep the current behavior by default; narrow this list per deployment profile.
+      allowed-origin-patterns: ${jacolp.web.cors.allowed-origin-patterns}
+      allowed-methods: ${jacolp.web.cors.allowed-methods}
+      allowed-headers: ${jacolp.web.cors.allowed-headers}
+      exposed-headers: ${jacolp.web.cors.exposed-headers}
+      allow-credentials: ${jacolp.web.cors.allow-credentials}
+      allow-private-network: ${jacolp.web.cors.allow-private-network}
+      max-age: ${jacolp.web.cors.max-age}
   messaging:
     enabled: ${MESSAGING_ENABLED:true}
     batch-size: ${MESSAGING_OUTBOX_BATCH_SIZE:100}

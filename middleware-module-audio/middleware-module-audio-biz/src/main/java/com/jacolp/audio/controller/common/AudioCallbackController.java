@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController("AudioCallbackController")
 @RequestMapping("/common/audio")
 @Slf4j
-@CrossOrigin("*")
 @Validated
 @Schema(description = "Common - 音频任务回调")
 @Tag(name = "音频任务", description = "Python 引擎内网回调接口")

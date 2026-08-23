@@ -20,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("Admin-AuditController")
 @RequestMapping("/admin/audit")
 @Slf4j
-@CrossOrigin("*")
 @Schema(description = "Admin - 审核管理")
 @Tag(name = "Admin-审核管理", description = "标签、图片与笔记的审核记录查询与批量审核接口")
 public class AuditController {

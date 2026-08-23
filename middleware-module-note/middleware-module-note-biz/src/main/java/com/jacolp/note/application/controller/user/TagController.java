@@ -30,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-TagController")
 @RequestMapping("/user/tag")
 @Slf4j
-@CrossOrigin("*")
 @Validated
 @Schema(description = "User - 标签管理")
 @Tag(name = "User-标签管理", description = "用户端标签管理接口")

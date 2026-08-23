@@ -38,7 +38,6 @@ import lombok.extern.slf4j.Slf4j;
 @RestController("User-NoteController")
 @RequestMapping("/user/note")
 @Slf4j
-@CrossOrigin("*")
 @Validated
 @Schema(description = "User - 笔记管理")
 @io.swagger.v3.oas.annotations.tags.Tag(name = "User-笔记管理", description = "用户端笔记管理接口")

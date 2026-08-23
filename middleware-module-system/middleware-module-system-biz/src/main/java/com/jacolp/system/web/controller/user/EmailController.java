@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController("User-EmailController")
 @RequestMapping("/user/email")
 @Slf4j
-@CrossOrigin("*")
 @Schema(description = "User - 邮箱管理")
 @Tag(name = "User-邮箱管理", description = "用户邮箱绑定与激活邮件重发接口")
 public class EmailController {

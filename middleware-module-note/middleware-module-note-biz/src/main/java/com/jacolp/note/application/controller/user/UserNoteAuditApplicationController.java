@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController("User-NoteAuditApplicationController")
 @RequestMapping("/user/audit")
 @Slf4j
-@CrossOrigin("*")
 @Schema(description = "User - 审核管理")
 @Tag(name = "User-审核管理", description = "用户端笔记、标签、图片审核申请入口")
 public class UserNoteAuditApplicationController {

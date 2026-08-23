@@ -28,7 +28,6 @@ import java.util.List;
 @RestController("Admin-NoteController")
 @RequestMapping("/admin/note")
 @Slf4j
-@CrossOrigin("*")
 @Validated
 @Schema(description = "Admin - 笔记管理")
 @Tag(name = "Admin-笔记管理", description = "笔记生命周期管理接口")

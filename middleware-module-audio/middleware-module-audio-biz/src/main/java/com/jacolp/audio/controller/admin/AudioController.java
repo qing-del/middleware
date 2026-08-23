@@ -14,7 +14,6 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController("Admin-AudioController")
 @RequestMapping("/admin/audio")
 @Slf4j
-@CrossOrigin("*")
 @Validated
 @Schema(description = "Admin - 音频任务回调")
 @Tag(name = "Admin-音频任务", description = "管理端用于查看音频任务的接口")

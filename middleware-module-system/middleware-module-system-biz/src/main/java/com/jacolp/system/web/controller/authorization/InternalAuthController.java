@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 /** Handles USER/ADMIN password, email-code, and refresh-token grants on the one internal login endpoint. */
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin("*")
 public class InternalAuthController {
 
     static final String INVALID_REQUEST_MESSAGE = "Invalid internal login request";

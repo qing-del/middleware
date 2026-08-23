@@ -20,7 +20,6 @@ import java.util.List;
 @RestController("Admin-TopicController")
 @RequestMapping("/admin/topic")
 @Slf4j
-@CrossOrigin("*")
 @Schema(description = "Admin - 主题管理")
 @Tag(name = "Admin-主题管理", description = "主题新增、修改、详情、分页和删除接口")
 /**

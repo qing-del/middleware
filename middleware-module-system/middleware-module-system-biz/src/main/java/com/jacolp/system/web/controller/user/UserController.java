@@ -26,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/user/user")
 @Slf4j
 @Schema(description = "User - 用户管理")
-@CrossOrigin("*")
 @Validated
 @Tag(name = "User-用户认证", description = "用户注册与登录接口")
 public class UserController {

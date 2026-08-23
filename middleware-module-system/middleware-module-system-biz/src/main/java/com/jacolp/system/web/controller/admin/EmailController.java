@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController("Admin-EmailController")
 @RequestMapping("/admin/email")
 @Slf4j
-@CrossOrigin("*")
 @Schema(description = "Admin - 邮件管理")
 @Tag(name = "Admin-邮件管理", description = "管理员发送自定义邮件接口")
 public class EmailController {
