@@ -80,3 +80,10 @@
 - **决策**：每次成功 `FLUSH_LOG` 后发送一个延迟 `COMPACT` 信号（使用 `jacolp.document.compact.interval-ms`）；若刚刷入的 batch 已达到 `max-unmerged-ops` 或 `max-unmerged-bytes`，则额外立即发送一个 `COMPACT` 信号。消费者始终重新检查 MySQL 真实日志；重复或并发 COMPACT 通过 Snapshot pointer CAS 收敛。单轮只读取从当前 `persisted_log_id` 起、最多 `flush-log.batch-size` 条有序 op_log，并以该批最后一条日志 ID 为 cutoff；剩余日志由后续调度继续压实。
 - **影响**：连续编辑时会出现冗余调度或 loser merge，但不会覆盖 winner Snapshot，也不会提前删除日志；代价是额外 CPU/MinIO orphan object，后续可用 Redis lock 优化。重用已有 batch-size 避免把无限日志一次送入 Merge Service，限制单次 HTTP/内存占用；在默认值下，每轮最多合并 500 条。因没有单独的 Snapshot 时间字段，20 秒语义是“刷盘后延迟尝试”，而非精确的全局 Snapshot 周期。
 - **依据**：`biz_document.update_time` 的数据库定义、计划 #13 的 CAS 正确性要求及用户于 2026-08-24 05:00 前的连续实施授权。
+
+## D-012：跨实例 CLOSE 的在线 Session 判定
+
+- **背景**：`DocumentRoomManager` 是 JVM 本地运行时容器，但 v0.3 目标允许 1~2 个 Java 实例；仅凭 CLOSE 消费节点本地 `sessionCount` 不能判断另一节点是否仍有 WebSocket Session。仓库没有既有 WebSocket presence/lease 规范，Redis Room Meta 也未保存全局在线数。
+- **决策**：每个成功 JOIN 的 session 在 Redis 创建带 TTL 的 presence key：`document:presence:{documentId}:{instanceToken}:{sessionId}`。本实例定时续租本地仍在 Room 内的 key；LEAVE/连接关闭主动删除。CLOSE 消费时扫描该文档的 presence key，只有全局计数为零、`isClose=true` 且 closeToken 匹配时才能进入 final FLUSH_LOG/COMPACT 和清理。TTL 至少覆盖两个 close-delay 周期，续租周期作为 `jacolp.document.session-presence-refresh-ms`（默认 10 秒）配置。
+- **影响**：实例崩溃时遗留 presence 会在 TTL 后自动消失，因此 CLOSE 最多延后一个 lease 周期，不会冒险提前清理。Redis 仍不存正文；presence 仅是可过期运行态。JOIN 会写入新的 closeToken 并将 `isClose=false`，失效旧 CLOSE 消息；final 流程在 flush/compact 后再次检查 token、presence 和本地 Room，避免 reopen race。该方案以保守延迟换取跨实例安全，后续若项目出现统一 session registry，应迁移复用。
+- **依据**：计划 #11 要求 CLOSE 同时校验 `roomSessionCount(documentId)==0`、closeToken 和 reopen race；用户于 2026-08-24 05:00 前授权对未冻结项记录后继续实施。
