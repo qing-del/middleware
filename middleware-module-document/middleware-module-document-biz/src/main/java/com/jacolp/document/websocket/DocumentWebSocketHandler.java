@@ -7,6 +7,7 @@ import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
 import com.jacolp.document.infrastructure.redis.DocumentPendingUpdate;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.infrastructure.redis.DocumentRoomMeta;
+import com.jacolp.document.messaging.DocumentSchedulePublisher;
 import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
 import com.jacolp.document.websocket.protocol.DocumentWsCodec;
 import com.jacolp.document.websocket.protocol.DocumentWsControlMessage;
@@ -27,6 +28,8 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Authenticated document collaboration endpoint. Java routes opaque Yjs bytes but never parses them. */
 @Component
@@ -34,23 +37,27 @@ import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
 
     private static final ZoneId APPLICATION_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final Logger log = LoggerFactory.getLogger(DocumentWebSocketHandler.class);
 
     private final DocumentWsCodec codec;
     private final DocumentMapper documentMapper;
     private final DocumentRedisRepository documentRedisRepository;
     private final DocumentRoomManager roomManager;
     private final DocumentBootstrapService bootstrapService;
+    private final DocumentSchedulePublisher schedulePublisher;
     private final DocumentProperties properties;
     private final ConcurrentHashMap<String, Long> joinedDocumentIds = new ConcurrentHashMap<>();
 
     public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
                                     DocumentRedisRepository documentRedisRepository, DocumentRoomManager roomManager,
-                                    DocumentBootstrapService bootstrapService, DocumentProperties properties) {
+                                    DocumentBootstrapService bootstrapService, DocumentSchedulePublisher schedulePublisher,
+                                    DocumentProperties properties) {
         this.codec = Objects.requireNonNull(codec, "codec must not be null");
         this.documentMapper = Objects.requireNonNull(documentMapper, "documentMapper must not be null");
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
         this.roomManager = Objects.requireNonNull(roomManager, "roomManager must not be null");
         this.bootstrapService = Objects.requireNonNull(bootstrapService, "bootstrapService must not be null");
+        this.schedulePublisher = Objects.requireNonNull(schedulePublisher, "schedulePublisher must not be null");
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
     }
 
@@ -184,6 +191,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                 DocumentWsControlType.UPDATE_ACCEPTED, frame.eventId(), room.documentId(), frame.eventId(), redisOpId, null, null));
         room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.CRDT_UPDATE,
                 frame.eventId(), frame.payload())), session.getId());
+        scheduleFlushLog(room.documentId());
     }
 
     private void broadcastAwareness(WebSocketSession session, DocumentWsBinaryFrame frame) {
@@ -232,6 +240,15 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             session.sendMessage(codec.encodeControl(control));
         } catch (IOException exception) {
             leaveSession(session);
+        }
+    }
+
+    private void scheduleFlushLog(long documentId) {
+        try {
+            schedulePublisher.scheduleFlushLog(documentId);
+        } catch (RuntimeException exception) {
+            // XADD already made this update recoverable; the Recovery Scanner will reschedule it.
+            log.warn("Could not schedule FLUSH_LOG for documentId={}: {}", documentId, exception.getMessage());
         }
     }
 

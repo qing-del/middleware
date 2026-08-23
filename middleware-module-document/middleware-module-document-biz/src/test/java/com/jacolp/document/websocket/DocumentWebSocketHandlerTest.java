@@ -16,6 +16,7 @@ import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
 import com.jacolp.document.infrastructure.redis.DocumentPendingUpdate;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
+import com.jacolp.document.messaging.DocumentSchedulePublisher;
 import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
 import com.jacolp.document.websocket.protocol.DocumentWsCodec;
 import com.jacolp.document.websocket.protocol.DocumentWsControlMessage;
@@ -41,6 +42,7 @@ class DocumentWebSocketHandlerTest {
         DocumentMapper documentMapper = mock(DocumentMapper.class);
         DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
         DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
         WebSocketSession session = session("session-a", principal(42L));
         DocumentDO document = document(7L, 42L);
 
@@ -50,7 +52,7 @@ class DocumentWebSocketHandlerTest {
         when(documentMapper.updateLastModificationIfActive(eq(7L), eq(42L), any(LocalDateTime.class), eq(42L))).thenReturn(1);
 
         DocumentWebSocketHandler handler = new DocumentWebSocketHandler(codec, documentMapper, redisRepository,
-                new DocumentRoomManager(properties), bootstrapService, properties);
+                new DocumentRoomManager(properties), bootstrapService, schedulePublisher, properties);
         UUID joinRequestId = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
         handler.handleMessage(session, codec.encodeControl(new DocumentWsControlMessage(1,
                 DocumentWsControlType.JOIN_DOCUMENT, joinRequestId, 7L, null, null, null, null)));
@@ -81,6 +83,7 @@ class DocumentWebSocketHandlerTest {
         assertThat(ack.requestId()).isEqualTo(updateId);
         assertThat(ack.clientUpdateId()).isEqualTo(updateId);
         assertThat(ack.redisOpId()).isEqualTo("123-0");
+        verify(schedulePublisher).scheduleFlushLog(7L);
     }
 
     @Test
@@ -90,11 +93,12 @@ class DocumentWebSocketHandlerTest {
         DocumentMapper documentMapper = mock(DocumentMapper.class);
         DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
         DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
         WebSocketSession session = session("session-b", principal(42L));
         when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document(7L, 42L));
         when(redisRepository.findRoomMeta(7L)).thenReturn(Optional.empty());
         DocumentWebSocketHandler handler = new DocumentWebSocketHandler(codec, documentMapper, redisRepository,
-                new DocumentRoomManager(properties), bootstrapService, properties);
+                new DocumentRoomManager(properties), bootstrapService, schedulePublisher, properties);
 
         handler.handleMessage(session, codec.encodeControl(new DocumentWsControlMessage(1,
                 DocumentWsControlType.JOIN_DOCUMENT, UUID.randomUUID(), 7L, null, null, null, null)));
