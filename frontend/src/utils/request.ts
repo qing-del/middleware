@@ -14,6 +14,11 @@ interface RequestConfig extends AxiosRequestConfig {
   _authRetry?: boolean
 }
 
+interface RefreshResult {
+  success: boolean
+  message?: string
+}
+
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 const instance = axios.create({
@@ -26,7 +31,7 @@ const refreshClient = axios.create({
   timeout: 30000
 })
 
-let refreshPromise: Promise<boolean> | null = null
+let refreshPromise: Promise<RefreshResult> | null = null
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -34,7 +39,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function responseMessage(value: unknown): string | null {
   if (!isRecord(value) || typeof value.msg !== 'string' || !value.msg.trim()) return null
-  return value.msg
+  const message = value.msg.trim()
+  // Backend messages are intended for users, but never surface a credential-like value if
+  // an unexpected error response contains one.
+  if (/(?:access[_ -]?token|refresh[_ -]?token|bearer\s+[^\s]+|authorization\s*:)/i.test(message)) {
+    return null
+  }
+  return message
+}
+
+function responseErrorMessage(error: unknown): string | null {
+  if (!isRecord(error) || !isRecord(error.response)) return null
+  return responseMessage(error.response.data)
+}
+
+function applyResponseErrorMessage(error: unknown): string | null {
+  const message = responseErrorMessage(error)
+  if (message && isRecord(error)) error.message = message
+  return message
 }
 
 function requestPath(url?: string): string {
@@ -91,9 +113,9 @@ function unwrapApiResponse(value: unknown): unknown {
   throw new Error(responseMessage(value) || '请求失败')
 }
 
-async function performRefresh(): Promise<boolean> {
+async function performRefresh(): Promise<RefreshResult> {
   const session = readAuthSession()
-  if (!session.refreshToken || !session.clientId) return false
+  if (!session.refreshToken || !session.clientId) return { success: false }
 
   try {
     const response = await refreshClient.post('/auth/login', {
@@ -104,13 +126,14 @@ async function performRefresh(): Promise<boolean> {
     const tokens = normalizeAuthTokenResponse(unwrapApiResponse(response.data))
     const updatedSession = saveAuthSession(tokens, session.clientId)
     notifyAuthSessionUpdated(updatedSession)
-    return true
-  } catch {
-    return false
+    sessionExpiryNoticeShown = false
+    return { success: true }
+  } catch (error) {
+    return { success: false, message: responseErrorMessage(error) || undefined }
   }
 }
 
-function refreshAccessToken(): Promise<boolean> {
+function refreshAccessToken(): Promise<RefreshResult> {
   if (!refreshPromise) {
     refreshPromise = performRefresh().finally(() => {
       refreshPromise = null
@@ -119,9 +142,15 @@ function refreshAccessToken(): Promise<boolean> {
   return refreshPromise
 }
 
-function expireSession(): void {
+let sessionExpiryNoticeShown = false
+
+function expireSession(message = '登录状态已失效，请重新登录'): void {
   clearStoredAuth()
   notifyAuthSessionCleared()
+  if (!sessionExpiryNoticeShown) {
+    toastError(message)
+    sessionExpiryNoticeShown = true
+  }
   if (router.currentRoute.value.path !== '/login') {
     void router.push('/login')
   }
@@ -164,9 +193,12 @@ instance.interceptors.response.use(
     const res = response.data
     // 兼容两种返回格式：1) { code: 1, data: ... } 2) 直接返回数据对象
     if (isRecord(res) && 'code' in res) {
-      if (res.code === 1) return res.data
+      if (res.code === 1) {
+        if (requestPath(response.config?.url) === '/auth/login') sessionExpiryNoticeShown = false
+        return res.data
+      }
       const message = responseMessage(res) || '请求失败'
-      toastError(message)
+      if (!isAuthenticationEndpoint(response.config?.url)) toastError(message)
       return Promise.reject(new Error(message))
     }
     return res
@@ -175,25 +207,26 @@ instance.interceptors.response.use(
     const status = error.response?.status
     const config = error.config as RequestConfig | undefined
     const authEndpoint = isAuthenticationEndpoint(config?.url)
+    const serverMessage = applyResponseErrorMessage(error)
 
     if (status === 401 && requiresAuthRoute() && !authEndpoint && !config?._authRetry) {
       const retry = config && retryWithCurrentToken(config)
       if (retry) return retry
 
       const refreshed = await refreshAccessToken()
-      if (refreshed && config) {
+      if (refreshed.success && config) {
         const retryConfig = { ...config, _authRetry: true } as RequestConfig
         const accessToken = readAuthSession().accessToken
         if (accessToken) setBearerHeader(retryConfig, accessToken)
         return instance(retryConfig)
       }
-      expireSession()
+      expireSession(refreshed.message || '登录状态已失效，请重新登录')
     } else if (status === 401 && requiresAuthRoute() && !authEndpoint) {
-      expireSession()
+      expireSession(serverMessage || '登录状态已失效，请重新登录')
     } else if (status === 403) {
-      toastError(responseMessage(error.response?.data) || '无权访问')
-    } else if (status !== 401 || !authEndpoint) {
-      toastError(error.message || '网络错误')
+      toastError(serverMessage || '无权访问')
+    } else if (!authEndpoint) {
+      toastError(serverMessage || error.message || '网络错误')
     }
     return Promise.reject(sanitizeRequestError(error))
   }

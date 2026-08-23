@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
   Zap, ChevronRight, Link, FileDiff, User, Mail, Lock,
-  ShieldCheck, Loader2, ArrowRight, CheckCircle2, BookOpen, Send, KeyRound
+  ShieldCheck, Loader2, ArrowRight, CheckCircle2, XCircle, BookOpen, Send, KeyRound
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -46,6 +46,7 @@ const loaderIconRef = ref<HTMLElement | null>(null)
 const submitIconRef = ref<HTMLElement | null>(null)
 const submitTextRef = ref<HTMLElement | null>(null)
 const toastTimeoutRef = ref<number | null>(null)
+const toastType = ref<'success' | 'error'>('success')
 
 // Canvas 相关
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -305,19 +306,22 @@ function toggleFeatures() {
   }
 }
 
-function showToast(msg: string, _type: 'success' | 'error' = 'success') {
+function showToast(msg: string, type: 'success' | 'error' = 'success') {
   const toast = document.getElementById('toast-container')
   const toastMsg = document.getElementById('toast-msg')
   if (!toast || !toastMsg) return
 
+  toastType.value = type
   toastMsg.textContent = msg
   toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none')
+  toast.classList.add('toast-visible')
 
   if (toastTimeoutRef.value) {
     clearTimeout(toastTimeoutRef.value)
   }
   toastTimeoutRef.value = window.setTimeout(() => {
     toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none')
+    toast.classList.remove('toast-visible')
   }, 3000)
 }
 
@@ -478,8 +482,8 @@ async function handleSubmit() {
     }
   } catch (error: any) {
     const message = safeErrorMessage(error, '操作失败')
-    if (currentView.value === 'login' && isAccountNotActivatedMessage(message)) {
-      activationAccount.value = formData.username
+    if ((currentView.value === 'login' || currentView.value === 'admin') && isAccountNotActivatedMessage(message)) {
+      activationAccount.value = formData.email.trim() || formData.username.trim()
       setTimeout(() => {
         setView('activation')
       }, 250)
@@ -826,13 +830,14 @@ onUnmounted(() => {
     </div>
 
     <!-- 消息通知 (Toast) -->
-    <div id="toast-container" class="fixed bottom-12 right-12 px-8 py-5 rounded-[2.5rem] backdrop-blur-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] border-l-4 transition-all duration-500 z-50 transform translate-y-20 opacity-0 pointer-events-none bg-emerald-500/10 border-emerald-500/50 text-emerald-400">
+    <div id="toast-container" :class="['fixed bottom-12 right-12 px-8 py-5 rounded-[2.5rem] backdrop-blur-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] border-l-4 transition-all duration-500 z-50 transform translate-y-20 opacity-0 pointer-events-none', toastType === 'error' ? 'toast-error' : 'toast-success']">
       <div class="flex items-center space-x-4">
-        <div id="toast-icon-wrapper" class="p-2 rounded-xl bg-emerald-500/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
-          <CheckCircle2 id="toast-icon" class="w-5 h-5" />
+        <div id="toast-icon-wrapper" :class="['p-2 rounded-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]', toastType === 'error' ? 'bg-rose-500/15' : 'bg-emerald-500/20']">
+          <XCircle v-if="toastType === 'error'" id="toast-icon" class="w-5 h-5" />
+          <CheckCircle2 v-else id="toast-icon" class="w-5 h-5" />
         </div>
         <div class="flex flex-col">
-          <span id="toast-title" class="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">Authorization</span>
+          <span id="toast-title" class="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">{{ toastType === 'error' ? 'Error' : 'Authorization' }}</span>
           <span id="toast-msg" class="text-sm font-bold leading-none">认证成功</span>
         </div>
       </div>
@@ -1137,8 +1142,34 @@ onUnmounted(() => {
   box-shadow: var(--cn-shadow-md) !important;
 }
 
-#toast-container :where(span, svg) {
-  color: var(--cn-text) !important;
+.login-page #toast-container.toast-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(0) !important;
+}
+
+#toast-container.toast-success {
+  border-left-color: var(--cn-success) !important;
+}
+
+#toast-container.toast-error {
+  border-left-color: var(--cn-danger) !important;
+}
+
+#toast-container.toast-success :where(span, svg) {
+  color: var(--cn-success) !important;
+}
+
+#toast-container.toast-error :where(span, svg) {
+  color: var(--cn-danger) !important;
+}
+
+#toast-container.toast-success #toast-icon-wrapper {
+  background: rgba(21, 128, 61, 0.12) !important;
+}
+
+#toast-container.toast-error #toast-icon-wrapper {
+  background: rgba(185, 28, 28, 0.12) !important;
 }
 
 @media (max-width: 1024px) {
