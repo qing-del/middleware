@@ -106,6 +106,31 @@ class MigrationScriptTest {
                 .doesNotContain("core_agent");
     }
 
+    @Test
+    void documentPersistenceTablesShouldMatchBootstrapAndForwardMigration() throws IOException {
+        String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
+        String migration = readMigration("20260823_document_persistence_model.sql");
+
+        assertThat(bootstrap)
+                .contains("CREATE TABLE `biz_document`")
+                .contains("`team_id`             bigint       NOT NULL")
+                .contains("`persisted_log_id`    bigint       NOT NULL DEFAULT 0")
+                .contains("KEY `idx_document_scope_deleted_time` (`team_id`, `deleted`, `last_modify_time`)")
+                .contains("CREATE TABLE `document_op_log`")
+                .contains("UNIQUE KEY `uk_document_redis_op` (`document_id`, `redis_op_id`)")
+                .contains("UNIQUE KEY `uk_document_client_update` (`document_id`, `client_update_id`)");
+        assertThat(migration)
+                .contains("USE `personal_saas`;")
+                .contains("CREATE TABLE `biz_document`")
+                .contains("`team_id`             bigint       NOT NULL")
+                .contains("`last_modify_time`    datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3)")
+                .contains("CREATE TABLE `document_op_log`")
+                .contains("`update_data`      longblob     NOT NULL")
+                .contains("UNIQUE KEY `uk_document_redis_op` (`document_id`, `redis_op_id`)")
+                .contains("UNIQUE KEY `uk_document_client_update` (`document_id`, `client_update_id`)")
+                .contains("KEY `idx_document_log` (`document_id`, `id`)");
+    }
+
     private static String readMigration(String fileName) throws IOException {
         Path migration = MIGRATION_DIRECTORY.resolve(fileName);
         assertThat(migration)

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper">
+
+    <resultMap id="DocumentMap" type="com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO">
+        <id column="id" property="id"/>
+        <result column="team_id" property="teamId"/>
+        <result column="title" property="title"/>
+        <result column="content_object_key" property="contentObjectKey"/>
+        <result column="persisted_log_id" property="persistedLogId"/>
+        <result column="last_modify_time" property="lastModifyTime"/>
+        <result column="last_modify_user_id" property="lastModifyUserId"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="DocumentColumns">
+        id, team_id, title, content_object_key, persisted_log_id, last_modify_time,
+        last_modify_user_id, deleted, version, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO biz_document
+        (team_id, title, content_object_key, persisted_log_id, last_modify_time,
+         last_modify_user_id, deleted, version)
+        VALUES
+        (#{teamId}, #{title}, #{contentObjectKey}, #{persistedLogId}, #{lastModifyTime},
+         #{lastModifyUserId}, #{deleted}, #{version})
+    </insert>
+
+    <select id="selectById" resultMap="DocumentMap">
+        SELECT <include refid="DocumentColumns"/>
+        FROM biz_document
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectActiveByIdAndTeamId" resultMap="DocumentMap">
+        SELECT <include refid="DocumentColumns"/>
+        FROM biz_document
+        WHERE id = #{id}
+          AND team_id = #{teamId}
+          AND deleted = 0
+    </select>
+
+    <select id="listActiveByTeamId" resultMap="DocumentMap">
+        SELECT <include refid="DocumentColumns"/>
+        FROM biz_document
+        WHERE team_id = #{teamId}
+          AND deleted = 0
+        ORDER BY last_modify_time DESC, id DESC
+    </select>
+
+    <update id="updateLastModificationIfActive">
+        UPDATE biz_document
+        SET last_modify_time = #{lastModifyTime},
+            last_modify_user_id = #{lastModifyUserId},
+            version = version + 1
+        WHERE id = #{id}
+          AND team_id = #{teamId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateSnapshotPointerIfPersistedLogId">
+        UPDATE biz_document
+        SET content_object_key = #{contentObjectKey},
+            persisted_log_id = #{persistedLogId},
+            version = version + 1
+        WHERE id = #{id}
+          AND persisted_log_id = #{expectedPersistedLogId}
+          AND deleted = 0
+    </update>
+
+    <update id="softDeleteByIdAndTeamId">
+        UPDATE biz_document
+        SET deleted = 1,
+            last_modify_time = #{lastModifyTime},
+            last_modify_user_id = #{lastModifyUserId},
+            version = version + 1
+        WHERE id = #{id}
+          AND team_id = #{teamId}
+          AND deleted = 0
+    </update>
+</mapper>
