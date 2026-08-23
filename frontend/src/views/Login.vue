@@ -644,7 +644,7 @@ onUnmounted(() => {
                   </div>
                   <input type="text" v-model="formData.loginCode" name="code" inputmode="numeric" maxlength="6" placeholder="6 位登录验证码" autocomplete="one-time-code" required class="w-full bg-black/20 border border-white/[0.05] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-2xl py-4 pl-12 pr-4 outline-none focus:bg-black/40 focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm text-white placeholder:text-slate-600" />
                 </div>
-                <button type="button" @click="handleRequestLoginCode" :disabled="isRequestingLoginCode || loginCodeCooldown > 0" class="h-full min-w-28 rounded-2xl border border-indigo-400/25 bg-indigo-400/10 px-3 text-[10px] font-black tracking-wider text-indigo-200 transition-all hover:border-indigo-300/60 hover:bg-indigo-400/20 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" @click="handleRequestLoginCode" :disabled="isRequestingLoginCode || loginCodeCooldown > 0" class="login-code-button h-full min-w-28 rounded-2xl border border-indigo-400/25 bg-indigo-400/10 px-3 text-[10px] font-black tracking-wider text-white transition-all hover:border-indigo-300/60 hover:bg-indigo-400/20 disabled:cursor-not-allowed disabled:opacity-50">
                   <Loader2 v-if="isRequestingLoginCode" class="mx-auto h-4 w-4 animate-spin" />
                   <span v-else>{{ loginCodeCooldown > 0 ? `${loginCodeCooldown}s 后重试` : '获取验证码' }}</span>
                 </button>
@@ -1099,6 +1099,11 @@ onUnmounted(() => {
 
 .login-page :where(.text-white, .text-slate-100, .text-slate-200, .text-slate-300, .text-cyan-200, .text-indigo-200, .text-amber-200) {
   color: var(--cn-text) !important;
+}
+
+.login-page .login-code-button,
+.login-page .login-code-button span {
+  color: var(--cn-text-inverse) !important;
 }
 
 .login-page :where(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-indigo-300, .text-purple-300, .text-cyan-300, .text-amber-300, .text-emerald-300) {
