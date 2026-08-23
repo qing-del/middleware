@@ -59,3 +59,10 @@
 - **决策**：第一版一个 WebSocket Session 只允许 JOIN 一个 document。首次 `JOIN_DOCUMENT` 成功后，重复 JOIN 同一 document 幂等返回当前状态；尝试 JOIN 不同 document 返回 `ERROR`，客户端需要先 `LEAVE_DOCUMENT` 或新建连接。
 - **影响**：每个 session 都有唯一的 `documentId` 上下文；二进制 CLIENT_UPDATE 可以由该上下文安全路由。前端若需要同时编辑多个文档，应使用多个 WebSocket 连接，不能复用一个连接多路复用。
 - **依据**：用户于 2026-08-23 授权在指定时限内按推荐方案继续。
+
+## D-009：`LEAVE_DOCUMENT` 的第一版语义
+
+- **背景**：v0.3 定义了 `LEAVE_DOCUMENT` control type，但未定义 `LEAVE_ACCEPTED` 或其他响应帧。
+- **决策**：收到合法 `LEAVE_DOCUMENT` 后，服务端立即移除该 session 对 Room 的归属；不额外发送 control ACK。连接保持打开，此后可 JOIN 另一文档；未 JOIN 时发送二进制更新会被拒绝。重复 LEAVE 是幂等 no-op。
+- **影响**：不增加未冻结的公开响应类型；客户端以发送成功/本地状态为准，并可直接发送新的 JOIN。最后一个 session 离开后 Room 进入 PRE_CLOSE，实际延迟关闭仍由后续 final flush/compact 流程决定。
+- **依据**：用户于 2026-08-24 授权窗口内按推荐方案继续。
