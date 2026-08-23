@@ -60,6 +60,17 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- The deployed home cluster is Elasticsearch 8.17.0; this local override must win over Boot's BOM. -->
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>8.17.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.elasticsearch.client</groupId>
+                <artifactId>elasticsearch-rest-client</artifactId>
+                <version>8.17.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

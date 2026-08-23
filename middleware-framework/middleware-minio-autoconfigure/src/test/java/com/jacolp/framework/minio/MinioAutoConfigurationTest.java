@@ -1,0 +1,27 @@
+package com.jacolp.framework.minio;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.minio.MinioClient;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+class MinioAutoConfigurationTest {
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(MinioAutoConfiguration.class));
+
+    @Test
+    void createsClientAndBindsLogicalBuckets() {
+        contextRunner.withPropertyValues(
+                "jacolp.minio.endpoint=http://localhost:9000",
+                "jacolp.minio.access-key=test-access-key",
+                "jacolp.minio.secret-key=test-secret-key",
+                "jacolp.minio.bucket.document=middleware-document")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(MinioClient.class);
+                    assertThat(context.getBean(MinioProperties.class).getBucket())
+                            .containsEntry("document", "middleware-document");
+                });
+    }
+}
