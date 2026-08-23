@@ -37,3 +37,11 @@
 - **影响**：服务只暴露 `POST /internal/yjs/merge`，输入/输出使用 Base64，服务不连接 MySQL、Redis 或 MinIO，也不实现权限、房间或 WebSocket。部署时需在数据中心机器为其提供 Node 运行时或容器运行时、端口 3100、健康检查与反向代理/网络访问；Java 侧 Base URL 必须按环境配置。
 - **备选方案及未选原因**：不建服务、仅保留 Java client 会使快照合并流程无法运行；将服务加入根 compose 会把当前 Java 应用部署拓扑与数据中心存储服务拓扑耦合，且没有仓库依据支持这种耦合。
 - **依据**：用户于 2026-08-23 授权在指定时限内按推荐方案继续，不再因该不确定项阻塞。
+
+## D-006：浏览器 WebSocket 的 JWT 握手传递
+
+- **背景**：仓库没有浏览器 WebSocket 的 JWT 鉴权样例。现有 access token 保存于前端本地存储，浏览器原生 `WebSocket` API 不能设置 `Authorization` 请求头；将 token 写入 URL query 会增加访问日志、代理日志和监控系统泄露凭证的风险。
+- **决策**：`/ws/document` 的握手使用现有 RS256 access token，客户端通过标准 `Sec-WebSocket-Protocol` 头传递唯一子协议 `bearer.<JWT>`（浏览器代码形态为 `new WebSocket(url, ['bearer.' + accessToken])`）。服务端 `HandshakeInterceptor` 使用现有 `JwtDecoder` 验签、现有 JWT claims validator 和 `SecurityContextCurrentPrincipalAccessor.fromJwt` 生成 `CurrentPrincipal`，再将该主体写入 WebSocket attributes。它不接受 query token、Cookie token 或另一套 document token。
+- **影响**：握手失败必须直接拒绝；每个 JOIN 都从握手主体导出个人范围并校验 `document.team_id == principal.userId`，客户端提交的身份/范围一律忽略。WebSocket endpoint 的允许 Origin 复用 `jacolp.web.cors.allowed-origin-patterns`，部署环境应将该现有配置收紧为实际前端域名；不新增另一套 Origin 配置。
+- **兼容性**：这是浏览器侧将“同一份既有 JWT”传入握手的传输约定，而非新增登录或 token 签发协议。后续前端接入时仅需按上述子协议建连；本轮不修改 `frontend/`。
+- **依据**：用户于 2026-08-23 授权在指定时限内按推荐方案继续。
