@@ -24,6 +24,7 @@ public class DocumentScheduleTopology {
     public static final String RETRY_QUEUE = QUEUE + ".retry";
     public static final String DEAD_LETTER_QUEUE = QUEUE + ".dlq";
     public static final String FLUSH_LOG_DELAY_QUEUE = "document.schedule.flush-log.delay";
+    public static final String COMPACT_DELAY_QUEUE = "document.schedule.compact.delay";
 
     private final DocumentProperties documentProperties;
     private final ReliableMessagingProperties messagingProperties;
@@ -73,6 +74,15 @@ public class DocumentScheduleTopology {
                 .deadLetterExchange(EXCHANGE)
                 .deadLetterRoutingKey(ROUTING_KEY)
                 .ttl(toQueueTtl(documentProperties.getFlushLog().getDelayMs(), "jacolp.document.flush-log.delay-ms"))
+                .build();
+    }
+
+    @Bean
+    public Queue documentCompactDelayQueue() {
+        return QueueBuilder.durable(COMPACT_DELAY_QUEUE)
+                .deadLetterExchange(EXCHANGE)
+                .deadLetterRoutingKey(ROUTING_KEY)
+                .ttl(toQueueTtl(documentProperties.getCompact().getIntervalMs(), "jacolp.document.compact.interval-ms"))
                 .build();
     }
 

@@ -37,8 +37,23 @@ public class DocumentSchedulePublisher {
     public void scheduleFlushLog(long documentId) {
         Message message = newScheduleMessage(documentId, DocumentScheduleType.FLUSH_LOG,
                 System.currentTimeMillis() + documentProperties.getFlushLog().getDelayMs(), null);
+        publish(DocumentScheduleTopology.FLUSH_LOG_DELAY_QUEUE, message);
+    }
+
+    public void scheduleCompact(long documentId) {
+        Message message = newScheduleMessage(documentId, DocumentScheduleType.COMPACT,
+                System.currentTimeMillis() + documentProperties.getCompact().getIntervalMs(), null);
+        publish(DocumentScheduleTopology.COMPACT_DELAY_QUEUE, message);
+    }
+
+    public void scheduleCompactImmediately(long documentId) {
+        Message message = newScheduleMessage(documentId, DocumentScheduleType.COMPACT, System.currentTimeMillis(), null);
+        publish(DocumentScheduleTopology.QUEUE, message);
+    }
+
+    private void publish(String queue, Message message) {
         rabbitTemplate.invoke(operations -> {
-            operations.send("", DocumentScheduleTopology.FLUSH_LOG_DELAY_QUEUE, message);
+            operations.send("", queue, message);
             operations.waitForConfirmsOrDie(messagingProperties.getConfirmTimeoutMs());
             return null;
         });

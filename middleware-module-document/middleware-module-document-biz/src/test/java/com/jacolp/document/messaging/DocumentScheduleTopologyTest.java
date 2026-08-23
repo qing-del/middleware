@@ -23,4 +23,19 @@ class DocumentScheduleTopologyTest {
                 .containsEntry("x-dead-letter-exchange", DocumentScheduleTopology.EXCHANGE)
                 .containsEntry("x-dead-letter-routing-key", DocumentScheduleTopology.ROUTING_KEY);
     }
+
+    @Test
+    void declaresCompactDelayQueueWithConfiguredTtlAndDeadLetterRoute() {
+        DocumentProperties documentProperties = new DocumentProperties();
+        documentProperties.getCompact().setIntervalMs(20_000L);
+        DocumentScheduleTopology topology = new DocumentScheduleTopology(documentProperties,
+                new ReliableMessagingProperties());
+
+        Queue queue = topology.documentCompactDelayQueue();
+
+        assertThat(queue.getName()).isEqualTo(DocumentScheduleTopology.COMPACT_DELAY_QUEUE);
+        assertThat(queue.getArguments()).containsEntry("x-message-ttl", 20_000)
+                .containsEntry("x-dead-letter-exchange", DocumentScheduleTopology.EXCHANGE)
+                .containsEntry("x-dead-letter-routing-key", DocumentScheduleTopology.ROUTING_KEY);
+    }
 }
