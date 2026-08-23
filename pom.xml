@@ -22,6 +22,7 @@
         <module>middleware-framework</module>
         <module>middleware-module-system</module>
         <module>middleware-module-note</module>
+        <module>middleware-module-document</module>
         <module>middleware-module-media</module>
         <module>middleware-module-audit</module>
         <module>middleware-module-audio</module>

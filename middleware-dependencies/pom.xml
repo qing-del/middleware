@@ -247,6 +247,16 @@
             </dependency>
             <dependency>
                 <groupId>com.jacolp</groupId>
+                <artifactId>middleware-module-document-api</artifactId>
+                <version>${middleware.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jacolp</groupId>
+                <artifactId>middleware-module-document-biz</artifactId>
+                <version>${middleware.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jacolp</groupId>
                 <artifactId>middleware-module-media-api</artifactId>
                 <version>${middleware.version}</version>
             </dependency>
