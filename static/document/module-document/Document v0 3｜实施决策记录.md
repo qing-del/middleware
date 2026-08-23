@@ -101,3 +101,10 @@
 - **决策**：Document Biz 向现有 `MeterRegistry` 注册 `document_*` 与 `yjs_merge_service_duration` 指标，复用 Server 提供的 Actuator registry；不在本轮修改基础 profile 的 management endpoint exposure，不擅自公开 `/actuator/metrics`。生产环境若已有受控管理网关，可通过其现有 profile/部署配置开启 metrics 端点或 exporter。
 - **影响**：Document 的计数器、Timer、DistributionSummary 和低基数全局 Gauge 会在应用内正常采集；`document_ws_sessions` / `document_active_rooms` 是单实例值，可由监控系统跨实例聚合。Redis pending / unmerged gauges 为读取当前 Document runtime keyspace 的实时聚合，不以 documentId 作为 metric tag，避免高基数。不会记录或导出任何 Yjs binary 正文。
 - **依据**：仓库 `middleware-server/pom.xml` 的 `spring-boot-starter-actuator` 依赖、基础 profile 的 health-only exposure，及用户于 2026-08-24 05:00 前的连续实施授权。
+
+## D-015：Document HTTP 与 WebSocket 的 OAuth Scope 准入
+
+- **背景**：Server 不以笼统的 `/user/**` 匹配授权，而是由 `BusinessRouteScopeCatalogConfiguration` 枚举每条 Bearer HTTP 路由；新 `/user/document` 若未登记，会落在预期 scope 校验链之外。WebSocket upgrade 又不经过该 HTTP route catalogue。既有 WebSocket 单测已使用 `document:write`，但现有 RBAC 权限和 user client scope 尚未注册 document resource。
+- **决策**：新增精确权限 `document:read`、`document:write`；Document Meta 的 GET/list 使用 `document:read`，创建、标题更新、删除使用 `document:write`。`/ws/document` 是可写协作通道，握手统一要求 `document:write`（或既有 `*:write`）；第一版没有只读 WebSocket 子协议。将两项 scope 写入 user client `scopes` / `auto_approve`、初始化库和前向 migration；不赋予 core_agent，也不新增未设计的 admin Document API。
+- **影响**：旧 access token 不含 document scope 时会被拒绝，用户需按既有登录/刷新流程获取新 token；`*:read` / `*:write` 的既有角色兼容通配仍能匹配新精确 scope。Server 的可执行目录与受其约束的安全文档需要从 116 Bearer 路由同步扩展到 121 条，保证新增接口不会绕过认证。
+- **依据**：`BusinessRouteScopeCatalogConfiguration`、`PermissionScopeMatcher`、`DocumentWebSocketHandshakeInterceptor` 以及用户于 2026-08-24 05:00 前的连续实施授权。
