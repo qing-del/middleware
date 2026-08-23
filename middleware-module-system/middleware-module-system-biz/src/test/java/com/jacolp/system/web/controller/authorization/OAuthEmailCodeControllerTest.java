@@ -2,16 +2,21 @@ package com.jacolp.system.web.controller.authorization;
 
 import com.jacolp.common.core.result.Result;
 import com.jacolp.system.application.authorization.EmailLoginCodeIssuanceService;
+import com.jacolp.system.application.authorization.InternalAccountAuthenticationRejectedException;
 import com.jacolp.system.application.authorization.model.EmailLoginCodeIssueRequest;
 import com.jacolp.system.application.dto.authorization.EmailLoginCodeHttpRequest;
+import com.jacolp.common.web.handler.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -26,6 +31,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class OAuthEmailCodeControllerTest {
 
@@ -97,6 +105,24 @@ class OAuthEmailCodeControllerTest {
     }
 
     @Test
+    void authenticationRejectionIsRenderedAsUnauthorizedWithReasonedMessage() throws Exception {
+        EmailLoginCodeIssuanceService service = mock(EmailLoginCodeIssuanceService.class);
+        doThrow(new InternalAccountAuthenticationRejectedException(
+                InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_NOT_FOUND))
+                .when(service).issue(any());
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new OAuthEmailCodeController(service))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
+        mvc.perform(post("/oauth/email-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"client_id\":\"user\",\"email\":\"alice@example.test\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(Result.FAIL))
+                .andExpect(jsonPath("$.msg").value("邮箱未注册，无法发送验证码"));
+    }
+
+    @Test
     void registersController() {
         runner.withUserConfiguration(ServiceConfiguration.class)
                 .run(context -> assertThat(context.getBeansOfType(OAuthEmailCodeController.class)).hasSize(1));
@@ -104,7 +130,7 @@ class OAuthEmailCodeControllerTest {
 
     @Test
     void productionControllerDoesNotReferenceHeadersOutboxOrLegacyEmailFlows() throws IOException {
-        String source = Files.readString(Path.of("src/main/java/com/jacolp/module/system/biz/web/controller/authorization/"
+        String source = Files.readString(Path.of("src/main/java/com/jacolp/system/web/controller/authorization/"
                 + "OAuthEmailCodeController.java"));
 
         assertThat(source).doesNotContain("getHeader", "X-Forwarded-For", "Forwarded", "Outbox",

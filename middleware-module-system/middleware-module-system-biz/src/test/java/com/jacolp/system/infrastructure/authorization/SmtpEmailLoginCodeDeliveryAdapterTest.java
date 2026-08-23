@@ -53,7 +53,7 @@ class SmtpEmailLoginCodeDeliveryAdapterTest {
     @Test
     void productionCodeAndTemplateDoNotReuseOutboxOrLegacyEmailPaths() throws IOException {
         String source = Files.readString(Path.of(
-                "src/main/java/com/jacolp/module/system/biz/infrastructure/authorization/SmtpEmailLoginCodeDeliveryAdapter.java"));
+                "src/main/java/com/jacolp/system/infrastructure/authorization/SmtpEmailLoginCodeDeliveryAdapter.java"));
         String template = Files.readString(Path.of("src/main/resources/templates/email/login-code.html"));
 
         assertThat(source).contains("SmtpEmailGateway", "email/login-code", "sendHtml");

@@ -3,12 +3,15 @@ package com.jacolp.system.application.authorization;
 import com.jacolp.common.core.exception.AuthenticationException;
 
 /**
- * Identifiable, non-sensitive rejection reasons for ordinary USER/ADMIN authentication failures.
+ * Identifiable rejection reasons for ordinary USER/ADMIN authentication and email-code issuance failures.
  */
 public final class InternalAccountAuthenticationRejectedException extends AuthenticationException {
 
     public enum Reason {
         GENERIC("登录认证失败，请检查登录信息", "Internal account authentication rejected"),
+        ACCOUNT_NOT_FOUND("邮箱未注册，无法发送验证码", "Internal email-code account was not found"),
+        EMAIL_MISMATCH("请求邮箱与账号邮箱不一致，无法发送验证码",
+                "Internal email-code account email does not match request"),
         ACCOUNT_NOT_ACTIVATED("账号未激活，请先激活账号", "Internal login account is not activated"),
         ACCOUNT_DISABLED("账号已被禁用，请联系管理员", "Internal login account is disabled"),
         GRANT_TYPE_NOT_ALLOWED("当前账号不支持该登录方式", "Internal login grant type is not enabled for account"),

@@ -65,11 +65,20 @@ class EmailLoginCodeIssuanceServiceTest {
     }
 
     @Test
-    void missingAccountStillGeneratesAndProtectsOnceButDoesNotStoreOrDeliver() {
+    void missingAccountThrowsReasonedRejectionWithoutStoringOrDelivering() {
         Fixture fixture = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
         when(fixture.accounts.findByEmail("alice@example.test")).thenReturn(Optional.empty());
 
-        fixture.service.issue(request());
+        assertThatThrownBy(() -> fixture.service.issue(request()))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .satisfies(error -> {
+                    InternalAccountAuthenticationRejectedException rejected =
+                            (InternalAccountAuthenticationRejectedException) error;
+                    assertThat(rejected.reason()).isEqualTo(
+                            InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_NOT_FOUND);
+                    assertThat(rejected.getMessage()).isEqualTo("邮箱未注册，无法发送验证码");
+                    assertThat(rejected.getLogMessage()).isEqualTo("Internal email-code account was not found");
+                });
 
         verify(fixture.generator).generate();
         verify(fixture.protector).protect("012345");
@@ -128,24 +137,40 @@ class EmailLoginCodeIssuanceServiceTest {
     }
 
     @Test
-    void emailMismatchAndEligibilityRejectionDoNotStoreOrDeliver() {
+    void emailMismatchThrowsReasonedRejectionWithoutStoringOrDelivering() {
         Fixture mismatch = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
         AuthorizationAccount wrongEmail =
                 new AuthorizationAccount(
                         7L, "alice", "$2a$10$" + "b".repeat(53), "other@example.test", 3L, "", 1);
         when(mismatch.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(wrongEmail));
-        mismatch.service.issue(request());
+        assertThatThrownBy(() -> mismatch.service.issue(request()))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .satisfies(error -> assertThat(((InternalAccountAuthenticationRejectedException) error).reason())
+                        .isEqualTo(InternalAccountAuthenticationRejectedException.Reason.EMAIL_MISMATCH));
         verify(mismatch.generator).generate();
         verify(mismatch.protector).protect("012345");
         verify(mismatch.eligibility, never()).resolve(any(), any());
         verify(mismatch.states, never()).replace(any());
+        verify(mismatch.delivery, never()).deliver(any());
+    }
 
-        Fixture rejected = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
-        when(rejected.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(rejected.account));
-        when(rejected.eligibility.resolve(any(), any())).thenThrow(new InternalAccountAuthenticationRejectedException());
-        rejected.service.issue(request());
-        verify(rejected.states, never()).replace(any());
-        verify(rejected.delivery, never()).deliver(any());
+    @Test
+    void eligibilityRejectionsPropagateTheirReasonsWithoutStoringOrDelivering() {
+        for (InternalAccountAuthenticationRejectedException.Reason reason : new InternalAccountAuthenticationRejectedException.Reason[]{
+                InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_NOT_ACTIVATED,
+                InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_DISABLED,
+                InternalAccountAuthenticationRejectedException.Reason.ROLE_NOT_ALLOWED,
+                InternalAccountAuthenticationRejectedException.Reason.GRANT_TYPE_NOT_ALLOWED}) {
+            Fixture rejected = fixture(EmailLoginCodeIssueRateLimitDecision.ALLOWED);
+            when(rejected.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(rejected.account));
+            InternalAccountAuthenticationRejectedException failure =
+                    new InternalAccountAuthenticationRejectedException(reason);
+            when(rejected.eligibility.resolve(any(), any())).thenThrow(failure);
+
+            assertThatThrownBy(() -> rejected.service.issue(request())).isSameAs(failure);
+            verify(rejected.states, never()).replace(any());
+            verify(rejected.delivery, never()).deliver(any());
+        }
     }
 
     @Test
@@ -162,7 +187,10 @@ class EmailLoginCodeIssuanceServiceTest {
                 new AuthorizationAccount(
                         7L, "alice", "$2a$10$" + "b".repeat(53), null, 3L, "", 1);
         when(nullEmail.accounts.findByEmail("alice@example.test")).thenReturn(Optional.of(account));
-        nullEmail.service.issue(request());
+        assertThatThrownBy(() -> nullEmail.service.issue(request()))
+                .isInstanceOf(InternalAccountAuthenticationRejectedException.class)
+                .satisfies(error -> assertThat(((InternalAccountAuthenticationRejectedException) error).reason())
+                        .isEqualTo(InternalAccountAuthenticationRejectedException.Reason.EMAIL_MISMATCH));
         verify(nullEmail.eligibility, never()).resolve(any(), any());
         verify(nullEmail.states, never()).replace(any());
         verify(nullEmail.delivery, never()).deliver(any());
@@ -280,7 +308,7 @@ class EmailLoginCodeIssuanceServiceTest {
     @Test
     void productionServiceDoesNotReferenceLegacyOrOutboxDeliveryPaths() throws IOException {
         String source = Files.readString(Path.of(
-                "src/main/java/com/jacolp/module/system/biz/application/authorization/EmailLoginCodeIssuanceService.java"));
+                "src/main/java/com/jacolp/system/application/authorization/EmailLoginCodeIssuanceService.java"));
         assertThat(source).doesNotContain("Outbox", "EmailSendEventPublisher", "EmailSenderService",
                 "TokenSessionService", "activation", "email-change", "Logger", "log.");
     }

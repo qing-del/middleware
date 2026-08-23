@@ -23,7 +23,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Coordinates a non-enumerating email-code issuance attempt without handling HTTP responses. */
+/** Coordinates an email-code issuance attempt without handling HTTP responses. */
 @Service
 public class EmailLoginCodeIssuanceService {
 
@@ -110,18 +110,15 @@ public class EmailLoginCodeIssuanceService {
             throw new IllegalStateException("Email-code account lookup returned null");
         }
         if (accountOptional.isEmpty()) {
-            return;
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.ACCOUNT_NOT_FOUND);
         }
         AuthorizationAccount account = accountOptional.get();
         if (account.email() == null || !emailFingerprint.equals(fingerprint.email(account.email()))) {
-            return;
+            throw new InternalAccountAuthenticationRejectedException(
+                    InternalAccountAuthenticationRejectedException.Reason.EMAIL_MISMATCH);
         }
-        InternalAuthenticatedAccount clearedAccount;
-        try {
-            clearedAccount = eligibilityService.resolve(policy, account);
-        } catch (InternalAccountAuthenticationRejectedException exception) {
-            return;
-        }
+        InternalAuthenticatedAccount clearedAccount = eligibilityService.resolve(policy, account);
         if (clearedAccount == null || !account.userId().equals(clearedAccount.userId())
                 || clearedAccount.email() == null
                 || !emailFingerprint.equals(fingerprint.email(clearedAccount.email()))) {

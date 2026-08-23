@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Issues a non-enumerating email login code response for internal clients. */
+/** Issues an email login code response for internal clients. */
 @RestController
 @RequestMapping("/oauth")
 public class OAuthEmailCodeController {
