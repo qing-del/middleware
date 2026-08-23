@@ -52,3 +52,10 @@
 - **决策**：ACK 仍携带 `requestId`，并将它设置为 CLIENT_UPDATE header 中的同一个 UUID，即 `requestId == clientUpdateId`；同时保留 `clientUpdateId` 字段以表达其幂等语义。JOIN/LEAVE/SYNC 等 Text request 的响应使用其原始 `requestId`。
 - **影响**：客户端对单次更新可以只用一个稳定 UUID 完成重发去重与 ACK 关联；服务端 codec 对所有控制帧统一要求 UUID requestId，避免出现两种相关性规则。
 - **依据**：用户于 2026-08-23 授权在指定时限内按推荐方案继续。
+
+## D-008：一个 WebSocket Session 的文档归属
+
+- **背景**：v0.3 的 binary frame header 只有协议版本、frame type 和 event/client UUID，不携带 `documentId`。如果同一连接同时 JOIN 多个文档，服务端不能安全地把之后的 CLIENT_UPDATE 映射到正确 Redis Stream。
+- **决策**：第一版一个 WebSocket Session 只允许 JOIN 一个 document。首次 `JOIN_DOCUMENT` 成功后，重复 JOIN 同一 document 幂等返回当前状态；尝试 JOIN 不同 document 返回 `ERROR`，客户端需要先 `LEAVE_DOCUMENT` 或新建连接。
+- **影响**：每个 session 都有唯一的 `documentId` 上下文；二进制 CLIENT_UPDATE 可以由该上下文安全路由。前端若需要同时编辑多个文档，应使用多个 WebSocket 连接，不能复用一个连接多路复用。
+- **依据**：用户于 2026-08-23 授权在指定时限内按推荐方案继续。
