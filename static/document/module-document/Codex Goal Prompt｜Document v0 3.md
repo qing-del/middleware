@@ -151,6 +151,19 @@ B. ...
 - Awareness / Cursor / 在线状态不持久化
 - 正确性依赖 Immutable MinIO + MySQL CAS；Redis Lock 只能作为减少重复 Merge 的优化
 
+# 已确认的仓库适配：第一版个人文档域
+
+仓库目前没有 Team 实体、成员关系、当前 Team 上下文或 Team 权限校验能力。v0.3 第一版
+保留 `team_id` / `teamId` 字段，但其值必须由服务端的 `CurrentPrincipal.userId` 派生，等同于
+`owner_user_id`：
+
+- 客户端不得传入、选择或覆盖 `teamId`。
+- 所有 HTTP、WebSocket、Redis Room Meta 与 Elasticsearch 查询均以当前用户 ID 作为 scope，
+  仅允许访问 `document.team_id == currentPrincipal.userId` 的文档。
+- 文档中的“Team / 当前 Team / teamId”在没有特别声明时均指这一个人 scope。
+- 后续接入正式 Team 模式前，必须先实现成员校验与当前 Team 解析，并按 Blocker 规则确认
+  个人文档的迁移方案；不得直接放松过滤条件。
+
 # Relation 已冻结规则
 
 双链节点使用正式 `resource-ref`，至少包含：

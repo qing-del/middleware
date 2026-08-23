@@ -120,6 +120,20 @@ SearchEntity mapping。`jacolp.minio.bucket.*` 和 `jacolp.elasticsearch.index.*
 `jacolp.yjs-merge-service.*`、`jacolp.document.*` 必须与 `minio`、`elasticsearch` 同级，
 绝不嵌套于 `jacolp.minio.*`。
 
+### 1.4 已确认：第一版使用个人文档域
+
+当前仓库尚未提供 Team 实体、成员关系、当前 Team 上下文或 Team 权限校验。因此 v0.3
+第一版先使用个人文档域，并保留既定 `team_id` / `teamId` 字段以避免提前重做数据模型：
+
+- `team_id` 的唯一值来源是服务端 `CurrentPrincipal.userId`；它在第一版等同于
+  `owner_user_id`，不是客户端可指定的 Team ID。
+- HTTP 创建、读取、修改、删除、WebSocket JOIN 与 Elasticsearch 查询都必须由服务端从
+  当前登录用户派生这个 scope 值；客户端请求不得携带或覆盖 `teamId`。
+- 第一版仅允许 `document.team_id == currentPrincipal.userId` 的用户访问文档。本文其余未
+  特别说明的“Team / teamId / 当前 Team”在第一版均指此个人 scope。
+- 未来接入正式 Team 模式时，必须先新增成员校验/当前 Team 解析能力，并单独确认个人文档
+  向 Team 文档的迁移策略；不得在没有该能力时放宽访问过滤。
+
 ---
 
 # 2. v0.3 已冻结的架构决策
@@ -370,7 +384,7 @@ Java 不负责：
 ```sql
 CREATE TABLE biz_document (
     id BIGINT PRIMARY KEY,
-    team_id BIGINT NOT NULL,
+    team_id BIGINT NOT NULL, -- v0.3 第一版固定等于 owner_user_id
     title VARCHAR(255) NOT NULL,
     content_object_key VARCHAR(512) NULL,
     persisted_log_id BIGINT NOT NULL DEFAULT 0,
@@ -386,6 +400,8 @@ CREATE TABLE biz_document (
 - `content_object_key = NULL` 表示新文档尚未产生 Snapshot，客户端以空 `Y.Doc` 初始化。
 - `persisted_log_id` 表示当前 Snapshot 已经包含的最大 `document_op_log.id`。
 - `version` 可用于 Meta CAS/未来扩展；Snapshot CAS 第一版至少必须比较旧 `persisted_log_id`。
+- 当前仓库没有 Team 域，第一版 `team_id` 固定由服务端当前用户 ID 写入，作为个人文档域的
+  owner scope；不得信任客户端传入的 `teamId`。正式 Team 模式上线前需另行确认迁移策略。
 - DDL 字段命名最终应服从仓库现有数据库规范；如有统一 `create_time/update_time/del_flag` 基类字段，不得另造风格，需复用。
 
 ## 7.2 `document_op_log`
@@ -479,7 +495,8 @@ Request：
 
 行为：
 
-1. 使用现有鉴权体系确认当前用户可在 team 下创建文档。
+1. 使用现有鉴权体系确认当前用户已登录，并将 `team_id` 固定写为当前用户 ID；客户端不传
+   `teamId`。
 2. 创建 `biz_document` Meta。
 3. 不强制立即创建空 MinIO state.bin；`content_object_key` 可为空。
 4. 不触碰旧 note/document 表。
