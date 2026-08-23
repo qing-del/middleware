@@ -20,6 +20,8 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.ByteRecord;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.connection.stream.StreamRecords;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 
 class DocumentRedisRepositoryTest {
 
@@ -122,6 +124,28 @@ class DocumentRedisRepositoryTest {
     void shouldExposeStableDocumentKeyNames() {
         assertThat(DocumentRedisRepository.roomMetaKey(18L)).isEqualTo("document:meta:18");
         assertThat(DocumentRedisRepository.pendingUpdatesKey(18L)).isEqualTo("document:updates:18");
+    }
+
+    @Test
+    void shouldCountAndScanOnlyDocumentRuntimeKeysForRecovery() {
+        @SuppressWarnings("unchecked")
+        Cursor<byte[]> cursor = mock(Cursor.class);
+        byte[] metaKey = "document:meta:18".getBytes(UTF_8);
+        when(connection.xLen(any(byte[].class))).thenReturn(3L);
+        when(connection.scan(any(ScanOptions.class))).thenReturn(cursor);
+        when(cursor.hasNext()).thenReturn(true, false);
+        when(cursor.next()).thenReturn(metaKey);
+        when(connection.hGetAll(metaKey)).thenReturn(bytesMap(Map.of(
+                "documentId", "18",
+                "teamId", "7",
+                "isClose", "0",
+                "lastModifyTime", "1234",
+                "lastModifyUserId", "9")));
+
+        assertThat(repository.pendingUpdateCount(18L)).isEqualTo(3L);
+        assertThat(repository.findRoomMetas()).containsExactly(new DocumentRoomMeta(18L, 7L,
+                false, null, 1234L, 9L));
+        verify(cursor).close();
     }
 
     private static Map<byte[], byte[]> bytesMap(Map<String, String> values) {

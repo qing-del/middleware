@@ -15,6 +15,8 @@ import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.ByteRecord;
 import org.springframework.data.redis.connection.stream.RecordId;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -131,6 +133,30 @@ public class DocumentRedisRepository {
             Long deleted = connection.xDel(bytes(pendingUpdatesKey(documentId)), recordIds);
             return deleted == null ? 0 : deleted;
         }
+    }
+
+    /** Returns the number of currently unflushed Redis Stream entries for a document. */
+    public long pendingUpdateCount(long documentId) {
+        requirePositive(documentId, "documentId");
+        try (RedisConnection connection = redisConnectionFactory.getConnection()) {
+            Long count = connection.xLen(bytes(pendingUpdatesKey(documentId)));
+            return count == null ? 0L : count;
+        }
+    }
+
+    /** Scans the small active-room keyspace used by the recovery scheduler. */
+    public List<DocumentRoomMeta> findRoomMetas() {
+        List<DocumentRoomMeta> metas = new ArrayList<>();
+        try (RedisConnection connection = redisConnectionFactory.getConnection();
+             Cursor<byte[]> keys = connection.scan(ScanOptions.scanOptions().match("document:meta:*").count(100).build())) {
+            while (keys.hasNext()) {
+                Map<byte[], byte[]> fields = connection.hGetAll(keys.next());
+                if (fields != null && !fields.isEmpty()) {
+                    metas.add(toRoomMeta(fields));
+                }
+            }
+        }
+        return List.copyOf(metas);
     }
 
     static String roomMetaKey(long documentId) {
