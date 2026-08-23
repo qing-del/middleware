@@ -5,6 +5,6 @@ import org.springframework.context.annotation.Configuration;
 
 /** Registers document module configuration without enabling any collaboration runtime prematurely. */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(DocumentProperties.class)
+@EnableConfigurationProperties({DocumentProperties.class, YjsMergeServiceProperties.class})
 public class DocumentModuleConfiguration {
 }
