@@ -383,15 +383,19 @@ Java 不负责：
 
 ```sql
 CREATE TABLE biz_document (
-    id BIGINT PRIMARY KEY,
+    id BIGINT NOT NULL AUTO_INCREMENT,
     team_id BIGINT NOT NULL, -- v0.3 第一版固定等于 owner_user_id
     title VARCHAR(255) NOT NULL,
     content_object_key VARCHAR(512) NULL,
     persisted_log_id BIGINT NOT NULL DEFAULT 0,
-    last_modify_time BIGINT NOT NULL,
+    last_modify_time DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     last_modify_user_id BIGINT NULL,
     deleted TINYINT NOT NULL DEFAULT 0,
-    version BIGINT NOT NULL DEFAULT 0
+    version BIGINT NOT NULL DEFAULT 0,
+    create_time DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    update_time DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_document_scope_deleted_time (team_id, deleted, last_modify_time)
 );
 ```
 
@@ -402,7 +406,10 @@ CREATE TABLE biz_document (
 - `version` 可用于 Meta CAS/未来扩展；Snapshot CAS 第一版至少必须比较旧 `persisted_log_id`。
 - 当前仓库没有 Team 域，第一版 `team_id` 固定由服务端当前用户 ID 写入，作为个人文档域的
   owner scope；不得信任客户端传入的 `teamId`。正式 Team 模式上线前需另行确认迁移策略。
-- DDL 字段命名最终应服从仓库现有数据库规范；如有统一 `create_time/update_time/del_flag` 基类字段，不得另造风格，需复用。
+- 已按仓库 DDL 规范固定使用自增主键与 `datetime(3)` 的 `create_time/update_time`。为避免
+  破坏文档更新语义，`last_modify_time` 保留为独立的 `datetime(3)` 业务字段；`deleted` 是
+  Document Core 的逻辑删除状态。
+- 不创建跨模块数据库外键，完整性由服务层的个人 scope 过滤和后续持久化流程保证。
 
 ## 7.2 `document_op_log`
 
@@ -411,17 +418,20 @@ CREATE TABLE document_op_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     document_id BIGINT NOT NULL,
     redis_op_id VARCHAR(64) NOT NULL,
-    client_update_id CHAR(36) NULL,
+    client_update_id CHAR(36) NOT NULL,
     update_data LONGBLOB NOT NULL,
     operator_id BIGINT NULL,
     operator_type VARCHAR(16) NOT NULL,
-    created_at BIGINT NOT NULL,
+    create_time DATETIME(3) NOT NULL,
     UNIQUE KEY uk_document_redis_op (document_id, redis_op_id),
+    UNIQUE KEY uk_document_client_update (document_id, client_update_id),
     KEY idx_document_log (document_id, id)
 );
 ```
 
-可选增强：如前端稳定生成 `clientUpdateId`，可增加 `UNIQUE(document_id, client_update_id)`，用于 ACK 丢失后的客户端重发去重。即使未增加该唯一键，Yjs 对重复 Update 仍可安全收敛，但会产生冗余日志。
+`clientUpdateId` 已冻结为 CLIENT_UPDATE 的必填 UUID；`UNIQUE(document_id, client_update_id)` 与
+`UNIQUE(document_id, redis_op_id)` 必须同时存在。前者处理 ACK 丢失后的客户端重发，后者保证
+Redis -> MySQL crash window 的转存幂等。`create_time` 服从当前仓库的数据库时间字段命名约定。
 
 ## 7.3 Redis
 
