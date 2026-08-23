@@ -45,3 +45,10 @@
 - **影响**：握手失败必须直接拒绝；每个 JOIN 都从握手主体导出个人范围并校验 `document.team_id == principal.userId`，客户端提交的身份/范围一律忽略。WebSocket endpoint 的允许 Origin 复用 `jacolp.web.cors.allowed-origin-patterns`，部署环境应将该现有配置收紧为实际前端域名；不新增另一套 Origin 配置。
 - **兼容性**：这是浏览器侧将“同一份既有 JWT”传入握手的传输约定，而非新增登录或 token 签发协议。后续前端接入时仅需按上述子协议建连；本轮不修改 `frontend/`。
 - **依据**：用户于 2026-08-23 授权在指定时限内按推荐方案继续。
+
+## D-007：`UPDATE_ACCEPTED` 的请求关联 ID
+
+- **背景**：v0.3 同时规定“所有控制消息至少携带 `requestId`”，但 `UPDATE_ACCEPTED` 示例仅列出 `clientUpdateId` 和 `redisOpId`。CLIENT_UPDATE 是二进制帧，没有独立的 Text Frame `requestId`。
+- **决策**：ACK 仍携带 `requestId`，并将它设置为 CLIENT_UPDATE header 中的同一个 UUID，即 `requestId == clientUpdateId`；同时保留 `clientUpdateId` 字段以表达其幂等语义。JOIN/LEAVE/SYNC 等 Text request 的响应使用其原始 `requestId`。
+- **影响**：客户端对单次更新可以只用一个稳定 UUID 完成重发去重与 ACK 关联；服务端 codec 对所有控制帧统一要求 UUID requestId，避免出现两种相关性规则。
+- **依据**：用户于 2026-08-23 授权在指定时限内按推荐方案继续。
