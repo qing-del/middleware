@@ -25,4 +25,16 @@ public class MinioAutoConfiguration {
                 .credentials(properties.getAccessKey(), properties.getSecretKey())
                 .build();
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MinioBucketResolver minioBucketResolver(MinioProperties properties) {
+        return new DefaultMinioBucketResolver(properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MinioObjectStorage minioObjectStorage(MinioClient minioClient) {
+        return new DefaultMinioObjectStorage(minioClient);
+    }
 }

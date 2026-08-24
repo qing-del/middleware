@@ -20,8 +20,12 @@ class MinioAutoConfigurationTest {
                 "jacolp.minio.bucket.document=middleware-document")
                 .run(context -> {
                     assertThat(context).hasSingleBean(MinioClient.class);
+                    assertThat(context).hasSingleBean(MinioBucketResolver.class);
+                    assertThat(context).hasSingleBean(MinioObjectStorage.class);
                     assertThat(context.getBean(MinioProperties.class).getBucket())
                             .containsEntry("document", "middleware-document");
+                    assertThat(context.getBean(MinioBucketResolver.class).requireBucket("document"))
+                            .isEqualTo("middleware-document");
                 });
     }
 }
