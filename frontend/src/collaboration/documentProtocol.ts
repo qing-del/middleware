@@ -67,7 +67,8 @@ export function createDocumentWsControl(
   return {
     protocolVersion: DOCUMENT_WS_PROTOCOL_VERSION,
     type,
-    requestId: null,
+    // The server validates requestId on every control frame, including LEAVE and PONG.
+    requestId: createDocumentWsRequestId(),
     documentId: null,
     clientUpdateId: null,
     redisOpId: null,
