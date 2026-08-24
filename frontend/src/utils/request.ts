@@ -245,6 +245,9 @@ request.post = <T = unknown>(url: string, data?: unknown, config?: RequestConfig
 request.put = <T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T> =>
   instance.put(url, data, config) as unknown as Promise<T>
 
+request.patch = <T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T> =>
+  instance.patch(url, data, config) as unknown as Promise<T>
+
 request.delete = <T = unknown>(url: string, config?: RequestConfig): Promise<T> =>
   instance.delete(url, config) as unknown as Promise<T>
 

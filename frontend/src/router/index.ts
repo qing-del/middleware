@@ -87,6 +87,18 @@ const router = createRouter({
           meta: { requiredScopes: ['document:read'] }
         },
         {
+          path: 'documents/new',
+          name: 'UserDocumentCreate',
+          component: () => import('@/views/user/DocumentEditor.vue'),
+          meta: { requiredScopes: ['document:write'] }
+        },
+        {
+          path: 'documents/:documentId',
+          name: 'UserDocumentEditor',
+          component: () => import('@/views/user/DocumentEditor.vue'),
+          meta: { requiredScopes: ['document:write'] }
+        },
+        {
           path: 'notes/new',
           name: 'UserNoteCreate',
           component: () => import('@/views/user/NoteEdit.vue'),
