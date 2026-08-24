@@ -16,19 +16,23 @@ public class DocumentWebSocketConfiguration implements WebSocketConfigurer {
 
     private final DocumentWebSocketHandler handler;
     private final DocumentWebSocketHandshakeInterceptor handshakeInterceptor;
+    private final DocumentWebSocketHandshakeHandler handshakeHandler;
     private final CorsProperties corsProperties;
 
     public DocumentWebSocketConfiguration(DocumentWebSocketHandler handler,
                                           DocumentWebSocketHandshakeInterceptor handshakeInterceptor,
+                                          DocumentWebSocketHandshakeHandler handshakeHandler,
                                           CorsProperties corsProperties) {
         this.handler = Objects.requireNonNull(handler, "handler must not be null");
         this.handshakeInterceptor = Objects.requireNonNull(handshakeInterceptor, "handshakeInterceptor must not be null");
+        this.handshakeHandler = Objects.requireNonNull(handshakeHandler, "handshakeHandler must not be null");
         this.corsProperties = Objects.requireNonNull(corsProperties, "corsProperties must not be null");
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(handler, "/ws/document")
+                .setHandshakeHandler(handshakeHandler)
                 .addInterceptors(handshakeInterceptor)
                 .setAllowedOriginPatterns(corsProperties.getAllowedOriginPatterns().toArray(String[]::new));
     }

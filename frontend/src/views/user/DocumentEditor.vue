@@ -284,7 +284,7 @@ onUnmounted(() => { teardownEditor() })
     </div>
 
     <template v-else>
-      <div v-if="loading" class="state-panel"><Loader2 class="h-5 w-5 animate-spin" /> 正在加载协作文档…</div>
+      <div v-if="loading && !metadata" class="state-panel"><Loader2 class="h-5 w-5 animate-spin" /> 正在加载协作文档…</div>
       <div v-else-if="error && !metadata" class="state-panel is-error"><CircleAlert class="h-5 w-5" /> {{ error }}</div>
       <template v-else-if="metadata">
         <div class="document-title-row">
