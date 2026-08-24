@@ -11,7 +11,7 @@ public interface MinioObjectStorage {
     /** Reads an object and rejects a response larger than {@code maxBytes}. */
     byte[] read(String bucket, String objectKey, long maxBytes);
 
-    /** Stores an object at the exact key supplied by the caller. */
+    /** Stores an object at the exact key supplied by the caller, creating its bucket if needed. */
     void write(String bucket, String objectKey, byte[] content, String contentType);
 
     /** Deletes the object at the exact key supplied by the caller. */

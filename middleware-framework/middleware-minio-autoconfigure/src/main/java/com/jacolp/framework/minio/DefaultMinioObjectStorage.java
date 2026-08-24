@@ -1,9 +1,12 @@
 package com.jacolp.framework.minio;
 
+import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
+import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.errors.ErrorResponseException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -42,12 +45,34 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
         String resolvedContentType = contentType == null || contentType.isBlank()
                 ? DEFAULT_CONTENT_TYPE : contentType;
         try (ByteArrayInputStream stream = new ByteArrayInputStream(content)) {
+            ensureBucketExists(bucket);
             minioClient.putObject(PutObjectArgs.builder().bucket(bucket).object(objectKey)
                     .stream(stream, content.length, -1)
                     .contentType(resolvedContentType)
                     .build());
         } catch (Exception exception) {
             throw new MinioStorageException("could not write MinIO object", exception);
+        }
+    }
+
+    /**
+     * Provision the logical bucket lazily so a newly deployed environment does not need a
+     * separate bucket-creation step before its first upload.
+     *
+     * <p>The create operation is intentionally idempotent across application instances: another
+     * instance may create the bucket after {@code bucketExists} returns false.</p>
+     */
+    private void ensureBucketExists(String bucket) throws Exception {
+        if (minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build())) {
+            return;
+        }
+        try {
+            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+        } catch (ErrorResponseException exception) {
+            String errorCode = exception.errorResponse().code();
+            if (!"BucketAlreadyExists".equals(errorCode) && !"BucketAlreadyOwnedByYou".equals(errorCode)) {
+                throw exception;
+            }
         }
     }
 
