@@ -56,4 +56,16 @@ public class ElasticsearchAutoConfiguration {
     public ElasticsearchClient elasticsearchClient(ElasticsearchTransport elasticsearchTransport) {
         return new ElasticsearchClient(elasticsearchTransport);
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ElasticsearchIndexResolver elasticsearchIndexResolver(ElasticsearchProperties properties) {
+        return new DefaultElasticsearchIndexResolver(properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ElasticsearchOperations elasticsearchOperations(ElasticsearchClient elasticsearchClient) {
+        return new DefaultElasticsearchOperations(elasticsearchClient);
+    }
 }

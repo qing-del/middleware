@@ -20,8 +20,12 @@ class ElasticsearchAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(RestClient.class);
                     assertThat(context).hasSingleBean(ElasticsearchClient.class);
+                    assertThat(context).hasSingleBean(ElasticsearchIndexResolver.class);
+                    assertThat(context).hasSingleBean(ElasticsearchOperations.class);
                     assertThat(context.getBean(ElasticsearchProperties.class).getIndex())
                             .containsEntry("document", "middleware-document");
+                    assertThat(context.getBean(ElasticsearchIndexResolver.class).requireIndex("document"))
+                            .isEqualTo("middleware-document");
                 });
     }
 }
