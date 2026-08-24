@@ -19,8 +19,8 @@ import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.infrastructure.redis.StoredDocumentPendingUpdate;
 import com.jacolp.document.websocket.protocol.DocumentWsCodec;
 import com.jacolp.document.websocket.protocol.DocumentWsFrameType;
-import com.jacolp.framework.minio.MinioProperties;
-import io.minio.MinioClient;
+import com.jacolp.framework.minio.MinioBucketResolver;
+import com.jacolp.framework.minio.MinioObjectStorage;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -30,6 +30,39 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 class DocumentBootstrapServiceTest {
+
+    @Test
+    void readsSnapshotThroughSharedMinioStorageApi() throws Exception {
+        DocumentProperties properties = new DocumentProperties();
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        MinioObjectStorage objectStorage = mock(MinioObjectStorage.class);
+        MinioBucketResolver bucketResolver = mock(MinioBucketResolver.class);
+        DocumentOpLogMapper opLogMapper = mock(DocumentOpLogMapper.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        WebSocketSession session = mock(WebSocketSession.class);
+        byte[] snapshot = new byte[] {9, 8, 7};
+        String objectKey = "document/7/state/snapshot.bin";
+        when(bucketResolver.requireBucket("document")).thenReturn("middleware-document");
+        when(objectStorage.read("middleware-document", objectKey, properties.getSnapshot().getMaxBytes()))
+                .thenReturn(snapshot);
+        when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, properties.getFlushLog().getBatchSize()))
+                .thenReturn(List.of());
+        when(redisRepository.readPendingUpdates(7L, Integer.MAX_VALUE)).thenReturn(List.of());
+
+        DocumentBootstrapService service = new DocumentBootstrapService(objectStorage, bucketResolver,
+                opLogMapper, redisRepository, codec, properties);
+        DocumentDO document = new DocumentDO(7L, 42L, "title", objectKey, 0L,
+                LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
+
+        service.sendBootstrap(document, session);
+
+        ArgumentCaptor<WebSocketMessage<?>> messages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(objectStorage).read("middleware-document", objectKey, properties.getSnapshot().getMaxBytes());
+        verify(session).sendMessage(messages.capture());
+        assertThat(codec.decodeBinary((BinaryMessage) messages.getValue()).type())
+                .isEqualTo(DocumentWsFrameType.SNAPSHOT_STATE);
+        assertThat(codec.decodeBinary((BinaryMessage) messages.getValue()).payload()).containsExactly(snapshot);
+    }
 
     @Test
     void sendsDurableAndRedisPendingUpdatesAsOpaqueBootstrapFrames() throws Exception {
@@ -48,7 +81,8 @@ class DocumentBootstrapServiceTest {
                 new StoredDocumentPendingUpdate("2-0", new DocumentPendingUpdate(7L, pendingUpdate,
                         "123e4567-e89b-12d3-a456-426614174001", 42L, "user", 1L))));
 
-        DocumentBootstrapService service = new DocumentBootstrapService(mock(MinioClient.class), new MinioProperties(),
+        DocumentBootstrapService service = new DocumentBootstrapService(mock(MinioObjectStorage.class),
+                mock(MinioBucketResolver.class),
                 opLogMapper, redisRepository, codec, properties);
         DocumentDO document = new DocumentDO(7L, 42L, "title", null, 0L,
                 LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());

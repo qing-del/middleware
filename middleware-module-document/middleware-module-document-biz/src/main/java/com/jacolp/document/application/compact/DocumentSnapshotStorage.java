@@ -1,14 +1,9 @@
 package com.jacolp.document.application.compact;
 
 import com.jacolp.document.config.DocumentProperties;
-import com.jacolp.framework.minio.MinioProperties;
-import io.minio.GetObjectArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import com.jacolp.framework.minio.MinioBucketResolver;
+import com.jacolp.framework.minio.MinioObjectStorage;
+import com.jacolp.framework.minio.MinioStorageException;
 import java.util.Objects;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -23,14 +18,14 @@ public class DocumentSnapshotStorage {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentSnapshotStorage.class);
 
-    private final MinioClient minioClient;
-    private final MinioProperties minioProperties;
+    private final MinioObjectStorage minioObjectStorage;
+    private final MinioBucketResolver minioBucketResolver;
     private final DocumentProperties documentProperties;
 
-    public DocumentSnapshotStorage(MinioClient minioClient, MinioProperties minioProperties,
+    public DocumentSnapshotStorage(MinioObjectStorage minioObjectStorage, MinioBucketResolver minioBucketResolver,
                                    DocumentProperties documentProperties) {
-        this.minioClient = Objects.requireNonNull(minioClient, "minioClient must not be null");
-        this.minioProperties = Objects.requireNonNull(minioProperties, "minioProperties must not be null");
+        this.minioObjectStorage = Objects.requireNonNull(minioObjectStorage, "minioObjectStorage must not be null");
+        this.minioBucketResolver = Objects.requireNonNull(minioBucketResolver, "minioBucketResolver must not be null");
         this.documentProperties = Objects.requireNonNull(documentProperties, "documentProperties must not be null");
     }
 
@@ -38,11 +33,11 @@ public class DocumentSnapshotStorage {
         if (objectKey == null || objectKey.isBlank()) {
             return null;
         }
-        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder().bucket(bucket()).object(objectKey).build())) {
-            return readBounded(stream);
+        try {
+            return minioObjectStorage.read(bucket(), objectKey, documentProperties.getSnapshot().getMaxBytes());
         } catch (DocumentSnapshotStorageException exception) {
             throw exception;
-        } catch (Exception exception) {
+        } catch (MinioStorageException exception) {
             throw new DocumentSnapshotStorageException("could not read document snapshot", exception);
         }
     }
@@ -55,37 +50,20 @@ public class DocumentSnapshotStorage {
         Objects.requireNonNull(yjsState, "yjsState must not be null");
         validateSnapshotSize(yjsState.length);
         String objectKey = "document/%d/state/%s.bin".formatted(documentId, UUID.randomUUID());
-        try (ByteArrayInputStream stream = new ByteArrayInputStream(yjsState)) {
-            minioClient.putObject(PutObjectArgs.builder().bucket(bucket()).object(objectKey)
-                    .stream(stream, yjsState.length, -1)
-                    .contentType("application/octet-stream")
-                    .build());
+        try {
+            minioObjectStorage.write(bucket(), objectKey, yjsState, "application/octet-stream");
             return objectKey;
-        } catch (Exception exception) {
+        } catch (MinioStorageException exception) {
             throw new DocumentSnapshotStorageException("could not write document snapshot", exception);
         }
     }
 
-    private byte[] readBounded(InputStream stream) throws IOException {
-        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = stream.read(buffer)) != -1) {
-                if (output.size() + read > documentProperties.getSnapshot().getMaxBytes()) {
-                    throw new DocumentSnapshotStorageException("document snapshot exceeds configured maximum size");
-                }
-                output.write(buffer, 0, read);
-            }
-            return output.toByteArray();
-        }
-    }
-
     private String bucket() {
-        String bucket = minioProperties.getBucket().get("document");
-        if (bucket == null || bucket.isBlank()) {
-            throw new DocumentSnapshotStorageException("jacolp.minio.bucket.document is required for document snapshots");
+        try {
+            return minioBucketResolver.requireBucket("document");
+        } catch (MinioStorageException exception) {
+            throw new DocumentSnapshotStorageException("jacolp.minio.bucket.document is required for document snapshots", exception);
         }
-        return bucket;
     }
 
     private void validateSnapshotSize(int bytes) {
