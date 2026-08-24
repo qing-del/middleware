@@ -2,7 +2,7 @@ package com.jacolp.document.websocket.protocol;
 
 import java.util.Arrays;
 
-/** Binary outer-header frame types; their payload is raw Yjs data. */
+/** 二进制外层帧类型；其 payload 为原始 Yjs 或 awareness 数据。 */
 public enum DocumentWsFrameType {
     CLIENT_UPDATE(0x01),
     CRDT_UPDATE(0x02),

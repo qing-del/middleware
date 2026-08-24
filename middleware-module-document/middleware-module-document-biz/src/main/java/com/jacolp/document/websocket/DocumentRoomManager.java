@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Owns JVM-local Room runtime state; durable content remains in Redis/MySQL/MinIO. */
+/** 管理 JVM 本地 Room 运行时状态；可恢复内容仍存放在 Redis、MySQL 与 MinIO。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentRoomManager {
@@ -58,7 +58,7 @@ public class DocumentRoomManager {
         return removed.get();
     }
 
-    /** There is no local Room only after restart or final cleanup; both mean this JVM has no live session. */
+    /** 本机没有 Room 只会发生在重启或最终清理后，两种情况都表示本 JVM 没有存活会话。 */
     public boolean hasNoLocalSessions(long documentId) {
         return find(documentId).map(room -> room.sessionCount() == 0).orElse(true);
     }
@@ -67,7 +67,7 @@ public class DocumentRoomManager {
         return find(documentId).map(DocumentRoom::beginClosingIfEmpty).orElse(true);
     }
 
-    /** Called by the handler after session ownership changes; values are local to this Java instance. */
+    /** 会话归属变化后由处理器调用；指标值仅代表当前 Java 实例。 */
     public void refreshRuntimeMetrics() {
         int sessions = 0;
         int active = 0;

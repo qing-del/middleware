@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Re-emits flush signals after publisher failures or broker losses; Redis remains the source of truth. */
+/** 发布器失败或 Broker 丢失消息后重新发送 flush 信号；Redis 仍是待写入数据的事实来源。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentFlushRecoveryScanner {

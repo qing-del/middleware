@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Persistence model for the new v0.3 {@code biz_document} table. */
+/** v0.3 {@code biz_document} 表的一行持久化模型。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,7 +16,7 @@ public class DocumentDO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private Long id;
-    /** Personal scope in v0.3; this is always the owner user ID. */
+    /** v0.3 中的个人空间标识，始终保存文档所有者的用户 ID。 */
     private Long teamId;
     private String title;
     private String contentObjectKey;

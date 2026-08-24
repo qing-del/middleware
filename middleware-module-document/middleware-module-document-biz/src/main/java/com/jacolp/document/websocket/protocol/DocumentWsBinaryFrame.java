@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Outer binary frame only; payload remains opaque Yjs bytes to Java. */
+/** 二进制帧外层结构；其中 payload 对 Java 始终是未解析的 Yjs 字节。 */
 public record DocumentWsBinaryFrame(DocumentWsFrameType type, UUID eventId, byte[] payload) {
 
     public DocumentWsBinaryFrame {

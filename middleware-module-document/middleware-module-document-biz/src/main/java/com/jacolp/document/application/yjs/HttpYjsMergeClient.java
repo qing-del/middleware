@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-/** HTTP adapter for the isolated Yjs merge service. */
+/** 通过 HTTP 调用隔离 Yjs 合并服务的适配器。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class HttpYjsMergeClient implements YjsMergeClient {

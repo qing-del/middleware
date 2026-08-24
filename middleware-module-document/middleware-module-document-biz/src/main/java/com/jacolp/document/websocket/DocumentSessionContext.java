@@ -3,7 +3,7 @@ package com.jacolp.document.websocket;
 import java.util.Objects;
 import org.springframework.web.socket.WebSocketSession;
 
-/** Per-session runtime metadata. No Yjs update history is kept in JVM memory. */
+/** 单个会话的运行时元数据；JVM 内不保存任何 Yjs 更新历史。 */
 public final class DocumentSessionContext {
 
     private final WebSocketSession session;

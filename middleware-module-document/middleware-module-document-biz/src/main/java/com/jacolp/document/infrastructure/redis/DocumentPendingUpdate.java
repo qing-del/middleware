@@ -3,7 +3,7 @@ package com.jacolp.document.infrastructure.redis;
 import java.util.Objects;
 import java.util.UUID;
 
-/** A pending Yjs update before FLUSH_LOG moves it to MySQL. */
+/** 在 FLUSH_LOG 写入 MySQL 前暂存在 Redis 中的一条 Yjs 更新。 */
 public record DocumentPendingUpdate(
         long documentId,
         byte[] updateData,

@@ -1,6 +1,6 @@
 package com.jacolp.document.infrastructure.redis;
 
-/** Redis-backed runtime metadata for one document room; it never contains document body data. */
+/** 单个文档 Room 的 Redis 运行时元数据，始终不保存文档正文。 */
 public record DocumentRoomMeta(
         long documentId,
         long teamId,

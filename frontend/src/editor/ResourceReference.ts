@@ -9,9 +9,8 @@ export interface ResourceReferenceAttributes {
 }
 
 /**
- * Inline atom persisted in the Y.XmlFragment through Tiptap's collaboration
- * binding. The first version records the reference only; a later relation
- * projector may consume the same attributes without rewriting editor content.
+ * 经由 Tiptap 协作绑定写入 Y.XmlFragment 的行内原子节点。
+ * 第一版只记录引用属性；后续关系投影器可直接消费这些属性，无需改写编辑器正文。
  */
 export const ResourceReference = Node.create({
   name: 'resourceReference',

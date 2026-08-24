@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Durable Yjs update accepted from the Redis pending stream. */
+/** 从 Redis 待持久化 Stream 接收并写入数据库的一条 Yjs 更新。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

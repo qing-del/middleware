@@ -3,7 +3,7 @@ package com.jacolp.document.controller;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** Request body for creating a document in the authenticated user's personal scope. */
+/** 在当前登录用户的个人空间中创建文档时使用的请求体。 */
 public record DocumentCreateRequest(
         @NotBlank(message = "文档标题不能为空")
         @Size(max = 255, message = "文档标题不能超过 255 个字符")

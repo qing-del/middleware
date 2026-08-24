@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Binary-only MinIO adapter for immutable Yjs snapshots. */
+/** 只读写二进制内容的 MinIO 适配器，用于保存不可变 Yjs 快照。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentSnapshotStorage {
@@ -42,7 +42,7 @@ public class DocumentSnapshotStorage {
         }
     }
 
-    /** Writes a new immutable object and returns its never-reused object key. */
+    /** 写入一个新快照对象，并返回永不复用的对象键。 */
     public String write(long documentId, byte[] yjsState) {
         if (documentId <= 0) {
             throw new IllegalArgumentException("documentId must be positive");

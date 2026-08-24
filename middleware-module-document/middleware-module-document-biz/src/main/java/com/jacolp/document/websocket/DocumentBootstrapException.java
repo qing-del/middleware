@@ -1,6 +1,6 @@
 package com.jacolp.document.websocket;
 
-/** The document bootstrap source could not be read or sent completely. */
+/** 无法完整读取或发送文档 bootstrap 数据时抛出。 */
 public class DocumentBootstrapException extends RuntimeException {
 
     public DocumentBootstrapException(String message, Throwable cause) {

@@ -123,7 +123,8 @@ async function initializeEditor(): Promise<void> {
     if (!accessToken) throw new Error('登录状态已失效，请重新登录')
 
     const document = new Y.Doc()
-    // The root is explicit so it remains the stable v0.3 content contract.
+    // 编辑器绑定前先创建具名 Yjs 根节点；所有 Tiptap 文档内容随后都从这个唯一的
+    // `content` fragment 读写。
     document.getXmlFragment('content')
     const client = new DocumentCollaborationClient({
       documentId: loadedMetadata.documentId,
@@ -158,6 +159,7 @@ async function initializeEditor(): Promise<void> {
     })
 
     if (requestedVersion !== initializationVersion) {
+      // 元数据加载期间路由可能已经变化；丢弃这个游离编辑器，避免它挂到下一个文档页面。
       instance.destroy()
       client.dispose()
       document.destroy()
@@ -223,7 +225,7 @@ function runEditorCommand(command: () => boolean): void {
 }
 
 function isActive(name: string): boolean {
-  // Tiptap lives outside Vue; this makes toolbar state react to its transactions.
+  // Tiptap 的更新不在 Vue 响应式系统内；读取该计数器能让每次编辑事务都刷新工具栏格式状态。
   void editorVersion.value
   return editor?.isActive(name) ?? false
 }

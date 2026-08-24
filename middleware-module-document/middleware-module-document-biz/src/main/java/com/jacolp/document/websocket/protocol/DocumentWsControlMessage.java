@@ -2,7 +2,7 @@ package com.jacolp.document.websocket.protocol;
 
 import java.util.UUID;
 
-/** JSON control frame. Fields that do not apply to a control type are null. */
+/** JSON 控制帧；某个控制类型不需要的字段保持为 null。 */
 public record DocumentWsControlMessage(
         int protocolVersion,
         DocumentWsControlType type,

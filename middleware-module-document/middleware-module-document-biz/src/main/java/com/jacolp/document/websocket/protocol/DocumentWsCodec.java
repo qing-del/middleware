@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.TextMessage;
 
-/** Parses document protocol headers while leaving Yjs bytes untouched. */
+/** 解析文档协议头，同时保持 Yjs 字节内容原样不动。 */
 @Component
 public class DocumentWsCodec {
 

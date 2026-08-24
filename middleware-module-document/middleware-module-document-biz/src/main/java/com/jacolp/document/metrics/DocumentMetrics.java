@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Low-cardinality telemetry for the collaboration persistence pipeline. */
+/** 协作持久化链路的低基数遥测指标，避免文档 ID 等高基数标签进入监控系统。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentMetrics {

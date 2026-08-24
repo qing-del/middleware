@@ -15,11 +15,10 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
 /**
- * Authenticates a browser WebSocket handshake using the existing RS256 access token.
+ * 使用现有 RS256 access token 对浏览器 WebSocket 握手进行认证。
  *
- * <p>Native browser WebSocket clients cannot add an Authorization header, therefore the token is
- * passed as the single {@code bearer.&lt;JWT&gt;} Sec-WebSocket-Protocol value. The token is never read
- * from a query parameter.</p>
+ * <p>浏览器原生 WebSocket 无法附加 Authorization 请求头，因此令牌作为唯一的
+ * {@code bearer.&lt;JWT&gt;} Sec-WebSocket-Protocol 值传递；不会从查询参数读取令牌。</p>
  */
 @Component
 public class DocumentWebSocketHandshakeInterceptor implements HandshakeInterceptor {
@@ -59,7 +58,7 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
     @Override
     public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                WebSocketHandler webSocketHandler, Exception exception) {
-        // Authentication is complete before the upgrade; no session cleanup is required here.
+        // 认证在协议升级前已经完成，这里没有需要清理的 WebSocket 会话。
     }
 
     public static CurrentPrincipal requirePrincipal(Map<String, Object> attributes) {

@@ -13,7 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-/** Maintains durable close-token state independently from the JVM-local Room container. */
+/** 在 JVM 本地 Room 之外维护可持久化的关闭令牌状态。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentRoomLifecycleService {
@@ -30,7 +30,7 @@ public class DocumentRoomLifecycleService {
         this.schedulePublisher = Objects.requireNonNull(schedulePublisher, "schedulePublisher must not be null");
     }
 
-    /** A JOIN invalidates every old delayed CLOSE token before bootstrap completes. */
+    /** JOIN 会在 bootstrap 完成前使所有旧的延迟 CLOSE 令牌失效。 */
     public void reopen(DocumentDO document, long userId) {
         long lastModifiedAt = document.getLastModifyTime() == null ? System.currentTimeMillis()
                 : document.getLastModifyTime().atZone(APPLICATION_ZONE).toInstant().toEpochMilli();
@@ -38,7 +38,7 @@ public class DocumentRoomLifecycleService {
                 UUID.randomUUID().toString(), lastModifiedAt, userId));
     }
 
-    /** A local last leave is enough to request close; consumer presence checks decide whether it may execute. */
+    /** 本机最后一个会话离开即可请求关闭；消费者会通过全局在线状态决定是否真正执行。 */
     public void requestClose(long documentId, long teamId) {
         DocumentRoomMeta previous = documentRedisRepository.findRoomMeta(documentId)
                 .orElse(new DocumentRoomMeta(documentId, teamId, false, null, System.currentTimeMillis(), teamId));

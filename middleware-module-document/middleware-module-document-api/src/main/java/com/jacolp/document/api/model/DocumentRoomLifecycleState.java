@@ -1,6 +1,6 @@
 package com.jacolp.document.api.model;
 
-/** Runtime-only lifecycle states for a collaborative document room. */
+/** 协作文档 Room 的仅运行时生命周期状态。 */
 public enum DocumentRoomLifecycleState {
     OPEN,
     ACTIVE,

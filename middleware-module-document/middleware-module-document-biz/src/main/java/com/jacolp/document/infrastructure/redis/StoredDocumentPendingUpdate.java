@@ -2,7 +2,7 @@ package com.jacolp.document.infrastructure.redis;
 
 import java.util.Objects;
 
-/** A pending update together with the Redis Stream entry ID required for cutoff and XDEL. */
+/** 待持久化更新及其 Redis Stream 条目 ID，后者用于确定截断范围和执行 XDEL。 */
 public record StoredDocumentPendingUpdate(String redisOpId, DocumentPendingUpdate update) {
 
     public StoredDocumentPendingUpdate {

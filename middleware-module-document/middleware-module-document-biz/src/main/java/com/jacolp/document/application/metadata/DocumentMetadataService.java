@@ -12,7 +12,7 @@ import java.util.Objects;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-/** Owns personal-scope metadata CRUD without exposing or interpreting CRDT content. */
+/** 处理个人空间中的文档元数据增删改查，不读取或解析 CRDT 正文。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentMetadataService {
@@ -61,7 +61,7 @@ public class DocumentMetadataService {
     }
 
     /**
-     * Soft-deletes only inactive documents. Redis, MinIO and op-log content are deliberately retained.
+     * 只软删除没有活跃协作会话的文档；Redis、MinIO 和操作日志内容暂不物理清理。
      */
     public void delete(long ownerUserId, long documentId) {
         DocumentDO document = findRequired(ownerUserId, documentId);

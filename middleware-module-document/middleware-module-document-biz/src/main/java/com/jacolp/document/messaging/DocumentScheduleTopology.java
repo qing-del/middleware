@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** RabbitMQ declarations for content-free document scheduling signals. */
+/** 声明承载文档无正文调度信号的 RabbitMQ 拓扑。 */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentScheduleTopology {

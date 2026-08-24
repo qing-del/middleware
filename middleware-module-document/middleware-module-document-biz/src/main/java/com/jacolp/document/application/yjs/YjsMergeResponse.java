@@ -2,7 +2,7 @@ package com.jacolp.document.application.yjs;
 
 import java.util.Base64;
 
-/** JSON wire response from {@code POST /internal/yjs/merge}. */
+/** {@code POST /internal/yjs/merge} 返回的 JSON 响应报文。 */
 record YjsMergeResponse(String mergedState) {
 
     byte[] decodeMergedState() {

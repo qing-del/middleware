@@ -66,6 +66,7 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
             byte[] buffer = new byte[8192];
             int read;
             while ((read = stream.read(buffer)) != -1) {
+                // 写入下一块之前先检查，超过配置的内存上限时调用方不会得到不完整对象。
                 if (output.size() > maxBytes - read) {
                     throw new MinioStorageException("MinIO object exceeds configured maximum size");
                 }

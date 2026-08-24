@@ -22,10 +22,10 @@ import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.stereotype.Repository;
 
 /**
- * Binary-safe Redis persistence for document room metadata and pending Yjs updates.
+ * 以二进制安全方式保存文档 Room 元数据和待持久化的 Yjs 更新。
  *
- * <p>It intentionally bypasses {@code StringRedisTemplate}: a Yjs update is arbitrary binary and
- * must reach Redis Stream unchanged.</p>
+ * <p>这里刻意不使用 {@code StringRedisTemplate}：Yjs 更新是任意二进制数据，
+ * 写入 Redis Stream 时必须保持字节完全不变。</p>
  */
 @Repository
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
@@ -85,7 +85,7 @@ public class DocumentRedisRepository {
         }
     }
 
-    /** Appends a binary update and returns its Redis Stream ID after XADD succeeds. */
+    /** 追加一条二进制更新，并在 XADD 成功后返回对应的 Redis Stream ID。 */
     public String appendPendingUpdate(DocumentPendingUpdate update) {
         Map<byte[], byte[]> fields = new LinkedHashMap<>();
         fields.put(FIELD_UPDATE, update.updateData());
@@ -137,7 +137,7 @@ public class DocumentRedisRepository {
         }
     }
 
-    /** Returns the number of currently unflushed Redis Stream entries for a document. */
+    /** 返回一个文档当前尚未落库的 Redis Stream 条目数。 */
     public long pendingUpdateCount(long documentId) {
         requirePositive(documentId, "documentId");
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
@@ -146,7 +146,7 @@ public class DocumentRedisRepository {
         }
     }
 
-    /** Scans the small active-room keyspace used by the recovery scheduler. */
+    /** 扫描恢复调度器使用的小型活跃 Room 键空间。 */
     public List<DocumentRoomMeta> findRoomMetas() {
         List<DocumentRoomMeta> metas = new ArrayList<>();
         try (RedisConnection connection = redisConnectionFactory.getConnection();
@@ -161,7 +161,7 @@ public class DocumentRedisRepository {
         return List.copyOf(metas);
     }
 
-    /** Creates or renews an ephemeral cross-instance session presence lease. */
+    /** 创建或续期跨实例可见的临时会话在线租约。 */
     public void savePresence(String presenceKey, long ttlMs) {
         if (presenceKey == null || presenceKey.isBlank()) {
             throw new IllegalArgumentException("presenceKey must not be blank");
@@ -183,7 +183,7 @@ public class DocumentRedisRepository {
         }
     }
 
-    /** Counts non-expired session leases for one document across all core instances. */
+    /** 统计所有 core 实例上一个文档尚未过期的会话在线租约。 */
     public long countPresence(long documentId) {
         requirePositive(documentId, "documentId");
         long count = 0L;
@@ -198,7 +198,7 @@ public class DocumentRedisRepository {
         return count;
     }
 
-    /** Clears only redis runtime state after final persistence; session lease keys are checked separately. */
+    /** 最终持久化后只清除 Redis 运行时状态；会话在线租约需要单独校验。 */
     public void deleteRoomRuntime(long documentId) {
         requirePositive(documentId, "documentId");
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {

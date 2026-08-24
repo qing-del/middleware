@@ -13,7 +13,7 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
-/** Runtime-only session container. Deliberately never stores a Yjs document or its content. */
+/** 仅保存运行时会话的容器，刻意不在 JVM 内保存 Yjs 文档或正文内容。 */
 public class DocumentRoom {
 
     private static final int SEND_TIME_LIMIT_MS = 10_000;
@@ -76,7 +76,7 @@ public class DocumentRoom {
         context.markActive();
     }
 
-    /** Starts final close only while no local session is present; a later JOIN reopens the Room. */
+    /** 仅当本机没有会话时开始最终关闭；之后的 JOIN 会重新打开这个 Room。 */
     public synchronized boolean beginClosingIfEmpty() {
         if (!sessions.isEmpty() || lifecycleState == DocumentRoomLifecycleState.CLOSED) {
             return false;
@@ -138,7 +138,7 @@ public class DocumentRoom {
                     session.close(SLOW_CLIENT);
                 }
             } catch (IOException ignored) {
-                // Transport failure is already handled by removing the session from the Room.
+                // 传输失败已经通过从 Room 移除该会话处理，无需再次向上抛出。
             }
         }
     }

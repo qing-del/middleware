@@ -94,6 +94,8 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
         try {
             SearchResponse<T> response = client.search(request -> request.index(indexName).query(query)
                     .from(from).size(size), documentType);
+            // 这里只转换带 source 的命中为框架 DTO；需要高亮、聚合等其他响应部分时，
+            // 调用方仍可直接注入 ElasticsearchClient。
             List<ElasticsearchSearchHit<T>> hits = response.hits().hits().stream()
                     .map(hit -> new ElasticsearchSearchHit<>(hit.id(), hit.source(), hit.score()))
                     .toList();

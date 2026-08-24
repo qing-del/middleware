@@ -19,7 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.WebSocketSession;
 
-/** Sends a recoverable document bootstrap without interpreting any Yjs payload. */
+/** 按快照、持久化日志和 Redis 待写入更新的顺序发送可恢复 bootstrap，不解析任何 Yjs 内容。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentBootstrapService {
@@ -94,8 +94,8 @@ public class DocumentBootstrapService {
     }
 
     private void sendPendingUpdates(long documentId, WebSocketSession session) throws IOException {
-        // This is intentionally an all-visible-stream read: reconnect must not omit an accepted
-        // update merely because FLUSH_LOG has not consumed the next batch yet.
+        // 这里刻意读取所有可见 Stream 条目：重连时不能因为 FLUSH_LOG 尚未消费下一批，
+        // 就遗漏一条已经接收成功的更新。
         List<StoredDocumentPendingUpdate> updates = documentRedisRepository.readPendingUpdates(documentId, Integer.MAX_VALUE);
         for (StoredDocumentPendingUpdate update : updates) {
             send(session, DocumentWsFrameType.BOOTSTRAP_UPDATE, BOOTSTRAP_EVENT_ID, update.update().updateData());

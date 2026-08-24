@@ -3,7 +3,7 @@ package com.jacolp.document.messaging;
 import com.jacolp.document.api.model.DocumentScheduleType;
 import java.util.Objects;
 
-/** A small, content-free signal that asks a consumer to recheck document state. */
+/** 不携带正文的小型调度信号，要求消费者重新检查文档状态。 */
 public record DocumentScheduleMessage(
         Long documentId,
         DocumentScheduleType type,

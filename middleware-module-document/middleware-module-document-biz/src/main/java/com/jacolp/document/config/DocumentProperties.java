@@ -2,7 +2,7 @@ package com.jacolp.document.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** Runtime limits for the document collaboration pipeline. */
+/** 文档协作链路使用的运行时容量与时限配置。 */
 @ConfigurationProperties(prefix = "jacolp.document")
 public class DocumentProperties {
     private boolean enabled;

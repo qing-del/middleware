@@ -10,8 +10,8 @@ import org.apache.ibatis.annotations.Param;
 public interface DocumentOpLogMapper {
 
     /**
-     * Inserts a Redis stream cutoff batch. Existing redis/client operation IDs are deliberately
-     * ignored so replay after a DB-commit/Redis-XDEL crash stays idempotent.
+     * 写入一段 Redis Stream 截断批次。已有的 Redis/客户端操作 ID 会被刻意忽略，
+     * 因此数据库提交成功但 Redis XDEL 前发生崩溃时，后续回放仍保持幂等。
      */
     int insertBatchIgnoringDuplicates(@Param("logs") List<DocumentOpLogDO> logs);
 

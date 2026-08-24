@@ -9,6 +9,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const documents = ref<DocumentMetadata[]>([])
 
+// 接口可能返回刚被软删除的记录；列表页只向用户展示仍可进入协作的文档。
 const visibleDocuments = computed(() => documents.value.filter(document => !document.deleted))
 
 function formatTime(timestamp: number): string {
@@ -21,6 +22,7 @@ function formatTime(timestamp: number): string {
 }
 
 async function loadDocuments() {
+  // 每次加载先清除旧错误，避免一次失败的提示覆盖后续成功返回的列表。
   loading.value = true
   error.value = null
   try {

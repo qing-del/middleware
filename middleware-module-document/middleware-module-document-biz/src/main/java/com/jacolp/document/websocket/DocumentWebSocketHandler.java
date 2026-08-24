@@ -34,7 +34,7 @@ import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Authenticated document collaboration endpoint. Java routes opaque Yjs bytes but never parses them. */
+/** 已认证的文档协作端点；Java 只路由不透明的 Yjs 字节，绝不解析正文。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
@@ -159,6 +159,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             if (alreadyJoinedDocumentId != documentId) {
                 throw new DocumentRoomAccessException("a WebSocket session may join only one document at a time");
             }
+            // 同一会话重复 JOIN 时不重放文档，只确认已有的 Room 成员关系仍有效。
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
                     control.requestId(), documentId, null, null, null, null));
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.SYNC_COMPLETE,
@@ -182,6 +183,8 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             lifecycleService.reopen(document, principal.userId());
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
                     control.requestId(), documentId, null, null, null, null));
+            // 在快照、持久化日志和 Redis 待写入更新全部发送完前，会话不会进入 active；
+            // 此期间收到的二进制编辑会被拒绝。
             bootstrapService.sendBootstrap(document, room.requireSession(session.getId()).session());
             room.markActive(session.getId());
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.SYNC_COMPLETE,
@@ -210,6 +213,8 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         String redisOpId = documentRedisRepository.appendPendingUpdate(new DocumentPendingUpdate(room.documentId(),
                 frame.payload(), frame.eventId().toString(), principal.userId(), principal.clientId(), now));
 
+        // 先将不透明更新写入 Redis，随后才确认和广播；之后的 HTTP 或 WebSocket 发送失败时，
+        // 已接收的编辑仍可被恢复。
         int modified = documentMapper.updateLastModificationIfActive(room.documentId(), principal.userId(),
                 LocalDateTime.now(APPLICATION_ZONE), principal.userId());
         if (modified != 1) {
@@ -288,7 +293,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         try {
             schedulePublisher.scheduleFlushLog(documentId);
         } catch (RuntimeException exception) {
-            // XADD already made this update recoverable; the Recovery Scanner will reschedule it.
+            // Redis Stream 追加已保存这条更新；恢复扫描会在之后为同一文档重新发布 FLUSH_LOG 信号。
             log.warn("Could not schedule FLUSH_LOG for documentId={}: {}", documentId, exception.getMessage());
         }
     }

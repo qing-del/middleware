@@ -2,7 +2,7 @@ package com.jacolp.document.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** Connection settings for the internal, stateless Yjs merge service. */
+/** 内部无状态 Yjs 合并服务的连接配置。 */
 @ConfigurationProperties(prefix = "jacolp.yjs-merge-service")
 public class YjsMergeServiceProperties {
 

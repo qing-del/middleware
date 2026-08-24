@@ -67,7 +67,7 @@ export function createDocumentWsControl(
   return {
     protocolVersion: DOCUMENT_WS_PROTOCOL_VERSION,
     type,
-    // The server validates requestId on every control frame, including LEAVE and PONG.
+    // 服务端会校验每个控制帧的 requestId，LEAVE 和 PONG 也不例外。
     requestId: createDocumentWsRequestId(),
     documentId: null,
     clientUpdateId: null,
@@ -83,6 +83,8 @@ export function encodeDocumentWsFrame(
   eventId: string,
   payload: Uint8Array
 ): ArrayBuffer {
+  // 二进制帧固定在不透明的 Yjs/awareness payload 前写入协议版本、一个帧类型字节和 16 字节 UUID；
+  // Java codec 按这个精确布局读取。
   const frame = new Uint8Array(DOCUMENT_WS_HEADER_BYTES + payload.byteLength)
   frame[0] = DOCUMENT_WS_PROTOCOL_VERSION
   frame[1] = type
@@ -119,5 +121,6 @@ export function parseDocumentWsControl(data: string): DocumentWsControlMessage {
   if (control.protocolVersion !== DOCUMENT_WS_PROTOCOL_VERSION || typeof control.type !== 'string') {
     throw new Error('文档 WebSocket 控制帧不兼容')
   }
+  // 此处只校验外层结构；收到控制帧的处理器再判断该类型是否必须包含某个字段。
   return control as DocumentWsControlMessage
 }

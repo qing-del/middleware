@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** Moves one bounded cutoff of accepted binary updates from Redis into the durable MySQL log. */
+/** 将一段受大小限制的已接收二进制更新从 Redis 写入持久化 MySQL 操作日志。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentFlushLogService {
@@ -51,8 +51,8 @@ public class DocumentFlushLogService {
     }
 
     /**
-     * Persists a bounded Redis Stream prefix and deletes exactly that prefix only after the database transaction commits.
-     * A duplicate replay is safe because the database has unique keys for both Redis and client operation IDs.
+     * 持久化 Redis Stream 的一个有界前缀，并仅在数据库事务提交后删除这段前缀。
+     * 数据库对 Redis 操作 ID 和客户端操作 ID 都有唯一约束，因此重复回放不会产生重复记录。
      */
     public DocumentFlushLogResult flush(long documentId) {
         requirePositive(documentId);
@@ -67,6 +67,8 @@ public class DocumentFlushLogService {
                 return DocumentFlushLogResult.empty(documentId);
             }
 
+            // 先把选中的 Stream 前缀写入数据库；事务返回后才删除 Redis 条目，
+            // 进程在两者之间崩溃时，重放的重复操作仍能被安全忽略。
             transactionTemplate.execute(status -> {
                 documentOpLogMapper.insertBatchIgnoringDuplicates(batch.logs());
                 return null;
@@ -89,6 +91,8 @@ public class DocumentFlushLogService {
         long bytes = 0L;
         for (StoredDocumentPendingUpdate pendingUpdate : pending) {
             int updateBytes = pendingUpdate.update().updateData().length;
+            // 即使第一条更新超过软批次上限也要写入，避免一条可恢复的 Stream 记录
+            // 永久阻塞其后的所有更新。
             if (!logs.isEmpty() && bytes + updateBytes > maxBytes) {
                 break;
             }

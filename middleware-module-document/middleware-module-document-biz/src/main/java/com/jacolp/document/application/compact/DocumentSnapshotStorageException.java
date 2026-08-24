@@ -1,6 +1,6 @@
 package com.jacolp.document.application.compact;
 
-/** Raised when an immutable document snapshot cannot be read or written in MinIO. */
+/** 文档不可变快照无法从 MinIO 读取或写入时抛出。 */
 public class DocumentSnapshotStorageException extends RuntimeException {
 
     public DocumentSnapshotStorageException(String message) {

@@ -15,7 +15,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Publishes small durable scheduling signals; document state stays in Redis and MySQL. */
+/** 发布不含正文的调度信号；文档状态仍保存在 Redis 与 MySQL。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentSchedulePublisher {

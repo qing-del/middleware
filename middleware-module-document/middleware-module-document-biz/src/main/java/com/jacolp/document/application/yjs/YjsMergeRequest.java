@@ -4,7 +4,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 
-/** JSON wire request for {@code POST /internal/yjs/merge}. */
+/** {@code POST /internal/yjs/merge} 使用的 JSON 请求报文。 */
 record YjsMergeRequest(String baseState, List<String> updates) {
 
     YjsMergeRequest {

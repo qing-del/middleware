@@ -16,7 +16,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-/** Compacts one bounded durable log cutoff into a new immutable Yjs snapshot. */
+/** 将一段已持久化的日志位点压缩成一个新的不可变 Yjs 快照。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentCompactService {
@@ -68,6 +68,7 @@ public class DocumentCompactService {
                 return DocumentCompactResult.noUpdates(documentId);
             }
             long cutoffLogId = requireOrderedCutoff(basePersistedLogId, updates);
+            // 合并当前不可变快照和一段有序日志后写入新对象；CAS 成功前，读取方仍通过旧指针读取旧快照。
             byte[] mergedState = yjsMergeClient.merge(snapshotStorage.read(document.getContentObjectKey()),
                     updates.stream().map(DocumentOpLogDO::getUpdateData).toList());
             String objectKey = snapshotStorage.write(documentId, mergedState);
@@ -75,13 +76,14 @@ public class DocumentCompactService {
             int casAffected = documentMapper.updateSnapshotPointerIfPersistedLogId(documentId, basePersistedLogId,
                     objectKey, cutoffLogId);
             if (casAffected != 1) {
+                // 另一轮压缩已先更新快照指针；本轮写出的对象不会被引用，也不会删除属于较新状态的日志。
                 failed = false;
                 return new DocumentCompactResult(documentId, DocumentCompactResult.Status.CAS_LOST, cutoffLogId, objectKey);
             }
             try {
                 documentOpLogMapper.deleteByDocumentIdThroughId(documentId, cutoffLogId);
             } catch (RuntimeException exception) {
-                // The new pointer makes these rows logically obsolete; retry/cleanup may delete them later.
+                // 新快照指针已使这些日志在语义上过期；后续重试或清理任务可再删除它们。
                 log.warn("Snapshot pointer advanced but op log cleanup failed for documentId={}, cutoffLogId={}: {}",
                         documentId, cutoffLogId, exception.getMessage());
             }

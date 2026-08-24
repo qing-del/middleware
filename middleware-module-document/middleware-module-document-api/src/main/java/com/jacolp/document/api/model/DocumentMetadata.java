@@ -2,7 +2,7 @@ package com.jacolp.document.api.model;
 
 import java.util.Objects;
 
-/** Minimal document metadata that can be shared without exposing CRDT content or storage pointers. */
+/** 可跨模块传递的最小文档元数据；不包含 CRDT 正文和对象存储指针。 */
 public record DocumentMetadata(
         long documentId,
         long teamId,

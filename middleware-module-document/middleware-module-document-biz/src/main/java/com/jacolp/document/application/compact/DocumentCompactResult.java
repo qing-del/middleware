@@ -1,6 +1,6 @@
 package com.jacolp.document.application.compact;
 
-/** Result of a CAS-protected immutable snapshot compaction attempt. */
+/** 一次由 CAS 保护的不可变快照压缩尝试结果。 */
 public record DocumentCompactResult(long documentId, Status status, Long cutoffLogId, String objectKey) {
 
     public enum Status {

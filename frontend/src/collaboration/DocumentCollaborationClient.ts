@@ -36,10 +36,9 @@ const LOCAL_AWARENESS_ORIGIN = Symbol('document-local-awareness')
 const MAX_RECONNECT_DELAY_MS = 10_000
 
 /**
- * Bridges the project's document WebSocket protocol to a Y.Doc.
+ * 将项目的文档 WebSocket 协议连接到一个 Y.Doc。
  *
- * This intentionally does not use y-websocket, Hocuspocus, or a hosted Tiptap
- * service: the Spring endpoint remains the only network source of truth.
+ * 此处刻意不使用 y-websocket、Hocuspocus 或托管 Tiptap 服务：Spring 端点仍是唯一的网络事实来源。
  */
 export class DocumentCollaborationClient {
   readonly awareness: Awareness
@@ -87,7 +86,7 @@ export class DocumentCollaborationClient {
     }
     socket.onmessage = event => this.handleSocketMessage(socket, event)
     socket.onerror = () => {
-      // The close callback below supplies the retry path while preserving browser-specific error details.
+      // 下方 close 回调会承担重试职责，同时保留浏览器提供的原始错误细节。
     }
     socket.onclose = () => this.handleSocketClosed(socket)
     this.socket = socket
@@ -122,6 +121,8 @@ export class DocumentCollaborationClient {
   private readonly handleDocumentUpdate = (update: Uint8Array, origin: unknown): void => {
     if (origin === REMOTE_UPDATE_ORIGIN || this.disposed) return
     const id = createDocumentWsRequestId()
+    // 每个本地 Yjs 变更都会保留到服务端发送 UPDATE_ACCEPTED；因此 bootstrap 期间的变更
+    // 能在首次 SYNC_COMPLETE 和后续重连后继续发送。
     this.pendingUpdates.set(id, { id, payload: update.slice() })
     if (this.synchronized) this.sendPendingUpdate(this.pendingUpdates.get(id)!)
   }
@@ -155,6 +156,8 @@ export class DocumentCollaborationClient {
       case 'SYNC_COMPLETE':
         this.synchronized = true
         this.setState('synced')
+        // bootstrap 帧已经写入 Y.Doc，此时才发送本地队列中的变更，
+        // 从而让它们在服务端快照和历史更新之后应用。
         this.pendingUpdates.forEach(update => this.sendPendingUpdate(update))
         this.sendLocalAwareness()
         break
@@ -181,6 +184,8 @@ export class DocumentCollaborationClient {
       case DocumentWsFrameType.SNAPSHOT_STATE:
       case DocumentWsFrameType.BOOTSTRAP_UPDATE:
       case DocumentWsFrameType.CRDT_UPDATE:
+        // 为服务端下发的更新标记独立来源，写入 Y.Doc 时便不会生成新的 CLIENT_UPDATE，
+        // 从而避免同一段 Yjs 字节又被回传给服务端。
         Y.applyUpdate(this.ydoc, frame.payload, REMOTE_UPDATE_ORIGIN)
         break
       case DocumentWsFrameType.AWARENESS:
@@ -200,6 +205,7 @@ export class DocumentCollaborationClient {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer !== null || this.disposed) return
+    // 每次失败连接都会增加等待时间，上限十秒；同一时刻只保留一个重试定时器。
     const delay = Math.min(500 * 2 ** this.reconnectAttempts, MAX_RECONNECT_DELAY_MS)
     this.reconnectAttempts += 1
     this.setState('reconnecting')

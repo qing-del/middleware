@@ -13,7 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-/** Executes final FLUSH_LOG + COMPACT and removes runtime state only after every close guard passes twice. */
+/** 执行最终 FLUSH_LOG 与 COMPACT，并在两次关闭校验都通过后清理运行时状态。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentCloseService {
@@ -59,6 +59,8 @@ public class DocumentCloseService {
             }
             flushAll(documentId);
             compactAll(documentId);
+            // 持久化可能耗时较长，因此再次检查：若期间有会话重连，就撤销本次关闭，
+            // 保留 Room 与 Redis 运行时状态供新会话继续使用。
             if (!closeGuardsPass(documentId, closeToken) || !roomManager.hasNoLocalSessions(documentId)) {
                 return new DocumentCloseResult(documentId, DocumentCloseResult.Status.REOPENED);
             }

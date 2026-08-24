@@ -1,6 +1,6 @@
 package com.jacolp.document.application.yjs;
 
-/** Raised when the merge service cannot provide a valid merged Yjs state. */
+/** 合并服务无法返回有效的合并后 Yjs 状态时抛出。 */
 public class YjsMergeException extends RuntimeException {
 
     public YjsMergeException(String message) {

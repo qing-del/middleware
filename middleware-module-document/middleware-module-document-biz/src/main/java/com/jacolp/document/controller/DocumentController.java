@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** HTTP metadata endpoint; document state itself remains a WebSocket-only CRDT concern. */
+/** 提供文档元数据 HTTP 接口；正文 CRDT 状态只通过 WebSocket 协作链路传输。 */
 @RestController("User-DocumentController")
 @RequestMapping("/user/document")
 @Validated

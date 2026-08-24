@@ -1,6 +1,6 @@
 import request from '@/utils/request'
 
-/** Metadata returned by the v0.3 collaboration document API. CRDT content stays on WebSocket. */
+/** v0.3 协作文档 API 返回的元数据；CRDT 正文只通过 WebSocket 传输。 */
 export interface DocumentMetadata {
   documentId: number
   teamId: number

@@ -8,7 +8,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-/** Registers the authenticated document collaboration endpoint only when the module is enabled. */
+/** 仅在文档模块启用时注册需要认证的文档协作 WebSocket 端点。 */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSocket
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")

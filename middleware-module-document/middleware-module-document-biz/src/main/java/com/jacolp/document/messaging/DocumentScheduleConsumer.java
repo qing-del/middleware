@@ -16,7 +16,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/** Consumes document scheduling signals; each handler rechecks durable state instead of trusting message uniqueness. */
+/** 消费文档调度信号；每次处理都会重新检查持久化状态，不依赖消息只投递一次。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentScheduleConsumer {

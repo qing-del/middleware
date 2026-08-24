@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Redis TTL leases make WebSocket presence visible to CLOSE consumers on other core nodes. */
+/** 通过 Redis TTL 租约让其他 core 节点上的 CLOSE 消费者也能看到 WebSocket 在线状态。 */
 @Component
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentSessionPresenceRegistry {
