@@ -108,3 +108,10 @@
 - **决策**：新增精确权限 `document:read`、`document:write`；Document Meta 的 GET/list 使用 `document:read`，创建、标题更新、删除使用 `document:write`。`/ws/document` 是可写协作通道，握手统一要求 `document:write`（或既有 `*:write`）；第一版没有只读 WebSocket 子协议。将两项 scope 写入 user client `scopes` / `auto_approve`、初始化库和前向 migration；不赋予 core_agent，也不新增未设计的 admin Document API。
 - **影响**：旧 access token 不含 document scope 时会被拒绝，用户需按既有登录/刷新流程获取新 token；`*:read` / `*:write` 的既有角色兼容通配仍能匹配新精确 scope。Server 的可执行目录与受其约束的安全文档需要从 116 Bearer 路由同步扩展到 121 条，保证新增接口不会绕过认证。
 - **依据**：`BusinessRouteScopeCatalogConfiguration`、`PermissionScopeMatcher`、`DocumentWebSocketHandshakeInterceptor` 以及用户于 2026-08-24 05:00 前的连续实施授权。
+
+## D-016：Phase 9 使用 Tiptap + Yjs Binding，并复用自定义 WebSocket 协议
+
+- **背景**：前端现有笔记编辑器是 CodeMirror Markdown，仓库没有可直接绑定 `Y.XmlFragment('content')` 的协同编辑器。`y-codemirror` 面向 `Y.Text`，不符合 v0.3 冻结的根节点结构；后端已提供带 JWT 子协议、bootstrap、ACK 与 awareness 语义的 `/ws/document` 自定义协议。
+- **决策**：新协作文档页面使用 `Tiptap + @tiptap/extension-collaboration + Y.Doc + Y.XmlFragment('content')`。只使用 Tiptap/Yjs 的 Editor Binding；浏览器端实现轻量协议适配器，以既有 `Sec-WebSocket-Protocol: bearer.<JWT>` 连接 `/ws/document`，处理 JOIN、Snapshot、Bootstrap Update、CLIENT_UPDATE、ACK、Awareness 与断线重连。不得引入 Tiptap Collaboration Cloud、Hocuspocus 或 `y-websocket` 作为第二套网络事实源。
+- **影响**：编辑器状态与 Yjs 文档之间由成熟 Tiptap Binding 维护，应用代码不手写 ProseMirror/Tiptap 同步算法；网络层只转发原始 Yjs update。所有权威内容恢复继续依赖现有 MinIO/MySQL/Redis bootstrap 链路，前端不会创建持久化正文副本。新增依赖需在前端 lockfile 中固定，并由前端构建验证。
+- **依据**：用户于 2026-08-24 明确确认该选型与网络边界。
