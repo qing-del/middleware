@@ -10,6 +10,7 @@ public final class DocumentSessionContext {
     private final long userId;
     private volatile DocumentSessionSyncStatus syncStatus = DocumentSessionSyncStatus.SYNCING;
 
+    /** 创建尚未完成 bootstrap 的同步中会话上下文。 */
     DocumentSessionContext(WebSocketSession session, long userId) {
         this.session = Objects.requireNonNull(session, "session must not be null");
         if (userId <= 0) {
@@ -18,22 +19,27 @@ public final class DocumentSessionContext {
         this.userId = userId;
     }
 
+    /** 返回底层 WebSocket 会话 ID。 */
     public String sessionId() {
         return session.getId();
     }
 
+    /** 返回受 Room 保护的 WebSocket 会话。 */
     public WebSocketSession session() {
         return session;
     }
 
+    /** 返回握手认证得到的用户 ID。 */
     public long userId() {
         return userId;
     }
 
+    /** 返回 bootstrap 同步状态。 */
     public DocumentSessionSyncStatus syncStatus() {
         return syncStatus;
     }
 
+    /** 将会话从 SYNCING 切换为 ACTIVE。 */
     void markActive() {
         syncStatus = DocumentSessionSyncStatus.ACTIVE;
     }

@@ -34,24 +34,28 @@ public class DocumentController {
 
     private final DocumentMetadataService metadataService;
 
+    /** 创建文档元数据控制器，并保持正文协作由 WebSocket 端点负责。 */
     public DocumentController(DocumentMetadataService metadataService) {
         this.metadataService = Objects.requireNonNull(metadataService, "metadataService must not be null");
     }
 
     @PostMapping
     @Operation(summary = "创建协作文档")
+    /** 使用当前认证用户创建个人文档，不接受客户端提交的归属范围。 */
     public Result<DocumentMetadata> create(@RequestBody @Valid DocumentCreateRequest request) {
         return Result.success(metadataService.create(BaseContext.getCurrentId(), request.title()));
     }
 
     @GetMapping
     @Operation(summary = "查询当前用户的协作文档列表")
+    /** 返回当前认证用户可见的活跃文档元数据列表。 */
     public Result<List<DocumentMetadata>> list() {
         return Result.success(metadataService.list(BaseContext.getCurrentId()));
     }
 
     @GetMapping("/{documentId}/meta")
     @Operation(summary = "查询协作文档元数据")
+    /** 按当前用户范围读取一份文档元数据。 */
     public Result<DocumentMetadata> getMetadata(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
         return Result.success(metadataService.get(BaseContext.getCurrentId(), documentId));
@@ -59,6 +63,7 @@ public class DocumentController {
 
     @PatchMapping("/{documentId}/meta")
     @Operation(summary = "修改协作文档标题")
+    /** 修改标题并返回更新后的元数据，正文内容不经过该接口。 */
     public Result<DocumentMetadata> updateMetadata(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
             @RequestBody @Valid DocumentMetadataUpdateRequest request) {
@@ -67,6 +72,7 @@ public class DocumentController {
 
     @DeleteMapping("/{documentId}")
     @Operation(summary = "逻辑删除没有活跃协作会话的文档")
+    /** 仅在跨实例没有活跃 presence 时执行逻辑删除。 */
     public Result<Void> delete(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
         metadataService.delete(BaseContext.getCurrentId(), documentId);

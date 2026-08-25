@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnProperty(prefix = "jacolp.minio", name = "endpoint")
 @EnableConfigurationProperties(MinioProperties.class)
 public class MinioAutoConfiguration {
+    /** 创建共享 MinIO 客户端，并要求访问密钥成对出现。 */
     @Bean
     @ConditionalOnMissingBean
     public MinioClient minioClient(MinioProperties properties) {
@@ -26,12 +27,14 @@ public class MinioAutoConfiguration {
                 .build();
     }
 
+    /** 暴露逻辑桶名解析器，隔离业务配置键与物理桶名。 */
     @Bean
     @ConditionalOnMissingBean
     public MinioBucketResolver minioBucketResolver(MinioProperties properties) {
         return new DefaultMinioBucketResolver(properties);
     }
 
+    /** 暴露字节导向对象存储门面，保留高级场景使用原始客户端的能力。 */
     @Bean
     @ConditionalOnMissingBean
     public MinioObjectStorage minioObjectStorage(MinioClient minioClient) {

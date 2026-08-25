@@ -34,6 +34,7 @@ public record DocumentPendingUpdate(
         }
     }
 
+    /** 返回更新数据副本，避免 Redis 写入前后出现可变数组别名。 */
     @Override
     public byte[] updateData() {
         return updateData.clone();

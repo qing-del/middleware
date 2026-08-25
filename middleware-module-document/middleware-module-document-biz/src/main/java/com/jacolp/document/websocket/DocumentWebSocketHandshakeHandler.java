@@ -19,6 +19,7 @@ public class DocumentWebSocketHandshakeHandler extends DefaultHandshakeHandler {
 
     private static final String BEARER_PROTOCOL_PREFIX = "bearer.";
 
+    /** 选择唯一的 bearer 子协议，让浏览器在 101 响应中完成协议回显。 */
     @Override
     protected String selectProtocol(List<String> requestedProtocols, WebSocketHandler webSocketHandler) {
         if (requestedProtocols.size() == 1) {

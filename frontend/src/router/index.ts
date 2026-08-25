@@ -81,6 +81,7 @@ const router = createRouter({
           meta: { requiredScopes: ['note:read'] }
         },
         {
+          // 文档列表只需要 read scope；创建和编辑页通过 write scope 进入协作通道。
           path: 'documents',
           name: 'UserDocuments',
           component: () => import('@/views/user/Documents.vue'),

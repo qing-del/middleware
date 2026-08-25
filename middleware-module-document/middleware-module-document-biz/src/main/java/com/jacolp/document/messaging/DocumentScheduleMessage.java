@@ -10,6 +10,7 @@ public record DocumentScheduleMessage(
         Long triggerTime,
         String closeToken) {
 
+    /** 校验调度信号只携带可重读的文档标识和类型，不携带正文。 */
     public DocumentScheduleMessage {
         if (documentId == null || documentId <= 0) {
             throw new IllegalArgumentException("documentId must be positive");

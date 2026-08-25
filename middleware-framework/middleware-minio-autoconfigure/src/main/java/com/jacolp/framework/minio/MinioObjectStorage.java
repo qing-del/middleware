@@ -8,12 +8,12 @@ package com.jacolp.framework.minio;
  */
 public interface MinioObjectStorage {
 
-    /** Reads an object and rejects a response larger than {@code maxBytes}. */
+    /** 读取对象，并拒绝超过 {@code maxBytes} 的响应。 */
     byte[] read(String bucket, String objectKey, long maxBytes);
 
-    /** Stores an object at the exact key supplied by the caller, creating its bucket if needed. */
+    /** 按调用方提供的精确键存储对象；桶不存在时按需创建。 */
     void write(String bucket, String objectKey, byte[] content, String contentType);
 
-    /** Deletes the object at the exact key supplied by the caller. */
+    /** 删除调用方提供的精确对象键。 */
     void delete(String bucket, String objectKey);
 }

@@ -25,6 +25,7 @@ public class DocumentRoom {
     private final ConcurrentHashMap<String, DocumentSessionContext> sessions = new ConcurrentHashMap<>();
     private volatile DocumentRoomLifecycleState lifecycleState = DocumentRoomLifecycleState.OPEN;
 
+    /** 创建只保存会话运行态的本机 Room。 */
     DocumentRoom(long documentId, long teamId, DocumentProperties properties) {
         if (documentId <= 0 || teamId <= 0) {
             throw new IllegalArgumentException("documentId and teamId must be positive");
@@ -34,6 +35,7 @@ public class DocumentRoom {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
     }
 
+    /** 校验个人范围和 Room 状态后加入会话；重复加入同一 session 保持幂等。 */
     public synchronized DocumentSessionContext join(WebSocketSession session, CurrentPrincipal principal) {
         Objects.requireNonNull(session, "session must not be null");
         Objects.requireNonNull(principal, "principal must not be null");
@@ -51,6 +53,7 @@ public class DocumentRoom {
             throw new DocumentRoomLimitExceededException("document room session limit exceeded");
         }
 
+        // 用带上限的装饰器隔离慢客户端，避免单个出站队列拖住其他协作者。
         WebSocketSession boundedSession = new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS,
                 properties.getWebsocket().getMaxSendQueueBytes(),
                 ConcurrentWebSocketSessionDecorator.OverflowStrategy.TERMINATE);
@@ -60,6 +63,7 @@ public class DocumentRoom {
         return context;
     }
 
+    /** 移除本机会话；最后一个离开者把 Room 推进到 PRE_CLOSE。 */
     public synchronized boolean leave(String sessionId) {
         if (sessionId == null) {
             return false;
@@ -71,6 +75,7 @@ public class DocumentRoom {
         return removed != null;
     }
 
+    /** 将已完成 bootstrap 的会话标记为可接收客户端更新。 */
     public void markActive(String sessionId) {
         DocumentSessionContext context = requireSession(sessionId);
         context.markActive();
@@ -85,6 +90,7 @@ public class DocumentRoom {
         return true;
     }
 
+    /** 向 Room 中除发送者外的会话广播消息，慢或已关闭会话会被清理。 */
     public void broadcast(WebSocketMessage<?> message, String excludedSessionId) {
         Objects.requireNonNull(message, "message must not be null");
         for (DocumentSessionContext context : sessions.values()) {
@@ -95,6 +101,7 @@ public class DocumentRoom {
         }
     }
 
+    /** 获取指定会话，否则返回统一的 Room 访问异常。 */
     public DocumentSessionContext requireSession(String sessionId) {
         DocumentSessionContext context = sessions.get(sessionId);
         if (context == null) {
@@ -103,26 +110,32 @@ public class DocumentRoom {
         return context;
     }
 
+    /** 返回文档主键。 */
     public long documentId() {
         return documentId;
     }
 
+    /** 返回个人空间归属 ID。 */
     public long teamId() {
         return teamId;
     }
 
+    /** 返回本机 Room 生命周期状态。 */
     public DocumentRoomLifecycleState lifecycleState() {
         return lifecycleState;
     }
 
+    /** 返回当前本机会话数。 */
     public int sessionCount() {
         return sessions.size();
     }
 
+    /** 返回会话快照，避免调用方直接修改内部并发容器。 */
     public Collection<DocumentSessionContext> sessions() {
         return List.copyOf(sessions.values());
     }
 
+    /** 尝试向会话发送消息；传输失败时移除并关闭该慢会话。 */
     private void sendOrDisconnect(DocumentSessionContext context, WebSocketMessage<?> message) {
         WebSocketSession session = context.session();
         if (!session.isOpen()) {

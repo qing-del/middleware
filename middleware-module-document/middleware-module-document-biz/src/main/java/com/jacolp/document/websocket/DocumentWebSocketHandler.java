@@ -54,6 +54,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private final DocumentMetrics metrics;
     private final ConcurrentHashMap<String, Long> joinedDocumentIds = new ConcurrentHashMap<>();
 
+    /** 创建不记录指标的文档 WebSocket 处理器，保留生产处理流程。 */
     public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
                                     DocumentRedisRepository documentRedisRepository, DocumentRoomManager roomManager,
                                     DocumentBootstrapService bootstrapService, DocumentSchedulePublisher schedulePublisher,
@@ -63,6 +64,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                 presenceRegistry, lifecycleService, properties, DocumentMetrics.noop());
     }
 
+    /** 创建带运行指标的文档 WebSocket 处理器。 */
     @Autowired
     public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
                                     DocumentRedisRepository documentRedisRepository, DocumentRoomManager roomManager,
@@ -82,6 +84,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
+    /** 解析控制帧并处理 JOIN、LEAVE、PING 及协议错误响应。 */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         DocumentWsControlMessage control;
@@ -113,6 +116,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /** 只接受客户端 CLIENT_UPDATE 和 AWARENESS 二进制帧，其他类型直接拒绝。 */
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
         DocumentWsBinaryFrame frame;
@@ -142,16 +146,19 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /** 连接关闭后释放本机会话、presence 和延迟关闭状态。 */
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         leaveSession(session);
     }
 
+    /** 传输异常与正常关闭使用同一套会话清理流程。 */
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         leaveSession(session);
     }
 
+    /** 校验个人范围后建立 Room 归属，按顺序发送 bootstrap 并在完成后激活会话。 */
     private void handleJoin(WebSocketSession session, DocumentWsControlMessage control) {
         long documentId = requireDocumentId(control.documentId());
         Long alreadyJoinedDocumentId = joinedDocumentIds.get(session.getId());
@@ -175,6 +182,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         DocumentRoom room = roomManager.getOrCreate(documentId, principal.userId());
+        // 先登记本地 Room 和 presence，再发送 bootstrap，确保期间 CLOSE 不会误判无人在线。
         room.join(session, principal);
         joinedDocumentIds.put(session.getId(), documentId);
         roomManager.refreshRuntimeMetrics();
@@ -195,6 +203,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /** 校验客户端更新、先写 Redis，再确认/广播并安排异步刷盘。 */
     private void acceptClientUpdate(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
         if (frame.payload().length > properties.getWebsocket().getMaxUpdateBytes()) {
@@ -213,6 +222,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         String redisOpId = documentRedisRepository.appendPendingUpdate(new DocumentPendingUpdate(room.documentId(),
                 frame.payload(), frame.eventId().toString(), principal.userId(), principal.clientId(), now));
 
+        // Redis Stream 写入成功即代表服务端已接收；后续 MySQL 审计更新失败仍由恢复链路继续处理。
         // 先将不透明更新写入 Redis，随后才确认和广播；之后的 HTTP 或 WebSocket 发送失败时，
         // 已接收的编辑仍可被恢复。
         int modified = documentMapper.updateLastModificationIfActive(room.documentId(), principal.userId(),
@@ -229,12 +239,14 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         scheduleFlushLog(room.documentId());
     }
 
+    /** 将 awareness 数据广播给同一 Room 的其他已同步会话，不进入持久化链路。 */
     private void broadcastAwareness(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
         room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
                 frame.eventId(), frame.payload())), session.getId());
     }
 
+    /** 获取已 JOIN 且已完成 bootstrap 的本机会话 Room。 */
     private DocumentRoom requireActiveRoom(WebSocketSession session) {
         Long documentId = joinedDocumentIds.get(session.getId());
         if (documentId == null) {
@@ -248,6 +260,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         return room;
     }
 
+    /** 根据数据库审计时间刷新 Redis Room Meta，并生成新的 reopen 令牌。 */
     private void updateRoomMeta(DocumentDO document, long userId) {
         long lastModifiedAt = document.getLastModifyTime() == null
                 ? System.currentTimeMillis()
@@ -255,6 +268,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         saveRoomMeta(document.getId(), userId, lastModifiedAt);
     }
 
+    /** 以认证用户作为个人范围保存 Room Meta，并拒绝 Redis 中的范围冲突。 */
     private void saveRoomMeta(long documentId, long userId, long lastModifiedAt) {
         Optional<DocumentRoomMeta> existing = documentRedisRepository.findRoomMeta(documentId);
         if (existing.isPresent() && existing.get().teamId() != userId) {
@@ -264,6 +278,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                 UUID.randomUUID().toString(), lastModifiedAt, userId));
     }
 
+    /** 幂等移除会话并在本机最后离开时请求延迟 CLOSE。 */
     private void leaveSession(WebSocketSession session) {
         Long documentId = joinedDocumentIds.remove(session.getId());
         presenceRegistry.unregister(session.getId());
@@ -281,6 +296,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /** 编码并发送控制帧；发送失败时释放对应会话。 */
     private void sendControl(WebSocketSession session, DocumentWsControlMessage control) {
         try {
             session.sendMessage(codec.encodeControl(control));
@@ -289,6 +305,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /** 发布 FLUSH_LOG 信号；Rabbit 失败不回滚已写入 Redis 的更新。 */
     private void scheduleFlushLog(long documentId) {
         try {
             schedulePublisher.scheduleFlushLog(documentId);
@@ -298,15 +315,18 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /** 发送统一格式的错误控制帧，并为缺失 requestId 生成关联 ID。 */
     private void sendError(WebSocketSession session, UUID requestId, String code, String message) {
         sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.ERROR,
                 requestId == null ? UUID.randomUUID() : requestId, null, null, null, code, message));
     }
 
+    /** 返回当前配置的 WebSocket 协议版本。 */
     private int protocolVersion() {
         return properties.getWebsocket().getProtocolVersion();
     }
 
+    /** 校验控制帧中的文档 ID 为正数。 */
     private static long requireDocumentId(Long documentId) {
         if (documentId == null || documentId <= 0) {
             throw new DocumentRoomAccessException("documentId must be positive");
@@ -314,6 +334,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         return documentId;
     }
 
+    /** 把协议版本错误映射为客户端可识别的错误码。 */
     private static String protocolErrorCode(DocumentWsProtocolException exception) {
         return exception.getMessage().contains("protocol version")
                 ? "DOCUMENT_PROTOCOL_VERSION_UNSUPPORTED" : "DOCUMENT_PROTOCOL_ERROR";

@@ -30,12 +30,14 @@ public class DocumentCompactService {
     private final DocumentProperties properties;
     private final DocumentMetrics metrics;
 
+    /** 创建不记录指标的压缩服务，供测试或简化装配使用。 */
     public DocumentCompactService(DocumentMapper documentMapper, DocumentOpLogMapper documentOpLogMapper,
                                   DocumentSnapshotStorage snapshotStorage, YjsMergeClient yjsMergeClient,
                                   DocumentProperties properties) {
         this(documentMapper, documentOpLogMapper, snapshotStorage, yjsMergeClient, properties, DocumentMetrics.noop());
     }
 
+    /** 创建带指标记录能力的快照压缩服务。 */
     @Autowired
     public DocumentCompactService(DocumentMapper documentMapper, DocumentOpLogMapper documentOpLogMapper,
                                   DocumentSnapshotStorage snapshotStorage, YjsMergeClient yjsMergeClient,
@@ -48,6 +50,7 @@ public class DocumentCompactService {
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
+    /** 读取一个有界日志批次，写入不可变快照并用 MySQL CAS 切换读取指针。 */
     public DocumentCompactResult compact(long documentId) {
         if (documentId <= 0) {
             throw new IllegalArgumentException("documentId must be positive");
@@ -67,6 +70,7 @@ public class DocumentCompactService {
                 failed = false;
                 return DocumentCompactResult.noUpdates(documentId);
             }
+            // 先验证日志严格递增且有内容，确保 cutoff 能准确表达本轮合并的边界。
             long cutoffLogId = requireOrderedCutoff(basePersistedLogId, updates);
             // 合并当前不可变快照和一段有序日志后写入新对象；CAS 成功前，读取方仍通过旧指针读取旧快照。
             byte[] mergedState = yjsMergeClient.merge(snapshotStorage.read(document.getContentObjectKey()),
@@ -94,6 +98,7 @@ public class DocumentCompactService {
         }
     }
 
+    /** 校验压缩批次连续、有序且每条更新都是非空二进制内容。 */
     private static long requireOrderedCutoff(long basePersistedLogId, List<DocumentOpLogDO> updates) {
         long previousId = basePersistedLogId;
         for (DocumentOpLogDO update : updates) {

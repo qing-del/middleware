@@ -20,6 +20,7 @@ export const ResourceReference = Node.create({
   atom: true,
   selectable: true,
 
+  /** 声明引用节点可持久化的最小属性集合。 */
   addAttributes() {
     return {
       refId: { default: null },
@@ -30,10 +31,12 @@ export const ResourceReference = Node.create({
     }
   },
 
+  /** 从带有资源引用 data 属性的 span 恢复 Tiptap 节点。 */
   parseHTML() {
     return [{ tag: 'span[data-document-resource-ref]' }]
   },
 
+  /** 将引用属性渲染为稳定的 data 属性和可读文本。 */
   renderHTML({ HTMLAttributes }) {
     const attributes = HTMLAttributes as ResourceReferenceAttributes
     return ['span', mergeAttributes(

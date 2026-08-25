@@ -19,12 +19,14 @@ public class DocumentFlushRecoveryScanner {
     private final DocumentRedisRepository documentRedisRepository;
     private final DocumentSchedulePublisher schedulePublisher;
 
+    /** 创建依赖 Redis 事实状态的恢复扫描器。 */
     public DocumentFlushRecoveryScanner(DocumentRedisRepository documentRedisRepository,
                                         DocumentSchedulePublisher schedulePublisher) {
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
         this.schedulePublisher = Objects.requireNonNull(schedulePublisher, "schedulePublisher must not be null");
     }
 
+    /** 扫描仍有待刷盘更新的 Room，并重新发布轻量 FLUSH_LOG 信号。 */
     @Scheduled(fixedDelayString = "${jacolp.document.flush-log.recovery-scan-ms:30000}")
     public void scanAndReschedule() {
         for (var meta : documentRedisRepository.findRoomMetas()) {

@@ -26,6 +26,7 @@ public class DocumentCloseService {
     private final DocumentRedisRepository documentRedisRepository;
     private final DocumentMetrics metrics;
 
+    /** 创建不依赖指标实现的关闭服务，便于轻量测试和非监控调用方装配。 */
     public DocumentCloseService(DocumentRoomLifecycleService lifecycleService,
                                 DocumentSessionPresenceRegistry presenceRegistry,
                                 DocumentRoomManager roomManager,
@@ -36,6 +37,7 @@ public class DocumentCloseService {
                 documentRedisRepository, DocumentMetrics.noop());
     }
 
+    /** 创建带指标记录能力的最终关闭服务。 */
     @Autowired
     public DocumentCloseService(DocumentRoomLifecycleService lifecycleService,
                                 DocumentSessionPresenceRegistry presenceRegistry,
@@ -52,8 +54,10 @@ public class DocumentCloseService {
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
+    /** 在令牌、全局 presence 和本机 Room 均允许时执行最终刷盘、压缩和运行态清理。 */
     public DocumentCloseResult close(long documentId, String closeToken) {
         try {
+            // 关闭消息可能延迟、重复或已经过期，先用 Redis 令牌和在线状态做幂等闸门。
             if (!closeGuardsPass(documentId, closeToken) || !roomManager.beginClosingIfEmpty(documentId)) {
                 return new DocumentCloseResult(documentId, DocumentCloseResult.Status.IGNORED);
             }
@@ -73,11 +77,13 @@ public class DocumentCloseService {
         }
     }
 
+    /** 校验当前关闭令牌仍有效，且跨节点与本机都没有存活会话。 */
     private boolean closeGuardsPass(long documentId, String closeToken) {
         return lifecycleService.isCurrentClose(documentId, closeToken) && presenceRegistry.count(documentId) == 0
                 && roomManager.hasNoLocalSessions(documentId);
     }
 
+    /** 持续刷盘直到 Redis Stream 不再有待处理更新。 */
     private void flushAll(long documentId) {
         DocumentFlushLogResult result;
         do {
@@ -85,6 +91,7 @@ public class DocumentCloseService {
         } while (result.processedCount() > 0);
     }
 
+    /** 持续压缩直到当前持久化日志没有可合并内容。 */
     private void compactAll(long documentId) {
         while (true) {
             DocumentCompactResult result = compactService.compact(documentId);

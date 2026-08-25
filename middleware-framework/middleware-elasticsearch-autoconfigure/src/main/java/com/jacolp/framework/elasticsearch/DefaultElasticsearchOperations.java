@@ -17,10 +17,12 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
 
     private final ElasticsearchClient client;
 
+    /** 保存官方客户端实例；所有通用操作复用同一个应用级连接池。 */
     DefaultElasticsearchOperations(ElasticsearchClient client) {
         this.client = Objects.requireNonNull(client, "client must not be null");
     }
 
+    /** 判断指定物理索引是否存在，并将 SDK 的 IO 异常转换为框架异常。 */
     @Override
     public boolean indexExists(String indexName) {
         validateIndexName(indexName);
@@ -31,6 +33,7 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
         }
     }
 
+    /** 创建指定物理索引；索引映射和别名由业务模块自行负责。 */
     @Override
     public void createIndex(String indexName) {
         validateIndexName(indexName);
@@ -41,6 +44,7 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
         }
     }
 
+    /** 写入文档并返回 Elasticsearch 分配的版本与操作结果。 */
     @Override
     public <T> ElasticsearchWriteResult index(String indexName, String documentId, T document) {
         validateIndexName(indexName);
@@ -54,6 +58,7 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
         }
     }
 
+    /** 按文档 ID 读取文档；不存在时返回空 Optional。 */
     @Override
     public <T> Optional<T> get(String indexName, String documentId, Class<T> documentType) {
         validateIndexName(indexName);
@@ -67,6 +72,7 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
         }
     }
 
+    /** 删除文档，并用返回值区分实际删除和文档不存在。 */
     @Override
     public boolean delete(String indexName, String documentId) {
         validateIndexName(indexName);
@@ -79,6 +85,7 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
         }
     }
 
+    /** 执行分页查询，只把 source 命中转换为框架 DTO，不隐藏聚合等原始响应。 */
     @Override
     public <T> ElasticsearchSearchPage<T> search(String indexName, Query query, int from, int size,
                                                    Class<T> documentType) {
@@ -106,12 +113,14 @@ final class DefaultElasticsearchOperations implements ElasticsearchOperations {
         }
     }
 
+    /** 拒绝空索引名，避免产生难以诊断的下游请求错误。 */
     private static void validateIndexName(String indexName) {
         if (indexName == null || indexName.isBlank()) {
             throw new IllegalArgumentException("indexName must not be blank");
         }
     }
 
+    /** 拒绝空文档 ID，保证读写删除操作使用明确的定位键。 */
     private static void validateDocumentId(String documentId) {
         if (documentId == null || documentId.isBlank()) {
             throw new IllegalArgumentException("documentId must not be blank");

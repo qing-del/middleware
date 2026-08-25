@@ -22,6 +22,7 @@ public class DocumentSnapshotStorage {
     private final MinioBucketResolver minioBucketResolver;
     private final DocumentProperties documentProperties;
 
+    /** 创建只处理文档快照二进制内容的对象存储适配器。 */
     public DocumentSnapshotStorage(MinioObjectStorage minioObjectStorage, MinioBucketResolver minioBucketResolver,
                                    DocumentProperties documentProperties) {
         this.minioObjectStorage = Objects.requireNonNull(minioObjectStorage, "minioObjectStorage must not be null");
@@ -29,6 +30,7 @@ public class DocumentSnapshotStorage {
         this.documentProperties = Objects.requireNonNull(documentProperties, "documentProperties must not be null");
     }
 
+    /** 读取现有快照；空对象键表示该文档尚未生成快照。 */
     public byte[] read(String objectKey) {
         if (objectKey == null || objectKey.isBlank()) {
             return null;
@@ -49,6 +51,7 @@ public class DocumentSnapshotStorage {
         }
         Objects.requireNonNull(yjsState, "yjsState must not be null");
         validateSnapshotSize(yjsState.length);
+        // 每次写入都生成新对象键，确保 CAS 切换前旧读者仍能读取旧快照。
         String objectKey = "document/%d/state/%s.bin".formatted(documentId, UUID.randomUUID());
         try {
             minioObjectStorage.write(bucket(), objectKey, yjsState, "application/octet-stream");
@@ -58,6 +61,7 @@ public class DocumentSnapshotStorage {
         }
     }
 
+    /** 解析文档逻辑桶名，并把配置错误转换为文档快照领域异常。 */
     private String bucket() {
         try {
             return minioBucketResolver.requireBucket("document");
@@ -66,6 +70,7 @@ public class DocumentSnapshotStorage {
         }
     }
 
+    /** 执行硬上限校验，并对接近上限的快照输出运维告警。 */
     private void validateSnapshotSize(int bytes) {
         if (bytes > documentProperties.getSnapshot().getMaxBytes()) {
             throw new DocumentSnapshotStorageException("document snapshot exceeds configured maximum size");

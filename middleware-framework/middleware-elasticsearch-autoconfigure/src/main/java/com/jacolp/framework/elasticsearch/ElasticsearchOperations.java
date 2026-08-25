@@ -12,16 +12,22 @@ import java.util.Optional;
  */
 public interface ElasticsearchOperations {
 
+    /** 判断物理索引是否存在。 */
     boolean indexExists(String indexName);
 
+    /** 创建物理索引，不自动推断业务映射。 */
     void createIndex(String indexName);
 
+    /** 写入指定文档并返回写入结果。 */
     <T> ElasticsearchWriteResult index(String indexName, String documentId, T document);
 
+    /** 读取指定文档，不存在时返回空结果。 */
     <T> Optional<T> get(String indexName, String documentId, Class<T> documentType);
 
+    /** 删除指定文档，并返回是否确实删除了现有文档。 */
     boolean delete(String indexName, String documentId);
 
+    /** 按 from/size 执行分页查询并返回 source 命中。 */
     <T> ElasticsearchSearchPage<T> search(String indexName, Query query, int from, int size,
                                            Class<T> documentType);
 }

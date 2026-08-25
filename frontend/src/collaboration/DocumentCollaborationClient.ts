@@ -56,6 +56,7 @@ export class DocumentCollaborationClient {
   private synchronized = false
   private currentState: DocumentConnectionState = 'closed'
 
+  /** 创建 Y.Doc 与 WebSocket/awareness 事件之间的桥接客户端。 */
   constructor(options: DocumentCollaborationClientOptions) {
     this.documentId = options.documentId
     this.accessToken = options.accessToken
@@ -68,6 +69,7 @@ export class DocumentCollaborationClient {
     this.awareness.on('change', this.handleAwarenessChange)
   }
 
+  /** 建立 bearer 子协议连接并发送 JOIN；已连接或已销毁时保持幂等。 */
   connect(): void {
     if (this.disposed || this.socket) return
     this.setState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting')
@@ -92,11 +94,13 @@ export class DocumentCollaborationClient {
     this.socket = socket
   }
 
+  /** 更新本地 awareness，并在已同步连接上立即广播。 */
   setLocalAwareness(state: Record<string, unknown>): void {
     this.awareness.setLocalState(state)
     if (this.synchronized) this.sendLocalAwareness()
   }
 
+  /** 停止重连、通知服务端离开并解除 Yjs/awareness 监听。 */
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
@@ -118,6 +122,7 @@ export class DocumentCollaborationClient {
     this.setState('closed')
   }
 
+  /** 将本地 Yjs 更新放入待确认队列，直到服务端返回 UPDATE_ACCEPTED。 */
   private readonly handleDocumentUpdate = (update: Uint8Array, origin: unknown): void => {
     if (origin === REMOTE_UPDATE_ORIGIN || this.disposed) return
     const id = createDocumentWsRequestId()
@@ -127,16 +132,19 @@ export class DocumentCollaborationClient {
     if (this.synchronized) this.sendPendingUpdate(this.pendingUpdates.get(id)!)
   }
 
+  /** 仅在本地状态变化且连接已同步时发送 awareness。 */
   private readonly handleAwarenessUpdate = (_changes: unknown, origin: unknown): void => {
     if (origin !== REMOTE_AWARENESS_ORIGIN && this.synchronized && !this.disposed) {
       this.sendLocalAwareness()
     }
   }
 
+  /** 把 awareness 状态数量通知页面层更新协作者显示。 */
   private readonly handleAwarenessChange = (): void => {
     this.onAwarenessChange?.(this.awareness.getStates().size)
   }
 
+  /** 区分文本控制帧和二进制帧，并把协议错误转为连接 error 状态。 */
   private handleSocketMessage(socket: WebSocket, event: MessageEvent<string | ArrayBuffer>): void {
     if (this.socket !== socket || this.disposed) return
     try {
@@ -151,6 +159,7 @@ export class DocumentCollaborationClient {
     }
   }
 
+  /** 处理同步完成、更新确认、心跳和服务端错误控制帧。 */
   private handleControl(control: DocumentWsControlMessage): void {
     switch (control.type) {
       case 'SYNC_COMPLETE':
@@ -179,6 +188,7 @@ export class DocumentCollaborationClient {
     }
   }
 
+  /** 把服务端快照/历史/协作者更新应用到 Y.Doc，避免再次生成本地更新。 */
   private handleBinary(frame: ReturnType<typeof decodeDocumentWsFrame>): void {
     switch (frame.type) {
       case DocumentWsFrameType.SNAPSHOT_STATE:
@@ -196,6 +206,7 @@ export class DocumentCollaborationClient {
     }
   }
 
+  /** 连接关闭后清除同步标志，并进入受控的指数退避重连。 */
   private handleSocketClosed(socket: WebSocket): void {
     if (this.socket === socket) this.socket = null
     this.synchronized = false
@@ -203,6 +214,7 @@ export class DocumentCollaborationClient {
     this.scheduleReconnect()
   }
 
+  /** 安排唯一的指数退避定时器，避免并发创建多个重连连接。 */
   private scheduleReconnect(): void {
     if (this.reconnectTimer !== null || this.disposed) return
     // 每次失败连接都会增加等待时间，上限十秒；同一时刻只保留一个重试定时器。
@@ -215,11 +227,13 @@ export class DocumentCollaborationClient {
     }, delay)
   }
 
+  /** 发送一条仍在等待服务端确认的客户端更新。 */
   private sendPendingUpdate(update: PendingUpdate): void {
     if (!this.synchronized || !this.isSocketOpen()) return
     this.socket!.send(encodeDocumentWsFrame(DocumentWsFrameType.CLIENT_UPDATE, update.id, update.payload))
   }
 
+  /** 发送当前客户端的 awareness 状态，不写入持久化更新队列。 */
   private sendLocalAwareness(): void {
     if (!this.synchronized || !this.isSocketOpen()) return
     const payload = encodeAwarenessUpdate(this.awareness, [this.ydoc.clientID])
@@ -230,25 +244,30 @@ export class DocumentCollaborationClient {
     ))
   }
 
+  /** 发送控制 JSON；连接未打开时静默等待后续重连。 */
   private sendControl(control: DocumentWsControlMessage): void {
     if (!this.isSocketOpen()) return
     this.socket!.send(JSON.stringify(control))
   }
 
+  /** 判断当前 WebSocket 是否处于可发送状态。 */
   private isSocketOpen(): boolean {
     return this.socket?.readyState === WebSocket.OPEN
   }
 
+  /** 记录不可恢复的协议错误并通知页面层。 */
   private fail(message: string): void {
     this.setState('error', message)
   }
 
+  /** 更新连接状态并向页面层发出状态变化通知。 */
   private setState(state: DocumentConnectionState, message?: string): void {
     this.currentState = state
     this.onStateChange?.(state, message)
   }
 }
 
+/** 按环境变量或当前页面 host 解析文档 WebSocket 地址。 */
 function documentWebSocketUrl(): string {
   const configured = import.meta.env.VITE_DOCUMENT_WS_URL?.trim()
   if (configured) return configured

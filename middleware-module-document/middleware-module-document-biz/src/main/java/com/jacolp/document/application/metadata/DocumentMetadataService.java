@@ -23,12 +23,14 @@ public class DocumentMetadataService {
     private final DocumentMapper documentMapper;
     private final DocumentRedisRepository documentRedisRepository;
 
+    /** 创建只操作个人空间元数据、不触碰 CRDT 正文的服务。 */
     public DocumentMetadataService(DocumentMapper documentMapper, DocumentRedisRepository documentRedisRepository) {
         this.documentMapper = Objects.requireNonNull(documentMapper, "documentMapper must not be null");
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository,
                 "documentRedisRepository must not be null");
     }
 
+    /** 创建个人文档并返回不含正文指针的元数据。 */
     public DocumentMetadata create(long ownerUserId, String title) {
         requireUserId(ownerUserId);
         LocalDateTime now = LocalDateTime.now(APPLICATION_ZONE);
@@ -40,15 +42,18 @@ public class DocumentMetadataService {
         return toMetadata(document);
     }
 
+    /** 查询当前用户拥有的未删除文档列表。 */
     public List<DocumentMetadata> list(long ownerUserId) {
         requireUserId(ownerUserId);
         return documentMapper.listActiveByTeamId(ownerUserId).stream().map(this::toMetadata).toList();
     }
 
+    /** 在当前用户个人范围内读取一份文档元数据。 */
     public DocumentMetadata get(long ownerUserId, long documentId) {
         return toMetadata(findRequired(ownerUserId, documentId));
     }
 
+    /** 校验并更新文档标题，再返回更新后的元数据。 */
     public DocumentMetadata updateTitle(long ownerUserId, long documentId, String title) {
         requireUserId(ownerUserId);
         requireDocumentId(documentId);
@@ -74,6 +79,7 @@ public class DocumentMetadataService {
         }
     }
 
+    /** 按所有者和文档 ID 查询活跃文档，统一隐藏不存在与越权的区别。 */
     private DocumentDO findRequired(long ownerUserId, long documentId) {
         requireUserId(ownerUserId);
         requireDocumentId(documentId);
@@ -84,6 +90,7 @@ public class DocumentMetadataService {
         return document;
     }
 
+    /** 将数据库时间和字段映射为跨模块使用的元数据 DTO。 */
     private DocumentMetadata toMetadata(DocumentDO document) {
         LocalDateTime lastModifyTime = Objects.requireNonNull(document.getLastModifyTime(),
                 "active document must have lastModifyTime");
@@ -92,6 +99,7 @@ public class DocumentMetadataService {
                 Boolean.TRUE.equals(document.getDeleted()));
     }
 
+    /** 标准化标题并执行非空、长度上限校验。 */
     private static String normalizeTitle(String title) {
         if (title == null) {
             throw new BaseException("文档标题不能为空");
@@ -106,18 +114,21 @@ public class DocumentMetadataService {
         return normalized;
     }
 
+    /** 校验认证用户 ID 为正数。 */
     private static void requireUserId(long ownerUserId) {
         if (ownerUserId <= 0) {
             throw new IllegalArgumentException("ownerUserId must be positive");
         }
     }
 
+    /** 校验文档 ID，并使用统一的无权访问错误。 */
     private static void requireDocumentId(long documentId) {
         if (documentId <= 0) {
             throw new BaseException("文档不存在或无权访问");
         }
     }
 
+    /** 创建不泄露资源是否存在的统一业务异常。 */
     private static BaseException notFound() {
         return new BaseException("文档不存在或无权访问");
     }

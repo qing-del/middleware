@@ -31,6 +31,7 @@ public class DocumentFlushLogService {
     private final DocumentProperties properties;
     private final DocumentMetrics metrics;
 
+    /** 创建不记录指标的刷盘服务，保留与带指标构造器相同的持久化语义。 */
     public DocumentFlushLogService(DocumentRedisRepository documentRedisRepository,
                                    DocumentOpLogMapper documentOpLogMapper,
                                    TransactionTemplate transactionTemplate,
@@ -38,6 +39,7 @@ public class DocumentFlushLogService {
         this(documentRedisRepository, documentOpLogMapper, transactionTemplate, properties, DocumentMetrics.noop());
     }
 
+    /** 创建带指标记录能力的 Redis Stream 刷盘服务。 */
     @Autowired
     public DocumentFlushLogService(DocumentRedisRepository documentRedisRepository,
                                    DocumentOpLogMapper documentOpLogMapper,
@@ -81,6 +83,7 @@ public class DocumentFlushLogService {
         }
     }
 
+    /** 从待刷盘列表中截取数量和字节数均受限的前缀。 */
     private FlushBatch toBoundedBatch(long documentId, List<StoredDocumentPendingUpdate> pending) {
         int maxBytes = properties.getFlushLog().getMaxBatchBytes();
         if (maxBytes <= 0) {
@@ -103,18 +106,21 @@ public class DocumentFlushLogService {
         return new FlushBatch(List.copyOf(logs), List.copyOf(redisOpIds), bytes);
     }
 
+    /** 将 Redis 待持久化模型映射为 MySQL 操作日志模型。 */
     private static DocumentOpLogDO toLog(long documentId, StoredDocumentPendingUpdate pending) {
         return new DocumentOpLogDO(null, documentId, pending.redisOpId(), pending.update().clientUpdateId(),
                 pending.update().updateData(), pending.update().operatorId(), pending.update().operatorType(),
                 LocalDateTime.ofInstant(Instant.ofEpochMilli(pending.update().createdAt()), APPLICATION_ZONE));
     }
 
+    /** 拒绝没有明确文档范围的刷盘调用。 */
     private static void requirePositive(long documentId) {
         if (documentId <= 0) {
             throw new IllegalArgumentException("documentId must be positive");
         }
     }
 
+    /** 一次刷盘选择的日志、对应 Redis ID 及其二进制总字节数。 */
     private record FlushBatch(List<DocumentOpLogDO> logs, List<String> redisOpIds, long binaryBytes) {
     }
 }

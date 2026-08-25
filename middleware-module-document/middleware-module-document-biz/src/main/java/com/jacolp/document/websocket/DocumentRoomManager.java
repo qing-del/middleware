@@ -19,16 +19,19 @@ public class DocumentRoomManager {
     private final DocumentMetrics metrics;
     private final ConcurrentHashMap<Long, DocumentRoom> rooms = new ConcurrentHashMap<>();
 
+    /** 创建不记录指标的本机 Room 管理器。 */
     public DocumentRoomManager(DocumentProperties properties) {
         this(properties, DocumentMetrics.noop());
     }
 
+    /** 创建带运行态指标更新能力的本机 Room 管理器。 */
     @Autowired
     public DocumentRoomManager(DocumentProperties properties, DocumentMetrics metrics) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
+    /** 按文档和个人范围获取或创建本机 Room。 */
     public DocumentRoom getOrCreate(long documentId, long teamId) {
         return rooms.compute(documentId, (ignored, existing) -> {
             if (existing == null) {
@@ -41,10 +44,12 @@ public class DocumentRoomManager {
         });
     }
 
+    /** 查找本机已有 Room；未创建时返回空结果。 */
     public Optional<DocumentRoom> find(long documentId) {
         return Optional.ofNullable(rooms.get(documentId));
     }
 
+    /** 仅在 Room 无会话时移除本机容器中的 Room。 */
     public boolean removeIfEmpty(long documentId) {
         AtomicBoolean removed = new AtomicBoolean();
         rooms.computeIfPresent(documentId, (ignored, room) -> {
@@ -63,6 +68,7 @@ public class DocumentRoomManager {
         return find(documentId).map(room -> room.sessionCount() == 0).orElse(true);
     }
 
+    /** 请求空 Room 进入 CLOSING；没有本机 Room 时视为可继续。 */
     public boolean beginClosingIfEmpty(long documentId) {
         return find(documentId).map(DocumentRoom::beginClosingIfEmpty).orElse(true);
     }

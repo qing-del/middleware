@@ -25,6 +25,7 @@ public class DocumentSchedulePublisher {
     private final DocumentProperties documentProperties;
     private final ReliableMessagingProperties messagingProperties;
 
+    /** 创建使用 RabbitTemplate confirm 的文档调度发布器。 */
     public DocumentSchedulePublisher(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper,
                                      DocumentProperties documentProperties,
                                      ReliableMessagingProperties messagingProperties) {
@@ -34,29 +35,34 @@ public class DocumentSchedulePublisher {
         this.messagingProperties = Objects.requireNonNull(messagingProperties, "messagingProperties must not be null");
     }
 
+    /** 发布带固定 TTL 的 FLUSH_LOG 去抖信号。 */
     public void scheduleFlushLog(long documentId) {
         Message message = newScheduleMessage(documentId, DocumentScheduleType.FLUSH_LOG,
                 System.currentTimeMillis() + documentProperties.getFlushLog().getDelayMs(), null);
         publish(DocumentScheduleTopology.FLUSH_LOG_DELAY_QUEUE, message);
     }
 
+    /** 发布延迟 COMPACT 信号，由消费者重新读取最新日志状态。 */
     public void scheduleCompact(long documentId) {
         Message message = newScheduleMessage(documentId, DocumentScheduleType.COMPACT,
                 System.currentTimeMillis() + documentProperties.getCompact().getIntervalMs(), null);
         publish(DocumentScheduleTopology.COMPACT_DELAY_QUEUE, message);
     }
 
+    /** 直接投递 COMPACT 信号，用于达到批次阈值后的立即尝试。 */
     public void scheduleCompactImmediately(long documentId) {
         Message message = newScheduleMessage(documentId, DocumentScheduleType.COMPACT, System.currentTimeMillis(), null);
         publish(DocumentScheduleTopology.QUEUE, message);
     }
 
+    /** 发布带关闭令牌的延迟 CLOSE 信号。 */
     public void scheduleClose(long documentId, String closeToken) {
         Message message = newScheduleMessage(documentId, DocumentScheduleType.CLOSE,
                 System.currentTimeMillis() + documentProperties.getCloseDelayMs(), closeToken);
         publish(DocumentScheduleTopology.CLOSE_DELAY_QUEUE, message);
     }
 
+    /** 发送持久化消息并等待 Broker confirm，失败时向调用方抛出异常。 */
     private void publish(String queue, Message message) {
         rabbitTemplate.invoke(operations -> {
             operations.send("", queue, message);
@@ -65,6 +71,7 @@ public class DocumentSchedulePublisher {
         });
     }
 
+    /** 构造 JSON、持久化属性和唯一消息 ID 都已设置的 Rabbit 消息。 */
     Message newScheduleMessage(long documentId, DocumentScheduleType type, long triggerTime, String closeToken) {
         DocumentScheduleMessage schedule = new DocumentScheduleMessage(documentId, type, triggerTime, closeToken);
         MessageProperties properties = new MessageProperties();
@@ -75,6 +82,7 @@ public class DocumentSchedulePublisher {
         return new Message(serialize(schedule), properties);
     }
 
+    /** 将轻量调度信号序列化为 UTF-8 JSON 字节。 */
     private byte[] serialize(DocumentScheduleMessage schedule) {
         try {
             return objectMapper.writeValueAsBytes(schedule);

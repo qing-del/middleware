@@ -33,6 +33,7 @@ public class DocumentBootstrapService {
     private final DocumentWsCodec codec;
     private final DocumentProperties properties;
 
+    /** 创建按“快照 → MySQL 日志 → Redis Stream”顺序发送 bootstrap 的服务。 */
     public DocumentBootstrapService(MinioObjectStorage minioObjectStorage, MinioBucketResolver minioBucketResolver,
                                     DocumentOpLogMapper documentOpLogMapper,
                                     DocumentRedisRepository documentRedisRepository,
@@ -45,6 +46,7 @@ public class DocumentBootstrapService {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
     }
 
+    /** 向新会话发送可恢复的全部内容，并把底层读取/传输错误统一包装。 */
     public void sendBootstrap(DocumentDO document, WebSocketSession session) {
         Objects.requireNonNull(document, "document must not be null");
         Objects.requireNonNull(session, "session must not be null");
@@ -62,6 +64,7 @@ public class DocumentBootstrapService {
         }
     }
 
+    /** 如果存在快照对象，则先发送快照状态作为客户端基线。 */
     private void sendSnapshotIfPresent(DocumentDO document, WebSocketSession session) throws Exception {
         String objectKey = document.getContentObjectKey();
         if (objectKey == null || objectKey.isBlank()) {
@@ -72,6 +75,7 @@ public class DocumentBootstrapService {
         send(session, DocumentWsFrameType.SNAPSHOT_STATE, BOOTSTRAP_EVENT_ID, snapshot);
     }
 
+    /** 分批发送快照位点之后的 MySQL 持久化更新。 */
     private void sendDurableUpdates(long documentId, Long persistedLogId, WebSocketSession session) throws IOException {
         long afterId = persistedLogId == null ? 0L : persistedLogId;
         int batchSize = Math.max(1, properties.getFlushLog().getBatchSize());
@@ -93,6 +97,7 @@ public class DocumentBootstrapService {
         }
     }
 
+    /** 发送所有仍在 Redis Stream 中的更新，覆盖尚未完成 FLUSH_LOG 的编辑。 */
     private void sendPendingUpdates(long documentId, WebSocketSession session) throws IOException {
         // 这里刻意读取所有可见 Stream 条目：重连时不能因为 FLUSH_LOG 尚未消费下一批，
         // 就遗漏一条已经接收成功的更新。
@@ -102,10 +107,12 @@ public class DocumentBootstrapService {
         }
     }
 
+    /** 使用统一 codec 发送一个带明确帧类型和事件 ID 的二进制帧。 */
     private void send(WebSocketSession session, DocumentWsFrameType type, UUID eventId, byte[] yjsBytes) throws IOException {
         session.sendMessage(codec.encodeBinary(new DocumentWsBinaryFrame(type, eventId, yjsBytes)));
     }
 
+    /** 校验 bootstrap 来源文档具有可用主键。 */
     private static long requireDocumentId(DocumentDO document) {
         if (document.getId() == null || document.getId() <= 0) {
             throw new IllegalArgumentException("document must have a positive ID");

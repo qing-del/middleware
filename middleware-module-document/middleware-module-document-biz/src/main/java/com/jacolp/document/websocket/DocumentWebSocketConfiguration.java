@@ -19,6 +19,7 @@ public class DocumentWebSocketConfiguration implements WebSocketConfigurer {
     private final DocumentWebSocketHandshakeHandler handshakeHandler;
     private final CorsProperties corsProperties;
 
+    /** 创建复用现有 CORS 配置和 JWT 握手组件的 WebSocket 配置。 */
     public DocumentWebSocketConfiguration(DocumentWebSocketHandler handler,
                                           DocumentWebSocketHandshakeInterceptor handshakeInterceptor,
                                           DocumentWebSocketHandshakeHandler handshakeHandler,
@@ -29,6 +30,7 @@ public class DocumentWebSocketConfiguration implements WebSocketConfigurer {
         this.corsProperties = Objects.requireNonNull(corsProperties, "corsProperties must not be null");
     }
 
+    /** 注册唯一的文档协作端点，并限制其允许来源。 */
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(handler, "/ws/document")

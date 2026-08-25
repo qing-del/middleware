@@ -11,6 +11,7 @@ public record DocumentMetadata(
         Long lastModifyUserId,
         boolean deleted
 ) {
+    /** 校验元数据的范围和标题约束，避免无效状态跨模块传播。 */
     public DocumentMetadata {
         if (documentId <= 0) throw new IllegalArgumentException("documentId must be positive");
         if (teamId <= 0) throw new IllegalArgumentException("teamId must be positive");

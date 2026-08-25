@@ -30,10 +30,12 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
 
     private final JwtDecoder jwtDecoder;
 
+    /** 创建使用现有 JWT decoder 和 scope matcher 的握手认证器。 */
     public DocumentWebSocketHandshakeInterceptor(JwtDecoder jwtDecoder) {
         this.jwtDecoder = Objects.requireNonNull(jwtDecoder, "jwtDecoder must not be null");
     }
 
+    /** 从唯一 bearer 子协议取 token，验签并把当前用户主体写入 WebSocket attributes。 */
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                    WebSocketHandler webSocketHandler, Map<String, Object> attributes) {
@@ -55,12 +57,14 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
         }
     }
 
+    /** 握手已经在升级前完成认证，连接建立后无需额外资源清理。 */
     @Override
     public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                WebSocketHandler webSocketHandler, Exception exception) {
         // 认证在协议升级前已经完成，这里没有需要清理的 WebSocket 会话。
     }
 
+    /** 从握手 attributes 取出已认证主体，缺失时拒绝继续处理消息。 */
     public static CurrentPrincipal requirePrincipal(Map<String, Object> attributes) {
         Object principal = attributes.get(PRINCIPAL_ATTRIBUTE);
         if (principal instanceof CurrentPrincipal currentPrincipal) {
@@ -69,6 +73,7 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
         throw new IllegalStateException("authenticated document WebSocket principal is missing");
     }
 
+    /** 只接受单个 {@code bearer.<JWT>} 子协议，不从 query 或 Cookie 读取令牌。 */
     private static String extractAccessToken(HttpHeaders headers) {
         String protocolHeader = headers.getFirst(SEC_WEBSOCKET_PROTOCOL);
         if (protocolHeader == null) {

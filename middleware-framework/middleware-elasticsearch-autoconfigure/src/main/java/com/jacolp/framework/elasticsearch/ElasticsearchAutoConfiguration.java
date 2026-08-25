@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnProperty(prefix = "jacolp.elasticsearch", name = "uris")
 @EnableConfigurationProperties(ElasticsearchProperties.class)
 public class ElasticsearchAutoConfiguration {
+    /** 创建共享 REST 客户端，并在凭据成对配置时启用基本认证。 */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean
     public RestClient elasticsearchRestClient(ElasticsearchProperties properties) {
@@ -35,6 +36,7 @@ public class ElasticsearchAutoConfiguration {
         if (properties.hasPartialCredentials()) {
             throw new IllegalStateException("jacolp.elasticsearch.username and jacolp.elasticsearch.password must be configured together");
         }
+        // 只有显式提供完整凭据时才配置认证，允许本地无认证集群继续使用同一套自动配置。
         RestClientBuilder builder = RestClient.builder(uris.stream().map(HttpHost::create).toArray(HttpHost[]::new));
         if (properties.hasCompleteCredentials()) {
             CredentialsProvider credentials = new BasicCredentialsProvider();
@@ -45,24 +47,28 @@ public class ElasticsearchAutoConfiguration {
         return builder.build();
     }
 
+    /** 将 Apache REST 客户端包装为 Elasticsearch Java API transport。 */
     @Bean
     @ConditionalOnMissingBean
     public ElasticsearchTransport elasticsearchTransport(RestClient elasticsearchRestClient) {
         return new RestClientTransport(elasticsearchRestClient, new JacksonJsonpMapper());
     }
 
+    /** 暴露官方 Elasticsearch Java API 客户端供业务模块处理高级请求。 */
     @Bean
     @ConditionalOnMissingBean
     public ElasticsearchClient elasticsearchClient(ElasticsearchTransport elasticsearchTransport) {
         return new ElasticsearchClient(elasticsearchTransport);
     }
 
+    /** 暴露逻辑索引名解析器，避免业务模块直接读取连接配置。 */
     @Bean
     @ConditionalOnMissingBean
     public ElasticsearchIndexResolver elasticsearchIndexResolver(ElasticsearchProperties properties) {
         return new DefaultElasticsearchIndexResolver(properties);
     }
 
+    /** 暴露覆盖常用索引、读写和查询操作的通用门面。 */
     @Bean
     @ConditionalOnMissingBean
     public ElasticsearchOperations elasticsearchOperations(ElasticsearchClient elasticsearchClient) {

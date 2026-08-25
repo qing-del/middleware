@@ -15,12 +15,15 @@ public interface DocumentOpLogMapper {
      */
     int insertBatchIgnoringDuplicates(@Param("logs") List<DocumentOpLogDO> logs);
 
+    /** 读取指定文档在日志位点之后的有序更新批次。 */
     List<DocumentOpLogDO> selectByDocumentIdAfterId(@Param("documentId") Long documentId,
                                                     @Param("afterId") Long afterId,
                                                     @Param("limit") Integer limit);
 
+    /** 统计指定文档在日志位点之后尚未被快照覆盖的操作数。 */
     long countByDocumentIdAfterId(@Param("documentId") Long documentId, @Param("afterId") Long afterId);
 
+    /** 删除已被新快照指针覆盖的日志前缀。 */
     int deleteByDocumentIdThroughId(@Param("documentId") Long documentId,
                                     @Param("throughId") Long throughId);
 }

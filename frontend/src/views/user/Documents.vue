@@ -12,6 +12,7 @@ const documents = ref<DocumentMetadata[]>([])
 // 接口可能返回刚被软删除的记录；列表页只向用户展示仍可进入协作的文档。
 const visibleDocuments = computed(() => documents.value.filter(document => !document.deleted))
 
+/** 将服务端毫秒时间戳格式化为用户可读的中文本地时间。 */
 function formatTime(timestamp: number): string {
   if (!timestamp) return '-'
   const value = new Date(timestamp)
@@ -21,6 +22,7 @@ function formatTime(timestamp: number): string {
   }).format(value)
 }
 
+/** 加载当前用户文档列表，并在请求期间统一维护页面 loading/error 状态。 */
 async function loadDocuments() {
   // 每次加载先清除旧错误，避免一次失败的提示覆盖后续成功返回的列表。
   loading.value = true
@@ -36,10 +38,12 @@ async function loadDocuments() {
 
 onMounted(() => void loadDocuments())
 
+/** 跳转到新建文档页面，创建动作由编辑器页面提交。 */
 function createDocument(): void {
   void router.push({ name: 'UserDocumentCreate' })
 }
 
+/** 按文档 ID 打开协作文档编辑器。 */
 function openDocument(documentId: number): void {
   void router.push({ name: 'UserDocumentEditor', params: { documentId } })
 }

@@ -70,20 +70,24 @@ const connectionLabel = computed(() => {
   return labels[connectionState.value]
 })
 
+/** 用当前认证用户的昵称、用户名作为 awareness 展示名称。 */
 function currentUserLabel(): string {
   return authStore.user?.nickname || authStore.user?.username || '当前用户'
 }
 
+/** 根据稳定字符串生成协作者颜色，保证同一用户刷新后颜色一致。 */
 function createColor(seed: string): string {
   let hash = 0
   for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
   return `hsl(${hash % 360} 62% 46%)`
 }
 
+/** 将任意请求异常转换为页面可展示的错误文本。 */
 function getErrorMessage(cause: unknown, fallback: string): string {
   return cause instanceof Error && cause.message ? cause.message : fallback
 }
 
+/** 释放当前编辑器、Y.Doc、协作连接和页面状态，供路由切换复用。 */
 function teardownEditor(): void {
   collaborationClient?.dispose()
   collaborationClient = null
@@ -97,6 +101,7 @@ function teardownEditor(): void {
   connectionMessage.value = null
 }
 
+/** 按当前路由加载元数据、创建 Tiptap/Yjs 绑定并启动协作连接。 */
 async function initializeEditor(): Promise<void> {
   const requestedVersion = ++initializationVersion
   teardownEditor()
@@ -126,6 +131,7 @@ async function initializeEditor(): Promise<void> {
     // 编辑器绑定前先创建具名 Yjs 根节点；所有 Tiptap 文档内容随后都从这个唯一的
     // `content` fragment 读写。
     document.getXmlFragment('content')
+    // 先绑定回调再连接，确保 bootstrap 完成前页面只读且过期路由不会更新当前状态。
     const client = new DocumentCollaborationClient({
       documentId: loadedMetadata.documentId,
       accessToken,
@@ -179,6 +185,7 @@ async function initializeEditor(): Promise<void> {
   }
 }
 
+/** 校验标题并创建文档，然后跳转到新文档编辑路由。 */
 async function createDocument(): Promise<void> {
   const title = newDocumentTitle.value.trim()
   if (!title) {
@@ -199,6 +206,7 @@ async function createDocument(): Promise<void> {
   }
 }
 
+/** 只提交实际变化的标题，并在失败时恢复服务端已知标题。 */
 async function saveTitle(): Promise<void> {
   if (!metadata.value || savingTitle.value) return
   const title = titleDraft.value.trim()
@@ -220,16 +228,19 @@ async function saveTitle(): Promise<void> {
   }
 }
 
+/** 只在编辑器已完成同步时执行工具栏命令。 */
 function runEditorCommand(command: () => boolean): void {
   if (editorIsReady.value) command()
 }
 
+/** 从 Tiptap 当前 selection 读取格式状态，驱动工具栏 active 样式刷新。 */
 function isActive(name: string): boolean {
   // Tiptap 的更新不在 Vue 响应式系统内；读取该计数器能让每次编辑事务都刷新工具栏格式状态。
   void editorVersion.value
   return editor?.isActive(name) ?? false
 }
 
+/** 插入仅保存引用属性的行内资源引用节点。 */
 function insertResourceReference(): void {
   if (!editorIsReady.value) return
   const displayText = window.prompt('请输入引用的显示文本')?.trim()
@@ -246,6 +257,7 @@ function insertResourceReference(): void {
   }).run()
 }
 
+/** 返回文档列表页。 */
 function goBack(): void {
   void router.push({ name: 'UserDocuments' })
 }

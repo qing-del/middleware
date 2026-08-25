@@ -9,6 +9,7 @@ public record DocumentCompactResult(long documentId, Status status, Long cutoffL
         CAS_LOST
     }
 
+    /** 构造“没有待压缩更新”的幂等结果。 */
     public static DocumentCompactResult noUpdates(long documentId) {
         return new DocumentCompactResult(documentId, Status.NO_UPDATES, null, null);
     }

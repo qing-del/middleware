@@ -16,6 +16,7 @@ const isLoading = ref(true)
 
 const menuItems = computed(() => [
   { id: 'dashboard', label: '工作台', icon: LayoutDashboard, to: '/user/dashboard' },
+  // 保留旧笔记入口，同时把新的实时协作文档作为独立模块展示。
   { id: 'notes', label: '笔记模块（旧）', icon: FileText, to: '/user/notes' },
   { id: 'documents', label: '笔记模块', icon: Files, to: '/user/documents' },
   { id: 'public-notes', label: '公共笔记广场', icon: Globe, to: '/user/public-notes' },

@@ -38,6 +38,7 @@ export interface DocumentWsBinaryFrame {
 }
 
 function uuidBytes(value: string): Uint8Array {
+  // 线上的 UUID 固定为 16 字节，先去掉短横线并严格校验十六进制格式。
   const compact = value.replace(/-/g, '')
   if (!/^[0-9a-f]{32}$/i.test(compact)) {
     throw new Error('文档 WebSocket 协议 UUID 无效')
@@ -51,15 +52,18 @@ function uuidBytes(value: string): Uint8Array {
 }
 
 function bytesUuid(bytes: Uint8Array): string {
+  // 解码时重新插入 UUID 分段，保持事件 ID 在客户端与服务端之间可关联。
   if (bytes.length !== 16) throw new Error('文档 WebSocket 协议 UUID 长度无效')
   const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
+/** 生成控制帧和 CLIENT_UPDATE 共用的请求关联 ID。 */
 export function createDocumentWsRequestId(): string {
   return crypto.randomUUID()
 }
 
+/** 创建带协议版本、默认空字段和唯一 requestId 的控制帧。 */
 export function createDocumentWsControl(
   type: DocumentWsControlType,
   overrides: Partial<Omit<DocumentWsControlMessage, 'protocolVersion' | 'type'>> = {}
@@ -78,6 +82,7 @@ export function createDocumentWsControl(
   }
 }
 
+/** 按 Java codec 的固定 18 字节头编码二进制帧，payload 保持原始字节。 */
 export function encodeDocumentWsFrame(
   type: DocumentWsFrameType,
   eventId: string,
@@ -93,6 +98,7 @@ export function encodeDocumentWsFrame(
   return frame.buffer
 }
 
+/** 校验版本和帧类型后解码二进制头，并返回未解析的 payload。 */
 export function decodeDocumentWsFrame(data: ArrayBuffer): DocumentWsBinaryFrame {
   const frame = new Uint8Array(data)
   if (frame.byteLength < DOCUMENT_WS_HEADER_BYTES) {
@@ -114,6 +120,7 @@ export function decodeDocumentWsFrame(data: ArrayBuffer): DocumentWsBinaryFrame 
   }
 }
 
+/** 解析控制 JSON 的外层兼容性，字段语义由消息处理器进一步校验。 */
 export function parseDocumentWsControl(data: string): DocumentWsControlMessage {
   const value: unknown = JSON.parse(data)
   if (!value || typeof value !== 'object') throw new Error('文档 WebSocket 控制帧无效')

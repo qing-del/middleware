@@ -24,6 +24,7 @@ public class DocumentRoomLifecycleService {
     private final DocumentRedisRepository documentRedisRepository;
     private final DocumentSchedulePublisher schedulePublisher;
 
+    /** 注入 Redis 运行态存储与文档调度发布器。 */
     public DocumentRoomLifecycleService(DocumentRedisRepository documentRedisRepository,
                                         DocumentSchedulePublisher schedulePublisher) {
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
@@ -55,12 +56,14 @@ public class DocumentRoomLifecycleService {
         }
     }
 
+    /** 判断 Redis 中的关闭请求是否仍与当前令牌一致。 */
     public boolean isCurrentClose(long documentId, String closeToken) {
         return closeToken != null && documentRedisRepository.findRoomMeta(documentId)
                 .map(meta -> meta.closeRequested() && closeToken.equals(meta.closeToken()))
                 .orElse(false);
     }
 
+    /** 定时恢复仍处于关闭请求状态但可能丢失调度消息的 Room。 */
     @Scheduled(fixedDelayString = "${jacolp.document.flush-log.recovery-scan-ms:30000}")
     public void rescheduleOutstandingCloses() {
         for (DocumentRoomMeta meta : documentRedisRepository.findRoomMetas()) {

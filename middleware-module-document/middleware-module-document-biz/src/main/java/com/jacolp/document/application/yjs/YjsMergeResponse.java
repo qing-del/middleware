@@ -5,6 +5,7 @@ import java.util.Base64;
 /** {@code POST /internal/yjs/merge} 返回的 JSON 响应报文。 */
 record YjsMergeResponse(String mergedState) {
 
+    /** 解码合并服务返回的 Base64 状态，并把格式错误转换为领域异常。 */
     byte[] decodeMergedState() {
         if (mergedState == null || mergedState.isBlank()) {
             throw new YjsMergeException("Yjs merge response is missing mergedState");

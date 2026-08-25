@@ -45,11 +45,14 @@ public class DocumentRedisRepository {
 
     private final RedisConnectionFactory redisConnectionFactory;
 
+    /** 保存原始 Redis 连接工厂，所有读写都在短生命周期连接中完成。 */
     public DocumentRedisRepository(RedisConnectionFactory redisConnectionFactory) {
         this.redisConnectionFactory = redisConnectionFactory;
     }
 
+    /** 以 Hash 保存 Room 元数据，并清除本次模型中不存在的可选字段。 */
     public void saveRoomMeta(DocumentRoomMeta meta) {
+        // Hash 字段只保存运行态和审计信息，绝不把 Yjs 正文写入 Room Meta。
         Map<byte[], byte[]> fields = new LinkedHashMap<>();
         fields.put(FIELD_DOCUMENT_ID, bytes(meta.documentId()));
         fields.put(FIELD_TEAM_ID, bytes(meta.teamId()));
@@ -74,6 +77,7 @@ public class DocumentRedisRepository {
         }
     }
 
+    /** 读取一个 Room 的元数据；Redis 中没有该 Hash 时返回空结果。 */
     public Optional<DocumentRoomMeta> findRoomMeta(long documentId) {
         requirePositive(documentId, "documentId");
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
@@ -87,6 +91,7 @@ public class DocumentRedisRepository {
 
     /** 追加一条二进制更新，并在 XADD 成功后返回对应的 Redis Stream ID。 */
     public String appendPendingUpdate(DocumentPendingUpdate update) {
+        // updateData 直接以 byte[] 写入 Stream，避免 UTF-8 或 JSON 转换破坏 Yjs 字节。
         Map<byte[], byte[]> fields = new LinkedHashMap<>();
         fields.put(FIELD_UPDATE, update.updateData());
         fields.put(FIELD_CLIENT_UPDATE_ID, bytes(update.clientUpdateId()));
@@ -105,6 +110,7 @@ public class DocumentRedisRepository {
         }
     }
 
+    /** 按 Stream 顺序读取指定数量的待刷盘更新，并为每条记录保留其 Redis ID。 */
     public List<StoredDocumentPendingUpdate> readPendingUpdates(long documentId, int maxCount) {
         requirePositive(documentId, "documentId");
         if (maxCount <= 0) {
@@ -124,6 +130,7 @@ public class DocumentRedisRepository {
         }
     }
 
+    /** 删除已成功持久化的 Stream 条目；空 ID 集合不触碰 Redis。 */
     public long deletePendingUpdates(long documentId, Collection<String> redisOpIds) {
         requirePositive(documentId, "documentId");
         if (redisOpIds == null || redisOpIds.isEmpty()) {
@@ -174,6 +181,7 @@ public class DocumentRedisRepository {
         }
     }
 
+    /** 主动删除一个会话的 presence 租约；过期租约无需额外清理。 */
     public void deletePresence(String presenceKey) {
         if (presenceKey == null || presenceKey.isBlank()) {
             return;
@@ -206,16 +214,19 @@ public class DocumentRedisRepository {
         }
     }
 
+    /** 生成文档 Room Meta 的稳定 Redis key。 */
     static String roomMetaKey(long documentId) {
         requirePositive(documentId, "documentId");
         return "document:meta:" + documentId;
     }
 
+    /** 生成文档待刷盘 Stream 的稳定 Redis key。 */
     static String pendingUpdatesKey(long documentId) {
         requirePositive(documentId, "documentId");
         return "document:updates:" + documentId;
     }
 
+    /** 将 Redis Hash 字段恢复为经过领域校验的 Room 元数据。 */
     private static DocumentRoomMeta toRoomMeta(Map<byte[], byte[]> rawFields) {
         Map<String, byte[]> fields = stringFields(rawFields);
         return new DocumentRoomMeta(
@@ -227,6 +238,7 @@ public class DocumentRedisRepository {
                 parseOptionalLong(fields, "lastModifyUserId"));
     }
 
+    /** 将 Redis Stream 记录恢复为带 Stream ID 的待刷盘更新。 */
     private static StoredDocumentPendingUpdate toStoredPendingUpdate(long documentId, ByteRecord record) {
         if (record.getId() == null || record.getId().getValue() == null || record.getId().getValue().isBlank()) {
             throw new IllegalStateException("Redis Stream record is missing its ID");
@@ -245,12 +257,14 @@ public class DocumentRedisRepository {
                 parseRequiredLong(fields, "createdAt")));
     }
 
+    /** 仅把字段名转成字符串，保留字段值的原始字节。 */
     private static Map<String, byte[]> stringFields(Map<byte[], byte[]> rawFields) {
         Map<String, byte[]> fields = new LinkedHashMap<>();
         rawFields.forEach((key, value) -> fields.put(string(key), value));
         return fields;
     }
 
+    /** 将 Redis 中的 0/1 关闭标志解析为布尔值。 */
     private static boolean parseCloseRequested(Map<String, byte[]> fields) {
         String value = requiredString(fields, "isClose");
         return switch (value) {
@@ -260,6 +274,7 @@ public class DocumentRedisRepository {
         };
     }
 
+    /** 读取并解析必填 long 字段。 */
     private static long parseRequiredLong(Map<String, byte[]> fields, String fieldName) {
         try {
             return Long.parseLong(requiredString(fields, fieldName));
@@ -268,6 +283,7 @@ public class DocumentRedisRepository {
         }
     }
 
+    /** 读取可选 long 字段；字段缺失时保留 null。 */
     private static Long parseOptionalLong(Map<String, byte[]> fields, String fieldName) {
         String value = parseOptionalString(fields, fieldName);
         if (value == null) {
@@ -280,6 +296,7 @@ public class DocumentRedisRepository {
         }
     }
 
+    /** 读取非空字符串字段，缺失或空白时拒绝损坏数据。 */
     private static String requiredString(Map<String, byte[]> fields, String fieldName) {
         String value = parseOptionalString(fields, fieldName);
         if (value == null || value.isBlank()) {
@@ -288,11 +305,13 @@ public class DocumentRedisRepository {
         return value;
     }
 
+    /** 读取可选字符串字段，不对缺失字段进行默认填充。 */
     private static String parseOptionalString(Map<String, byte[]> fields, String fieldName) {
         byte[] value = fields.get(fieldName);
         return value == null ? null : string(value);
     }
 
+    /** 将 Stream ID 字符串转换为 Redis 连接 API 所需的 RecordId。 */
     private static RecordId toRecordId(String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("redisOpId must not be blank");
@@ -300,16 +319,19 @@ public class DocumentRedisRepository {
         return RecordId.of(value);
     }
 
+    /** 校验 Redis key 相关的正数 ID。 */
     private static void requirePositive(long value, String fieldName) {
         if (value <= 0) {
             throw new IllegalArgumentException(fieldName + " must be positive");
         }
     }
 
+    /** 将标量按 UTF-8 编码，供 Redis key 和非正文字段使用。 */
     private static byte[] bytes(Object value) {
         return String.valueOf(value).getBytes(StandardCharsets.UTF_8);
     }
 
+    /** 将 Redis 非正文字段按 UTF-8 解码。 */
     private static String string(byte[] value) {
         return new String(value, StandardCharsets.UTF_8);
     }

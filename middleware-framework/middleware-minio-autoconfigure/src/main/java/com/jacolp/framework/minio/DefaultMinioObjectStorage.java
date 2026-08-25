@@ -19,10 +19,12 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
 
     private final MinioClient minioClient;
 
+    /** 保存共享 MinIO 客户端，后续读写复用其连接配置。 */
     DefaultMinioObjectStorage(MinioClient minioClient) {
         this.minioClient = Objects.requireNonNull(minioClient, "minioClient must not be null");
     }
 
+    /** 读取对象并在内存中执行最大字节数保护。 */
     @Override
     public byte[] read(String bucket, String objectKey, long maxBytes) {
         validateLocation(bucket, objectKey);
@@ -38,6 +40,7 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
         }
     }
 
+    /** 确保桶存在后按调用方提供的精确键写入完整字节数组。 */
     @Override
     public void write(String bucket, String objectKey, byte[] content, String contentType) {
         validateLocation(bucket, objectKey);
@@ -63,6 +66,7 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
      * instance may create the bucket after {@code bucketExists} returns false.</p>
      */
     private void ensureBucketExists(String bucket) throws Exception {
+        // 先检查可避免重复创建；并发实例同时创建时由下方幂等错误码收敛。
         if (minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build())) {
             return;
         }
@@ -76,6 +80,7 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
         }
     }
 
+    /** 删除调用方指定的对象，不改变其他对象或桶的生命周期。 */
     @Override
     public void delete(String bucket, String objectKey) {
         validateLocation(bucket, objectKey);
@@ -86,6 +91,7 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
         }
     }
 
+    /** 分块读取对象，并在追加下一块前拒绝超过上限的响应。 */
     private static byte[] readBounded(InputStream stream, long maxBytes) throws IOException {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
@@ -101,6 +107,7 @@ final class DefaultMinioObjectStorage implements MinioObjectStorage {
         }
     }
 
+    /** 校验桶和对象键均可用于一次明确的 SDK 请求。 */
     private static void validateLocation(String bucket, String objectKey) {
         if (bucket == null || bucket.isBlank()) {
             throw new IllegalArgumentException("bucket must not be blank");

@@ -10,16 +10,19 @@ export interface YjsMergeResponse {
 }
 
 export class InvalidMergeRequestError extends Error {
+  /** 创建可返回给调用方的请求校验异常。 */
   constructor(message: string) {
     super(message);
     this.name = 'InvalidMergeRequestError';
   }
 }
 
+/** 使用官方 Yjs 在内存中按顺序应用状态和更新，并返回新的完整状态。 */
 export function mergeYjsState(request: YjsMergeRequest): YjsMergeResponse {
   validateRequest(request);
 
   const document = new Y.Doc();
+  // Java 侧只负责 Base64 传输；正文的解码、应用和重新编码全部由 Yjs 完成。
   if (request.baseState !== null) {
     Y.applyUpdate(document, decodeBase64(request.baseState, 'baseState'));
   }
@@ -33,6 +36,7 @@ export function mergeYjsState(request: YjsMergeRequest): YjsMergeResponse {
   };
 }
 
+/** 校验请求形状，确保基础状态可为空而 updates 始终是字符串数组。 */
 function validateRequest(request: YjsMergeRequest): void {
   if (request === null || typeof request !== 'object') {
     throw new InvalidMergeRequestError('request body must be a JSON object');
@@ -45,6 +49,7 @@ function validateRequest(request: YjsMergeRequest): void {
   }
 }
 
+/** 校验并解码单个 Base64 字段，拒绝非规范编码。 */
 function decodeBase64(value: string, field: string): Uint8Array {
   if (!isCanonicalBase64(value)) {
     throw new InvalidMergeRequestError(`${field} must be valid base64`);
@@ -53,6 +58,7 @@ function decodeBase64(value: string, field: string): Uint8Array {
   return new Uint8Array(Buffer.from(value, 'base64'));
 }
 
+/** 通过重新编码确认输入 Base64 没有隐藏非法字符或填充差异。 */
 function isCanonicalBase64(value: string): boolean {
   if (value.length === 0) {
     return true;

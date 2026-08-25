@@ -1,7 +1,9 @@
 name: home-dev-infra
 
+# 本地数据中心依赖统一加入 dev-net，应用容器可通过服务名访问而无需暴露内部地址。
 services:
   mysql:
+    # MySQL 为持久化元数据和操作日志提供数据库，并开启 Canal 所需的 ROW Binlog。
     image: mysql:8.4
     container_name: dev-mysql
     hostname: dev-mysql
@@ -47,6 +49,7 @@ services:
         max-file: "3"
 
   canal:
+    # Canal 读取 MySQL Binlog；等待 MySQL 健康后再启动，避免实例配置过早连接失败。
     image: canal/canal-server:v1.1.7
     container_name: dev-canal
     hostname: dev-canal
@@ -81,6 +84,7 @@ services:
         max-file: "3"
 
   redis:
+    # Redis 保存 Room 运行态、presence 租约和待刷盘的二进制 Stream 更新。
     image: redis:7.4
     container_name: dev-redis
     hostname: dev-redis
@@ -113,6 +117,7 @@ services:
         max-file: "3"
 
   rabbitmq:
+    # RabbitMQ 承载不带正文的 FLUSH_LOG/COMPACT/CLOSE 调度信号。
     image: rabbitmq:4-management
     container_name: dev-rabbitmq
     hostname: dev-rabbitmq
@@ -144,6 +149,7 @@ services:
         max-file: "3"
 
   minio:
+    # MinIO 保存不可变 Yjs 快照对象；快照指针由 MySQL CAS 切换。
     image: minio/minio:latest
     container_name: dev-minio
     hostname: dev-minio
@@ -175,6 +181,7 @@ services:
         max-file: "3"
 
   elasticsearch:
+    # Elasticsearch 作为可选的通用搜索基础设施，不参与正文协作恢复链路。
     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
     container_name: dev-elasticsearch
     hostname: dev-elasticsearch

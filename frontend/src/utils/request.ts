@@ -245,6 +245,7 @@ request.post = <T = unknown>(url: string, data?: unknown, config?: RequestConfig
 request.put = <T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T> =>
   instance.put(url, data, config) as unknown as Promise<T>
 
+// 标题修改使用 PATCH，沿用现有请求实例的认证、错误处理和响应解包逻辑。
 request.patch = <T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T> =>
   instance.patch(url, data, config) as unknown as Promise<T>
 

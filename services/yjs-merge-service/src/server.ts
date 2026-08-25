@@ -9,6 +9,7 @@ import {
 const MERGE_PATH = '/internal/yjs/merge';
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 
+/** 创建只提供内部 Yjs 合并接口的无状态 HTTP 服务。 */
 export function createMergeServer(): Server {
   return createServer(async (request, response) => {
     try {
@@ -20,6 +21,7 @@ export function createMergeServer(): Server {
   });
 }
 
+/** 只接受固定 POST 路径，并将请求校验错误转换为 400。 */
 async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
   if (request.method !== 'POST' || request.url !== MERGE_PATH) {
     writeJson(response, 404, { error: 'not found' });
@@ -39,6 +41,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   }
 }
 
+/** 分块读取 JSON 请求并在累积超过上限前中止。 */
 async function readJsonBody(request: IncomingMessage): Promise<YjsMergeRequest> {
   const chunks: Buffer[] = [];
   let receivedBytes = 0;
@@ -59,11 +62,13 @@ async function readJsonBody(request: IncomingMessage): Promise<YjsMergeRequest> 
   }
 }
 
+/** 统一设置 JSON 响应头并写出服务结果。 */
 function writeJson(response: ServerResponse, statusCode: number, body: unknown): void {
   response.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8' });
   response.end(JSON.stringify(body));
 }
 
+// 直接运行该模块时启动监听；被测试导入时只暴露 createMergeServer。
 if (process.argv[1] !== undefined && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const server = createMergeServer();
   server.listen(3100, '0.0.0.0', () => {
