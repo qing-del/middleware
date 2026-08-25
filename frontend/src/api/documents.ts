@@ -2,11 +2,17 @@ import request from '@/utils/request'
 
 /** v0.3 协作文档 API 返回的元数据；CRDT 正文只通过 WebSocket 传输。 */
 export interface DocumentMetadata {
+  /** 文档数据库主键；example: {@code 42} */
   documentId: number
+  /** 个人空间标识，固定为文档所有者用户 ID；example: {@code 10001} */
   teamId: number
+  /** 文档标题；example: {@code 项目设计文档} */
   title: string
+  /** 最近一次接受更新的 Unix 毫秒时间戳；example: {@code 1756080000000} */
   lastModifyTime: number
+  /** 最近修改用户 ID，没有修改者时为 null；example: {@code 10001} */
   lastModifyUserId: number | null
+  /** 逻辑删除标记；example: {@code false} */
   deleted: boolean
 }
 

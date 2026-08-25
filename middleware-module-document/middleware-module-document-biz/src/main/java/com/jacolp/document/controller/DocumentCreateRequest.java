@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 public record DocumentCreateRequest(
         @NotBlank(message = "文档标题不能为空")
         @Size(max = 255, message = "文档标题不能超过 255 个字符")
+        /** 新文档标题。<p>example: {@code 项目周会纪要}</p> */
         String title
 ) {
 }

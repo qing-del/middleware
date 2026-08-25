@@ -18,15 +18,22 @@ import {
 export type DocumentConnectionState = 'connecting' | 'synchronizing' | 'synced' | 'reconnecting' | 'closed' | 'error'
 
 export interface DocumentCollaborationClientOptions {
+  /** 要加入协作 Room 的文档 ID；example: {@code 42} */
   documentId: number
+  /** 用于 WebSocket bearer 子协议的访问令牌；example: {@code 'eyJhbGciOi...'} */
   accessToken: string
+  /** 承载文档正文和 Yjs 状态的本地文档对象；example: {@code new Y.Doc()} */
   ydoc: Y.Doc
+  /** 连接状态变化回调；example: {@code (state) => console.log(state)} */
   onStateChange?: (state: DocumentConnectionState, message?: string) => void
+  /** 在线协作者数量变化回调；example: {@code (count) => collaboratorCount.value = count} */
   onAwarenessChange?: (count: number) => void
 }
 
 interface PendingUpdate {
+  /** 客户端为该更新生成的幂等 UUID；example: {@code '550e8400-e29b-41d4-a716-446655440000'} */
   id: string
+  /** 尚未收到 UPDATE_ACCEPTED 的 Yjs 二进制更新；example: {@code new Uint8Array([1, 2, 127])} */
   payload: Uint8Array
 }
 

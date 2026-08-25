@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 public record DocumentMetadataUpdateRequest(
         @NotBlank(message = "文档标题不能为空")
         @Size(max = 255, message = "文档标题不能超过 255 个字符")
+        /** 要更新的文档标题。<p>example: {@code 2026 年产品规划}</p> */
         String title
 ) {
 }

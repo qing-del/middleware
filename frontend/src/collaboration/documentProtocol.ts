@@ -13,13 +13,21 @@ export type DocumentWsControlType =
   | 'PONG'
 
 export interface DocumentWsControlMessage {
+  /** 控制帧协议版本；example: {@code 1} */
   protocolVersion: number
+  /** 控制消息类型；example: {@code 'JOIN_DOCUMENT'} */
   type: DocumentWsControlType
+  /** 请求关联 UUID；example: {@code '550e8400-e29b-41d4-a716-446655440000'} */
   requestId: string | null
+  /** 关联的文档 ID；全局错误时为 null；example: {@code 42} */
   documentId: number | null
+  /** 客户端 Yjs 更新 UUID；非更新消息时为 null；example: {@code '6ba7b810-9dad-11d1-80b4-00c04fd430c8'} */
   clientUpdateId: string | null
+  /** Redis Stream 条目 ID；确认服务端接收位置；example: {@code '1756080000000-0'} */
   redisOpId: string | null
+  /** 机器可判断的错误或状态编码；example: {@code 'DOCUMENT_NOT_FOUND'} */
   code: string | null
+  /** 面向客户端展示的附加消息；example: {@code '文档不存在'} */
   message: string | null
 }
 
@@ -32,8 +40,11 @@ export enum DocumentWsFrameType {
 }
 
 export interface DocumentWsBinaryFrame {
+  /** 二进制帧类型；example: {@code DocumentWsFrameType.CLIENT_UPDATE} */
   type: DocumentWsFrameType
+  /** 用于关联事件的 UUID；example: {@code '550e8400-e29b-41d4-a716-446655440000'} */
   eventId: string
+  /** 未解析的 Yjs 或 awareness 二进制负载；example: {@code new Uint8Array([1, 2, 127])} */
   payload: Uint8Array
 }
 

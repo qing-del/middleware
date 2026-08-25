@@ -2,11 +2,17 @@ package com.jacolp.document.infrastructure.redis;
 
 /** 单个文档 Room 的 Redis 运行时元数据，始终不保存文档正文。 */
 public record DocumentRoomMeta(
+        /** Room 对应的文档 ID。<p>example: {@code 42}</p> */
         long documentId,
+        /** 文档个人空间标识，固定为所有者用户 ID。<p>example: {@code 10001}</p> */
         long teamId,
+        /** 是否已请求延迟关闭 Room。<p>example: {@code true}</p> */
         boolean closeRequested,
+        /** CLOSE 请求的幂等令牌；未请求关闭时为空。<p>example: {@code 550e8400-e29b-41d4-a716-446655440000}</p> */
         String closeToken,
+        /** Room 中最近一次接受更新的时间戳，单位为 Unix 毫秒。<p>example: {@code 1756080000000}</p> */
         long lastModifyTime,
+        /** 最近修改用户 ID；没有用户修改时为空。<p>example: {@code 10001}</p> */
         Long lastModifyUserId) {
 
     public DocumentRoomMeta {

@@ -1,10 +1,15 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 
 export interface ResourceReferenceAttributes {
+  /** 引用节点自身的稳定 ID；example: {@code 'resource-ref-42'} */
   refId: string
+  /** 被引用资源的类型；example: {@code 'note'} */
   resourceType: string | null
+  /** 被引用资源的业务 ID；example: {@code '42'} */
   resourceId: string | null
+  /** 编辑器中展示的引用文本；example: {@code '项目设计文档'} */
   displayText: string
+  /** 用户自定义的显示别名；example: {@code '设计文档'} */
   alias: string | null
 }
 

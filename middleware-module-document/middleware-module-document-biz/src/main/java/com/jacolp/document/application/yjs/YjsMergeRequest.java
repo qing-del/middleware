@@ -5,7 +5,11 @@ import java.util.List;
 import java.util.Objects;
 
 /** {@code POST /internal/yjs/merge} 使用的 JSON 请求报文。 */
-record YjsMergeRequest(String baseState, List<String> updates) {
+record YjsMergeRequest(
+        /** 可选的当前 Yjs 基础状态，使用 Base64 传输。<p>example: {@code AAECAw==}</p> */
+        String baseState,
+        /** 按接收顺序排列的 Yjs 增量列表，每项均为 Base64 字符串。<p>example: {@code [AQID, BAUG]}</p> */
+        List<String> updates) {
 
     /** 固化更新列表，避免序列化前被调用方修改。 */
     YjsMergeRequest {
