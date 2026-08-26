@@ -29,36 +29,60 @@ import { useAuthStore } from '@/stores/auth'
 import { toastSuccess } from '@/utils/feedback'
 import { readAuthSession } from '@/utils/authSession'
 
+/** 当前页面路由，用于区分创建模式和编辑模式并读取文档 ID。 */
 const route = useRoute()
+/** 用于返回文档列表页或跳转到新创建文档的编辑页。 */
 const router = useRouter()
+/** 当前登录用户信息，用于生成协作 awareness 中的展示名称和颜色。 */
 const authStore = useAuthStore()
 
+/** Tiptap 编辑器挂载的 DOM 容器；示例：编辑器区域的 `.editor-host` 元素。 */
 const editorHost = ref<HTMLElement | null>(null)
+/** 页面是否正在加载文档元数据或初始化协作编辑器。 */
 const loading = ref(false)
+/** 创建协作文档请求是否正在执行。 */
 const creating = ref(false)
+/** 标题更新请求是否正在执行，用于锁定标题输入框。 */
 const savingTitle = ref(false)
+/** 页面当前可展示的错误信息；无错误时为 `null`。 */
 const error = ref<string | null>(null)
+/** 当前文档的服务端元数据；创建模式或尚未加载时为 `null`。 */
 const metadata = ref<DocumentMetadata | null>(null)
+/** 标题输入框中的本地草稿，失焦或回车时提交。 */
 const titleDraft = ref('')
+/** 创建模式下的新文档标题；示例：`未命名协作文档`。 */
 const newDocumentTitle = ref('未命名协作文档')
+/** 文档 WebSocket 协作连接状态；示例：`synced`。 */
 const connectionState = ref<DocumentConnectionState>('closed')
+/** 面向用户展示的连接错误或同步提示；无附加提示时为 `null`。 */
 const connectionMessage = ref<string | null>(null)
+/** 当前 awareness 中的协作者数量，至少展示当前用户 1 人。 */
 const collaboratorCount = ref(1)
+/** Tiptap 事务递增版本，用于触发工具栏格式状态重新计算。 */
 const editorVersion = ref(0)
 
+/** 当前页面创建的 Tiptap 编辑器实例；销毁前或创建模式下为 `null`。 */
 let editor: Editor | null = null
+/** 与 Tiptap 共享内容绑定的 Yjs 文档；销毁前或创建模式下为 `null`。 */
 let ydoc: Y.Doc | null = null
+/** 当前页面使用的 WebSocket/Yjs 协作客户端；未初始化时为 `null`。 */
 let collaborationClient: DocumentCollaborationClient | null = null
+/** 最近一次编辑器初始化序号，用于忽略过期异步请求的结果。 */
 let initializationVersion = 0
 
+/** 当前路由是否处于创建协作文档模式。 */
 const isCreateMode = computed(() => route.name === 'UserDocumentCreate')
+/** 从当前路由解析出的正整数文档 ID；创建模式或地址无效时为 `null`。 */
 const documentId = computed<number | null>(() => {
   if (isCreateMode.value) return null
   const parsed = Number(route.params.documentId)
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 })
+/** 编辑器是否已经完成同步并可以接受用户输入。 */
 const editorIsReady = computed(() => connectionState.value === 'synced' && Boolean(editor))
+/** 将内部连接状态转换为页面上显示的中文状态文本。 */
 const connectionLabel = computed(() => {
+  /** 各连接状态对应的页面展示文案。 */
   const labels: Record<DocumentConnectionState, string> = {
     connecting: '正在连接',
     synchronizing: '正在同步历史',
@@ -103,6 +127,7 @@ function teardownEditor(): void {
 
 /** 按当前路由加载元数据、创建 Tiptap/Yjs 绑定并启动协作连接。 */
 async function initializeEditor(): Promise<void> {
+  /** 本次初始化请求的序号，用于丢弃路由变化后返回的过期结果。 */
   const requestedVersion = ++initializationVersion
   teardownEditor()
   error.value = null
@@ -117,6 +142,7 @@ async function initializeEditor(): Promise<void> {
 
   loading.value = true
   try {
+    /** 服务端返回的文档元数据，作为标题和协作连接配置的来源。 */
     const loadedMetadata = await documentApi.getMetadata(documentId.value)
     if (requestedVersion !== initializationVersion) return
     metadata.value = loadedMetadata
@@ -124,14 +150,17 @@ async function initializeEditor(): Promise<void> {
     await nextTick()
     if (requestedVersion !== initializationVersion || !editorHost.value) return
 
+    /** 当前登录会话的访问令牌，用于 WebSocket bearer 子协议。 */
     const accessToken = readAuthSession().accessToken
     if (!accessToken) throw new Error('登录状态已失效，请重新登录')
 
+    /** 与当前 Tiptap 编辑器绑定的共享 Yjs 文档。 */
     const document = new Y.Doc()
     // 编辑器绑定前先创建具名 Yjs 根节点；所有 Tiptap 文档内容随后都从这个唯一的
     // `content` fragment 读写。
     document.getXmlFragment('content')
     // 先绑定回调再连接，确保 bootstrap 完成前页面只读且过期路由不会更新当前状态。
+    /** 负责 WebSocket、Yjs 更新队列和 awareness 广播的协作客户端。 */
     const client = new DocumentCollaborationClient({
       documentId: loadedMetadata.documentId,
       accessToken,
@@ -147,6 +176,7 @@ async function initializeEditor(): Promise<void> {
       }
     })
 
+    /** 绑定编辑器 DOM 和协作扩展的 Tiptap 实例。 */
     const instance = new Editor({
       element: editorHost.value,
       editable: false,
@@ -187,6 +217,7 @@ async function initializeEditor(): Promise<void> {
 
 /** 校验标题并创建文档，然后跳转到新文档编辑路由。 */
 async function createDocument(): Promise<void> {
+  /** 去除首尾空白后的待创建文档标题。 */
   const title = newDocumentTitle.value.trim()
   if (!title) {
     error.value = '请填写文档标题'
@@ -196,6 +227,7 @@ async function createDocument(): Promise<void> {
   creating.value = true
   error.value = null
   try {
+    /** 服务端创建成功后返回的新文档元数据。 */
     const created = await documentApi.create(title)
     await router.replace({ name: 'UserDocumentEditor', params: { documentId: created.documentId } })
     toastSuccess('协作文档已创建')
@@ -209,6 +241,7 @@ async function createDocument(): Promise<void> {
 /** 只提交实际变化的标题，并在失败时恢复服务端已知标题。 */
 async function saveTitle(): Promise<void> {
   if (!metadata.value || savingTitle.value) return
+  /** 去除首尾空白后的待保存标题。 */
   const title = titleDraft.value.trim()
   if (!title) {
     titleDraft.value = metadata.value.title
@@ -243,6 +276,7 @@ function isActive(name: string): boolean {
 /** 插入仅保存引用属性的行内资源引用节点。 */
 function insertResourceReference(): void {
   if (!editorIsReady.value) return
+  /** 用户为行内资源引用输入的展示文本。 */
   const displayText = window.prompt('请输入引用的显示文本')?.trim()
   if (!displayText) return
   editor?.chain().focus().insertContent({

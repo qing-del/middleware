@@ -37,9 +37,13 @@ interface PendingUpdate {
   payload: Uint8Array
 }
 
+/** 标记服务端下发的 Yjs 更新，避免写回客户端更新队列。 */
 const REMOTE_UPDATE_ORIGIN = Symbol('document-remote-update')
+/** 标记服务端下发的 awareness 更新，避免再次广播给服务端。 */
 const REMOTE_AWARENESS_ORIGIN = Symbol('document-remote-awareness')
+/** 标记本地 awareness 清理动作，避免将离线状态当作普通变更发送。 */
 const LOCAL_AWARENESS_ORIGIN = Symbol('document-local-awareness')
+/** 重连退避等待时间上限；示例：`10000` 毫秒。 */
 const MAX_RECONNECT_DELAY_MS = 10_000
 
 /**
@@ -48,19 +52,32 @@ const MAX_RECONNECT_DELAY_MS = 10_000
  * 此处刻意不使用 y-websocket、Hocuspocus 或托管 Tiptap 服务：Spring 端点仍是唯一的网络事实来源。
  */
 export class DocumentCollaborationClient {
+  /** 当前 Yjs 文档对应的 awareness 状态集合。 */
   readonly awareness: Awareness
 
+  /** 要加入协作 Room 的文档 ID；example: {@code 42} */
   private readonly documentId: number
+  /** 用于 WebSocket bearer 子协议的访问令牌。 */
   private readonly accessToken: string
+  /** 承载文档正文、快照和本地更新的 Yjs 文档。 */
   private readonly ydoc: Y.Doc
+  /** 连接状态变化回调，由页面层更新同步提示。 */
   private readonly onStateChange?: (state: DocumentConnectionState, message?: string) => void
+  /** awareness 在线人数变化回调，由页面层更新协作者数量。 */
   private readonly onAwarenessChange?: (count: number) => void
+  /** 尚未收到 UPDATE_ACCEPTED 的本地更新，按客户端更新 UUID 索引。 */
   private readonly pendingUpdates = new Map<string, PendingUpdate>()
+  /** 当前 WebSocket 实例；未连接或连接已关闭时为 `null`。 */
   private socket: WebSocket | null = null
+  /** 当前唯一的重连定时器；没有待重连任务时为 `null`。 */
   private reconnectTimer: ReturnType<typeof window.setTimeout> | null = null
+  /** 已连续发起的重连次数，用于计算指数退避时长。 */
   private reconnectAttempts = 0
+  /** 客户端是否已经释放，不再允许创建连接或处理事件。 */
   private disposed = false
+  /** 服务端是否已经发送 SYNC_COMPLETE，可以发送本地更新。 */
   private synchronized = false
+  /** 当前对外公布的连接状态；初始值为 `closed`。 */
   private currentState: DocumentConnectionState = 'closed'
 
   /** 创建 Y.Doc 与 WebSocket/awareness 事件之间的桥接客户端。 */
@@ -81,6 +98,7 @@ export class DocumentCollaborationClient {
     if (this.disposed || this.socket) return
     this.setState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting')
 
+    /** 本次连接尝试创建的 WebSocket；回调通过它判断事件是否属于当前连接。 */
     const socket = new WebSocket(documentWebSocketUrl(), [`bearer.${this.accessToken}`])
     socket.binaryType = 'arraybuffer'
     socket.onopen = () => {
@@ -132,6 +150,7 @@ export class DocumentCollaborationClient {
   /** 将本地 Yjs 更新放入待确认队列，直到服务端返回 UPDATE_ACCEPTED。 */
   private readonly handleDocumentUpdate = (update: Uint8Array, origin: unknown): void => {
     if (origin === REMOTE_UPDATE_ORIGIN || this.disposed) return
+    /** 用于服务端确认和本地重连重放的客户端更新 UUID。 */
     const id = createDocumentWsRequestId()
     // 每个本地 Yjs 变更都会保留到服务端发送 UPDATE_ACCEPTED；因此 bootstrap 期间的变更
     // 能在首次 SYNC_COMPLETE 和后续重连后继续发送。
@@ -161,6 +180,7 @@ export class DocumentCollaborationClient {
       }
       if (event.data instanceof ArrayBuffer) this.handleBinary(decodeDocumentWsFrame(event.data))
     } catch (error) {
+      /** 面向页面层展示的协议处理错误文本。 */
       const message = error instanceof Error ? error.message : '文档同步协议处理失败'
       this.fail(message)
     }
@@ -225,6 +245,7 @@ export class DocumentCollaborationClient {
   private scheduleReconnect(): void {
     if (this.reconnectTimer !== null || this.disposed) return
     // 每次失败连接都会增加等待时间，上限十秒；同一时刻只保留一个重试定时器。
+    /** 本次重连等待时间，按指数退避计算并限制在十秒以内。 */
     const delay = Math.min(500 * 2 ** this.reconnectAttempts, MAX_RECONNECT_DELAY_MS)
     this.reconnectAttempts += 1
     this.setState('reconnecting')
@@ -243,6 +264,7 @@ export class DocumentCollaborationClient {
   /** 发送当前客户端的 awareness 状态，不写入持久化更新队列。 */
   private sendLocalAwareness(): void {
     if (!this.synchronized || !this.isSocketOpen()) return
+    /** 当前用户 awareness 的二进制编码，不进入 Yjs 持久化更新队列。 */
     const payload = encodeAwarenessUpdate(this.awareness, [this.ydoc.clientID])
     this.socket!.send(encodeDocumentWsFrame(
       DocumentWsFrameType.AWARENESS,
@@ -276,8 +298,10 @@ export class DocumentCollaborationClient {
 
 /** 按环境变量或当前页面 host 解析文档 WebSocket 地址。 */
 function documentWebSocketUrl(): string {
+  /** 环境变量中配置的 WebSocket 地址；未配置时回退到当前页面 host。 */
   const configured = import.meta.env.VITE_DOCUMENT_WS_URL?.trim()
   if (configured) return configured
+  /** 根据当前页面协议选择 ws 或 wss。 */
   const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${scheme}//${window.location.host}/ws/document`
 }

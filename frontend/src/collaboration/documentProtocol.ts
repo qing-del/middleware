@@ -1,4 +1,6 @@
+/** 文档 WebSocket 控制帧和二进制帧共用的协议版本号。 */
 export const DOCUMENT_WS_PROTOCOL_VERSION = 1
+/** 二进制帧固定头长度：1 字节版本 + 1 字节类型 + 16 字节 UUID。 */
 export const DOCUMENT_WS_HEADER_BYTES = 18
 
 export type DocumentWsControlType =
@@ -32,10 +34,15 @@ export interface DocumentWsControlMessage {
 }
 
 export enum DocumentWsFrameType {
+  /** 客户端提交的 Yjs 更新。 */
   CLIENT_UPDATE = 0x01,
+  /** 服务端广播的其他客户端 Yjs 更新。 */
   CRDT_UPDATE = 0x02,
+  /** 服务端发送的完整 Yjs 快照状态。 */
   SNAPSHOT_STATE = 0x03,
+  /** 服务端发送的快照之后历史更新。 */
   BOOTSTRAP_UPDATE = 0x04,
+  /** 客户端或服务端发送的 awareness 在线状态。 */
   AWARENESS = 0x05
 }
 
@@ -50,11 +57,13 @@ export interface DocumentWsBinaryFrame {
 
 function uuidBytes(value: string): Uint8Array {
   // 线上的 UUID 固定为 16 字节，先去掉短横线并严格校验十六进制格式。
+  /** 去掉短横线后的 32 位十六进制 UUID。 */
   const compact = value.replace(/-/g, '')
   if (!/^[0-9a-f]{32}$/i.test(compact)) {
     throw new Error('文档 WebSocket 协议 UUID 无效')
   }
 
+  /** 按协议顺序存放 UUID 的 16 个字节。 */
   const result = new Uint8Array(16)
   for (let index = 0; index < result.length; index += 1) {
     result[index] = Number.parseInt(compact.slice(index * 2, index * 2 + 2), 16)
@@ -65,6 +74,7 @@ function uuidBytes(value: string): Uint8Array {
 function bytesUuid(bytes: Uint8Array): string {
   // 解码时重新插入 UUID 分段，保持事件 ID 在客户端与服务端之间可关联。
   if (bytes.length !== 16) throw new Error('文档 WebSocket 协议 UUID 长度无效')
+  /** 不带短横线的完整小写十六进制 UUID。 */
   const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
@@ -101,6 +111,7 @@ export function encodeDocumentWsFrame(
 ): ArrayBuffer {
   // 二进制帧固定在不透明的 Yjs/awareness payload 前写入协议版本、一个帧类型字节和 16 字节 UUID；
   // Java codec 按这个精确布局读取。
+  /** 按固定头和原始 payload 分配的完整二进制帧。 */
   const frame = new Uint8Array(DOCUMENT_WS_HEADER_BYTES + payload.byteLength)
   frame[0] = DOCUMENT_WS_PROTOCOL_VERSION
   frame[1] = type
@@ -111,6 +122,7 @@ export function encodeDocumentWsFrame(
 
 /** 校验版本和帧类型后解码二进制头，并返回未解析的 payload。 */
 export function decodeDocumentWsFrame(data: ArrayBuffer): DocumentWsBinaryFrame {
+  /** 将待解码的 ArrayBuffer 视为可按字节访问的协议帧。 */
   const frame = new Uint8Array(data)
   if (frame.byteLength < DOCUMENT_WS_HEADER_BYTES) {
     throw new Error('文档 WebSocket 二进制帧长度不足')
@@ -119,6 +131,7 @@ export function decodeDocumentWsFrame(data: ArrayBuffer): DocumentWsBinaryFrame 
     throw new Error(`不支持的文档 WebSocket 协议版本：${frame[0]}`)
   }
 
+  /** 从二进制头读取的帧类型。 */
   const type = frame[1] as DocumentWsFrameType
   if (!Object.values(DocumentWsFrameType).includes(type)) {
     throw new Error(`未知的文档 WebSocket 帧类型：${frame[1]}`)
@@ -133,8 +146,10 @@ export function decodeDocumentWsFrame(data: ArrayBuffer): DocumentWsBinaryFrame 
 
 /** 解析控制 JSON 的外层兼容性，字段语义由消息处理器进一步校验。 */
 export function parseDocumentWsControl(data: string): DocumentWsControlMessage {
+  /** JSON.parse 得到的未知值，先验证对象结构再转换成控制帧。 */
   const value: unknown = JSON.parse(data)
   if (!value || typeof value !== 'object') throw new Error('文档 WebSocket 控制帧无效')
+  /** 通过外层协议校验后的控制帧字段集合。 */
   const control = value as Partial<DocumentWsControlMessage>
   if (control.protocolVersion !== DOCUMENT_WS_PROTOCOL_VERSION || typeof control.type !== 'string') {
     throw new Error('文档 WebSocket 控制帧不兼容')
