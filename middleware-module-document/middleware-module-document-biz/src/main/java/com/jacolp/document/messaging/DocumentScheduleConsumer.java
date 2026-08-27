@@ -50,13 +50,16 @@ public class DocumentScheduleConsumer {
     public void onMessage(Message message) {
         try {
             DocumentScheduleMessage schedule = objectMapper.readValue(message.getBody(), DocumentScheduleMessage.class);
+            // 调度消息只携带文档和动作，实际更新量/关闭状态必须从 Redis、MySQL 重新判断。
             if (schedule.type() == DocumentScheduleType.FLUSH_LOG) {
                 // 刷盘后按真实批次大小选择立即压缩或延迟压缩，消息本身不携带更新列表。
                 DocumentFlushLogResult result = flushLogService.flush(schedule.documentId());
                 if (result.processedCount() >= documentProperties.getCompact().getMaxUnmergedOps()
                         || result.processedBytes() >= documentProperties.getCompact().getMaxUnmergedBytes()) {
+                    // 达到任一压缩阈值就立即尝试，降低未合并日志继续堆积的窗口。
                     schedulePublisher.scheduleCompactImmediately(schedule.documentId());
                 } else {
+                    // 未达到阈值时延迟压缩，让短时间内的多次编辑合并成更少的任务。
                     schedulePublisher.scheduleCompact(schedule.documentId());
                 }
             } else if (schedule.type() == DocumentScheduleType.COMPACT) {

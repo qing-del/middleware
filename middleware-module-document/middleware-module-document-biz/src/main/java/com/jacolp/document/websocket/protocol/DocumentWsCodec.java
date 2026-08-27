@@ -34,11 +34,13 @@ public class DocumentWsCodec {
     public DocumentWsBinaryFrame decodeBinary(ByteBuffer payload) {
         ByteBuffer source = Objects.requireNonNull(payload, "payload must not be null").asReadOnlyBuffer();
         if (source.remaining() < BINARY_HEADER_BYTES) {
+            // 不足固定头时无法安全读取版本、类型和 UUID，不能把任意字节交给协同层。
             throw new DocumentWsProtocolException("binary frame is shorter than the protocol header");
         }
 
         int protocolVersion = Byte.toUnsignedInt(source.get());
         if (protocolVersion != properties.getWebsocket().getProtocolVersion()) {
+            // 版本不一致时头部布局可能已经变化，继续解析会把错误数据误当成 Yjs payload。
             throw new DocumentWsProtocolException("unsupported document WebSocket protocol version: " + protocolVersion);
         }
         // 只有固定长度的外层头由 Java 解析；剩余字节保持透明，交给客户端 Yjs 绑定处理。
@@ -87,16 +89,20 @@ public class DocumentWsCodec {
     /** 统一校验控制帧版本、类型和请求关联 ID。 */
     private void validateControl(DocumentWsControlMessage control) {
         if (control == null) {
+            // Jackson 可能返回 null；后续访问字段前先阻止空控制帧进入业务分派。
             throw new DocumentWsProtocolException("control frame must not be null");
         }
         if (control.protocolVersion() != properties.getWebsocket().getProtocolVersion()) {
+            // 控制帧版本必须与当前服务端一致，否则字段语义和处理分支可能不兼容。
             throw new DocumentWsProtocolException("unsupported document WebSocket protocol version: "
                     + control.protocolVersion());
         }
         if (control.type() == null) {
+            // 没有 type 就无法决定 JOIN、UPDATE ACK 或心跳等控制行为。
             throw new DocumentWsProtocolException("control frame type is required");
         }
         if (control.requestId() == null) {
+            // requestId 是客户端重试和服务端响应关联的基础，所有控制帧都必须携带。
             throw new DocumentWsProtocolException("control frame requestId is required");
         }
     }

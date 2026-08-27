@@ -91,11 +91,13 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         try {
             control = codec.decodeControl(message);
         } catch (DocumentWsProtocolException exception) {
+            // 控制帧尚未通过解析，无法可信地使用客户端 requestId，只能生成新的错误关联 ID。
             sendError(session, UUID.randomUUID(), protocolErrorCode(exception), exception.getMessage());
             return;
         }
 
         try {
+            // 只有控制协议明确支持的操作才能改变 Room 或触发服务端响应，未知类型不能静默执行。
             switch (control.type()) {
                 case JOIN_DOCUMENT -> handleJoin(session, control);
                 case LEAVE_DOCUMENT -> leaveSession(session);
@@ -129,6 +131,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         try {
+            // CLIENT_UPDATE 进入持久化链路，AWARENESS 只做实时广播；快照/历史帧只能由服务端发送。
             if (frame.type() == DocumentWsFrameType.CLIENT_UPDATE) {
                 acceptClientUpdate(session, frame);
             } else if (frame.type() == DocumentWsFrameType.AWARENESS) {
@@ -162,6 +165,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private void handleJoin(WebSocketSession session, DocumentWsControlMessage control) {
         long documentId = requireDocumentId(control.documentId());
         Long alreadyJoinedDocumentId = joinedDocumentIds.get(session.getId());
+        // 一个 WebSocket 会话只能绑定一个文档；切换文档必须先断开旧会话，避免状态串写。
         if (alreadyJoinedDocumentId != null) {
             if (alreadyJoinedDocumentId != documentId) {
                 throw new DocumentRoomAccessException("a WebSocket session may join only one document at a time");
@@ -177,6 +181,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         CurrentPrincipal principal = DocumentWebSocketHandshakeInterceptor.requirePrincipal(session.getAttributes());
         DocumentDO document = documentMapper.selectActiveByIdAndTeamId(documentId, principal.userId());
         if (document == null) {
+            // 查询同时带个人 scope 和 deleted 过滤；对不存在与越权文档统一返回不可访问，避免泄露资源存在性。
             sendError(session, control.requestId(), "DOCUMENT_NOT_FOUND", "document does not exist or is not accessible");
             return;
         }
@@ -198,6 +203,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.SYNC_COMPLETE,
                     control.requestId(), documentId, null, null, null, null));
         } catch (RuntimeException exception) {
+            // bootstrap 任一步骤失败都不能留下半初始化会话，否则后续更新会绕过完整恢复流程。
             leaveSession(session);
             throw exception;
         }
@@ -206,11 +212,13 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     /** 校验客户端更新、先写 Redis，再确认/广播并安排异步刷盘。 */
     private void acceptClientUpdate(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
+        // 先限制单次更新大小，避免异常客户端占满 Redis Stream、出站队列或下游合并服务。
         if (frame.payload().length > properties.getWebsocket().getMaxUpdateBytes()) {
             metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_UPDATE_TOO_LARGE", "Yjs update exceeds configured maximum size");
             return;
         }
+        // 空更新没有任何可合并内容，却会污染 ACK、广播和刷盘链路，因此直接拒绝。
         if (frame.payload().length == 0) {
             metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_PROTOCOL_ERROR", "Yjs update must not be empty");
@@ -228,6 +236,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         int modified = documentMapper.updateLastModificationIfActive(room.documentId(), principal.userId(),
                 LocalDateTime.now(APPLICATION_ZONE), principal.userId());
         if (modified != 1) {
+            // Redis 已经接收更新，但数据库 scope/active 条件未命中；不发送 ACK，避免客户端误以为更新已完成。
             throw new DocumentRoomAccessException("document no longer accepts updates in this personal scope");
         }
         saveRoomMeta(room.documentId(), principal.userId(), now);
@@ -250,11 +259,13 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private DocumentRoom requireActiveRoom(WebSocketSession session) {
         Long documentId = joinedDocumentIds.get(session.getId());
         if (documentId == null) {
+            // 未记录 JOIN 关系的会话不能提交任何二进制数据，即使握手本身已经通过认证。
             throw new DocumentRoomAccessException("WebSocket session has not joined a document");
         }
         DocumentRoom room = roomManager.find(documentId)
                 .orElseThrow(() -> new DocumentRoomAccessException("document Room is not available"));
         if (room.requireSession(session.getId()).syncStatus() != DocumentSessionSyncStatus.ACTIVE) {
+            // bootstrap 尚未完整发送时，客户端状态可能落后于服务端；必须等 SYNC_COMPLETE 后才接受编辑。
             throw new DocumentRoomAccessException("document session is still synchronizing");
         }
         return room;
@@ -272,6 +283,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private void saveRoomMeta(long documentId, long userId, long lastModifiedAt) {
         Optional<DocumentRoomMeta> existing = documentRedisRepository.findRoomMeta(documentId);
         if (existing.isPresent() && existing.get().teamId() != userId) {
+            // Redis 中已有的 Room scope 与认证用户不一致时拒绝覆盖，防止错误或越权数据被重新绑定。
             throw new DocumentRoomAccessException("Redis room meta does not match authenticated personal scope");
         }
         documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(documentId, userId, false,
@@ -282,8 +294,10 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private void leaveSession(WebSocketSession session) {
         Long documentId = joinedDocumentIds.remove(session.getId());
         presenceRegistry.unregister(session.getId());
+        // 未完成 JOIN 的连接也会触发关闭回调；清理 presence 后无需再操作不存在的 Room。
         if (documentId != null) {
             roomManager.find(documentId).ifPresent(room -> {
+                // 只有本次确实移除了最后一个本机会话，才需要发起延迟 CLOSE；重复关闭回调不能重复推进生命周期。
                 if (room.leave(session.getId()) && room.sessionCount() == 0) {
                     try {
                         lifecycleService.requestClose(documentId, room.teamId());
@@ -317,6 +331,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
 
     /** 发送统一格式的错误控制帧，并为缺失 requestId 生成关联 ID。 */
     private void sendError(WebSocketSession session, UUID requestId, String code, String message) {
+        // 某些错误发生在解析 requestId 之前，因此统一补齐 ID 让客户端仍能关联错误响应。
         sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.ERROR,
                 requestId == null ? UUID.randomUUID() : requestId, null, null, null, code, message));
     }
@@ -329,6 +344,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     /** 校验控制帧中的文档 ID 为正数。 */
     private static long requireDocumentId(Long documentId) {
         if (documentId == null || documentId <= 0) {
+            // 文档 ID 既是 Room/Redis key 的组成部分，也是数据库查询范围，空值和非正数都不能继续传播。
             throw new DocumentRoomAccessException("documentId must be positive");
         }
         return documentId;
@@ -336,6 +352,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
 
     /** 把协议版本错误映射为客户端可识别的错误码。 */
     private static String protocolErrorCode(DocumentWsProtocolException exception) {
+        // 版本错误需要让客户端明确知道应升级协议，其余解析失败统一归入协议错误。
         return exception.getMessage().contains("protocol version")
                 ? "DOCUMENT_PROTOCOL_VERSION_UNSUPPORTED" : "DOCUMENT_PROTOCOL_ERROR";
     }

@@ -65,6 +65,7 @@ public class DocumentFlushLogService {
                     Math.max(1, properties.getFlushLog().getBatchSize()));
             FlushBatch batch = toBoundedBatch(documentId, pending);
             if (batch.logs().isEmpty()) {
+                // 没有待刷盘更新时保持成功语义，消费者可以安全结束本次 FLUSH_LOG。
                 failed = false;
                 return DocumentFlushLogResult.empty(documentId);
             }
@@ -87,6 +88,7 @@ public class DocumentFlushLogService {
     private FlushBatch toBoundedBatch(long documentId, List<StoredDocumentPendingUpdate> pending) {
         int maxBytes = properties.getFlushLog().getMaxBatchBytes();
         if (maxBytes <= 0) {
+            // 字节上限是保护数据库事务和单次内存占用的必要边界，配置错误不能静默放开批次。
             throw new IllegalStateException("jacolp.document.flush-log.max-batch-bytes must be positive");
         }
         List<DocumentOpLogDO> logs = new ArrayList<>();
@@ -116,6 +118,7 @@ public class DocumentFlushLogService {
     /** 拒绝没有明确文档范围的刷盘调用。 */
     private static void requirePositive(long documentId) {
         if (documentId <= 0) {
+            // 刷盘调用必须绑定明确文档，否则可能读写错误的 Redis Stream key。
             throw new IllegalArgumentException("documentId must be positive");
         }
     }

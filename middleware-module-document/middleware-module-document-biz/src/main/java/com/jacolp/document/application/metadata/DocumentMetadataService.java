@@ -71,6 +71,7 @@ public class DocumentMetadataService {
     public void delete(long ownerUserId, long documentId) {
         DocumentDO document = findRequired(ownerUserId, documentId);
         if (documentRedisRepository.countPresence(document.getId()) > 0) {
+            // 删除不会主动踢出协作者；只在全局 presence 为零时软删除，避免已打开 Room 继续接收更新。
             throw new BaseException("文档仍有活跃协作会话，暂不能删除");
         }
         if (documentMapper.softDeleteByIdAndTeamId(documentId, ownerUserId,

@@ -28,6 +28,7 @@ public class DocumentRoom {
     /** 创建只保存会话运行态的本机 Room。 */
     DocumentRoom(long documentId, long teamId, DocumentProperties properties) {
         if (documentId <= 0 || teamId <= 0) {
+            // Room ID 会直接参与本地索引和 Redis key 生成，非法范围不能创建运行时容器。
             throw new IllegalArgumentException("documentId and teamId must be positive");
         }
         this.documentId = documentId;
@@ -40,16 +41,20 @@ public class DocumentRoom {
         Objects.requireNonNull(session, "session must not be null");
         Objects.requireNonNull(principal, "principal must not be null");
         if (principal.userId() != teamId) {
+            // 第一版 document 使用个人 scope；认证用户不是 Room 所属者时不能加入或观察该 Room。
             throw new DocumentRoomAccessException("document does not belong to the authenticated personal scope");
         }
         if (lifecycleState == DocumentRoomLifecycleState.CLOSED) {
+            // CLOSED 表示运行态已经清理；调用方应先通过新的 JOIN 流程重新建立 Room 状态。
             throw new DocumentRoomAccessException("document room is closed");
         }
         DocumentSessionContext existing = sessions.get(session.getId());
         if (existing != null) {
+            // 同一连接重复 JOIN 直接复用原上下文，避免重复占用名额或重置同步状态。
             return existing;
         }
         if (sessions.size() >= properties.getWebsocket().getMaxRoomSessions()) {
+            // 在创建有界 WebSocket 包装器前拒绝超限连接，防止 Room 内存和广播压力继续增长。
             throw new DocumentRoomLimitExceededException("document room session limit exceeded");
         }
 
@@ -66,10 +71,12 @@ public class DocumentRoom {
     /** 移除本机会话；最后一个离开者把 Room 推进到 PRE_CLOSE。 */
     public synchronized boolean leave(String sessionId) {
         if (sessionId == null) {
+            // 关闭回调可能在握手未完成时触发，空 session ID 不对应任何可清理的成员。
             return false;
         }
         DocumentSessionContext removed = sessions.remove(sessionId);
         if (removed != null && sessions.isEmpty()) {
+            // 只有确实移除了最后一个成员才进入 PRE_CLOSE，供异步关闭流程继续做全局校验。
             lifecycleState = DocumentRoomLifecycleState.PRE_CLOSE;
         }
         return removed != null;
@@ -84,6 +91,7 @@ public class DocumentRoom {
     /** 仅当本机没有会话时开始最终关闭；之后的 JOIN 会重新打开这个 Room。 */
     public synchronized boolean beginClosingIfEmpty() {
         if (!sessions.isEmpty() || lifecycleState == DocumentRoomLifecycleState.CLOSED) {
+            // 有本机会话时不能关闭；CLOSED 也不能重复进入关闭流程，避免清理已结束的 Room。
             return false;
         }
         lifecycleState = DocumentRoomLifecycleState.CLOSING;
@@ -95,6 +103,7 @@ public class DocumentRoom {
         Objects.requireNonNull(message, "message must not be null");
         for (DocumentSessionContext context : sessions.values()) {
             if (context.sessionId().equals(excludedSessionId)) {
+                // 广播调用者已经拥有这条消息，跳过自身可避免重复处理和回环。
                 continue;
             }
             sendOrDisconnect(context, message);
@@ -105,6 +114,7 @@ public class DocumentRoom {
     public DocumentSessionContext requireSession(String sessionId) {
         DocumentSessionContext context = sessions.get(sessionId);
         if (context == null) {
+            // 只允许 Room 成员访问会话上下文，防止未 JOIN 或已离开的连接发送更新。
             throw new DocumentRoomAccessException("WebSocket session has not joined this document");
         }
         return context;
@@ -139,15 +149,18 @@ public class DocumentRoom {
     private void sendOrDisconnect(DocumentSessionContext context, WebSocketMessage<?> message) {
         WebSocketSession session = context.session();
         if (!session.isOpen()) {
+            // 发送前再次检查连接状态，及时移除已由容器关闭的失效成员。
             leave(context.sessionId());
             return;
         }
         try {
             session.sendMessage(message);
         } catch (IOException | RuntimeException exception) {
+            // 单个客户端发送失败不应阻塞 Room 中其他协作者；先移除，再尝试关闭底层连接。
             leave(context.sessionId());
             try {
                 if (session.isOpen()) {
+                    // 发送异常后连接可能已经被底层关闭，只有仍开放时才发出慢客户端关闭码。
                     session.close(SLOW_CLIENT);
                 }
             } catch (IOException ignored) {

@@ -88,6 +88,7 @@ public class DocumentCloseService {
         DocumentFlushLogResult result;
         do {
             result = flushLogService.flush(documentId);
+            // 一批可能受数量和字节上限约束，只有处理数为零才说明 Redis Stream 已经清空。
         } while (result.processedCount() > 0);
     }
 
@@ -96,6 +97,7 @@ public class DocumentCloseService {
         while (true) {
             DocumentCompactResult result = compactService.compact(documentId);
             if (result.status() == DocumentCompactResult.Status.NO_UPDATES) {
+                // NO_UPDATES 表示当前持久化日志都已纳入 Snapshot，最终关闭可以继续清理运行态。
                 return;
             }
         }

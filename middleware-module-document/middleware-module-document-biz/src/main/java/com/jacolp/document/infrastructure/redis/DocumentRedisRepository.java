@@ -59,9 +59,11 @@ public class DocumentRedisRepository {
         fields.put(FIELD_IS_CLOSE, bytes(meta.closeRequested() ? 1 : 0));
         fields.put(FIELD_LAST_MODIFY_TIME, bytes(meta.lastModifyTime()));
         if (meta.lastModifyUserId() != null) {
+            // 审计用户存在时写入字段；缺失时不写入，下面会同步删除旧值。
             fields.put(FIELD_LAST_MODIFY_USER_ID, bytes(meta.lastModifyUserId()));
         }
         if (meta.closeToken() != null) {
+            // 关闭令牌只在关闭窗口中存在，正常 Room 不保留旧令牌。
             fields.put(FIELD_CLOSE_TOKEN, bytes(meta.closeToken()));
         }
 
@@ -69,9 +71,11 @@ public class DocumentRedisRepository {
             byte[] key = bytes(roomMetaKey(meta.documentId()));
             connection.hMSet(key, fields);
             if (meta.lastModifyUserId() == null) {
+                // Hash 更新不会自动删除缺失字段，必须显式清理旧审计用户，避免读取到过期信息。
                 connection.hDel(key, FIELD_LAST_MODIFY_USER_ID);
             }
             if (meta.closeToken() == null) {
+                // 清除已结束或被 reopen 取代的关闭令牌，防止旧 CLOSE 消息误命中。
                 connection.hDel(key, FIELD_CLOSE_TOKEN);
             }
         }
@@ -83,6 +87,7 @@ public class DocumentRedisRepository {
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
             Map<byte[], byte[]> rawFields = connection.hGetAll(bytes(roomMetaKey(documentId)));
             if (rawFields == null || rawFields.isEmpty()) {
+                // Redis 没有 Room Meta 时表示文档尚未进入运行态或已完成最终清理。
                 return Optional.empty();
             }
             return Optional.of(toRoomMeta(rawFields));
@@ -96,6 +101,7 @@ public class DocumentRedisRepository {
         fields.put(FIELD_UPDATE, update.updateData());
         fields.put(FIELD_CLIENT_UPDATE_ID, bytes(update.clientUpdateId()));
         if (update.operatorId() != null) {
+            // 系统操作允许没有用户 ID；有认证用户时才写入可选审计字段。
             fields.put(FIELD_OPERATOR_ID, bytes(update.operatorId()));
         }
         fields.put(FIELD_OPERATOR_TYPE, bytes(update.operatorType()));
@@ -104,6 +110,7 @@ public class DocumentRedisRepository {
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
             RecordId recordId = connection.xAdd(bytes(pendingUpdatesKey(update.documentId())), fields);
             if (recordId == null || recordId.getValue() == null || recordId.getValue().isBlank()) {
+                // 没有 Stream ID 就无法确认、删除或幂等转存这条更新，必须视为写入失败。
                 throw new IllegalStateException("Redis XADD did not return a stream entry ID");
             }
             return recordId.getValue();
@@ -114,12 +121,14 @@ public class DocumentRedisRepository {
     public List<StoredDocumentPendingUpdate> readPendingUpdates(long documentId, int maxCount) {
         requirePositive(documentId, "documentId");
         if (maxCount <= 0) {
+            // 读取上限必须为正数，否则调用方无法区分“没有数据”和“请求没有读取范围”。
             throw new IllegalArgumentException("maxCount must be positive");
         }
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
             List<ByteRecord> records = connection.xRange(
                     bytes(pendingUpdatesKey(documentId)), Range.unbounded(), Limit.limit().count(maxCount));
             if (records == null || records.isEmpty()) {
+                // 空 Stream 是正常状态，表示当前没有等待 FLUSH_LOG 的更新。
                 return List.of();
             }
             List<StoredDocumentPendingUpdate> updates = new ArrayList<>(records.size());
@@ -134,6 +143,7 @@ public class DocumentRedisRepository {
     public long deletePendingUpdates(long documentId, Collection<String> redisOpIds) {
         requirePositive(documentId, "documentId");
         if (redisOpIds == null || redisOpIds.isEmpty()) {
+            // 没有成功落库的 Redis ID 时无需执行 XDEL，避免无意义地访问 Stream。
             return 0;
         }
         RecordId[] recordIds = redisOpIds.stream().map(DocumentRedisRepository::toRecordId)
@@ -161,6 +171,7 @@ public class DocumentRedisRepository {
             while (keys.hasNext()) {
                 Map<byte[], byte[]> fields = connection.hGetAll(keys.next());
                 if (fields != null && !fields.isEmpty()) {
+                    // 扫描可能遇到已被并发删除的 key，只恢复仍有内容的 Hash。
                     metas.add(toRoomMeta(fields));
                 }
             }
@@ -171,9 +182,11 @@ public class DocumentRedisRepository {
     /** 创建或续期跨实例可见的临时会话在线租约。 */
     public void savePresence(String presenceKey, long ttlMs) {
         if (presenceKey == null || presenceKey.isBlank()) {
+            // 空 key 无法代表会话，继续写入会污染 presence 统计并掩盖调用方错误。
             throw new IllegalArgumentException("presenceKey must not be blank");
         }
         if (ttlMs <= 0) {
+            // presence 必须是会过期的租约，非正 TTL 会让跨实例在线状态失去安全边界。
             throw new IllegalArgumentException("ttlMs must be positive");
         }
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
@@ -184,6 +197,7 @@ public class DocumentRedisRepository {
     /** 主动删除一个会话的 presence 租约；过期租约无需额外清理。 */
     public void deletePresence(String presenceKey) {
         if (presenceKey == null || presenceKey.isBlank()) {
+            // 清理路径允许接收已不存在的 key；空值直接视为幂等 no-op。
             return;
         }
         try (RedisConnection connection = redisConnectionFactory.getConnection()) {
@@ -241,11 +255,13 @@ public class DocumentRedisRepository {
     /** 将 Redis Stream 记录恢复为带 Stream ID 的待刷盘更新。 */
     private static StoredDocumentPendingUpdate toStoredPendingUpdate(long documentId, ByteRecord record) {
         if (record.getId() == null || record.getId().getValue() == null || record.getId().getValue().isBlank()) {
+            // Stream ID 是后续 XDEL 和 MySQL 幂等键的依据，缺失时不能恢复该记录。
             throw new IllegalStateException("Redis Stream record is missing its ID");
         }
         Map<String, byte[]> fields = stringFields(record.getValue());
         byte[] updateData = fields.get("update");
         if (updateData == null || updateData.length == 0) {
+            // 空或缺失的 Yjs 更新无法合并，跳过会导致位点推进后永久丢失数据，因此直接报错。
             throw new IllegalStateException("Redis Stream record is missing a binary update");
         }
         return new StoredDocumentPendingUpdate(record.getId().getValue(), new DocumentPendingUpdate(
@@ -287,6 +303,7 @@ public class DocumentRedisRepository {
     private static Long parseOptionalLong(Map<String, byte[]> fields, String fieldName) {
         String value = parseOptionalString(fields, fieldName);
         if (value == null) {
+            // 可选字段缺失表示“没有该审计信息”，不能用 0 冒充一个真实用户 ID。
             return null;
         }
         try {
@@ -300,6 +317,7 @@ public class DocumentRedisRepository {
     private static String requiredString(Map<String, byte[]> fields, String fieldName) {
         String value = parseOptionalString(fields, fieldName);
         if (value == null || value.isBlank()) {
+            // 必填字段损坏时拒绝整条记录，避免将不完整数据继续传入刷盘或 bootstrap。
             throw new IllegalStateException("Redis field " + fieldName + " is required");
         }
         return value;
@@ -314,6 +332,7 @@ public class DocumentRedisRepository {
     /** 将 Stream ID 字符串转换为 Redis 连接 API 所需的 RecordId。 */
     private static RecordId toRecordId(String value) {
         if (value == null || value.isBlank()) {
+            // XDEL 必须使用真实 Stream ID；空值不能被转换为安全的删除目标。
             throw new IllegalArgumentException("redisOpId must not be blank");
         }
         return RecordId.of(value);
@@ -322,6 +341,7 @@ public class DocumentRedisRepository {
     /** 校验 Redis key 相关的正数 ID。 */
     private static void requirePositive(long value, String fieldName) {
         if (value <= 0) {
+            // 文档 ID 会拼入 Redis key，非正数会把不同调用方错误地映射到无效空间。
             throw new IllegalArgumentException(fieldName + " must be positive");
         }
     }

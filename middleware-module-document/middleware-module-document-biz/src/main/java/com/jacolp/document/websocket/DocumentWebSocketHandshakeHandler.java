@@ -23,6 +23,7 @@ public class DocumentWebSocketHandshakeHandler extends DefaultHandshakeHandler {
     @Override
     protected String selectProtocol(List<String> requestedProtocols, WebSocketHandler webSocketHandler) {
         if (requestedProtocols.size() == 1) {
+            // 只回显唯一候选协议，确保浏览器和服务端对 bearer token 的协议协商结果一致。
             String requestedProtocol = requestedProtocols.get(0);
             if (requestedProtocol.startsWith(BEARER_PROTOCOL_PREFIX)
                     && requestedProtocol.length() > BEARER_PROTOCOL_PREFIX.length()) {

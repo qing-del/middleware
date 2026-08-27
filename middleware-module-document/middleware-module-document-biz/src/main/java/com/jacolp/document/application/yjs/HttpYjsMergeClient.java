@@ -59,6 +59,7 @@ public class HttpYjsMergeClient implements YjsMergeClient {
                     .retrieve()
                     .body(YjsMergeResponse.class);
             if (response == null) {
+                // HTTP 请求成功不等于合并成功；空响应没有可恢复状态，不能写成新的 Snapshot。
                 throw new YjsMergeException("Yjs merge service returned an empty response");
             }
             byte[] mergedState = response.decodeMergedState();

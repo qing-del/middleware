@@ -35,9 +35,11 @@ public class DocumentRoomManager {
     public DocumentRoom getOrCreate(long documentId, long teamId) {
         return rooms.compute(documentId, (ignored, existing) -> {
             if (existing == null) {
+                // 仅在本机首次看到该文档时创建运行态 Room，正文仍从持久化层 bootstrap。
                 return new DocumentRoom(documentId, teamId, properties);
             }
             if (existing.teamId() != teamId) {
+                // 同一个文档 ID 不能在本 JVM 内被重新绑定到另一个个人 scope。
                 throw new DocumentRoomAccessException("document Room personal scope does not match");
             }
             return existing;
@@ -54,6 +56,7 @@ public class DocumentRoomManager {
         AtomicBoolean removed = new AtomicBoolean();
         rooms.computeIfPresent(documentId, (ignored, room) -> {
             if (room.sessionCount() == 0) {
+                // 只删除空 Room；并发 JOIN 若已留下会话，则保留容器避免丢失运行态成员。
                 removed.set(true);
                 return null;
             }
@@ -65,11 +68,13 @@ public class DocumentRoomManager {
 
     /** 本机没有 Room 只会发生在重启或最终清理后，两种情况都表示本 JVM 没有存活会话。 */
     public boolean hasNoLocalSessions(long documentId) {
+        // 没有本机 Room 代表本节点没有活跃会话；跨节点是否在线由 presenceRegistry 另行判断。
         return find(documentId).map(room -> room.sessionCount() == 0).orElse(true);
     }
 
     /** 请求空 Room 进入 CLOSING；没有本机 Room 时视为可继续。 */
     public boolean beginClosingIfEmpty(long documentId) {
+        // 本机没有 Room 时不阻塞 CLOSE，剩余的全局在线状态由 Redis presence 负责裁决。
         return find(documentId).map(DocumentRoom::beginClosingIfEmpty).orElse(true);
     }
 

@@ -41,6 +41,7 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
                                    WebSocketHandler webSocketHandler, Map<String, Object> attributes) {
         String token = extractAccessToken(request.getHeaders());
         if (token == null) {
+            // 浏览器不能可靠地附加 Authorization header；没有唯一 bearer 子协议就拒绝升级连接。
             return false;
         }
         try {
@@ -48,6 +49,7 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
             CurrentPrincipal principal = SecurityContextCurrentPrincipalAccessor.fromJwt(jwt);
             if (!"user".equals(principal.clientId())
                     || !PermissionScopeMatcher.grants(principal.scopes(), "document:write")) {
+                // 文档协同通道会写入 CRDT 更新，因此只允许用户客户端且具备 document:write scope 的主体。
                 return false;
             }
             attributes.put(PRINCIPAL_ATTRIBUTE, principal);
@@ -70,6 +72,7 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
         if (principal instanceof CurrentPrincipal currentPrincipal) {
             return currentPrincipal;
         }
+        // 只有握手拦截器成功写入的主体才可信，不能从消息内容或客户端字段补造身份。
         throw new IllegalStateException("authenticated document WebSocket principal is missing");
     }
 
@@ -77,14 +80,17 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
     private static String extractAccessToken(HttpHeaders headers) {
         String protocolHeader = headers.getFirst(SEC_WEBSOCKET_PROTOCOL);
         if (protocolHeader == null) {
+            // 不接受没有子协议的连接，避免 token 通过 query、Cookie 等未约定渠道进入协同链路。
             return null;
         }
         String[] protocols = protocolHeader.split(",", -1);
         if (protocols.length != 1) {
+            // 协议约定只携带一个 bearer.<JWT> 值，多个子协议会造成认证值选择歧义。
             return null;
         }
         String protocol = protocols[0].trim();
         if (!protocol.startsWith(BEARER_PROTOCOL_PREFIX) || protocol.length() == BEARER_PROTOCOL_PREFIX.length()) {
+            // 既要匹配 bearer 前缀，也要确保前缀后存在实际 token，空 token 不能送入 JWT decoder。
             return null;
         }
         return protocol.substring(BEARER_PROTOCOL_PREFIX.length());

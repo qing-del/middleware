@@ -44,6 +44,7 @@ public class DocumentRoomLifecycleService {
         DocumentRoomMeta previous = documentRedisRepository.findRoomMeta(documentId)
                 .orElse(new DocumentRoomMeta(documentId, teamId, false, null, System.currentTimeMillis(), teamId));
         if (previous.teamId() != teamId) {
+            // 关闭请求不能覆盖其他个人 scope 的 Room Meta，避免错误地关闭无关文档运行态。
             throw new IllegalStateException("document room meta personal scope does not match close requester");
         }
         String closeToken = UUID.randomUUID().toString();
@@ -68,6 +69,7 @@ public class DocumentRoomLifecycleService {
     public void rescheduleOutstandingCloses() {
         for (DocumentRoomMeta meta : documentRedisRepository.findRoomMetas()) {
             if (!meta.closeRequested() || meta.closeToken() == null) {
+                // 只有仍处于关闭窗口且带有效令牌的 Meta 才需要补发 CLOSE，正常 Room 不重复调度。
                 continue;
             }
             try {

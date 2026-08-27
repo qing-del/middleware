@@ -60,6 +60,7 @@ public class DocumentCompactService {
         try {
             DocumentDO document = documentMapper.selectById(documentId);
             if (document == null || Boolean.TRUE.equals(document.getDeleted())) {
+                // 文档不存在或已软删除时没有可继续压缩的有效状态，按幂等无更新返回。
                 failed = false;
                 return DocumentCompactResult.noUpdates(documentId);
             }
@@ -67,6 +68,7 @@ public class DocumentCompactService {
             List<DocumentOpLogDO> updates = documentOpLogMapper.selectByDocumentIdAfterId(documentId, basePersistedLogId,
                     Math.max(1, properties.getFlushLog().getBatchSize()));
             if (updates == null || updates.isEmpty()) {
+                // 当前 Snapshot 位点之后没有日志，避免无意义调用合并服务和生成空对象。
                 failed = false;
                 return DocumentCompactResult.noUpdates(documentId);
             }
@@ -104,6 +106,7 @@ public class DocumentCompactService {
         for (DocumentOpLogDO update : updates) {
             if (update.getId() == null || update.getId() <= previousId || update.getUpdateData() == null
                     || update.getUpdateData().length == 0) {
+                // cutoff 必须落在严格递增且非空的日志边界上，否则 CAS 指针可能跳过无法恢复的更新。
                 throw new IllegalStateException("document op log batch is not a valid ordered Yjs cutoff");
             }
             previousId = update.getId();

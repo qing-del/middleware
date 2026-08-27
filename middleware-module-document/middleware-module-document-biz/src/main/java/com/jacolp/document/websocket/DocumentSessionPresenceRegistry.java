@@ -29,11 +29,13 @@ public class DocumentSessionPresenceRegistry {
     /** 为会话创建或刷新带 TTL 的跨实例 presence 租约。 */
     public void register(long documentId, String sessionId) {
         if (documentId <= 0 || sessionId == null || sessionId.isBlank()) {
+            // presence key 依赖这两个值；缺失值会造成无法统计或误删其他会话的租约。
             throw new IllegalArgumentException("documentId and sessionId are required for presence");
         }
         String newKey = "document:presence:%d:%s:%s".formatted(documentId, instanceToken, sessionId);
         String previous = localPresenceKeys.put(sessionId, newKey);
         if (previous != null && !previous.equals(newKey)) {
+            // 同一 session 若被重新登记，先删除旧 key，避免一次连接被跨实例统计两次。
             documentRedisRepository.deletePresence(previous);
         }
         documentRedisRepository.savePresence(newKey, leaseTtlMs());
@@ -42,10 +44,12 @@ public class DocumentSessionPresenceRegistry {
     /** 主动删除会话 presence；连接异常时也可安全重复调用。 */
     public void unregister(String sessionId) {
         if (sessionId == null) {
+            // 连接清理回调允许重复触发，空 ID 不对应可删除的 presence。
             return;
         }
         String presenceKey = localPresenceKeys.remove(sessionId);
         if (presenceKey != null) {
+            // 只有本 JVM 记录过的 key 才能主动删除，避免误删其他实例的租约。
             documentRedisRepository.deletePresence(presenceKey);
         }
     }
@@ -66,6 +70,7 @@ public class DocumentSessionPresenceRegistry {
     private long leaseTtlMs() {
         long refresh = properties.getSessionPresenceRefreshMs();
         if (refresh <= 0) {
+            // 刷新周期无效时无法保证租约续期，继续运行会让 CLOSE 错误地看不到在线会话。
             throw new IllegalStateException("jacolp.document.session-presence-refresh-ms must be positive");
         }
         return Math.max(properties.getCloseDelayMs() * 2L, refresh * 3L);

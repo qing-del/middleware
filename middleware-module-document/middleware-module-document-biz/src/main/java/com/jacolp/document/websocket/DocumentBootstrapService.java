@@ -68,6 +68,7 @@ public class DocumentBootstrapService {
     private void sendSnapshotIfPresent(DocumentDO document, WebSocketSession session) throws Exception {
         String objectKey = document.getContentObjectKey();
         if (objectKey == null || objectKey.isBlank()) {
+            // 新文档可能尚未产生 Snapshot，客户端此时以空 Y.Doc 作为恢复基线。
             return;
         }
         String bucket = minioBucketResolver.requireBucket("document");
@@ -82,16 +83,19 @@ public class DocumentBootstrapService {
         while (true) {
             List<DocumentOpLogDO> updates = documentOpLogMapper.selectByDocumentIdAfterId(documentId, afterId, batchSize);
             if (updates == null || updates.isEmpty()) {
+                // 当前快照位点之后没有 MySQL 日志时，说明 durable bootstrap 已经发送完毕。
                 return;
             }
             for (DocumentOpLogDO update : updates) {
                 if (update.getId() == null || update.getId() <= afterId || update.getUpdateData() == null) {
+                    // 位点必须严格递增且带有二进制内容，否则客户端无法按顺序重建一致状态。
                     throw new DocumentBootstrapException("document op log contains an invalid bootstrap update");
                 }
                 send(session, DocumentWsFrameType.BOOTSTRAP_UPDATE, BOOTSTRAP_EVENT_ID, update.getUpdateData());
                 afterId = update.getId();
             }
             if (updates.size() < batchSize) {
+                // 返回不足一整批意味着查询范围已经到达当前日志尾部，无需继续轮询数据库。
                 return;
             }
         }
