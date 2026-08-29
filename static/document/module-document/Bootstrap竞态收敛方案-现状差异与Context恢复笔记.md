@@ -388,8 +388,8 @@ JOIN 请求
 Commit 0：已提交 31a913ba
 Commit 1：已提交 07c4d72a
 Commit 2：已提交 9e6690d9
-Commit 3：代码完成，相关后端测试通过，待提交
-Commit 4：待实施
+Commit 3：已提交 e539e0a0
+Commit 4：已提交 d45129da
 ```
 
 ### 验证重点
@@ -407,4 +407,74 @@ Commit 4：待实施
 | 2026-08-29 | 计划基线 | 已完成 | Commit 0：`31a913ba docs(document): record bootstrap convergence execution plan` |
 | 2026-08-29 | Commit 1 前端同步缓存 | 已完成 | `07c4d72a feat(document): buffer bootstrap and remote updates before sync`；前端 `npm run build` 通过 |
 | 2026-08-29 | Commit 2 后端实时边界 | 已完成 | `9e6690d9 refactor(document): establish live bootstrap boundary after join`；相关后端测试 8/8 通过 |
-| 2026-08-29 | Commit 3 Redis 读取边界 | 代码完成，待提交 | `readPendingUpdates()` 先于 Bootstrap Meta；增加 Mockito 顺序断言；相关后端测试 9/9 通过 |
+| 2026-08-29 | Commit 3 Redis 读取边界 | 已完成 | `e539e0a0 feat(document): read redis pending before bootstrap metadata`；`readPendingUpdates()` 先于 Bootstrap Meta；相关后端测试 9/9 通过 |
+| 2026-08-29 | Commit 4 RR ReadView | 已完成 | `d45129da feat(document): read bootstrap history in one repeatable read view`；Meta 与全部 OpLog 分页在同一显式 RR 只读事务；相关后端测试 10/10 通过，document-biz 全部测试 62/62 通过 |
+
+## 实施完成后的实际链路
+
+### 前端
+
+`frontend/src/collaboration/DocumentCollaborationClient.ts` 当前维护三类不同语义的缓存：
+
+```text
+pendingUpdates
+  = 本地已经产生、尚未收到 UPDATE_ACCEPTED 的 CLIENT_UPDATE
+
+pendingBootstrapFrames
+  = 本轮同步收到的 SNAPSHOT_STATE / BOOTSTRAP_UPDATE
+
+pendingRemoteUpdates
+  = 本轮同步期间收到的 CRDT_UPDATE
+```
+
+收到二进制帧时：
+
+- 同步期间的 Snapshot/Bootstrap 帧进入 `pendingBootstrapFrames`。
+- 同步期间的远端 `CRDT_UPDATE` 复制后进入 `pendingRemoteUpdates`。
+- `AWARENESS` 仍然即时处理。
+- ACTIVE 阶段的服务端 Update 继续直接应用。
+
+收到 `SYNC_COMPLETE` 时，调用 `applyPendingBootstrap()`，按 Bootstrap 帧再 Remote Queue 的顺序使用 `REMOTE_UPDATE_ORIGIN` 应用到 Y.Doc；缓存应用完成后才设置 `synchronized=true`，然后发送本地 `pendingUpdates` 和 awareness。新连接建立时会清理旧的接收缓存，但不会清理本地 pendingUpdates。
+
+### 后端
+
+`DocumentWebSocketHandler.handleJoin()` 仍然先完成访问判断，再执行：
+
+```text
+room.join()                 // Session=SYNCING，进入实时广播范围
+→ presence / reopen
+→ JOIN_ACCEPTED
+→ bootstrapService.sendBootstrap(documentId, teamId, session)
+→ room.markActive()
+→ SYNC_COMPLETE
+```
+
+`DocumentBootstrapService.sendBootstrap()` 当前实际为：
+
+```text
+readPendingUpdates(documentId)                         // Redis 初始边界
+→ TransactionTemplate(REPEATABLE_READ, readOnly)
+    → selectActiveByIdAndTeamId(documentId, teamId)    // 第一次一致性读取，建立 ReadView
+    → selectByDocumentIdAfterId(...) 分页收集全部 OpLog
+→ 事务结束
+→ MinIO read(contentObjectKey)
+→ 发送 Snapshot
+→ 发送 RR 视图下的 OpLog
+→ 发送 Redis 初始 pending
+```
+
+事务只负责 Meta 和 OpLog 查询，不包含 MinIO 或 WebSocket 网络 IO。OpLog 二进制数据在事务内复制到 `BootstrapHistory`，事务结束后才发送。`DocumentRoom.broadcast()` 仍然包含 `SYNCING` 会话，Commit 2 的回归测试固定了这一点。
+
+### 已验证结果
+
+- 前端 `npm run build` 通过。
+- Bootstrap、Room、Handler 相关测试最终 10/10 通过。
+- `middleware-module-document-biz` 及其选择的依赖测试集合最终 62/62 通过。
+- 完整 reactor 测试曾在无关的 `middleware-elasticsearch-autoconfigure` 处失败，原因是测试环境无法建立 loopback selector；document 模块本身没有因此失败。
+- 当前测试是调用顺序、事务参数和模块级行为验证；尚未接入真实 MySQL/Redis/MinIO 的 JOIN 与 COMPACT 并发集成测试，因此真实 InnoDB ReadView 行为仍应在后续环境验证。
+
+### 当前仍然明确存在的边界
+
+- 服务端仍在发送 `SYNC_COMPLETE` 前执行 `room.markActive()`；前端会在收到该控制帧后完成最终构建再进入 `synced`，但“服务端等客户端确认后再 ACTIVE”的严格握手尚未实现。
+- Bootstrap 会把 RR 视图下的所有 OpLog 收集到内存后再发送；大历史量的分段传输/内存上限需要另起任务设计，不能在此处静默丢弃数据。
+- 本阶段只处理单机实例；跨实例广播、同步和 Redis/MQ 广播不在范围内。
