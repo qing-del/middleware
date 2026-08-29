@@ -198,7 +198,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                     control.requestId(), documentId, null, null, null, null));
             // 在快照、持久化日志和 Redis 待写入更新全部发送完前，会话不会进入 active；
             // 此期间收到的二进制编辑会被拒绝。
-            bootstrapService.sendBootstrap(document, room.requireSession(session.getId()).session());
+            bootstrapService.sendBootstrap(documentId, principal.userId(), room.requireSession(session.getId()).session());
             room.markActive(session.getId());
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.SYNC_COMPLETE,
                     control.requestId(), documentId, null, null, null, null));

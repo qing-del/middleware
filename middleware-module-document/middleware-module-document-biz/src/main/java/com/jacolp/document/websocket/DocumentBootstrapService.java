@@ -3,6 +3,7 @@ package com.jacolp.document.websocket;
 import com.jacolp.document.config.DocumentProperties;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentOpLogDO;
+import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentOpLogMapper;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.infrastructure.redis.StoredDocumentPendingUpdate;
@@ -28,6 +29,7 @@ public class DocumentBootstrapService {
 
     private final MinioObjectStorage minioObjectStorage;
     private final MinioBucketResolver minioBucketResolver;
+    private final DocumentMapper documentMapper;
     private final DocumentOpLogMapper documentOpLogMapper;
     private final DocumentRedisRepository documentRedisRepository;
     private final DocumentWsCodec codec;
@@ -35,11 +37,12 @@ public class DocumentBootstrapService {
 
     /** 创建按“快照 → MySQL 日志 → Redis Stream”顺序发送 bootstrap 的服务。 */
     public DocumentBootstrapService(MinioObjectStorage minioObjectStorage, MinioBucketResolver minioBucketResolver,
-                                    DocumentOpLogMapper documentOpLogMapper,
+                                    DocumentMapper documentMapper, DocumentOpLogMapper documentOpLogMapper,
                                     DocumentRedisRepository documentRedisRepository,
                                     DocumentWsCodec codec, DocumentProperties properties) {
         this.minioObjectStorage = Objects.requireNonNull(minioObjectStorage, "minioObjectStorage must not be null");
         this.minioBucketResolver = Objects.requireNonNull(minioBucketResolver, "minioBucketResolver must not be null");
+        this.documentMapper = Objects.requireNonNull(documentMapper, "documentMapper must not be null");
         this.documentOpLogMapper = Objects.requireNonNull(documentOpLogMapper, "documentOpLogMapper must not be null");
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
         this.codec = Objects.requireNonNull(codec, "codec must not be null");
@@ -47,11 +50,17 @@ public class DocumentBootstrapService {
     }
 
     /** 向新会话发送可恢复的全部内容，并把底层读取/传输错误统一包装。 */
-    public void sendBootstrap(DocumentDO document, WebSocketSession session) {
-        Objects.requireNonNull(document, "document must not be null");
+    public void sendBootstrap(long documentId, long teamId, WebSocketSession session) {
         Objects.requireNonNull(session, "session must not be null");
-        long documentId = requireDocumentId(document);
+        requirePositive(documentId, "documentId");
+        requirePositive(teamId, "teamId");
         try {
+            // Handler 在 JOIN 前做的文档查询只负责访问判断；Bootstrap 必须在 Session 进入 Room
+            // 后重新读取指针，避免把 JOIN 前可能已过期的 DocumentDO 带入恢复流程。
+            DocumentDO document = documentMapper.selectActiveByIdAndTeamId(documentId, teamId);
+            if (document == null) {
+                throw new DocumentBootstrapException("document does not exist or is not accessible");
+            }
             sendSnapshotIfPresent(document, session);
             sendDurableUpdates(documentId, document.getPersistedLogId(), session);
             sendPendingUpdates(documentId, session);
@@ -116,11 +125,10 @@ public class DocumentBootstrapService {
         session.sendMessage(codec.encodeBinary(new DocumentWsBinaryFrame(type, eventId, yjsBytes)));
     }
 
-    /** 校验 bootstrap 来源文档具有可用主键。 */
-    private static long requireDocumentId(DocumentDO document) {
-        if (document.getId() == null || document.getId() <= 0) {
-            throw new IllegalArgumentException("document must have a positive ID");
+    /** 校验 Bootstrap 标识是正数。 */
+    private static void requirePositive(long value, String name) {
+        if (value <= 0) {
+            throw new IllegalArgumentException(name + " must be positive");
         }
-        return document.getId();
     }
 }

@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jacolp.document.config.DocumentProperties;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentOpLogDO;
+import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentOpLogMapper;
 import com.jacolp.document.infrastructure.redis.DocumentPendingUpdate;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
@@ -37,6 +38,7 @@ class DocumentBootstrapServiceTest {
         DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
         MinioObjectStorage objectStorage = mock(MinioObjectStorage.class);
         MinioBucketResolver bucketResolver = mock(MinioBucketResolver.class);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
         DocumentOpLogMapper opLogMapper = mock(DocumentOpLogMapper.class);
         DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
         WebSocketSession session = mock(WebSocketSession.class);
@@ -45,16 +47,17 @@ class DocumentBootstrapServiceTest {
         when(bucketResolver.requireBucket("document")).thenReturn("middleware-document");
         when(objectStorage.read("middleware-document", objectKey, properties.getSnapshot().getMaxBytes()))
                 .thenReturn(snapshot);
+        DocumentDO document = new DocumentDO(7L, 42L, "title", objectKey, 0L,
+                LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
+        when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document);
         when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, properties.getFlushLog().getBatchSize()))
                 .thenReturn(List.of());
         when(redisRepository.readPendingUpdates(7L, Integer.MAX_VALUE)).thenReturn(List.of());
 
         DocumentBootstrapService service = new DocumentBootstrapService(objectStorage, bucketResolver,
-                opLogMapper, redisRepository, codec, properties);
-        DocumentDO document = new DocumentDO(7L, 42L, "title", objectKey, 0L,
-                LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
+                documentMapper, opLogMapper, redisRepository, codec, properties);
 
-        service.sendBootstrap(document, session);
+        service.sendBootstrap(7L, 42L, session);
 
         ArgumentCaptor<WebSocketMessage<?>> messages = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(objectStorage).read("middleware-document", objectKey, properties.getSnapshot().getMaxBytes());
@@ -68,12 +71,16 @@ class DocumentBootstrapServiceTest {
     void sendsDurableAndRedisPendingUpdatesAsOpaqueBootstrapFrames() throws Exception {
         DocumentProperties properties = new DocumentProperties();
         DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
         DocumentOpLogMapper opLogMapper = mock(DocumentOpLogMapper.class);
         DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
         WebSocketSession session = mock(WebSocketSession.class);
 
         byte[] durableUpdate = new byte[] {1, 2, -1};
         byte[] pendingUpdate = new byte[] {3, 4, -2};
+        DocumentDO document = new DocumentDO(7L, 42L, "title", null, 0L,
+                LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
+        when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document);
         when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, properties.getFlushLog().getBatchSize()))
                 .thenReturn(List.of(new DocumentOpLogDO(1L, 7L, "1-0", "123e4567-e89b-12d3-a456-426614174000",
                         durableUpdate, 42L, "user", LocalDateTime.now())));
@@ -83,11 +90,9 @@ class DocumentBootstrapServiceTest {
 
         DocumentBootstrapService service = new DocumentBootstrapService(mock(MinioObjectStorage.class),
                 mock(MinioBucketResolver.class),
-                opLogMapper, redisRepository, codec, properties);
-        DocumentDO document = new DocumentDO(7L, 42L, "title", null, 0L,
-                LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
+                documentMapper, opLogMapper, redisRepository, codec, properties);
 
-        service.sendBootstrap(document, session);
+        service.sendBootstrap(7L, 42L, session);
 
         ArgumentCaptor<WebSocketMessage<?>> messages = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(session, times(2)).sendMessage(messages.capture());

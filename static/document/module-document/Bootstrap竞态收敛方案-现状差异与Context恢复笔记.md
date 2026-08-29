@@ -386,8 +386,8 @@ JOIN 请求
 
 ```text
 Commit 0：已提交 31a913ba
-Commit 1：代码完成，构建验证通过，待提交
-Commit 2：待实施
+Commit 1：已提交 07c4d72a
+Commit 2：代码完成，相关后端测试通过，待提交
 Commit 3：待实施
 Commit 4：待实施
 ```
@@ -405,4 +405,5 @@ Commit 4：待实施
 | 日期 | 阶段 | 结果 | 备注 |
 | --- | --- | --- | --- |
 | 2026-08-29 | 计划基线 | 已完成 | Commit 0：`31a913ba docs(document): record bootstrap convergence execution plan` |
-| 2026-08-29 | Commit 1 前端同步缓存 | 代码完成，待提交 | `DocumentCollaborationClient` 新增 Bootstrap 帧缓存和 Remote Pending Queue；`SYNC_COMPLETE` 后按 Bootstrap → Remote Queue 完成 Yjs 构建；`npm run build` 通过 |
+| 2026-08-29 | Commit 1 前端同步缓存 | 已完成 | `07c4d72a feat(document): buffer bootstrap and remote updates before sync`；前端 `npm run build` 通过 |
+| 2026-08-29 | Commit 2 后端实时边界 | 代码完成，待提交 | Bootstrap 改为 JOIN 后按 `documentId + teamId` 重读文档；补充 SYNCING 广播回归测试；相关后端测试 8/8 通过 |

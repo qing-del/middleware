@@ -67,7 +67,7 @@ class DocumentWebSocketHandlerTest {
                 .isEqualTo(DocumentWsControlType.JOIN_ACCEPTED);
         assertThat(codec.decodeControl((TextMessage) joinMessages.getAllValues().get(1)).type())
                 .isEqualTo(DocumentWsControlType.SYNC_COMPLETE);
-        verify(bootstrapService).sendBootstrap(eq(document), any(WebSocketSession.class));
+        verify(bootstrapService).sendBootstrap(eq(7L), eq(42L), any(WebSocketSession.class));
         verify(presenceRegistry).register(7L, "session-a");
         verify(lifecycleService).reopen(document, 42L);
 

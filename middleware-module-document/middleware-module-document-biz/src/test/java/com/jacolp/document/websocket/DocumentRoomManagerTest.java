@@ -3,12 +3,15 @@ package com.jacolp.document.websocket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.jacolp.common.security.context.CurrentPrincipal;
 import com.jacolp.document.api.model.DocumentRoomLifecycleState;
 import com.jacolp.document.config.DocumentProperties;
 import java.util.List;
+import org.springframework.web.socket.BinaryMessage;
+import org.springframework.web.socket.WebSocketMessage;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -61,6 +64,22 @@ class DocumentRoomManagerTest {
         assertThat(room.sessionCount()).isEqualTo(1);
     }
 
+    @Test
+    void forwardsRemoteUpdatesToSessionsThatAreStillSynchronizing() throws Exception {
+        DocumentRoom room = new DocumentRoomManager(properties(2)).getOrCreate(10L, 42L);
+        WebSocketSession synchronizingSession = session("syncing");
+        WebSocketSession activeSession = session("active");
+
+        room.join(synchronizingSession, principal(42L));
+        room.join(activeSession, principal(42L));
+        room.markActive("active");
+
+        WebSocketMessage<?> update = new BinaryMessage(new byte[] {1, 2, 3});
+        room.broadcast(update, "active");
+
+        verify(synchronizingSession).sendMessage(update);
+    }
+
     private static DocumentProperties properties(int maxRoomSessions) {
         DocumentProperties properties = new DocumentProperties();
         properties.getWebsocket().setMaxRoomSessions(maxRoomSessions);
@@ -75,6 +94,7 @@ class DocumentRoomManagerTest {
     private static WebSocketSession session(String id) {
         WebSocketSession session = mock(WebSocketSession.class);
         when(session.getId()).thenReturn(id);
+        when(session.isOpen()).thenReturn(true);
         return session;
     }
 }
