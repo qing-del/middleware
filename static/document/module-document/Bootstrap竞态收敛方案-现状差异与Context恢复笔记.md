@@ -387,8 +387,8 @@ JOIN 请求
 ```text
 Commit 0：已提交 31a913ba
 Commit 1：已提交 07c4d72a
-Commit 2：代码完成，相关后端测试通过，待提交
-Commit 3：待实施
+Commit 2：已提交 9e6690d9
+Commit 3：代码完成，相关后端测试通过，待提交
 Commit 4：待实施
 ```
 
@@ -406,4 +406,5 @@ Commit 4：待实施
 | --- | --- | --- | --- |
 | 2026-08-29 | 计划基线 | 已完成 | Commit 0：`31a913ba docs(document): record bootstrap convergence execution plan` |
 | 2026-08-29 | Commit 1 前端同步缓存 | 已完成 | `07c4d72a feat(document): buffer bootstrap and remote updates before sync`；前端 `npm run build` 通过 |
-| 2026-08-29 | Commit 2 后端实时边界 | 代码完成，待提交 | Bootstrap 改为 JOIN 后按 `documentId + teamId` 重读文档；补充 SYNCING 广播回归测试；相关后端测试 8/8 通过 |
+| 2026-08-29 | Commit 2 后端实时边界 | 已完成 | `9e6690d9 refactor(document): establish live bootstrap boundary after join`；相关后端测试 8/8 通过 |
+| 2026-08-29 | Commit 3 Redis 读取边界 | 代码完成，待提交 | `readPendingUpdates()` 先于 Bootstrap Meta；增加 Mockito 顺序断言；相关后端测试 9/9 通过 |

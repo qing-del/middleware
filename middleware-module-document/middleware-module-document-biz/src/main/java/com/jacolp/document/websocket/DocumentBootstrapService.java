@@ -20,7 +20,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.WebSocketSession;
 
-/** 按快照、持久化日志和 Redis 待写入更新的顺序发送可恢复 bootstrap，不解析任何 Yjs 内容。 */
+/** 先读取 Redis pending，再读取历史来源并按快照、持久化日志、Redis 的顺序发送 bootstrap。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentBootstrapService {
@@ -35,7 +35,7 @@ public class DocumentBootstrapService {
     private final DocumentWsCodec codec;
     private final DocumentProperties properties;
 
-    /** 创建按“快照 → MySQL 日志 → Redis Stream”顺序发送 bootstrap 的服务。 */
+    /** 创建不解析 Yjs 内容、只负责收集和发送 Bootstrap 二进制帧的服务。 */
     public DocumentBootstrapService(MinioObjectStorage minioObjectStorage, MinioBucketResolver minioBucketResolver,
                                     DocumentMapper documentMapper, DocumentOpLogMapper documentOpLogMapper,
                                     DocumentRedisRepository documentRedisRepository,
@@ -55,6 +55,8 @@ public class DocumentBootstrapService {
         requirePositive(documentId, "documentId");
         requirePositive(teamId, "teamId");
         try {
+            // 先固定 Redis 读取边界；此调用之后产生的 Update 由已加入 Room 的实时转发覆盖。
+            List<StoredDocumentPendingUpdate> pendingUpdates = readPendingUpdates(documentId);
             // Handler 在 JOIN 前做的文档查询只负责访问判断；Bootstrap 必须在 Session 进入 Room
             // 后重新读取指针，避免把 JOIN 前可能已过期的 DocumentDO 带入恢复流程。
             DocumentDO document = documentMapper.selectActiveByIdAndTeamId(documentId, teamId);
@@ -63,7 +65,7 @@ public class DocumentBootstrapService {
             }
             sendSnapshotIfPresent(document, session);
             sendDurableUpdates(documentId, document.getPersistedLogId(), session);
-            sendPendingUpdates(documentId, session);
+            sendPendingUpdates(pendingUpdates, session);
         } catch (IOException exception) {
             throw new DocumentBootstrapException("could not send document bootstrap", exception);
         } catch (DocumentBootstrapException exception) {
@@ -110,11 +112,16 @@ public class DocumentBootstrapService {
         }
     }
 
-    /** 发送所有仍在 Redis Stream 中的更新，覆盖尚未完成 FLUSH_LOG 的编辑。 */
-    private void sendPendingUpdates(long documentId, WebSocketSession session) throws IOException {
+    /** 读取所有仍在 Redis Stream 中可见的更新，固定 Redis 初始读取边界。 */
+    private List<StoredDocumentPendingUpdate> readPendingUpdates(long documentId) {
         // 这里刻意读取所有可见 Stream 条目：重连时不能因为 FLUSH_LOG 尚未消费下一批，
         // 就遗漏一条已经接收成功的更新。
-        List<StoredDocumentPendingUpdate> updates = documentRedisRepository.readPendingUpdates(documentId, Integer.MAX_VALUE);
+        return documentRedisRepository.readPendingUpdates(documentId, Integer.MAX_VALUE);
+    }
+
+    /** 发送 Redis 初始读取中捕获的更新，重复覆盖交给客户端 Yjs 合并。 */
+    private void sendPendingUpdates(List<StoredDocumentPendingUpdate> updates, WebSocketSession session)
+            throws IOException {
         for (StoredDocumentPendingUpdate update : updates) {
             send(session, DocumentWsFrameType.BOOTSTRAP_UPDATE, BOOTSTRAP_EVENT_ID, update.update().updateData());
         }

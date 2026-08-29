@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -102,5 +103,31 @@ class DocumentBootstrapServiceTest {
         assertThat(codec.decodeBinary((BinaryMessage) sent.get(0)).payload()).containsExactly(durableUpdate);
         assertThat(codec.decodeBinary((BinaryMessage) sent.get(1)).type()).isEqualTo(DocumentWsFrameType.BOOTSTRAP_UPDATE);
         assertThat(codec.decodeBinary((BinaryMessage) sent.get(1)).payload()).containsExactly(pendingUpdate);
+    }
+
+    @Test
+    void readsRedisPendingBeforeBootstrapMetadata() {
+        DocumentProperties properties = new DocumentProperties();
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
+        DocumentOpLogMapper opLogMapper = mock(DocumentOpLogMapper.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        WebSocketSession session = mock(WebSocketSession.class);
+        DocumentDO document = new DocumentDO(7L, 42L, "title", null, 0L,
+                LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
+
+        when(redisRepository.readPendingUpdates(7L, Integer.MAX_VALUE)).thenReturn(List.of());
+        when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document);
+        when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, properties.getFlushLog().getBatchSize()))
+                .thenReturn(List.of());
+
+        DocumentBootstrapService service = new DocumentBootstrapService(mock(MinioObjectStorage.class),
+                mock(MinioBucketResolver.class), documentMapper, opLogMapper, redisRepository, codec, properties);
+
+        service.sendBootstrap(7L, 42L, session);
+
+        InOrder order = org.mockito.Mockito.inOrder(redisRepository, documentMapper);
+        order.verify(redisRepository).readPendingUpdates(7L, Integer.MAX_VALUE);
+        order.verify(documentMapper).selectActiveByIdAndTeamId(7L, 42L);
     }
 }
