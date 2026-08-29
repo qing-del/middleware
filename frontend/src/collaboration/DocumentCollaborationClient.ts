@@ -37,6 +37,13 @@ interface PendingUpdate {
   payload: Uint8Array
 }
 
+interface PendingBootstrapFrame {
+  /** Bootstrap 帧类型；当前只允许 SNAPSHOT_STATE 或 BOOTSTRAP_UPDATE。 */
+  type: DocumentWsFrameType.SNAPSHOT_STATE | DocumentWsFrameType.BOOTSTRAP_UPDATE
+  /** 从服务端收到的不可变 Yjs 二进制负载。 */
+  payload: Uint8Array
+}
+
 /** 标记服务端下发的 Yjs 更新，避免写回客户端更新队列。 */
 const REMOTE_UPDATE_ORIGIN = Symbol('document-remote-update')
 /** 标记服务端下发的 awareness 更新，避免再次广播给服务端。 */
@@ -67,6 +74,10 @@ export class DocumentCollaborationClient {
   private readonly onAwarenessChange?: (count: number) => void
   /** 尚未收到 UPDATE_ACCEPTED 的本地更新，按客户端更新 UUID 索引。 */
   private readonly pendingUpdates = new Map<string, PendingUpdate>()
+  /** 当前同步尝试尚未完成最终构建的 Snapshot/Bootstrap 帧。 */
+  private readonly pendingBootstrapFrames: PendingBootstrapFrame[] = []
+  /** 当前同步尝试期间收到的远端 CRDT_UPDATE，不能在 Bootstrap 完成前直接应用。 */
+  private readonly pendingRemoteUpdates: Uint8Array[] = []
   /** 当前 WebSocket 实例；未连接或连接已关闭时为 `null`。 */
   private socket: WebSocket | null = null
   /** 当前唯一的重连定时器；没有待重连任务时为 `null`。 */
@@ -105,6 +116,10 @@ export class DocumentCollaborationClient {
       if (this.socket !== socket || this.disposed) return
       this.reconnectAttempts = 0
       this.synchronized = false
+      // 每次 JOIN 都重新收集 Bootstrap；本地 pendingUpdates 需要跨重连保留，
+      // 而旧连接尚未完成的接收缓存由新一轮 Bootstrap 重新覆盖。
+      this.pendingBootstrapFrames.length = 0
+      this.pendingRemoteUpdates.length = 0
       this.setState('synchronizing')
       this.sendControl(createDocumentWsControl('JOIN_DOCUMENT', {
         requestId: createDocumentWsRequestId(),
@@ -142,6 +157,8 @@ export class DocumentCollaborationClient {
     this.ydoc.off('update', this.handleDocumentUpdate)
     this.awareness.off('update', this.handleAwarenessUpdate)
     this.awareness.off('change', this.handleAwarenessChange)
+    this.pendingBootstrapFrames.length = 0
+    this.pendingRemoteUpdates.length = 0
     removeAwarenessStates(this.awareness, [this.ydoc.clientID], LOCAL_AWARENESS_ORIGIN)
     this.awareness.destroy()
     this.setState('closed')
@@ -190,10 +207,13 @@ export class DocumentCollaborationClient {
   private handleControl(control: DocumentWsControlMessage): void {
     switch (control.type) {
       case 'SYNC_COMPLETE':
+        // SYNC_COMPLETE 是服务端已经排完全部 Bootstrap 帧的结束边界；先完成最终
+        // Y.Doc 构建，再允许本地编辑进入服务端，避免把同步中的半成品暴露给发送链路。
+        this.applyPendingBootstrap()
         this.synchronized = true
         this.setState('synced')
-        // bootstrap 帧已经写入 Y.Doc，此时才发送本地队列中的变更，
-        // 从而让它们在服务端快照和历史更新之后应用。
+        // 最终构建完成后才发送本地队列中的变更，从而让它们在服务端快照、历史更新
+        // 和同步期间收到的远端更新之后应用。
         this.pendingUpdates.forEach(update => this.sendPendingUpdate(update))
         this.sendLocalAwareness()
         break
@@ -215,14 +235,40 @@ export class DocumentCollaborationClient {
     }
   }
 
-  /** 把服务端快照/历史/协作者更新应用到 Y.Doc，避免再次生成本地更新。 */
+  /** 把服务端二进制帧按 Bootstrap 和 Remote Queue 顺序应用到 Y.Doc。 */
+  private applyPendingBootstrap(): void {
+    for (const frame of this.pendingBootstrapFrames) {
+      // Snapshot 与 Bootstrap Update 都来自服务端，统一使用远端 origin，避免再次生成 CLIENT_UPDATE。
+      Y.applyUpdate(this.ydoc, frame.payload, REMOTE_UPDATE_ORIGIN)
+    }
+    for (const update of this.pendingRemoteUpdates) {
+      // Remote Queue 允许与 Snapshot/OpLog/Redis 重复，重复合并交给 Yjs 处理。
+      Y.applyUpdate(this.ydoc, update, REMOTE_UPDATE_ORIGIN)
+    }
+    this.pendingBootstrapFrames.length = 0
+    this.pendingRemoteUpdates.length = 0
+  }
+
+  /** 把服务端快照、历史、协作者更新接入同步缓存或 Y.Doc。 */
   private handleBinary(frame: ReturnType<typeof decodeDocumentWsFrame>): void {
     switch (frame.type) {
       case DocumentWsFrameType.SNAPSHOT_STATE:
       case DocumentWsFrameType.BOOTSTRAP_UPDATE:
+        if (!this.synchronized) {
+          // Snapshot 与 Bootstrap Update 必须等到结束边界后再参与最终构建。
+          this.pendingBootstrapFrames.push({ type: frame.type, payload: frame.payload.slice() })
+          break
+        }
+        // 正常 ACTIVE 阶段不应再收到 Bootstrap 帧；即使收到，也保持 Yjs 远端合并语义。
+        Y.applyUpdate(this.ydoc, frame.payload, REMOTE_UPDATE_ORIGIN)
+        break
       case DocumentWsFrameType.CRDT_UPDATE:
-        // 为服务端下发的更新标记独立来源，写入 Y.Doc 时便不会生成新的 CLIENT_UPDATE，
-        // 从而避免同一段 Yjs 字节又被回传给服务端。
+        if (!this.synchronized) {
+          // 这是 Tlive 之后到达的远端更新，先保存；它可能与 Redis 或 OpLog 重复，不能丢弃。
+          this.pendingRemoteUpdates.push(frame.payload.slice())
+          break
+        }
+        // ACTIVE 阶段的实时更新可以直接应用；仍使用远端 origin，避免回写服务端。
         Y.applyUpdate(this.ydoc, frame.payload, REMOTE_UPDATE_ORIGIN)
         break
       case DocumentWsFrameType.AWARENESS:
