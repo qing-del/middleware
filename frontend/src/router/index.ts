@@ -3,6 +3,7 @@ import { toastError } from '@/utils/feedback'
 import {
   clearStoredAuth,
   hasAllGrantedScopes,
+  hasGrantedScope,
   readAuthSession,
   type AuthClientId
 } from '@/utils/authSession'
@@ -12,6 +13,7 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     clientId?: AuthClientId
     requiredScopes?: readonly string[]
+    anyRequiredScopes?: readonly string[]
   }
 }
 
@@ -81,7 +83,7 @@ const router = createRouter({
           meta: { requiredScopes: ['note:read'] }
         },
         {
-          // 文档列表只需要 read scope；创建和编辑页通过 write scope 进入协作通道。
+          // 文档列表本轮仍只需要 read scope；编辑已有文档另行支持 read/write 任一 scope。
           path: 'documents',
           name: 'UserDocuments',
           component: () => import('@/views/user/Documents.vue'),
@@ -97,7 +99,7 @@ const router = createRouter({
           path: 'documents/:documentId',
           name: 'UserDocumentEditor',
           component: () => import('@/views/user/DocumentEditor.vue'),
-          meta: { requiredScopes: ['document:write'] }
+          meta: { anyRequiredScopes: ['document:read', 'document:write'] }
         },
         {
           path: 'notes/new',
@@ -283,6 +285,12 @@ router.beforeEach((to) => {
 
   const requiredScopes = [...new Set(to.matched.flatMap(record => record.meta.requiredScopes ?? []))]
   if (!hasAllGrantedScopes(session.scopes, requiredScopes)) {
+    toastError('当前账号没有访问此页面的权限')
+    return false
+  }
+
+  const anyRequiredScopes = [...new Set(to.matched.flatMap(record => record.meta.anyRequiredScopes ?? []))]
+  if (anyRequiredScopes.length > 0 && !anyRequiredScopes.some(scope => hasGrantedScope(session.scopes, scope))) {
     toastError('当前账号没有访问此页面的权限')
     return false
   }

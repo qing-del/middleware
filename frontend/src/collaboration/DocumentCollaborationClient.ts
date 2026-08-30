@@ -17,6 +17,24 @@ import {
 
 export type DocumentConnectionState = 'connecting' | 'synchronizing' | 'synced' | 'reconnecting' | 'closed' | 'error'
 
+/** 文档 WebSocket 错误的结构化信息；页面层据此区分资源拒绝和普通协议错误。 */
+export interface DocumentCollaborationError {
+  /** 服务端机器可判断的错误编码；example: {@code 'DOCUMENT_FORBIDDEN'} */
+  code: string | null
+  /** 面向用户的错误说明；example: {@code '文档不存在或无权访问'} */
+  message: string | null
+  /** 与控制帧关联的请求 ID；example: {@code '550e8400-e29b-41d4-a716-446655440000'} */
+  requestId: string | null
+  /** 服务端关联的文档 ID；全局错误时为空。 */
+  documentId: number | null
+}
+
+/** 自动重连前刷新元数据的结果；网络错误可重试，权限错误必须终止重连。 */
+export type DocumentReconnectAccessResult =
+  | { status: 'ready'; canWrite: boolean }
+  | { status: 'denied'; code: string; message?: string }
+  | { status: 'retry' }
+
 export interface DocumentCollaborationClientOptions {
   /** 要加入协作 Room 的文档 ID；example: {@code 42} */
   documentId: number
@@ -24,10 +42,16 @@ export interface DocumentCollaborationClientOptions {
   accessToken: string
   /** 承载文档正文和 Yjs 状态的本地文档对象；example: {@code new Y.Doc()} */
   ydoc: Y.Doc
+  /** 当前调用方是否拥有文档正文写权限；缺省策略由页面层显式传入。 */
+  canWrite: boolean
   /** 连接状态变化回调；example: {@code (state) => console.log(state)} */
   onStateChange?: (state: DocumentConnectionState, message?: string) => void
   /** 在线协作者数量变化回调；example: {@code (count) => collaboratorCount.value = count} */
   onAwarenessChange?: (count: number) => void
+  /** 收到文档拒绝或不存在错误时通知页面层。 */
+  onAccessError?: (error: DocumentCollaborationError) => void
+  /** 自动重连前重新读取文档元数据，刷新当前页面的资源级权限。 */
+  onBeforeReconnect?: () => Promise<DocumentReconnectAccessResult>
 }
 
 interface PendingUpdate {
@@ -72,6 +96,12 @@ export class DocumentCollaborationClient {
   private readonly onStateChange?: (state: DocumentConnectionState, message?: string) => void
   /** awareness 在线人数变化回调，由页面层更新协作者数量。 */
   private readonly onAwarenessChange?: (count: number) => void
+  /** 文档资源拒绝回调，由页面层切换到不可用状态。 */
+  private readonly onAccessError?: (error: DocumentCollaborationError) => void
+  /** 自动重连前的权限刷新回调。 */
+  private readonly onBeforeReconnect?: () => Promise<DocumentReconnectAccessResult>
+  /** 当前会话是否允许产生和发送正文更新；Awareness 不受此状态影响。 */
+  private writable: boolean
   /** 尚未收到 UPDATE_ACCEPTED 的本地更新，按客户端更新 UUID 索引。 */
   private readonly pendingUpdates = new Map<string, PendingUpdate>()
   /** 当前同步尝试尚未完成最终构建的 Snapshot/Bootstrap 帧。 */
@@ -98,10 +128,19 @@ export class DocumentCollaborationClient {
     this.ydoc = options.ydoc
     this.onStateChange = options.onStateChange
     this.onAwarenessChange = options.onAwarenessChange
+    this.onAccessError = options.onAccessError
+    this.onBeforeReconnect = options.onBeforeReconnect
+    this.writable = options.canWrite
     this.awareness = new Awareness(this.ydoc)
     this.ydoc.on('update', this.handleDocumentUpdate)
     this.awareness.on('update', this.handleAwarenessUpdate)
     this.awareness.on('change', this.handleAwarenessChange)
+  }
+
+  /** 刷新正文写权限；降权时丢弃尚未获得服务端确认的本地更新。 */
+  setWriteEnabled(enabled: boolean): void {
+    this.writable = enabled
+    if (!enabled) this.pendingUpdates.clear()
   }
 
   /** 建立 bearer 子协议连接并发送 JOIN；已连接或已销毁时保持幂等。 */
@@ -166,7 +205,7 @@ export class DocumentCollaborationClient {
 
   /** 将本地 Yjs 更新放入待确认队列，直到服务端返回 UPDATE_ACCEPTED。 */
   private readonly handleDocumentUpdate = (update: Uint8Array, origin: unknown): void => {
-    if (origin === REMOTE_UPDATE_ORIGIN || this.disposed) return
+    if (origin === REMOTE_UPDATE_ORIGIN || this.disposed || !this.writable) return
     /** 用于服务端确认和本地重连重放的客户端更新 UUID。 */
     const id = createDocumentWsRequestId()
     // 每个本地 Yjs 变更都会保留到服务端发送 UPDATE_ACCEPTED；因此 bootstrap 期间的变更
@@ -227,6 +266,15 @@ export class DocumentCollaborationClient {
         }))
         break
       case 'ERROR':
+        if (isTerminalAccessCode(control.code)) {
+          this.setWriteEnabled(false)
+          this.onAccessError?.({
+            code: control.code,
+            message: control.message,
+            requestId: control.requestId,
+            documentId: control.documentId
+          })
+        }
         this.fail(control.message || control.code || '文档服务拒绝了当前连接')
         this.socket?.close(1008, 'document protocol error')
         break
@@ -297,13 +345,44 @@ export class DocumentCollaborationClient {
     this.setState('reconnecting')
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null
-      this.connect()
+      void this.refreshAccessBeforeReconnect()
     }, delay)
+  }
+
+  /** 重连前刷新资源权限；权限拒绝终止重连，网络异常沿用指数退避。 */
+  private async refreshAccessBeforeReconnect(): Promise<void> {
+    if (this.disposed) return
+    if (this.onBeforeReconnect) {
+      let result: DocumentReconnectAccessResult
+      try {
+        result = await this.onBeforeReconnect()
+      } catch {
+        result = { status: 'retry' }
+      }
+      if (this.disposed) return
+      if (result.status === 'denied') {
+        this.setWriteEnabled(false)
+        this.onAccessError?.({
+          code: result.code,
+          message: result.message || '文档不存在或无权访问',
+          requestId: null,
+          documentId: this.documentId
+        })
+        this.fail(result.message || '文档不存在或无权访问')
+        return
+      }
+      if (result.status === 'retry') {
+        this.scheduleReconnect()
+        return
+      }
+      this.setWriteEnabled(result.canWrite)
+    }
+    this.connect()
   }
 
   /** 发送一条仍在等待服务端确认的客户端更新。 */
   private sendPendingUpdate(update: PendingUpdate): void {
-    if (!this.synchronized || !this.isSocketOpen()) return
+    if (!this.writable || !this.synchronized || !this.isSocketOpen()) return
     this.socket!.send(encodeDocumentWsFrame(DocumentWsFrameType.CLIENT_UPDATE, update.id, update.payload))
   }
 
@@ -340,6 +419,11 @@ export class DocumentCollaborationClient {
     this.currentState = state
     this.onStateChange?.(state, message)
   }
+}
+
+/** 这些错误代表文档资源不可访问，客户端不能把它们当成可重试网络错误。 */
+function isTerminalAccessCode(code: string | null): boolean {
+  return code === 'DOCUMENT_FORBIDDEN' || code === 'DOCUMENT_NOT_FOUND'
 }
 
 /** 按环境变量或当前页面 host 解析文档 WebSocket 地址。 */

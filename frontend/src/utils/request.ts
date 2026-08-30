@@ -12,6 +12,8 @@ import {
 
 interface RequestConfig extends AxiosRequestConfig {
   _authRetry?: boolean
+  /** 资源级元数据等场景自行展示中性错误时，禁止全局拦截器弹出服务端原文。 */
+  _silentErrorToast?: boolean
 }
 
 interface RefreshResult {
@@ -198,7 +200,8 @@ instance.interceptors.response.use(
         return res.data
       }
       const message = responseMessage(res) || '请求失败'
-      if (!isAuthenticationEndpoint(response.config?.url)) toastError(message)
+      const config = response.config as RequestConfig
+      if (!isAuthenticationEndpoint(config.url) && !config._silentErrorToast) toastError(message)
       return Promise.reject(new Error(message))
     }
     return res
@@ -224,8 +227,8 @@ instance.interceptors.response.use(
     } else if (status === 401 && requiresAuthRoute() && !authEndpoint) {
       expireSession(serverMessage || '登录状态已失效，请重新登录')
     } else if (status === 403) {
-      toastError(serverMessage || '无权访问')
-    } else if (!authEndpoint) {
+      if (!config?._silentErrorToast) toastError(serverMessage || '无权访问')
+    } else if (!authEndpoint && !config?._silentErrorToast) {
       toastError(serverMessage || error.message || '网络错误')
     }
     return Promise.reject(sanitizeRequestError(error))

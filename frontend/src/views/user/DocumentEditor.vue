@@ -19,10 +19,15 @@ import {
   Undo2,
   Users
 } from 'lucide-vue-next'
-import { documentApi, type DocumentMetadata } from '@/api/documents'
+import {
+  documentApi,
+  type DocumentAccessMetadata
+} from '@/api/documents'
 import {
   DocumentCollaborationClient,
-  type DocumentConnectionState
+  type DocumentCollaborationError,
+  type DocumentConnectionState,
+  type DocumentReconnectAccessResult
 } from '@/collaboration/DocumentCollaborationClient'
 import { ResourceReference } from '@/editor/ResourceReference'
 import { useAuthStore } from '@/stores/auth'
@@ -47,7 +52,7 @@ const savingTitle = ref(false)
 /** 页面当前可展示的错误信息；无错误时为 `null`。 */
 const error = ref<string | null>(null)
 /** 当前文档的服务端元数据；创建模式或尚未加载时为 `null`。 */
-const metadata = ref<DocumentMetadata | null>(null)
+const metadata = ref<DocumentAccessMetadata | null>(null)
 /** 标题输入框中的本地草稿，失焦或回车时提交。 */
 const titleDraft = ref('')
 /** 创建模式下的新文档标题；示例：`未命名协作文档`。 */
@@ -60,6 +65,8 @@ const connectionMessage = ref<string | null>(null)
 const collaboratorCount = ref(1)
 /** Tiptap 事务递增版本，用于触发工具栏格式状态重新计算。 */
 const editorVersion = ref(0)
+/** 文档已被服务端拒绝或确认不存在；此状态下不再尝试协同连接。 */
+const accessUnavailable = ref(false)
 
 /** 当前页面创建的 Tiptap 编辑器实例；销毁前或创建模式下为 `null`。 */
 let editor: Editor | null = null
@@ -78,8 +85,20 @@ const documentId = computed<number | null>(() => {
   const parsed = Number(route.params.documentId)
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 })
-/** 编辑器是否已经完成同步并可以接受用户输入。 */
-const editorIsReady = computed(() => connectionState.value === 'synced' && Boolean(editor))
+/** 编辑器是否已经完成同步；READ 用户也可以在此状态查看实时内容。 */
+const editorIsSynced = computed(() => connectionState.value === 'synced' && Boolean(editor) && !accessUnavailable.value)
+/** 当前调用方是否为文档所有者。标题和文档管理操作只允许该身份。 */
+const isOwner = computed(() => metadata.value?.owner === true)
+/** 当前调用方是否拥有正文写权限；OWNER 始终拥有写权限。 */
+const canWrite = computed(() => metadata.value?.owner === true || metadata.value?.permission === 'WRITE')
+/** 编辑器是否已经同步且允许执行会改变正文的操作。 */
+const editorCanEdit = computed(() => editorIsSynced.value && canWrite.value)
+/** 页面上展示的资源级权限标签。 */
+const accessLabel = computed(() => {
+  if (isOwner.value) return '所有者'
+  if (metadata.value?.permission === 'WRITE') return '可编辑'
+  return '只读'
+})
 /** 将内部连接状态转换为页面上显示的中文状态文本。 */
 const connectionLabel = computed(() => {
   /** 各连接状态对应的页面展示文案。 */
@@ -111,6 +130,50 @@ function getErrorMessage(cause: unknown, fallback: string): string {
   return cause instanceof Error && cause.message ? cause.message : fallback
 }
 
+/** 资源不存在或无权访问时统一使用的中性提示，避免泄露文档存在性。 */
+const DOCUMENT_UNAVAILABLE_MESSAGE = '文档不存在或无权访问'
+
+/** 从 Axios 兼容错误中读取 HTTP 状态，不依赖具体请求库错误类型。 */
+function responseStatus(cause: unknown): number | null {
+  if (!cause || typeof cause !== 'object') return null
+  const response = (cause as { response?: { status?: unknown } }).response
+  return typeof response?.status === 'number' ? response.status : null
+}
+
+/** 判断元数据请求是否返回了资源拒绝/不存在。 */
+function isDocumentUnavailableError(cause: unknown): boolean {
+  const status = responseStatus(cause)
+  return status === 403 || status === 404
+}
+
+/** 根据已校验的服务端元数据计算正文写权限。 */
+function canWriteMetadata(value: Pick<DocumentAccessMetadata, 'owner' | 'permission'>): boolean {
+  return value.owner || value.permission === 'WRITE'
+}
+
+/** 把最新元数据和权限同步到页面、编辑器及协同客户端。 */
+function applyAccessMetadata(value: DocumentAccessMetadata): void {
+  metadata.value = value
+  titleDraft.value = value.title
+  collaborationClient?.setWriteEnabled(canWriteMetadata(value))
+  editor?.setEditable(editorIsSynced.value && canWriteMetadata(value))
+  if (value.deleted) {
+    accessUnavailable.value = true
+    error.value = DOCUMENT_UNAVAILABLE_MESSAGE
+    editor?.setEditable(false)
+  }
+}
+
+/** 处理 WebSocket 资源级拒绝，立即停止编辑并阻止客户端自动重连。 */
+function handleAccessError(accessError: DocumentCollaborationError): void {
+  if (accessError.code !== 'DOCUMENT_FORBIDDEN' && accessError.code !== 'DOCUMENT_NOT_FOUND'
+      && accessError.code !== 'DOCUMENT_METADATA_INVALID') return
+  accessUnavailable.value = true
+  error.value = DOCUMENT_UNAVAILABLE_MESSAGE
+  connectionMessage.value = DOCUMENT_UNAVAILABLE_MESSAGE
+  editor?.setEditable(false)
+}
+
 /** 释放当前编辑器、Y.Doc、协作连接和页面状态，供路由切换复用。 */
 function teardownEditor(): void {
   collaborationClient?.dispose()
@@ -123,6 +186,7 @@ function teardownEditor(): void {
   collaboratorCount.value = 1
   connectionState.value = 'closed'
   connectionMessage.value = null
+  accessUnavailable.value = false
 }
 
 /** 按当前路由加载元数据、创建 Tiptap/Yjs 绑定并启动协作连接。 */
@@ -133,6 +197,7 @@ async function initializeEditor(): Promise<void> {
   error.value = null
   metadata.value = null
   titleDraft.value = ''
+  accessUnavailable.value = false
 
   if (isCreateMode.value) return
   if (documentId.value === null) {
@@ -145,8 +210,8 @@ async function initializeEditor(): Promise<void> {
     /** 服务端返回的文档元数据，作为标题和协作连接配置的来源。 */
     const loadedMetadata = await documentApi.getMetadata(documentId.value)
     if (requestedVersion !== initializationVersion) return
-    metadata.value = loadedMetadata
-    titleDraft.value = loadedMetadata.title
+    applyAccessMetadata(loadedMetadata)
+    if (loadedMetadata.deleted) return
     await nextTick()
     if (requestedVersion !== initializationVersion || !editorHost.value) return
 
@@ -165,14 +230,40 @@ async function initializeEditor(): Promise<void> {
       documentId: loadedMetadata.documentId,
       accessToken,
       ydoc: document,
+      canWrite: canWriteMetadata(loadedMetadata),
       onStateChange: (state, message) => {
         if (requestedVersion !== initializationVersion) return
         connectionState.value = state
         connectionMessage.value = message || null
-        if (state === 'synced') editor?.setEditable(true)
+        editor?.setEditable(state === 'synced' && canWrite.value && !accessUnavailable.value)
       },
       onAwarenessChange: count => {
         if (requestedVersion === initializationVersion) collaboratorCount.value = Math.max(1, count)
+      },
+      onAccessError: accessError => {
+        if (requestedVersion === initializationVersion) handleAccessError(accessError)
+      },
+      onBeforeReconnect: async (): Promise<DocumentReconnectAccessResult> => {
+        if (requestedVersion !== initializationVersion || documentId.value === null) {
+          return { status: 'denied', code: 'DOCUMENT_FORBIDDEN' }
+        }
+        try {
+          const refreshedMetadata = await documentApi.getMetadata(documentId.value)
+          if (requestedVersion !== initializationVersion) return { status: 'retry' }
+          applyAccessMetadata(refreshedMetadata)
+          if (refreshedMetadata.deleted) {
+            return { status: 'denied', code: 'DOCUMENT_NOT_FOUND', message: DOCUMENT_UNAVAILABLE_MESSAGE }
+          }
+          return { status: 'ready', canWrite: canWriteMetadata(refreshedMetadata) }
+        } catch (cause) {
+          if (isDocumentUnavailableError(cause)) {
+            return { status: 'denied', code: 'DOCUMENT_FORBIDDEN', message: DOCUMENT_UNAVAILABLE_MESSAGE }
+          }
+          if (cause instanceof Error && cause.message === '文档元数据无效') {
+            return { status: 'denied', code: 'DOCUMENT_METADATA_INVALID', message: '文档暂不可用' }
+          }
+          return { status: 'retry' }
+        }
       }
     })
 
@@ -209,7 +300,16 @@ async function initializeEditor(): Promise<void> {
     })
     client.connect()
   } catch (cause) {
-    if (requestedVersion === initializationVersion) error.value = getErrorMessage(cause, '无法打开协作文档')
+    if (requestedVersion === initializationVersion) {
+      // 元数据请求阶段不区分不存在、无权和其他服务端失败，统一使用中性提示，
+      // 避免通过页面反馈泄露文档是否存在。
+      if (!metadata.value || isDocumentUnavailableError(cause)) {
+        accessUnavailable.value = true
+        error.value = DOCUMENT_UNAVAILABLE_MESSAGE
+      } else {
+        error.value = getErrorMessage(cause, '无法打开协作文档')
+      }
+    }
   } finally {
     if (requestedVersion === initializationVersion) loading.value = false
   }
@@ -240,7 +340,7 @@ async function createDocument(): Promise<void> {
 
 /** 只提交实际变化的标题，并在失败时恢复服务端已知标题。 */
 async function saveTitle(): Promise<void> {
-  if (!metadata.value || savingTitle.value) return
+  if (!metadata.value || !isOwner.value || savingTitle.value || accessUnavailable.value) return
   /** 去除首尾空白后的待保存标题。 */
   const title = titleDraft.value.trim()
   if (!title) {
@@ -251,7 +351,9 @@ async function saveTitle(): Promise<void> {
 
   savingTitle.value = true
   try {
-    metadata.value = await documentApi.updateTitle(metadata.value.documentId, title)
+    const updatedMetadata = await documentApi.updateTitle(metadata.value.documentId, title)
+    // 旧兼容响应可能不带 ACL 字段；保留本次页面已验证的访问状态。
+    metadata.value = { ...metadata.value, ...updatedMetadata }
     titleDraft.value = metadata.value.title
   } catch (cause) {
     titleDraft.value = metadata.value.title
@@ -263,7 +365,7 @@ async function saveTitle(): Promise<void> {
 
 /** 只在编辑器已完成同步时执行工具栏命令。 */
 function runEditorCommand(command: () => boolean): void {
-  if (editorIsReady.value) command()
+  if (editorCanEdit.value) command()
 }
 
 /** 从 Tiptap 当前 selection 读取格式状态，驱动工具栏 active 样式刷新。 */
@@ -275,7 +377,7 @@ function isActive(name: string): boolean {
 
 /** 插入仅保存引用属性的行内资源引用节点。 */
 function insertResourceReference(): void {
-  if (!editorIsReady.value) return
+  if (!editorCanEdit.value) return
   /** 用户为行内资源引用输入的展示文本。 */
   const displayText = window.prompt('请输入引用的显示文本')?.trim()
   if (!displayText) return
@@ -331,28 +433,38 @@ onUnmounted(() => { teardownEditor() })
 
     <template v-else>
       <div v-if="loading && !metadata" class="state-panel"><Loader2 class="h-5 w-5 animate-spin" /> 正在加载协作文档…</div>
+      <div v-else-if="accessUnavailable" class="state-panel is-error access-unavailable-panel">
+        <CircleAlert class="h-5 w-5" />
+        <div>
+          <strong>{{ DOCUMENT_UNAVAILABLE_MESSAGE }}</strong>
+          <p>当前页面已停止协同连接，请返回文档列表。</p>
+          <button class="back-button" type="button" @click="goBack">返回文档</button>
+        </div>
+      </div>
       <div v-else-if="error && !metadata" class="state-panel is-error"><CircleAlert class="h-5 w-5" /> {{ error }}</div>
       <template v-else-if="metadata">
         <div class="document-title-row">
-          <input v-model="titleDraft" class="document-title-input" maxlength="255" :disabled="savingTitle" @blur="saveTitle" @keyup.enter="saveTitle" />
+          <input v-model="titleDraft" class="document-title-input" maxlength="255" :disabled="savingTitle || !isOwner" :aria-readonly="!isOwner" @blur="saveTitle" @keyup.enter="saveTitle" />
           <span v-if="savingTitle" class="title-saving"><Loader2 class="h-3.5 w-3.5 animate-spin" /> 正在保存标题</span>
+          <span class="access-badge" :class="{ 'is-readonly': !canWrite }">{{ accessLabel }}</span>
         </div>
+        <p v-if="editorIsSynced && !canWrite" class="readonly-notice">你拥有此文档的只读权限，可以接收实时更新，但不能修改正文。</p>
 
         <div class="editor-toolbar" aria-label="文档编辑工具栏">
-          <button type="button" title="撤销" :disabled="!editorIsReady" @click="runEditorCommand(() => editor?.chain().focus().undo().run() ?? false)"><Undo2 class="h-4 w-4" /></button>
-          <button type="button" title="重做" :disabled="!editorIsReady" @click="runEditorCommand(() => editor?.chain().focus().redo().run() ?? false)"><Redo2 class="h-4 w-4" /></button>
+          <button type="button" title="撤销" :disabled="!editorCanEdit" @click="runEditorCommand(() => editor?.chain().focus().undo().run() ?? false)"><Undo2 class="h-4 w-4" /></button>
+          <button type="button" title="重做" :disabled="!editorCanEdit" @click="runEditorCommand(() => editor?.chain().focus().redo().run() ?? false)"><Redo2 class="h-4 w-4" /></button>
           <span class="toolbar-separator" />
-          <button type="button" title="加粗" :class="{ active: isActive('bold') }" :disabled="!editorIsReady" @click="runEditorCommand(() => editor?.chain().focus().toggleBold().run() ?? false)"><Bold class="h-4 w-4" /></button>
-          <button type="button" title="斜体" :class="{ active: isActive('italic') }" :disabled="!editorIsReady" @click="runEditorCommand(() => editor?.chain().focus().toggleItalic().run() ?? false)"><Italic class="h-4 w-4" /></button>
-          <button type="button" title="项目列表" :class="{ active: isActive('bulletList') }" :disabled="!editorIsReady" @click="runEditorCommand(() => editor?.chain().focus().toggleBulletList().run() ?? false)"><List class="h-4 w-4" /></button>
+          <button type="button" title="加粗" :class="{ active: isActive('bold') }" :disabled="!editorCanEdit" @click="runEditorCommand(() => editor?.chain().focus().toggleBold().run() ?? false)"><Bold class="h-4 w-4" /></button>
+          <button type="button" title="斜体" :class="{ active: isActive('italic') }" :disabled="!editorCanEdit" @click="runEditorCommand(() => editor?.chain().focus().toggleItalic().run() ?? false)"><Italic class="h-4 w-4" /></button>
+          <button type="button" title="项目列表" :class="{ active: isActive('bulletList') }" :disabled="!editorCanEdit" @click="runEditorCommand(() => editor?.chain().focus().toggleBulletList().run() ?? false)"><List class="h-4 w-4" /></button>
           <span class="toolbar-separator" />
-          <button type="button" title="插入资源引用" :disabled="!editorIsReady" @click="insertResourceReference"><Link2 class="h-4 w-4" /><span>引用</span></button>
+          <button type="button" title="插入资源引用" :disabled="!editorCanEdit" @click="insertResourceReference"><Link2 class="h-4 w-4" /><span>引用</span></button>
           <span class="collaborator-count"><Users class="h-4 w-4" /> {{ collaboratorCount }}</span>
         </div>
 
-        <div class="editor-shell" :class="{ 'is-readonly': !editorIsReady }">
-          <div ref="editorHost" class="editor-host" />
-          <div v-if="!editorIsReady" class="sync-overlay"><Loader2 v-if="connectionState !== 'error'" class="h-5 w-5 animate-spin" /> {{ connectionMessage || connectionLabel }}</div>
+        <div class="editor-shell" :class="{ 'is-readonly': !editorCanEdit }">
+          <div ref="editorHost" class="editor-host" :aria-readonly="!editorCanEdit" />
+          <div v-if="!editorIsSynced" class="sync-overlay"><Loader2 v-if="connectionState !== 'error'" class="h-5 w-5 animate-spin" /> {{ connectionMessage || connectionLabel }}</div>
         </div>
         <p v-if="error" class="error-message"><CircleAlert class="h-4 w-4" /> {{ error }}</p>
       </template>
@@ -383,16 +495,26 @@ h1 { margin: 10px 0; color: var(--cn-text); font-size: 28px; font-weight: 800; }
 .primary-button:disabled { cursor: wait; opacity: .7; }
 .state-panel { display: flex; min-height: 260px; align-items: center; justify-content: center; gap: 10px; border: 1px dashed var(--cn-border-strong); border-radius: var(--cn-radius-lg); background: var(--cn-bg-subtle); color: var(--cn-text-muted); font-size: 13px; }
 .state-panel.is-error, .error-message { color: var(--cn-danger); }
+.access-unavailable-panel { text-align: center; }
+.access-unavailable-panel > div { display: grid; justify-items: center; gap: 6px; }
+.access-unavailable-panel strong { color: var(--cn-danger); font-size: 15px; }
+.access-unavailable-panel p { margin: 0; color: var(--cn-text-muted); font-size: 12px; }
+.access-unavailable-panel .back-button { margin-top: 6px; }
 .document-title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .document-title-input { border-color: transparent; background: transparent; padding: 4px 0; font-size: 27px; font-weight: 800; }
 .document-title-input:hover { border-color: var(--cn-border); padding-inline: 8px; }
-.title-saving, .collaborator-count { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; color: var(--cn-text-muted); font-size: 11px; font-weight: 700; }
+.document-title-input:disabled { cursor: default; opacity: .78; }
+.title-saving, .collaborator-count, .access-badge { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; color: var(--cn-text-muted); font-size: 11px; font-weight: 700; }
+.access-badge { border: 1px solid color-mix(in srgb, var(--cn-success) 45%, var(--cn-border)); border-radius: 999px; background: color-mix(in srgb, var(--cn-success) 10%, transparent); color: var(--cn-success); padding: 4px 8px; }
+.access-badge.is-readonly { border-color: var(--cn-border); background: var(--cn-bg-subtle); color: var(--cn-text-muted); }
+.readonly-notice { margin: -5px 0 12px; color: var(--cn-text-muted); font-size: 12px; }
 .editor-toolbar { display: flex; align-items: center; gap: 5px; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-md) var(--cn-radius-md) 0 0; background: var(--cn-surface); padding: 7px; }
 .editor-toolbar button { min-height: 30px; justify-content: center; border-color: transparent; padding: 6px 8px; }
 .editor-toolbar button:disabled { cursor: wait; opacity: .45; }
 .toolbar-separator { width: 1px; height: 20px; margin: 0 3px; background: var(--cn-border); }
 .collaborator-count { margin-left: auto; padding: 0 5px; }
 .editor-shell { position: relative; min-height: 62vh; border: 1px solid var(--cn-border); border-top: 0; border-radius: 0 0 var(--cn-radius-md) var(--cn-radius-md); background: var(--cn-surface); overflow: hidden; }
+.editor-shell.is-readonly { background: var(--cn-bg-subtle); }
 .editor-host { min-height: 62vh; }
 .sync-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; background: color-mix(in srgb, var(--cn-surface) 88%, transparent); color: var(--cn-text-muted); font-size: 13px; font-weight: 700; }
 .error-message { display: flex; align-items: center; gap: 7px; margin: 12px 0 0; font-size: 12px; }
