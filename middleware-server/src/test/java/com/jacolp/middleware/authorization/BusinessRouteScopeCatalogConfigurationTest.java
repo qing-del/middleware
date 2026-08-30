@@ -56,11 +56,11 @@ class BusinessRouteScopeCatalogConfigurationTest {
         Map<String, Long> policyRoutes = BusinessRouteScopeCatalogConfiguration.entries().stream()
                 .collect(Collectors.groupingBy(BusinessRouteScopeCatalogConfigurationTest::route, Collectors.counting()));
 
-        assertThat(mappedRoutes).hasSize(125);
+        assertThat(mappedRoutes).hasSize(128);
         assertThat(mappedRoutes).containsAll(EXCEPTIONS);
         assertThat(EXCEPTIONS).hasSize(4);
-        assertThat(protectedRoutes).hasSize(121);
-        assertThat(policyRoutes).hasSize(121);
+        assertThat(protectedRoutes).hasSize(124);
+        assertThat(policyRoutes).hasSize(124);
         assertThat(policyRoutes.keySet()).containsExactlyInAnyOrderElementsOf(protectedRoutes);
         assertThat(policyRoutes.values()).allMatch(count -> count == 1L);
     }
@@ -71,15 +71,17 @@ class BusinessRouteScopeCatalogConfigurationTest {
                 "static/document/security/phase5-business-route-scope-catalog.md"));
         long documentedEntries = document.lines().filter(line -> line.matches("\\| \\d+ \\|.*")).count();
 
-        assertThat(documentedEntries).isEqualTo(121);
+        assertThat(documentedEntries).isEqualTo(124);
         assertThat(document.lines().filter(line -> line.startsWith("## `/user/**`")).toList())
-                .containsExactly("## `/user/**`：user client（76 bearer routes）");
+                .containsExactly("## `/user/**`：user client（79 bearer routes）");
         assertThat(document.lines().filter(line -> line.startsWith("## `/admin/**`")).toList())
                 .containsExactly("## `/admin/**`：admin client（45 bearer routes）");
-        assertThat(document).contains("125 个", "80 个 user", "45 个 admin", "121 个是 bearer", "4 个是下文明确排除");
+        assertThat(document).contains("128 个", "83 个 user", "45 个 admin", "124 个是 bearer", "4 个是下文明确排除");
         assertThat(document).contains("`GET /user/note/source/{id}`", "`audit:write`", "`audit:manage`",
                 "`note:read` + `media:read`", "`note:write` + `media:read`", "`document:read`",
-                "`document:write`");
+                "`document:write`", "`GET /user/document/{documentId}/users`",
+                "`PUT /user/document/{documentId}/users/{userId}`",
+                "`DELETE /user/document/{documentId}/users/{userId}`");
     }
 
     private static Set<String> mappedBusinessRoutes() throws Exception {

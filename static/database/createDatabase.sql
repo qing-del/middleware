@@ -643,7 +643,8 @@ CREATE TABLE `biz_document_user` (
     `create_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `update_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (`document_id`, `user_id`),
-    KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)
+    KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`),
+    KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='协作文档用户直接授权';
 
 CREATE TABLE `document_op_log` (

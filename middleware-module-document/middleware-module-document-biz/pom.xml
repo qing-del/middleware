@@ -6,6 +6,7 @@
     <artifactId>middleware-module-document-biz</artifactId>
     <dependencies>
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-module-document-api</artifactId></dependency>
+        <dependency><groupId>com.jacolp</groupId><artifactId>middleware-module-system-api</artifactId></dependency>
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-common-core</artifactId></dependency>
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-common-messaging</artifactId></dependency>
         <dependency><groupId>com.jacolp</groupId><artifactId>middleware-common-security</artifactId></dependency>

@@ -27,7 +27,7 @@ public class BusinessRouteScopeCatalogConfiguration {
         return new ImmutableBusinessRouteAuthorizationPolicy(entries());
     }
 
-    /** Matches only the 121 bearer business routes, never the four public activation exceptions. */
+    /** Matches only the 124 bearer business routes, never the four public activation exceptions. */
     @Bean
     public RequestMatcher businessRouteRequestMatcher() {
         return new OrRequestMatcher(entries().stream()
@@ -35,7 +35,7 @@ public class BusinessRouteScopeCatalogConfiguration {
                 .toList());
     }
 
-    /** The resource-server chain also owns this authenticated internal endpoint, outside the 116 route catalogue. */
+    /** The resource-server chain also owns this authenticated internal endpoint, outside the 128 route catalogue. */
     @Bean
     public RequestMatcher internalLogoutRequestMatcher() {
         return PathPatternRequestMatcher.pathPattern(HttpMethod.POST, INTERNAL_LOGOUT_PATH);
@@ -63,6 +63,9 @@ public class BusinessRouteScopeCatalogConfiguration {
                 // user collaborative documents
                 user("POST /user/document document:write"), user("GET /user/document document:read"),
                 user("GET /user/document/{documentId}/meta document:read"),
+                user("GET /user/document/{documentId}/users document:read"),
+                user("PUT /user/document/{documentId}/users/{userId} document:write"),
+                user("DELETE /user/document/{documentId}/users/{userId} document:write"),
                 user("PATCH /user/document/{documentId}/meta document:write"),
                 user("DELETE /user/document/{documentId} document:write"),
                 // user notes

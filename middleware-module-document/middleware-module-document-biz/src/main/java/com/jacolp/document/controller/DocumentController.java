@@ -3,6 +3,7 @@ package com.jacolp.document.controller;
 import com.jacolp.common.core.result.Result;
 import com.jacolp.common.security.context.BaseContext;
 import com.jacolp.document.api.model.DocumentMetadata;
+import com.jacolp.document.application.authorization.DocumentUserAuthorizationService;
 import com.jacolp.document.application.metadata.DocumentMetadataService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,10 +35,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class DocumentController {
 
     private final DocumentMetadataService metadataService;
+    private final DocumentUserAuthorizationService authorizationService;
 
     /** 创建文档元数据控制器，并保持正文协作由 WebSocket 端点负责。 */
-    public DocumentController(DocumentMetadataService metadataService) {
+    public DocumentController(DocumentMetadataService metadataService,
+                               DocumentUserAuthorizationService authorizationService) {
         this.metadataService = Objects.requireNonNull(metadataService, "metadataService must not be null");
+        this.authorizationService = Objects.requireNonNull(authorizationService,
+                "authorizationService must not be null");
     }
 
     @PostMapping
@@ -59,6 +65,35 @@ public class DocumentController {
     public Result<DocumentMetadata> getMetadata(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
         return Result.success(metadataService.get(BaseContext.getCurrentId(), documentId));
+    }
+
+    @GetMapping("/{documentId}/users")
+    @Operation(summary = "查询协作文档授权名单")
+    /** 仅文档所有者可以读取授权记录，已撤销记录也会返回。 */
+    public Result<List<DocumentUserAuthorizationResponse>> listAuthorizations(
+            @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
+        return Result.success(authorizationService.list(BaseContext.getCurrentId(), documentId));
+    }
+
+    @PutMapping("/{documentId}/users/{userId}")
+    @Operation(summary = "新增或更新协作文档授权")
+    /** 仅文档所有者可以为启用用户设置 READ/WRITE 及 enabled 状态。 */
+    public Result<DocumentUserAuthorizationResponse> upsertAuthorization(
+            @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
+            @Parameter(description = "被授权用户 ID") @PathVariable @Positive long userId,
+            @RequestBody @Valid DocumentUserAuthorizationRequest request) {
+        return Result.success(authorizationService.upsert(BaseContext.getCurrentId(), documentId, userId,
+                request.permission(), request.enabled()));
+    }
+
+    @DeleteMapping("/{documentId}/users/{userId}")
+    @Operation(summary = "撤销协作文档授权")
+    /** 仅将授权标记为 disabled，不物理删除授权历史。 */
+    public Result<Void> revokeAuthorization(
+            @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
+            @Parameter(description = "被授权用户 ID") @PathVariable @Positive long userId) {
+        authorizationService.revoke(BaseContext.getCurrentId(), documentId, userId);
+        return Result.success();
     }
 
     @PatchMapping("/{documentId}/meta")

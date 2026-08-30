@@ -14,6 +14,20 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <select id="selectByDocumentId" resultMap="DocumentUserMappingMap">
+        SELECT document_id, user_id, permission, enabled, create_time, update_time
+        FROM biz_document_user
+        WHERE document_id = #{documentId}
+        ORDER BY user_id ASC
+    </select>
+
+    <select id="selectByDocumentIdAndUserId" resultMap="DocumentUserMappingMap">
+        SELECT document_id, user_id, permission, enabled, create_time, update_time
+        FROM biz_document_user
+        WHERE document_id = #{documentId}
+          AND user_id = #{userId}
+    </select>
+
     <select id="selectEnabledByDocumentIdAndUserId" resultMap="DocumentUserMappingMap">
         SELECT document_id, user_id, permission, enabled, create_time, update_time
         FROM biz_document_user
@@ -21,4 +35,33 @@
           AND user_id = #{userId}
           AND enabled = 1
     </select>
+
+    <insert id="upsertByDocumentOwner">
+        INSERT INTO biz_document_user
+            (document_id, user_id, permission, enabled)
+        SELECT #{mapping.documentId}, #{mapping.userId}, #{mapping.permission}, #{mapping.enabled}
+        FROM biz_document
+        WHERE id = #{mapping.documentId}
+          AND owner_user_id = #{ownerUserId}
+          AND deleted = 0
+        ON DUPLICATE KEY UPDATE
+            permission = VALUES(permission),
+            enabled = VALUES(enabled),
+            update_time = CURRENT_TIMESTAMP(3)
+    </insert>
+
+    <update id="disableByDocumentOwner">
+        UPDATE biz_document_user
+        SET enabled = 0,
+            update_time = CURRENT_TIMESTAMP(3)
+        WHERE document_id = #{documentId}
+          AND user_id = #{userId}
+          AND EXISTS (
+              SELECT 1
+              FROM biz_document
+              WHERE id = #{documentId}
+                AND owner_user_id = #{ownerUserId}
+                AND deleted = 0
+          )
+    </update>
 </mapper>

@@ -3,8 +3,8 @@
 ## 状态与适用范围
 
 这是 Phase 5 首发的、可执行的 route-to-scope 目录。Phase 6 删除旧四个登录/登出
-路由后，当前存在 125 个 `@RestController` 下的 `/user/**` 与 `/admin/**` 最终 HTTP
-路由：80 个 user 路由、45 个 admin 路由；其中 121 个是 bearer 业务路由、4 个是下文明确排除的
+路由后，当前存在 128 个 `@RestController` 下的 `/user/**` 与 `/admin/**` 最终 HTTP
+路由：83 个 user 路由、45 个 admin 路由；其中 124 个是 bearer 业务路由、4 个是下文明确排除的
 legacy/public/activation 例外。认证完成后，每个业务路由都必须同时满足本表的全部
 required scope；scope 的 wildcard 匹配由统一 matcher 完成，签发 JWT 时不展开。
 
@@ -45,7 +45,7 @@ admin 操作还会保留相应 rank/creator 业务约束。
 HTTP `403`；响应体保持既有 `Result.error` 契约。此行为在 RS256 与 legacy 模式下一致。
 OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不走业务 `Result` 错误体。
 
-## `/user/**`：user client（76 bearer routes）
+## `/user/**`：user client（79 bearer routes）
 
 | # | method + path | required scopes（all-of） | 业务语义 |
 | ---: | --- | --- | --- |
@@ -67,70 +67,73 @@ OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不
 | 16 | `POST /user/document` | `document:write` | 创建 own 协作文档 |
 | 17 | `GET /user/document` | `document:read` | 列表 own 协作文档 |
 | 18 | `GET /user/document/{documentId}/meta` | `document:read` | 读取 own 协作文档元数据 |
-| 19 | `PATCH /user/document/{documentId}/meta` | `document:write` | 修改 own 协作文档标题 |
-| 20 | `DELETE /user/document/{documentId}` | `document:write` | 删除 own 协作文档 |
-| 21 | `POST /user/note/list` | `note:read` | 列表 own 笔记 |
-| 22 | `GET /user/note/overview` | `note:read` | own 笔记统计 |
-| 23 | `POST /user/note/upload` | `note:write` | 创建 own 笔记 |
-| 24 | `PUT /user/note/upload/{noteId}` | `note:write` | 更新 own 源内容 |
-| 25 | `POST /user/note/upload/{noteId}/confirm` | `note:write` | 确认 own 内容变更 |
-| 26 | `GET /user/note/upload/{noteId}/diff` | `note:read` | 读取 own 变更 diff |
-| 27 | `PUT /user/note/publish/{noteId}/{status}` | `note:write` | 发布/取消发布 own 笔记 |
-| 28 | `GET /user/note` | `note:read` | 列表 own 笔记 |
-| 29 | `GET /user/note/{noteId}` | `note:read` | 读取 own 笔记详情 |
-| 30 | `GET /user/note/source/{id}` | `note:read` | 读取 own Markdown 源内容 |
-| 31 | `GET /user/note/converted/{noteId}` | `note:read` | 读取 own 转换结果 |
-| 32 | `POST /user/note/convert` | `note:write` | 转换 own 笔记 |
-| 33 | `DELETE /user/note/convert` | `note:write` | 删除 own 转换结果 |
-| 34 | `PUT /user/note/{id}/info` | `note:write` | 更新 own 笔记信息 |
-| 35 | `DELETE /user/note/{id}` | `note:write` | 删除 own 笔记 |
-| 36 | `GET /user/note/search` | `note:read` | 搜索 own 笔记 |
-| 37 | `POST /user/note/relation/check/{noteId}` | `note:read` | 校验 own 关联完成度 |
-| 38 | `GET /user/note/relation/{noteId}` | `note:read` | 读取 own 关联信息 |
-| 39 | `GET /user/note/relation/images/{noteId}` | `note:read` + `media:read` | 读取 own 笔记关联图片 |
-| 40 | `GET /user/note/relation/backlinks/{noteId}` | `note:read` | 读取 own 笔记反链 |
-| 41 | `GET /user/note/relation/backlinks/tag/{tagId}` | `note:read` | 读取 own 标签反链 |
-| 42 | `GET /user/note/relation/backlinks/image/{imageId}` | `note:read` + `media:read` | 读取图片反链 |
-| 43 | `PUT /user/note/relation/tag/bind` | `note:write` | 绑定 own 笔记标签 |
-| 44 | `DELETE /user/note/relation/tag/unbind/{mappingId}` | `note:write` | 解绑 own 笔记标签 |
-| 45 | `PUT /user/note/relation/image/bind` | `note:write` + `media:read` | 绑定 own 笔记图片 |
-| 46 | `DELETE /user/note/relation/image/unbind/{mappingId}` | `note:write` | 解绑 own 笔记图片 |
-| 47 | `PUT /user/note/relation/each/bind` | `note:write` | 绑定 own 笔记 |
-| 48 | `DELETE /user/note/relation/each/unbind/{mappingId}` | `note:write` | 解绑 own 笔记 |
-| 49 | `GET /user/public-note` | `note:read` | 列表公开笔记 |
-| 50 | `GET /user/public-note/{noteId}` | `note:read` | 读取公开笔记 |
-| 51 | `POST /user/tag/list` | `note:read` | 查询 own 标签 |
-| 52 | `GET /user/tag/stats` | `note:read` | own 标签统计 |
-| 53 | `GET /user/tag` | `note:read` | 列表 own 标签 |
-| 54 | `POST /user/tag/add` | `note:write` | 创建 own 标签 |
-| 55 | `POST /user/tag/batch-add` | `note:write` | 批量创建 own 标签 |
-| 56 | `DELETE /user/tag/delete` | `note:write` | 删除 own 标签 |
-| 57 | `POST /user/tag/assign` | `note:write` | 分配 own 标签 |
-| 58 | `POST /user/tag/remove` | `note:write` | 移除 own 标签 |
-| 59 | `POST /user/audit/note/submitAudit` | `audit:write` | 提交 own 笔记审核 |
-| 60 | `POST /user/audit/note/cancelAudit` | `audit:write` | 取消 own 笔记审核 |
-| 61 | `POST /user/audit/tag/submitAudit` | `audit:write` | 提交 own 标签审核 |
-| 62 | `POST /user/audit/tag/cancelAudit` | `audit:write` | 取消 own 标签审核 |
-| 63 | `POST /user/topic/list` | `note:read` | 列表 own 主题 |
-| 64 | `GET /user/topic/children` | `note:read` | 读取 own 主题树 |
-| 65 | `GET /user/topic/stats` | `note:read` | own 主题统计 |
-| 66 | `POST /user/topic/add` | `note:write` | 创建 own 主题 |
-| 67 | `PUT /user/topic/modify` | `note:write` | 修改 own 主题 |
-| 68 | `DELETE /user/topic/delete` | `note:write` | 删除 own 主题 |
-| 69 | `POST /user/email/resend-activation` | `account:write` | 重发 own 激活邮件 |
-| 70 | `GET /user/email/status` | `account:read` | 读取 own 邮箱状态 |
-| 71 | `POST /user/email/change-code` | `account:write` | 发起 own 换邮箱 |
-| 72 | `POST /user/email/verify-change` | `account:write` | 确认 own 换邮箱 |
-| 73 | `GET /user/user/me` | `account:read` | 读取 own 资料 |
-| 74 | `GET /user/user/overview` | `account:read` | 读取 own 概览 |
-| 75 | `PUT /user/user/me` | `account:write` | 更新 own 资料/密码 |
-| 76 | `DELETE /user/user/me` | `account:write` | 删除 own 账户 |
+| 19 | `GET /user/document/{documentId}/users` | `document:read` | 查看 own 文档授权 |
+| 20 | `PUT /user/document/{documentId}/users/{userId}` | `document:write` | 新增或更新 own 文档授权 |
+| 21 | `DELETE /user/document/{documentId}/users/{userId}` | `document:write` | 撤销 own 文档授权 |
+| 22 | `PATCH /user/document/{documentId}/meta` | `document:write` | 修改 own 协作文档标题 |
+| 23 | `DELETE /user/document/{documentId}` | `document:write` | 删除 own 协作文档 |
+| 24 | `POST /user/note/list` | `note:read` | 列表 own 笔记 |
+| 25 | `GET /user/note/overview` | `note:read` | own 笔记统计 |
+| 26 | `POST /user/note/upload` | `note:write` | 创建 own 笔记 |
+| 27 | `PUT /user/note/upload/{noteId}` | `note:write` | 更新 own 源内容 |
+| 28 | `POST /user/note/upload/{noteId}/confirm` | `note:write` | 确认 own 内容变更 |
+| 29 | `GET /user/note/upload/{noteId}/diff` | `note:read` | 读取 own 变更 diff |
+| 30 | `PUT /user/note/publish/{noteId}/{status}` | `note:write` | 发布/取消发布 own 笔记 |
+| 31 | `GET /user/note` | `note:read` | 列表 own 笔记 |
+| 32 | `GET /user/note/{noteId}` | `note:read` | 读取 own 笔记详情 |
+| 33 | `GET /user/note/source/{id}` | `note:read` | 读取 own Markdown 源内容 |
+| 34 | `GET /user/note/converted/{noteId}` | `note:read` | 读取 own 转换结果 |
+| 35 | `POST /user/note/convert` | `note:write` | 转换 own 笔记 |
+| 36 | `DELETE /user/note/convert` | `note:write` | 删除 own 转换结果 |
+| 37 | `PUT /user/note/{id}/info` | `note:write` | 更新 own 笔记信息 |
+| 38 | `DELETE /user/note/{id}` | `note:write` | 删除 own 笔记 |
+| 39 | `GET /user/note/search` | `note:read` | 搜索 own 笔记 |
+| 40 | `POST /user/note/relation/check/{noteId}` | `note:read` | 校验 own 关联完成度 |
+| 41 | `GET /user/note/relation/{noteId}` | `note:read` | 读取 own 关联信息 |
+| 42 | `GET /user/note/relation/images/{noteId}` | `note:read` + `media:read` | 读取 own 笔记关联图片 |
+| 43 | `GET /user/note/relation/backlinks/{noteId}` | `note:read` | 读取 own 笔记反链 |
+| 44 | `GET /user/note/relation/backlinks/tag/{tagId}` | `note:read` | 读取 own 标签反链 |
+| 45 | `GET /user/note/relation/backlinks/image/{imageId}` | `note:read` + `media:read` | 读取图片反链 |
+| 46 | `PUT /user/note/relation/tag/bind` | `note:write` | 绑定 own 笔记标签 |
+| 47 | `DELETE /user/note/relation/tag/unbind/{mappingId}` | `note:write` | 解绑 own 笔记标签 |
+| 48 | `PUT /user/note/relation/image/bind` | `note:write` + `media:read` | 绑定 own 笔记图片 |
+| 49 | `DELETE /user/note/relation/image/unbind/{mappingId}` | `note:write` | 解绑 own 笔记图片 |
+| 50 | `PUT /user/note/relation/each/bind` | `note:write` | 绑定 own 笔记 |
+| 51 | `DELETE /user/note/relation/each/unbind/{mappingId}` | `note:write` | 解绑 own 笔记 |
+| 52 | `GET /user/public-note` | `note:read` | 列表公开笔记 |
+| 53 | `GET /user/public-note/{noteId}` | `note:read` | 读取公开笔记 |
+| 54 | `POST /user/tag/list` | `note:read` | 查询 own 标签 |
+| 55 | `GET /user/tag/stats` | `note:read` | own 标签统计 |
+| 56 | `GET /user/tag` | `note:read` | 列表 own 标签 |
+| 57 | `POST /user/tag/add` | `note:write` | 创建 own 标签 |
+| 58 | `POST /user/tag/batch-add` | `note:write` | 批量创建 own 标签 |
+| 59 | `DELETE /user/tag/delete` | `note:write` | 删除 own 标签 |
+| 60 | `POST /user/tag/assign` | `note:write` | 分配 own 标签 |
+| 61 | `POST /user/tag/remove` | `note:write` | 移除 own 标签 |
+| 62 | `POST /user/audit/note/submitAudit` | `audit:write` | 提交 own 笔记审核 |
+| 63 | `POST /user/audit/note/cancelAudit` | `audit:write` | 取消 own 笔记审核 |
+| 64 | `POST /user/audit/tag/submitAudit` | `audit:write` | 提交 own 标签审核 |
+| 65 | `POST /user/audit/tag/cancelAudit` | `audit:write` | 取消 own 标签审核 |
+| 66 | `POST /user/topic/list` | `note:read` | 列表 own 主题 |
+| 67 | `GET /user/topic/children` | `note:read` | 读取 own 主题树 |
+| 68 | `GET /user/topic/stats` | `note:read` | own 主题统计 |
+| 69 | `POST /user/topic/add` | `note:write` | 创建 own 主题 |
+| 70 | `PUT /user/topic/modify` | `note:write` | 修改 own 主题 |
+| 71 | `DELETE /user/topic/delete` | `note:write` | 删除 own 主题 |
+| 72 | `POST /user/email/resend-activation` | `account:write` | 重发 own 激活邮件 |
+| 73 | `GET /user/email/status` | `account:read` | 读取 own 邮箱状态 |
+| 74 | `POST /user/email/change-code` | `account:write` | 发起 own 换邮箱 |
+| 75 | `POST /user/email/verify-change` | `account:write` | 确认 own 换邮箱 |
+| 76 | `GET /user/user/me` | `account:read` | 读取 own 资料 |
+| 77 | `GET /user/user/overview` | `account:read` | 读取 own 概览 |
+| 78 | `PUT /user/user/me` | `account:write` | 更新 own 资料/密码 |
+| 79 | `DELETE /user/user/me` | `account:write` | 删除 own 账户 |
 
 下列 4 条 `/user/**` 注册/activation 路由属于本文件开头的例外，计入源码路由
 总数但不分配 bearer required scope：`POST /user/user/register`、
 `POST /user/user/resend-activation`、`GET /user/user/active/{token}` 和
 `POST /user/user/active-code`。它们保持既有 activation 协议；因此表内 bearer
-业务条目为 76 条，`/user/**` 源码 endpoint 总数为 80。
+业务条目为 79 条，`/user/**` 源码 endpoint 总数为 83。
 
 ## `/admin/**`：admin client（45 bearer routes）
 

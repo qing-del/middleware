@@ -123,6 +123,7 @@ class MigrationScriptTest {
                 .contains("CREATE TABLE `biz_document_user`")
                 .contains("PRIMARY KEY (`document_id`, `user_id`)")
                 .contains("KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)")
+                .contains("KEY `idx_user_id` (`user_id`)")
                 .contains("CREATE TABLE `document_op_log`")
                 .contains("UNIQUE KEY `uk_document_redis_op` (`document_id`, `redis_op_id`)")
                 .contains("UNIQUE KEY `uk_document_client_update` (`document_id`, `client_update_id`)");
@@ -152,6 +153,29 @@ class MigrationScriptTest {
                 .isLessThan(migration.indexOf("DROP COLUMN `team_id`"));
         assertThat(migration.indexOf("DROP COLUMN `team_id`"))
                 .isLessThan(migration.indexOf("CALL `document_user_authorization_retire_team_postflight`()"));
+    }
+
+    @Test
+    void documentUserAuthorizationUserIndexMigrationShouldBeGuardedAndPreserveVisibilityIndex()
+            throws IOException {
+        String migration = readMigration("20260830_document_user_authorization_idx_user_id.sql");
+        String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
+
+        assertThat(migration)
+                .contains("document_user_authorization_idx_user_id_preflight")
+                .contains("document_user_authorization_idx_user_id_postflight")
+                .contains("table_name = 'biz_document_user'")
+                .contains("index_name = 'idx_user_id'")
+                .contains("ADD KEY `idx_user_id` (`user_id`)")
+                .contains("CALL `document_user_authorization_idx_user_id_preflight`()")
+                .contains("CALL `document_user_authorization_idx_user_id_postflight`()");
+        assertThat(migration.indexOf("CALL `document_user_authorization_idx_user_id_preflight`()"))
+                .isLessThan(migration.indexOf("ADD KEY `idx_user_id` (`user_id`)"));
+        assertThat(migration.indexOf("ADD KEY `idx_user_id` (`user_id`)"))
+                .isLessThan(migration.indexOf("CALL `document_user_authorization_idx_user_id_postflight`()"));
+        assertThat(bootstrap)
+                .contains("KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)")
+                .contains("KEY `idx_user_id` (`user_id`)");
     }
 
     @Test
