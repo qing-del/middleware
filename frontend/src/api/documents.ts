@@ -27,6 +27,22 @@ export interface DocumentAccessMetadata extends DocumentMetadata {
   owner: boolean
 }
 
+/** 文档所有者维护的直接用户授权记录；服务端会保留已撤销记录。 */
+export interface DocumentUserAuthorization {
+  /** 关联的文档 ID；example: {@code 42} */
+  documentId: number
+  /** 被授权用户 ID；example: {@code 10002} */
+  userId: number
+  /** READ 可同步正文，WRITE 还可提交正文更新。 */
+  permission: DocumentPermission
+  /** false 表示已撤销，但记录仍会保留以便重新启用。 */
+  enabled: boolean
+  /** 授权记录创建时间；后端 LocalDateTime 的 JSON 字符串。 */
+  createTime: string
+  /** 授权记录最后修改时间；后端 LocalDateTime 的 JSON 字符串。 */
+  updateTime: string
+}
+
 /**
  * 校验元数据的基础字段，并对缺失或未知权限执行 fail-closed 归一化。
  *
@@ -66,6 +82,36 @@ export function normalizeDocumentAccessMetadata(value: unknown): DocumentAccessM
   }
 }
 
+/** 校验授权记录，避免异常权限值被错误渲染为可编辑状态。 */
+export function normalizeDocumentUserAuthorization(value: unknown): DocumentUserAuthorization {
+  if (!value || typeof value !== 'object') throw new Error('文档授权数据无效')
+
+  const source = value as Partial<DocumentUserAuthorization>
+  if (typeof source.documentId !== 'number' || !Number.isSafeInteger(source.documentId) || source.documentId <= 0
+      || typeof source.userId !== 'number' || !Number.isSafeInteger(source.userId) || source.userId <= 0
+      || (source.permission !== 'READ' && source.permission !== 'WRITE')
+      || typeof source.enabled !== 'boolean'
+      || typeof source.createTime !== 'string'
+      || typeof source.updateTime !== 'string') {
+    throw new Error('文档授权数据无效')
+  }
+
+  return {
+    documentId: source.documentId,
+    userId: source.userId,
+    permission: source.permission,
+    enabled: source.enabled,
+    createTime: source.createTime,
+    updateTime: source.updateTime
+  }
+}
+
+/** 校验授权列表响应，列表中的任一非法记录都会阻止继续渲染。 */
+export function normalizeDocumentUserAuthorizations(value: unknown): DocumentUserAuthorization[] {
+  if (!Array.isArray(value)) throw new Error('文档授权列表无效')
+  return value.map(normalizeDocumentUserAuthorization)
+}
+
 export const documentApi = {
   /** 获取当前用户可见的活跃协作文档元数据。 */
   list(): Promise<DocumentMetadata[]> {
@@ -92,5 +138,26 @@ export const documentApi = {
   /** 请求逻辑删除指定文档；服务端会拒绝仍有活跃会话的文档。 */
   delete(documentId: number): Promise<void> {
     return request.delete(`/user/document/${documentId}`)
+  },
+
+  /** 查询文档全部直接授权记录，包含已撤销记录。 */
+  async listAuthorizations(documentId: number): Promise<DocumentUserAuthorization[]> {
+    const value = await request.get<unknown>(`/user/document/${documentId}/users`)
+    return normalizeDocumentUserAuthorizations(value)
+  },
+
+  /** 新增或更新指定用户的 READ/WRITE 和启用状态。 */
+  async upsertAuthorization(
+    documentId: number,
+    userId: number,
+    data: { permission: DocumentPermission; enabled: boolean }
+  ): Promise<DocumentUserAuthorization> {
+    const value = await request.put<unknown>(`/user/document/${documentId}/users/${userId}`, data)
+    return normalizeDocumentUserAuthorization(value)
+  },
+
+  /** 软撤销指定用户授权，服务端保留历史记录。 */
+  revokeAuthorization(documentId: number, userId: number): Promise<void> {
+    return request.delete(`/user/document/${documentId}/users/${userId}`)
   }
 }

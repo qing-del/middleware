@@ -16,12 +16,18 @@ import {
   List,
   Loader2,
   Redo2,
+  Save,
+  Trash2,
   Undo2,
-  Users
+  UserPlus,
+  Users,
+  X
 } from 'lucide-vue-next'
 import {
   documentApi,
-  type DocumentAccessMetadata
+  type DocumentAccessMetadata,
+  type DocumentPermission,
+  type DocumentUserAuthorization
 } from '@/api/documents'
 import {
   DocumentCollaborationClient,
@@ -31,7 +37,7 @@ import {
 } from '@/collaboration/DocumentCollaborationClient'
 import { ResourceReference } from '@/editor/ResourceReference'
 import { useAuthStore } from '@/stores/auth'
-import { toastSuccess } from '@/utils/feedback'
+import { confirmAction, toastError, toastSuccess } from '@/utils/feedback'
 import { readAuthSession } from '@/utils/authSession'
 
 /** 当前页面路由，用于区分创建模式和编辑模式并读取文档 ID。 */
@@ -67,6 +73,30 @@ const collaboratorCount = ref(1)
 const editorVersion = ref(0)
 /** 文档已被服务端拒绝或确认不存在；此状态下不再尝试协同连接。 */
 const accessUnavailable = ref(false)
+/** 权限管理弹窗是否打开；创建模式和非所有者不会打开该弹窗。 */
+const authorizationModalVisible = ref(false)
+/** 权限列表请求是否正在执行。 */
+const authorizationLoading = ref(false)
+/** 权限管理操作错误；仅在弹窗内展示，不影响正文同步状态。 */
+const authorizationError = ref<string | null>(null)
+/** 当前文档的全部授权记录，包含已撤销记录及其待提交草稿。 */
+const authorizations = ref<AuthorizationRow[]>([])
+/** 新增授权表单中的用户 ID，使用字符串避免输入过程中的非安全数字转换。 */
+const newAuthorizationUserId = ref('')
+/** 新增授权表单中的权限，默认按最小权限 READ。 */
+const newAuthorizationPermission = ref<DocumentPermission>('READ')
+/** 新增授权表单中的启用状态，默认立即生效。 */
+const newAuthorizationEnabled = ref(true)
+/** 新增授权请求是否正在执行。 */
+const addingAuthorization = ref(false)
+/** 当前正在保存或撤销的授权用户 ID；同一时间只允许一个行操作。 */
+const authorizationOperationUserId = ref<number | null>(null)
+
+/** 授权列表中的可编辑行，草稿字段只在保存成功后由服务端数据覆盖。 */
+interface AuthorizationRow extends DocumentUserAuthorization {
+  draftPermission: DocumentPermission
+  draftEnabled: boolean
+}
 
 /** 当前页面创建的 Tiptap 编辑器实例；销毁前或创建模式下为 `null`。 */
 let editor: Editor | null = null
@@ -113,6 +143,168 @@ const connectionLabel = computed(() => {
   return labels[connectionState.value]
 })
 
+/** 将服务端授权记录扩展为带本地待提交草稿的表格行。 */
+function toAuthorizationRow(value: DocumentUserAuthorization): AuthorizationRow {
+  return {
+    ...value,
+    draftPermission: value.permission,
+    draftEnabled: value.enabled
+  }
+}
+
+/** 将后端 LocalDateTime 字符串格式化为本地时间；异常值保留原文便于识别。 */
+function formatAuthorizationTime(value: string): string {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value.replace('T', ' ')
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  }).format(date)
+}
+
+/** 严格解析授权目标用户 ID，避免空值、小数和超出安全整数范围的请求。 */
+function parseAuthorizationUserId(value: string): number | null {
+  const normalized = value.trim()
+  if (!/^\d+$/.test(normalized)) return null
+  const parsed = Number(normalized)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
+}
+
+/** 清空新增授权表单，下一次新增默认从最小 READ 权限开始。 */
+function resetAuthorizationForm(): void {
+  newAuthorizationUserId.value = ''
+  newAuthorizationPermission.value = 'READ'
+  newAuthorizationEnabled.value = true
+}
+
+/** 加载当前文档的全部授权记录，并丢弃路由切换后返回的过期结果。 */
+async function loadAuthorizations(): Promise<void> {
+  const requestedDocumentId = documentId.value
+  if (requestedDocumentId === null || !isOwner.value || accessUnavailable.value) return
+
+  authorizationLoading.value = true
+  authorizationError.value = null
+  try {
+    const records = await documentApi.listAuthorizations(requestedDocumentId)
+    if (documentId.value !== requestedDocumentId) return
+    authorizations.value = records.map(toAuthorizationRow)
+  } catch (cause) {
+    if (documentId.value !== requestedDocumentId) return
+    authorizationError.value = getErrorMessage(cause, '无法加载文档授权')
+    toastError(authorizationError.value)
+  } finally {
+    if (documentId.value === requestedDocumentId) authorizationLoading.value = false
+  }
+}
+
+/** 打开权限管理弹窗时总是重新读取服务端状态，避免展示过期授权。 */
+function openAuthorizationModal(): void {
+  if (!isOwner.value || documentId.value === null || accessUnavailable.value) return
+  authorizationModalVisible.value = true
+  authorizationError.value = null
+  resetAuthorizationForm()
+  void loadAuthorizations()
+}
+
+/** 关闭权限管理弹窗；已提交的服务端数据不会因关闭而丢失。 */
+function closeAuthorizationModal(): void {
+  authorizationModalVisible.value = false
+  authorizationError.value = null
+}
+
+/** 新增或重新写入一条用户授权记录。 */
+async function addAuthorization(): Promise<void> {
+  const requestedDocumentId = documentId.value
+  if (!isOwner.value || requestedDocumentId === null || addingAuthorization.value) return
+
+  const userId = parseAuthorizationUserId(newAuthorizationUserId.value)
+  if (userId === null) {
+    authorizationError.value = '请输入有效的用户 ID'
+    toastError(authorizationError.value)
+    return
+  }
+  if (userId === metadata.value?.ownerUserId) {
+    authorizationError.value = '不能给文档所有者添加授权'
+    toastError(authorizationError.value)
+    return
+  }
+
+  addingAuthorization.value = true
+  authorizationError.value = null
+  try {
+    await documentApi.upsertAuthorization(requestedDocumentId, userId, {
+      permission: newAuthorizationPermission.value,
+      enabled: newAuthorizationEnabled.value
+    })
+    toastSuccess('文档授权已保存')
+    resetAuthorizationForm()
+    await loadAuthorizations()
+  } catch (cause) {
+    authorizationError.value = getErrorMessage(cause, '保存文档授权失败')
+    toastError(authorizationError.value)
+  } finally {
+    addingAuthorization.value = false
+  }
+}
+
+/** 保存某条授权记录的权限和启用状态。 */
+async function saveAuthorization(row: AuthorizationRow): Promise<boolean> {
+  const requestedDocumentId = documentId.value
+  if (!isOwner.value || requestedDocumentId === null || authorizationOperationUserId.value !== null) return false
+
+  authorizationOperationUserId.value = row.userId
+  authorizationError.value = null
+  try {
+    await documentApi.upsertAuthorization(requestedDocumentId, row.userId, {
+      permission: row.draftPermission,
+      enabled: row.draftEnabled
+    })
+    toastSuccess('文档权限已更新')
+    await loadAuthorizations()
+    return true
+  } catch (cause) {
+    // 请求失败时恢复服务端已知值，避免草稿状态看起来像已经生效。
+    row.draftPermission = row.permission
+    row.draftEnabled = row.enabled
+    authorizationError.value = getErrorMessage(cause, '更新文档权限失败')
+    toastError(authorizationError.value)
+    return false
+  } finally {
+    authorizationOperationUserId.value = null
+  }
+}
+
+/** 已撤销记录通过 PUT enabled=true 重新启用，并保留原权限选择。 */
+async function enableAuthorization(row: AuthorizationRow): Promise<void> {
+  const previousEnabled = row.draftEnabled
+  row.draftEnabled = true
+  if (!await saveAuthorization(row)) row.draftEnabled = previousEnabled
+}
+
+/** 调用软撤销接口；授权记录保留在列表中以便后续重新启用。 */
+async function revokeAuthorization(row: AuthorizationRow): Promise<void> {
+  if (!isOwner.value || documentId.value === null || authorizationOperationUserId.value !== null) return
+  if (!await confirmAction({
+    title: '撤销文档授权',
+    content: `确定撤销用户 #${row.userId} 的文档访问权限吗？历史授权记录会保留。`,
+    okText: '确认撤销',
+    danger: true
+  })) return
+
+  authorizationOperationUserId.value = row.userId
+  authorizationError.value = null
+  try {
+    await documentApi.revokeAuthorization(documentId.value, row.userId)
+    toastSuccess('文档授权已撤销')
+    await loadAuthorizations()
+  } catch (cause) {
+    authorizationError.value = getErrorMessage(cause, '撤销文档授权失败')
+    toastError(authorizationError.value)
+  } finally {
+    authorizationOperationUserId.value = null
+  }
+}
+
 /** 用当前认证用户的昵称、用户名作为 awareness 展示名称。 */
 function currentUserLabel(): string {
   return authStore.user?.nickname || authStore.user?.username || '当前用户'
@@ -157,9 +349,11 @@ function applyAccessMetadata(value: DocumentAccessMetadata): void {
   titleDraft.value = value.title
   collaborationClient?.setWriteEnabled(canWriteMetadata(value))
   editor?.setEditable(editorIsSynced.value && canWriteMetadata(value))
+  if (!value.owner) authorizationModalVisible.value = false
   if (value.deleted) {
     accessUnavailable.value = true
     error.value = DOCUMENT_UNAVAILABLE_MESSAGE
+    authorizationModalVisible.value = false
     editor?.setEditable(false)
   }
 }
@@ -171,6 +365,7 @@ function handleAccessError(accessError: DocumentCollaborationError): void {
   accessUnavailable.value = true
   error.value = DOCUMENT_UNAVAILABLE_MESSAGE
   connectionMessage.value = DOCUMENT_UNAVAILABLE_MESSAGE
+  authorizationModalVisible.value = false
   editor?.setEditable(false)
 }
 
@@ -187,6 +382,11 @@ function teardownEditor(): void {
   connectionState.value = 'closed'
   connectionMessage.value = null
   accessUnavailable.value = false
+  authorizationModalVisible.value = false
+  authorizationLoading.value = false
+  authorizationError.value = null
+  authorizations.value = []
+  authorizationOperationUserId.value = null
 }
 
 /** 按当前路由加载元数据、创建 Tiptap/Yjs 绑定并启动协作连接。 */
@@ -198,6 +398,7 @@ async function initializeEditor(): Promise<void> {
   metadata.value = null
   titleDraft.value = ''
   accessUnavailable.value = false
+  resetAuthorizationForm()
 
   if (isCreateMode.value) return
   if (documentId.value === null) {
@@ -408,9 +609,20 @@ onUnmounted(() => { teardownEditor() })
   <section class="document-editor-page">
     <header class="document-editor-header">
       <button class="back-button" type="button" @click="goBack"><ArrowLeft class="h-4 w-4" /> 返回文档</button>
-      <div class="connection-status" :class="`is-${connectionState}`">
-        <Cloud class="h-4 w-4" />
-        {{ connectionLabel }}
+      <div class="document-editor-header-actions">
+        <button
+          v-if="isOwner && documentId !== null && !accessUnavailable"
+          class="permission-button"
+          type="button"
+          @click="openAuthorizationModal"
+        >
+          <Users class="h-4 w-4" />
+          权限管理
+        </button>
+        <div class="connection-status" :class="`is-${connectionState}`">
+          <Cloud class="h-4 w-4" />
+          {{ connectionLabel }}
+        </div>
       </div>
     </header>
 
@@ -469,15 +681,174 @@ onUnmounted(() => { teardownEditor() })
         <p v-if="error" class="error-message"><CircleAlert class="h-4 w-4" /> {{ error }}</p>
       </template>
     </template>
+
+    <Teleport to="body">
+      <Transition name="authorization-modal">
+        <div
+          v-if="authorizationModalVisible"
+          class="authorization-modal-backdrop"
+          role="presentation"
+          @click.self="closeAuthorizationModal"
+        >
+          <div class="authorization-modal-card" role="dialog" aria-modal="true" aria-labelledby="authorization-modal-title">
+            <header class="authorization-modal-header">
+              <div>
+                <span class="authorization-eyebrow">DOCUMENT ACCESS</span>
+                <h2 id="authorization-modal-title">文档权限管理</h2>
+                <p>所有者可以给指定用户授予正文的只读或可编辑权限。</p>
+              </div>
+              <button class="authorization-close-button" type="button" title="关闭" @click="closeAuthorizationModal">
+                <X class="h-5 w-5" />
+              </button>
+            </header>
+
+            <div class="authorization-modal-body">
+              <form class="authorization-form" @submit.prevent="addAuthorization">
+                <div class="authorization-form-heading">
+                  <div>
+                    <h3>添加或重新授权</h3>
+                    <p>请输入已注册且启用的用户 ID。</p>
+                  </div>
+                  <UserPlus class="h-5 w-5" />
+                </div>
+                <div class="authorization-form-grid">
+                  <label class="authorization-field">
+                    <span>用户 ID</span>
+                    <input
+                      v-model="newAuthorizationUserId"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      placeholder="例如 10002"
+                      :disabled="addingAuthorization || authorizationOperationUserId !== null"
+                    />
+                  </label>
+                  <label class="authorization-field">
+                    <span>正文权限</span>
+                    <select
+                      v-model="newAuthorizationPermission"
+                      :disabled="addingAuthorization || authorizationOperationUserId !== null"
+                    >
+                      <option value="READ">READ · 只读</option>
+                      <option value="WRITE">WRITE · 可编辑正文</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="authorization-form-actions">
+                  <label class="authorization-checkbox">
+                    <input v-model="newAuthorizationEnabled" type="checkbox" :disabled="addingAuthorization || authorizationOperationUserId !== null" />
+                    <span>立即启用授权</span>
+                  </label>
+                  <button class="primary-button authorization-submit-button" type="submit" :disabled="addingAuthorization || authorizationLoading || authorizationOperationUserId !== null">
+                    <Loader2 v-if="addingAuthorization" class="h-4 w-4 animate-spin" />
+                    <UserPlus v-else class="h-4 w-4" />
+                    {{ addingAuthorization ? '保存中…' : '保存授权' }}
+                  </button>
+                </div>
+              </form>
+
+              <div class="authorization-list-section">
+                <div class="authorization-list-heading">
+                  <div>
+                    <h3>已有授权</h3>
+                    <p>已撤销的历史记录仍会保留，可重新启用。</p>
+                  </div>
+                  <button class="authorization-refresh-button" type="button" :disabled="authorizationLoading" @click="loadAuthorizations">
+                    <Loader2 v-if="authorizationLoading" class="h-4 w-4 animate-spin" />
+                    <span v-else>刷新</span>
+                  </button>
+                </div>
+
+                <div v-if="authorizationLoading && authorizations.length === 0" class="authorization-state">
+                  <Loader2 class="h-5 w-5 animate-spin" /> 正在加载授权记录…
+                </div>
+                <div v-else-if="authorizationError" class="authorization-state is-error">
+                  <CircleAlert class="h-5 w-5" />
+                  <span>{{ authorizationError }}</span>
+                  <button type="button" class="authorization-retry-button" @click="loadAuthorizations">重新加载</button>
+                </div>
+                <div v-else-if="authorizations.length === 0" class="authorization-state">
+                  <Users class="h-5 w-5" /> 暂无直接授权用户
+                </div>
+                <div v-else class="authorization-rows">
+                  <article v-for="authorization in authorizations" :key="authorization.userId" class="authorization-row">
+                    <div class="authorization-row-heading">
+                      <strong>用户 #{{ authorization.userId }}</strong>
+                      <span class="authorization-status" :class="{ 'is-disabled': !authorization.draftEnabled }">
+                        {{ authorization.draftEnabled ? '已启用' : '已撤销' }}
+                      </span>
+                    </div>
+                    <div class="authorization-row-controls">
+                      <label class="authorization-field authorization-row-permission">
+                        <span>正文权限</span>
+                        <select
+                          v-model="authorization.draftPermission"
+                          :disabled="authorizationOperationUserId !== null || addingAuthorization"
+                        >
+                          <option value="READ">READ · 只读</option>
+                          <option value="WRITE">WRITE · 可编辑正文</option>
+                        </select>
+                      </label>
+                      <label class="authorization-checkbox">
+                        <input
+                          v-model="authorization.draftEnabled"
+                          type="checkbox"
+                          :disabled="authorizationOperationUserId !== null || addingAuthorization"
+                        />
+                        <span>启用</span>
+                      </label>
+                      <button
+                        class="authorization-save-button"
+                        type="button"
+                        :disabled="authorizationOperationUserId !== null || addingAuthorization || (authorization.draftPermission === authorization.permission && authorization.draftEnabled === authorization.enabled)"
+                        @click="saveAuthorization(authorization)"
+                      >
+                        <Loader2 v-if="authorizationOperationUserId === authorization.userId" class="h-3.5 w-3.5 animate-spin" />
+                        <Save v-else class="h-3.5 w-3.5" />
+                        保存
+                      </button>
+                      <button
+                        v-if="authorization.draftEnabled"
+                        class="authorization-revoke-button"
+                        type="button"
+                        :disabled="authorizationOperationUserId !== null || addingAuthorization"
+                        @click="revokeAuthorization(authorization)"
+                      >
+                        <Trash2 class="h-3.5 w-3.5" />
+                        撤销
+                      </button>
+                      <button
+                        v-else
+                        class="authorization-enable-button"
+                        type="button"
+                        :disabled="authorizationOperationUserId !== null || addingAuthorization"
+                        @click="enableAuthorization(authorization)"
+                      >
+                        <UserPlus class="h-3.5 w-3.5" />
+                        重新启用
+                      </button>
+                    </div>
+                    <p class="authorization-row-time">最后更新：{{ formatAuthorizationTime(authorization.updateTime) }}</p>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </section>
 </template>
 
 <style scoped>
 .document-editor-page { max-width: 1120px; margin: 0 auto; }
 .document-editor-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.document-editor-header-actions { display: flex; align-items: center; gap: 12px; }
 .back-button, .editor-toolbar button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-sm); background: var(--cn-surface); color: var(--cn-text-soft); font-size: 12px; font-weight: 700; transition: all var(--cn-fast) var(--cn-ease); }
 .back-button { padding: 8px 11px; }
 .back-button:hover, .editor-toolbar button:hover:not(:disabled), .editor-toolbar button.active { border-color: var(--cn-border-strong); background: var(--cn-surface-muted); color: var(--cn-text); }
+.permission-button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid color-mix(in srgb, var(--cn-accent) 45%, var(--cn-border)); border-radius: var(--cn-radius-sm); background: color-mix(in srgb, var(--cn-accent) 10%, var(--cn-surface)); color: var(--cn-accent); padding: 8px 11px; font-size: 12px; font-weight: 700; transition: all var(--cn-fast) var(--cn-ease); }
+.permission-button:hover { border-color: var(--cn-accent); background: color-mix(in srgb, var(--cn-accent) 16%, var(--cn-surface)); }
 .connection-status { display: inline-flex; align-items: center; gap: 7px; color: var(--cn-text-muted); font-size: 12px; font-weight: 700; }
 .connection-status.is-synced { color: var(--cn-success); }
 .connection-status.is-error { color: var(--cn-danger); }
@@ -518,10 +889,54 @@ h1 { margin: 10px 0; color: var(--cn-text); font-size: 28px; font-weight: 800; }
 .editor-host { min-height: 62vh; }
 .sync-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; background: color-mix(in srgb, var(--cn-surface) 88%, transparent); color: var(--cn-text-muted); font-size: 13px; font-weight: 700; }
 .error-message { display: flex; align-items: center; gap: 7px; margin: 12px 0 0; font-size: 12px; }
+.authorization-modal-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, #0f172a 72%, transparent); padding: 20px; backdrop-filter: blur(7px); }
+.authorization-modal-card { display: flex; width: min(760px, 100%); max-height: min(86vh, 760px); flex-direction: column; overflow: hidden; border: 1px solid var(--cn-border-strong); border-radius: var(--cn-radius-lg); background: var(--cn-surface); box-shadow: var(--cn-shadow-md); }
+.authorization-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--cn-border); padding: 22px 24px 18px; }
+.authorization-eyebrow { color: var(--cn-text-muted); font-size: 10px; font-weight: 800; letter-spacing: .18em; }
+.authorization-modal-header h2 { margin: 6px 0 5px; color: var(--cn-text); font-size: 20px; font-weight: 800; }
+.authorization-modal-header p, .authorization-form-heading p, .authorization-list-heading p { margin: 0; color: var(--cn-text-muted); font-size: 12px; line-height: 1.55; }
+.authorization-close-button { display: inline-flex; flex: 0 0 auto; border: 0; background: transparent; color: var(--cn-text-muted); padding: 4px; transition: color var(--cn-fast) var(--cn-ease); }
+.authorization-close-button:hover { color: var(--cn-text); }
+.authorization-modal-body { overflow-y: auto; padding: 20px 24px 24px; }
+.authorization-form { border: 1px solid var(--cn-border); border-radius: var(--cn-radius-md); background: var(--cn-bg-subtle); padding: 16px; }
+.authorization-form-heading, .authorization-list-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.authorization-form-heading > svg, .authorization-list-heading > svg { flex: 0 0 auto; color: var(--cn-accent); }
+.authorization-form-heading h3, .authorization-list-heading h3 { margin: 0 0 3px; color: var(--cn-text); font-size: 14px; font-weight: 800; }
+.authorization-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 14px; }
+.authorization-field { display: grid; gap: 6px; min-width: 0; }
+.authorization-field > span { color: var(--cn-text-soft); font-size: 11px; font-weight: 750; }
+.authorization-field input, .authorization-field select { width: 100%; min-height: 36px; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-sm); outline: none; background: var(--cn-surface); color: var(--cn-text); padding: 8px 10px; font-size: 12px; transition: border-color var(--cn-fast) var(--cn-ease), background var(--cn-fast) var(--cn-ease); }
+.authorization-field input:focus, .authorization-field select:focus { border-color: var(--cn-accent); background: var(--cn-surface-muted); }
+.authorization-field input:disabled, .authorization-field select:disabled { cursor: wait; opacity: .6; }
+.authorization-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.authorization-checkbox { display: inline-flex; align-items: center; gap: 7px; color: var(--cn-text-soft); font-size: 12px; }
+.authorization-checkbox input { width: 15px; height: 15px; accent-color: var(--cn-accent); }
+.authorization-submit-button { margin-top: 0; }
+.authorization-list-section { margin-top: 22px; }
+.authorization-refresh-button, .authorization-retry-button { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-sm); background: var(--cn-surface); color: var(--cn-text-muted); padding: 6px 9px; font-size: 11px; font-weight: 700; transition: all var(--cn-fast) var(--cn-ease); }
+.authorization-refresh-button:hover:not(:disabled), .authorization-retry-button:hover { border-color: var(--cn-border-strong); background: var(--cn-surface-muted); color: var(--cn-text); }
+.authorization-refresh-button:disabled { cursor: wait; opacity: .6; }
+.authorization-state { display: flex; min-height: 120px; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; border: 1px dashed var(--cn-border); border-radius: var(--cn-radius-md); background: var(--cn-bg-subtle); color: var(--cn-text-muted); font-size: 12px; text-align: center; }
+.authorization-state.is-error { flex-wrap: wrap; color: var(--cn-danger); }
+.authorization-rows { display: grid; gap: 10px; margin-top: 12px; }
+.authorization-row { border: 1px solid var(--cn-border); border-radius: var(--cn-radius-md); background: var(--cn-surface); padding: 13px 14px 11px; }
+.authorization-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.authorization-row-heading strong { color: var(--cn-text); font-size: 13px; font-weight: 800; }
+.authorization-status { border: 1px solid color-mix(in srgb, var(--cn-success) 45%, var(--cn-border)); border-radius: 999px; background: color-mix(in srgb, var(--cn-success) 10%, transparent); color: var(--cn-success); padding: 3px 7px; font-size: 10px; font-weight: 750; }
+.authorization-status.is-disabled { border-color: var(--cn-border); background: var(--cn-bg-subtle); color: var(--cn-text-muted); }
+.authorization-row-controls { display: flex; align-items: flex-end; gap: 8px; margin-top: 11px; }
+.authorization-row-permission { flex: 1 1 220px; }
+.authorization-row-controls > .authorization-checkbox { min-height: 36px; padding: 0 4px; }
+.authorization-save-button, .authorization-revoke-button, .authorization-enable-button { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-sm); background: var(--cn-surface); color: var(--cn-text-soft); padding: 7px 9px; font-size: 11px; font-weight: 750; white-space: nowrap; transition: all var(--cn-fast) var(--cn-ease); }
+.authorization-save-button:hover:not(:disabled), .authorization-enable-button:hover:not(:disabled) { border-color: var(--cn-accent); background: color-mix(in srgb, var(--cn-accent) 10%, var(--cn-surface)); color: var(--cn-accent); }
+.authorization-revoke-button { border-color: color-mix(in srgb, var(--cn-danger) 35%, var(--cn-border)); color: var(--cn-danger); }
+.authorization-revoke-button:hover:not(:disabled) { background: color-mix(in srgb, var(--cn-danger) 10%, var(--cn-surface)); }
+.authorization-save-button:disabled, .authorization-revoke-button:disabled, .authorization-enable-button:disabled { cursor: wait; opacity: .45; }
+.authorization-row-time { margin: 9px 0 0; color: var(--cn-text-faint); font-size: 10px; }
 :deep(.document-tiptap-editor) { min-height: 62vh; outline: none; padding: 34px clamp(22px, 5vw, 70px); color: var(--cn-text); font-size: 16px; line-height: 1.8; }
 :deep(.document-tiptap-editor > :first-child) { margin-top: 0; }
 :deep(.document-tiptap-editor h1), :deep(.document-tiptap-editor h2), :deep(.document-tiptap-editor h3) { color: var(--cn-text); line-height: 1.3; }
 :deep(.document-tiptap-editor p.is-editor-empty:first-child::before) { float: left; height: 0; color: var(--cn-text-faint); content: '开始记录你的想法…'; pointer-events: none; }
 :deep(.document-resource-reference) { display: inline-block; border-radius: 4px; background: color-mix(in srgb, var(--cn-accent) 12%, transparent); color: var(--cn-accent); padding: 0 4px; font-size: .92em; font-weight: 700; }
-@media (max-width: 640px) { .document-editor-header { align-items: flex-start; flex-direction: column; } .create-card { margin-top: 20px; padding: 26px 20px; } .document-title-row { align-items: flex-start; flex-direction: column; gap: 2px; } .document-title-input { font-size: 22px; } .editor-toolbar { flex-wrap: wrap; } .collaborator-count { margin-left: 0; } :deep(.document-tiptap-editor) { padding: 24px 20px; } }
+@media (max-width: 640px) { .document-editor-header { align-items: flex-start; flex-direction: column; } .document-editor-header-actions { width: 100%; justify-content: space-between; } .create-card { margin-top: 20px; padding: 26px 20px; } .document-title-row { align-items: flex-start; flex-direction: column; gap: 2px; } .document-title-input { font-size: 22px; } .editor-toolbar { flex-wrap: wrap; } .collaborator-count { margin-left: 0; } .authorization-modal-backdrop { align-items: flex-end; padding: 10px; } .authorization-modal-card { max-height: 92vh; } .authorization-modal-header, .authorization-modal-body { padding-inline: 16px; } .authorization-form-grid { grid-template-columns: 1fr; } .authorization-form-actions { align-items: flex-start; flex-direction: column; } .authorization-submit-button { width: 100%; } .authorization-row-controls { align-items: stretch; flex-wrap: wrap; } .authorization-row-permission { flex-basis: 100%; } .authorization-row-controls > .authorization-checkbox { flex: 1 1 auto; } :deep(.document-tiptap-editor) { padding: 24px 20px; } }
 </style>
