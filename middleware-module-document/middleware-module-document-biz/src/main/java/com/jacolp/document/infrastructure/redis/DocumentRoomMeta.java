@@ -4,8 +4,8 @@ package com.jacolp.document.infrastructure.redis;
 public record DocumentRoomMeta(
         /** Room 对应的文档 ID。<p>example: {@code 42}</p> */
         long documentId,
-        /** 文档个人空间标识，固定为所有者用户 ID。<p>example: {@code 10001}</p> */
-        long teamId,
+        /** 文档所有者用户 ID，仅用于运行态生命周期和审计。<p>example: {@code 10001}</p> */
+        long ownerUserId,
         /** 是否已请求延迟关闭 Room。<p>example: {@code true}</p> */
         boolean closeRequested,
         /** CLOSE 请求的幂等令牌；未请求关闭时为空。<p>example: {@code 550e8400-e29b-41d4-a716-446655440000}</p> */
@@ -19,8 +19,8 @@ public record DocumentRoomMeta(
         if (documentId <= 0) {
             throw new IllegalArgumentException("documentId must be positive");
         }
-        if (teamId <= 0) {
-            throw new IllegalArgumentException("teamId must be positive");
+        if (ownerUserId <= 0) {
+            throw new IllegalArgumentException("ownerUserId must be positive");
         }
         if (lastModifyTime < 0) {
             throw new IllegalArgumentException("lastModifyTime must not be negative");

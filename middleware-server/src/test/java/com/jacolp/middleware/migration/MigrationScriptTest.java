@@ -109,28 +109,49 @@ class MigrationScriptTest {
     }
 
     @Test
-    void documentPersistenceTablesShouldMatchBootstrapAndForwardMigration() throws IOException {
+    void documentPersistenceFreshSchemaShouldUseOwnerAndAuthorizationTables() throws IOException {
         String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
-        String migration = readMigration("20260823_document_persistence_model.sql");
+        String historicalMigration = readMigration("20260823_document_persistence_model.sql");
+        String authorizationMigration = readMigration("20260830_document_user_authorization.sql");
 
         assertThat(bootstrap)
                 .contains("CREATE TABLE `biz_document`")
-                .contains("`team_id`             bigint       NOT NULL")
+                .contains("`owner_user_id`       bigint       NOT NULL")
                 .contains("`persisted_log_id`    bigint       NOT NULL DEFAULT 0")
-                .contains("KEY `idx_document_scope_deleted_time` (`team_id`, `deleted`, `last_modify_time`)")
+                .contains("KEY `idx_document_owner_deleted_time` (`owner_user_id`, `deleted`, `last_modify_time`)")
+                .doesNotContain("`team_id`")
+                .contains("CREATE TABLE `biz_document_user`")
+                .contains("PRIMARY KEY (`document_id`, `user_id`)")
+                .contains("KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)")
                 .contains("CREATE TABLE `document_op_log`")
                 .contains("UNIQUE KEY `uk_document_redis_op` (`document_id`, `redis_op_id`)")
                 .contains("UNIQUE KEY `uk_document_client_update` (`document_id`, `client_update_id`)");
+        assertThat(historicalMigration)
+                .contains("USE `personal_saas`;");
+        assertThat(authorizationMigration)
+                .contains("ADD COLUMN `owner_user_id`")
+                .contains("SET `owner_user_id` = `team_id`")
+                .contains("CREATE TABLE `biz_document_user`");
+    }
+
+    @Test
+    void documentPersistenceTeamRetirementShouldRequireOwnerBackfillBeforeDroppingLegacyColumn()
+            throws IOException {
+        String migration = readMigration("20260830_document_user_authorization_retire_team.sql");
+
         assertThat(migration)
-                .contains("USE `personal_saas`;")
-                .contains("CREATE TABLE `biz_document`")
-                .contains("`team_id`             bigint       NOT NULL")
-                .contains("`last_modify_time`    datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3)")
-                .contains("CREATE TABLE `document_op_log`")
-                .contains("`update_data`      longblob     NOT NULL")
-                .contains("UNIQUE KEY `uk_document_redis_op` (`document_id`, `redis_op_id`)")
-                .contains("UNIQUE KEY `uk_document_client_update` (`document_id`, `client_update_id`)")
-                .contains("KEY `idx_document_log` (`document_id`, `id`)");
+                .contains("document_user_authorization_retire_team_preflight")
+                .contains("document_user_authorization_retire_team_postflight")
+                .contains("owner_user_id")
+                .contains("owner_user_id` IS NULL")
+                .contains("idx_document_owner_deleted_time")
+                .contains("idx_document_scope_deleted_time")
+                .contains("DROP INDEX `idx_document_scope_deleted_time`")
+                .contains("DROP COLUMN `team_id`");
+        assertThat(migration.indexOf("CALL `document_user_authorization_retire_team_preflight`()"))
+                .isLessThan(migration.indexOf("DROP COLUMN `team_id`"));
+        assertThat(migration.indexOf("DROP COLUMN `team_id`"))
+                .isLessThan(migration.indexOf("CALL `document_user_authorization_retire_team_postflight`()"));
     }
 
     @Test

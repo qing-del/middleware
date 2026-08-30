@@ -621,7 +621,7 @@ CREATE TABLE `biz_image_delete_dead_letter` (
 -- ==========================================
 CREATE TABLE `biz_document` (
     `id`                  bigint       NOT NULL AUTO_INCREMENT COMMENT '文档ID',
-    `team_id`             bigint       NOT NULL COMMENT 'v0.3个人域ID，固定为owner用户ID',
+    `owner_user_id`       bigint       NOT NULL COMMENT '文档所有者用户ID',
     `title`               varchar(255) NOT NULL COMMENT '文档标题',
     `content_object_key`  varchar(512) DEFAULT NULL COMMENT '当前MinIO Yjs snapshot对象键',
     `persisted_log_id`    bigint       NOT NULL DEFAULT 0 COMMENT '当前snapshot已包含的最大document_op_log.id',
@@ -632,8 +632,19 @@ CREATE TABLE `biz_document` (
     `create_time`         datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     `update_time`         datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_document_scope_deleted_time` (`team_id`, `deleted`, `last_modify_time`)
+    KEY `idx_document_owner_deleted_time` (`owner_user_id`, `deleted`, `last_modify_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='协作文档元数据与当前Snapshot指针';
+
+CREATE TABLE `biz_document_user` (
+    `document_id` bigint      NOT NULL COMMENT '关联 biz_document.id',
+    `user_id`     bigint      NOT NULL COMMENT '被授权用户ID',
+    `permission`  varchar(16) NOT NULL COMMENT 'READ 或 WRITE；WRITE 隐含 READ',
+    `enabled`     tinyint     NOT NULL DEFAULT 1 COMMENT '授权是否生效(0:已撤销,1:生效)',
+    `create_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `update_time` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`document_id`, `user_id`),
+    KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='协作文档用户直接授权';
 
 CREATE TABLE `document_op_log` (
     `id`               bigint       NOT NULL AUTO_INCREMENT COMMENT '持久化操作日志ID',

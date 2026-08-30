@@ -12,7 +12,7 @@ import java.util.Objects;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-/** 处理个人空间中的文档元数据增删改查，不读取或解析 CRDT 正文。 */
+/** 处理文档所有者的元数据增删改查，不读取或解析 CRDT 正文。 */
 @Service
 @ConditionalOnProperty(prefix = "jacolp.document", name = "enabled", havingValue = "true")
 public class DocumentMetadataService {
@@ -30,7 +30,7 @@ public class DocumentMetadataService {
                 "documentRedisRepository must not be null");
     }
 
-    /** 创建个人文档并返回不含正文指针的元数据。 */
+    /** 创建所有者为当前用户的文档并返回不含正文指针的元数据。 */
     public DocumentMetadata create(long ownerUserId, String title) {
         requireUserId(ownerUserId);
         LocalDateTime now = LocalDateTime.now(APPLICATION_ZONE);
@@ -45,7 +45,7 @@ public class DocumentMetadataService {
     /** 查询当前用户拥有的未删除文档列表。 */
     public List<DocumentMetadata> list(long ownerUserId) {
         requireUserId(ownerUserId);
-        return documentMapper.listActiveByTeamId(ownerUserId).stream().map(this::toMetadata).toList();
+        return documentMapper.listActiveByOwnerUserId(ownerUserId).stream().map(this::toMetadata).toList();
     }
 
     /** 在当前用户个人范围内读取一份文档元数据。 */
@@ -74,7 +74,7 @@ public class DocumentMetadataService {
             // 删除不会主动踢出协作者；只在全局 presence 为零时软删除，避免已打开 Room 继续接收更新。
             throw new BaseException("文档仍有活跃协作会话，暂不能删除");
         }
-        if (documentMapper.softDeleteByIdAndTeamId(documentId, ownerUserId,
+        if (documentMapper.softDeleteByIdAndOwnerUserId(documentId, ownerUserId,
                 LocalDateTime.now(APPLICATION_ZONE), ownerUserId) != 1) {
             throw notFound();
         }
@@ -84,7 +84,10 @@ public class DocumentMetadataService {
     private DocumentDO findRequired(long ownerUserId, long documentId) {
         requireUserId(ownerUserId);
         requireDocumentId(documentId);
-        DocumentDO document = documentMapper.selectActiveByIdAndTeamId(documentId, ownerUserId);
+        DocumentDO document = documentMapper.selectActiveById(documentId);
+        if (document != null && !Objects.equals(document.getOwnerUserId(), ownerUserId)) {
+            document = null;
+        }
         if (document == null) {
             throw notFound();
         }
@@ -95,7 +98,7 @@ public class DocumentMetadataService {
     private DocumentMetadata toMetadata(DocumentDO document) {
         LocalDateTime lastModifyTime = Objects.requireNonNull(document.getLastModifyTime(),
                 "active document must have lastModifyTime");
-        return new DocumentMetadata(document.getId(), document.getTeamId(), document.getTitle(),
+        return new DocumentMetadata(document.getId(), document.getOwnerUserId(), document.getTitle(),
                 lastModifyTime.atZone(APPLICATION_ZONE).toInstant().toEpochMilli(), document.getLastModifyUserId(),
                 Boolean.TRUE.equals(document.getDeleted()));
     }

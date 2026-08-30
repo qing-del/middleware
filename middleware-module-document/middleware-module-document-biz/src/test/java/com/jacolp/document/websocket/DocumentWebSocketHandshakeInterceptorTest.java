@@ -45,14 +45,18 @@ class DocumentWebSocketHandshakeInterceptorTest {
     }
 
     @Test
-    void rejectsAuthenticatedPrincipalWithoutDocumentWriteScopeOrUserClientBoundary() {
+    void acceptsReadOnlyDocumentScopeButRejectsMissingScopeOrWrongClientBoundary() {
         DocumentWebSocketHandshakeInterceptor readOnly = new DocumentWebSocketHandshakeInterceptor(token ->
                 jwt("user", List.of("document:read")));
+        DocumentWebSocketHandshakeInterceptor missingDocumentScope = new DocumentWebSocketHandshakeInterceptor(token ->
+                jwt("user", List.of("note:read")));
         DocumentWebSocketHandshakeInterceptor wrongClient = new DocumentWebSocketHandshakeInterceptor(token ->
                 jwt("core_agent", List.of("document:write")));
 
         assertThat(readOnly.beforeHandshake(request("bearer.read-only"), response(), new TextWebSocketHandler(),
-                new ConcurrentHashMap<>())).isFalse();
+                new ConcurrentHashMap<>())).isTrue();
+        assertThat(missingDocumentScope.beforeHandshake(request("bearer.missing-scope"), response(),
+                new TextWebSocketHandler(), new ConcurrentHashMap<>())).isFalse();
         assertThat(wrongClient.beforeHandshake(request("bearer.wrong-client"), response(), new TextWebSocketHandler(),
                 new ConcurrentHashMap<>())).isFalse();
     }

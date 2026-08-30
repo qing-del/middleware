@@ -32,23 +32,23 @@ public class DocumentRoomLifecycleService {
     }
 
     /** JOIN 会在 bootstrap 完成前使所有旧的延迟 CLOSE 令牌失效。 */
-    public void reopen(DocumentDO document, long userId) {
+    public void reopen(DocumentDO document, long lastModifyUserId) {
         long lastModifiedAt = document.getLastModifyTime() == null ? System.currentTimeMillis()
                 : document.getLastModifyTime().atZone(APPLICATION_ZONE).toInstant().toEpochMilli();
-        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(document.getId(), userId, false,
-                UUID.randomUUID().toString(), lastModifiedAt, userId));
+        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(document.getId(), document.getOwnerUserId(), false,
+                UUID.randomUUID().toString(), lastModifiedAt, lastModifyUserId));
     }
 
     /** 本机最后一个会话离开即可请求关闭；消费者会通过全局在线状态决定是否真正执行。 */
-    public void requestClose(long documentId, long teamId) {
+    public void requestClose(long documentId, long ownerUserId) {
         DocumentRoomMeta previous = documentRedisRepository.findRoomMeta(documentId)
-                .orElse(new DocumentRoomMeta(documentId, teamId, false, null, System.currentTimeMillis(), teamId));
-        if (previous.teamId() != teamId) {
-            // 关闭请求不能覆盖其他个人 scope 的 Room Meta，避免错误地关闭无关文档运行态。
-            throw new IllegalStateException("document room meta personal scope does not match close requester");
+                .orElse(new DocumentRoomMeta(documentId, ownerUserId, false, null, System.currentTimeMillis(), ownerUserId));
+        if (previous.ownerUserId() != ownerUserId) {
+            // 关闭请求不能覆盖其他所有者的 Room Meta，避免错误地关闭无关文档运行态。
+            throw new IllegalStateException("document room meta owner does not match close requester");
         }
         String closeToken = UUID.randomUUID().toString();
-        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(documentId, teamId, true, closeToken,
+        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(documentId, ownerUserId, true, closeToken,
                 previous.lastModifyTime(), previous.lastModifyUserId()));
         try {
             schedulePublisher.scheduleClose(documentId, closeToken);

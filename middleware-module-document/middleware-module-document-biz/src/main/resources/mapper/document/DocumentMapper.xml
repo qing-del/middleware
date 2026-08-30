@@ -5,7 +5,7 @@
 
     <resultMap id="DocumentMap" type="com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO">
         <id column="id" property="id"/>
-        <result column="team_id" property="teamId"/>
+        <result column="owner_user_id" property="ownerUserId"/>
         <result column="title" property="title"/>
         <result column="content_object_key" property="contentObjectKey"/>
         <result column="persisted_log_id" property="persistedLogId"/>
@@ -18,17 +18,17 @@
     </resultMap>
 
     <sql id="DocumentColumns">
-        id, team_id, title, content_object_key, persisted_log_id, last_modify_time,
+        id, owner_user_id, title, content_object_key, persisted_log_id, last_modify_time,
         last_modify_user_id, deleted, version, create_time, update_time
     </sql>
 
     <insert id="insert" parameterType="com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO biz_document
-        (team_id, title, content_object_key, persisted_log_id, last_modify_time,
+        (owner_user_id, title, content_object_key, persisted_log_id, last_modify_time,
          last_modify_user_id, deleted, version)
         VALUES
-        (#{teamId}, #{title}, #{contentObjectKey}, #{persistedLogId}, #{lastModifyTime},
+        (#{ownerUserId}, #{title}, #{contentObjectKey}, #{persistedLogId}, #{lastModifyTime},
          #{lastModifyUserId}, #{deleted}, #{version})
     </insert>
 
@@ -38,18 +38,17 @@
         WHERE id = #{id}
     </select>
 
-    <select id="selectActiveByIdAndTeamId" resultMap="DocumentMap">
+    <select id="selectActiveById" resultMap="DocumentMap">
         SELECT <include refid="DocumentColumns"/>
         FROM biz_document
         WHERE id = #{id}
-          AND team_id = #{teamId}
           AND deleted = 0
     </select>
 
-    <select id="listActiveByTeamId" resultMap="DocumentMap">
+    <select id="listActiveByOwnerUserId" resultMap="DocumentMap">
         SELECT <include refid="DocumentColumns"/>
         FROM biz_document
-        WHERE team_id = #{teamId}
+        WHERE owner_user_id = #{ownerUserId}
           AND deleted = 0
         ORDER BY last_modify_time DESC, id DESC
     </select>
@@ -60,8 +59,18 @@
             last_modify_user_id = #{lastModifyUserId},
             version = version + 1
         WHERE id = #{id}
-          AND team_id = #{teamId}
           AND deleted = 0
+          AND (
+              owner_user_id = #{userId}
+              OR EXISTS (
+                  SELECT 1
+                  FROM biz_document_user
+                  WHERE document_id = biz_document.id
+                    AND user_id = #{userId}
+                    AND enabled = 1
+                    AND permission = 'WRITE'
+              )
+          )
     </update>
 
     <update id="updateTitleIfActive">
@@ -71,7 +80,7 @@
             last_modify_user_id = #{lastModifyUserId},
             version = version + 1
         WHERE id = #{id}
-          AND team_id = #{teamId}
+          AND owner_user_id = #{ownerUserId}
           AND deleted = 0
     </update>
 
@@ -85,14 +94,14 @@
           AND deleted = 0
     </update>
 
-    <update id="softDeleteByIdAndTeamId">
+    <update id="softDeleteByIdAndOwnerUserId">
         UPDATE biz_document
         SET deleted = 1,
             last_modify_time = #{lastModifyTime},
             last_modify_user_id = #{lastModifyUserId},
             version = version + 1
         WHERE id = #{id}
-          AND team_id = #{teamId}
+          AND owner_user_id = #{ownerUserId}
           AND deleted = 0
     </update>
 </mapper>

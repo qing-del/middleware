@@ -6,8 +6,8 @@ import java.util.Objects;
 public record DocumentMetadata(
         /** 文档数据库主键。<p>example: {@code 42}</p> */
         long documentId,
-        /** 个人空间标识，v0.3 中固定为文档所有者的用户 ID。<p>example: {@code 10001}</p> */
-        long teamId,
+        /** 文档所有者用户 ID。<p>example: {@code 10001}</p> */
+        long ownerUserId,
         /** 文档标题，不包含 CRDT 正文。<p>example: {@code 项目设计文档}</p> */
         String title,
         /** 最近一次接受更新的时间戳，单位为 Unix 毫秒。<p>example: {@code 1756080000000}</p> */
@@ -20,7 +20,7 @@ public record DocumentMetadata(
     /** 校验元数据的范围和标题约束，避免无效状态跨模块传播。 */
     public DocumentMetadata {
         if (documentId <= 0) throw new IllegalArgumentException("documentId must be positive");
-        if (teamId <= 0) throw new IllegalArgumentException("teamId must be positive");
+        if (ownerUserId <= 0) throw new IllegalArgumentException("ownerUserId must be positive");
         title = Objects.requireNonNull(title, "title").trim();
         if (title.isEmpty()) throw new IllegalArgumentException("title must not be blank");
         if (lastModifyTime < 0) throw new IllegalArgumentException("lastModifyTime must not be negative");

@@ -32,7 +32,8 @@ import org.springframework.stereotype.Repository;
 public class DocumentRedisRepository {
 
     private static final byte[] FIELD_DOCUMENT_ID = bytes("documentId");
-    private static final byte[] FIELD_TEAM_ID = bytes("teamId");
+    private static final byte[] FIELD_OWNER_USER_ID = bytes("ownerUserId");
+    private static final byte[] FIELD_LEGACY_TEAM_ID = bytes("teamId");
     private static final byte[] FIELD_IS_CLOSE = bytes("isClose");
     private static final byte[] FIELD_CLOSE_TOKEN = bytes("closeToken");
     private static final byte[] FIELD_LAST_MODIFY_TIME = bytes("lastModifyTime");
@@ -55,7 +56,7 @@ public class DocumentRedisRepository {
         // Hash 字段只保存运行态和审计信息，绝不把 Yjs 正文写入 Room Meta。
         Map<byte[], byte[]> fields = new LinkedHashMap<>();
         fields.put(FIELD_DOCUMENT_ID, bytes(meta.documentId()));
-        fields.put(FIELD_TEAM_ID, bytes(meta.teamId()));
+        fields.put(FIELD_OWNER_USER_ID, bytes(meta.ownerUserId()));
         fields.put(FIELD_IS_CLOSE, bytes(meta.closeRequested() ? 1 : 0));
         fields.put(FIELD_LAST_MODIFY_TIME, bytes(meta.lastModifyTime()));
         if (meta.lastModifyUserId() != null) {
@@ -78,6 +79,8 @@ public class DocumentRedisRepository {
                 // 清除已结束或被 reopen 取代的关闭令牌，防止旧 CLOSE 消息误命中。
                 connection.hDel(key, FIELD_CLOSE_TOKEN);
             }
+            // 新格式已经写入所有者字段，清理旧版本的个人空间字段，避免两个值长期分叉。
+            connection.hDel(key, FIELD_LEGACY_TEAM_ID);
         }
     }
 
@@ -245,11 +248,24 @@ public class DocumentRedisRepository {
         Map<String, byte[]> fields = stringFields(rawFields);
         return new DocumentRoomMeta(
                 parseRequiredLong(fields, "documentId"),
-                parseRequiredLong(fields, "teamId"),
+                parseOwnerUserId(fields),
                 parseCloseRequested(fields),
                 parseOptionalString(fields, "closeToken"),
                 parseRequiredLong(fields, "lastModifyTime"),
                 parseOptionalLong(fields, "lastModifyUserId"));
+    }
+
+    /** 读取新 ownerUserId；存量 Room Meta 只有旧 teamId 时兼容回退。 */
+    private static long parseOwnerUserId(Map<String, byte[]> fields) {
+        String ownerUserId = parseOptionalString(fields, "ownerUserId");
+        if (ownerUserId != null && !ownerUserId.isBlank()) {
+            try {
+                return Long.parseLong(ownerUserId);
+            } catch (NumberFormatException exception) {
+                throw new IllegalStateException("Redis field ownerUserId must be a long", exception);
+            }
+        }
+        return parseRequiredLong(fields, "teamId");
     }
 
     /** 将 Redis Stream 记录恢复为带 Stream ID 的待刷盘更新。 */

@@ -31,16 +31,16 @@ public class DocumentRoomManager {
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
-    /** 按文档和个人范围获取或创建本机 Room。 */
-    public DocumentRoom getOrCreate(long documentId, long teamId) {
+    /** 按文档和所有者获取或创建本机 Room；调用方负责先完成文档 ACL 校验。 */
+    public DocumentRoom getOrCreate(long documentId, long ownerUserId) {
         return rooms.compute(documentId, (ignored, existing) -> {
             if (existing == null) {
                 // 仅在本机首次看到该文档时创建运行态 Room，正文仍从持久化层 bootstrap。
-                return new DocumentRoom(documentId, teamId, properties);
+                return new DocumentRoom(documentId, ownerUserId, properties);
             }
-            if (existing.teamId() != teamId) {
-                // 同一个文档 ID 不能在本 JVM 内被重新绑定到另一个个人 scope。
-                throw new DocumentRoomAccessException("document Room personal scope does not match");
+            if (existing.ownerUserId() != ownerUserId) {
+                // 同一个文档 ID 不能在本 JVM 内被重新绑定到另一个所有者快照。
+                throw new DocumentRoomAccessException("document Room owner does not match");
             }
             return existing;
         });

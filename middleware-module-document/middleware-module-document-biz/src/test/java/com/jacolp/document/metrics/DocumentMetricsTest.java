@@ -55,8 +55,8 @@ class DocumentMetricsTest {
         assertThat(registry.get("document_close_failed_total").counter().count()).isEqualTo(1D);
     }
 
-    private static DocumentDO document(long id, long teamId) {
+    private static DocumentDO document(long id, long ownerUserId) {
         LocalDateTime now = LocalDateTime.now();
-        return new DocumentDO(id, teamId, "title", null, 0L, now, teamId, false, 0L, now, now);
+        return new DocumentDO(id, ownerUserId, "title", null, 0L, now, ownerUserId, false, 0L, now, now);
     }
 }

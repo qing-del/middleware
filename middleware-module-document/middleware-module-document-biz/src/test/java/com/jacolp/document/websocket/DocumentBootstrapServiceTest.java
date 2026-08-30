@@ -54,7 +54,7 @@ class DocumentBootstrapServiceTest {
                 .thenReturn(snapshot);
         DocumentDO document = new DocumentDO(7L, 42L, "title", objectKey, 0L,
                 LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
-        when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document);
+        when(documentMapper.selectActiveById(7L)).thenReturn(document);
         when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, properties.getFlushLog().getBatchSize()))
                 .thenReturn(List.of());
         when(redisRepository.readPendingUpdates(7L, Integer.MAX_VALUE)).thenReturn(List.of());
@@ -62,13 +62,13 @@ class DocumentBootstrapServiceTest {
         DocumentBootstrapService service = new DocumentBootstrapService(objectStorage, bucketResolver,
                 documentMapper, opLogMapper, redisRepository, transactionManager, codec, properties);
 
-        service.sendBootstrap(7L, 42L, session);
+        service.sendBootstrap(7L, session);
 
         ArgumentCaptor<WebSocketMessage<?>> messages = ArgumentCaptor.forClass(WebSocketMessage.class);
         ArgumentCaptor<TransactionDefinition> definition = ArgumentCaptor.forClass(TransactionDefinition.class);
         InOrder readAndSendOrder = inOrder(transactionManager, documentMapper, opLogMapper, objectStorage);
         readAndSendOrder.verify(transactionManager).getTransaction(definition.capture());
-        readAndSendOrder.verify(documentMapper).selectActiveByIdAndTeamId(7L, 42L);
+        readAndSendOrder.verify(documentMapper).selectActiveById(7L);
         readAndSendOrder.verify(opLogMapper).selectByDocumentIdAfterId(7L, 0L,
                 properties.getFlushLog().getBatchSize());
         readAndSendOrder.verify(transactionManager).commit(any(TransactionStatus.class));
@@ -97,7 +97,7 @@ class DocumentBootstrapServiceTest {
         byte[] pendingUpdate = new byte[] {3, 4, -2};
         DocumentDO document = new DocumentDO(7L, 42L, "title", null, 0L,
                 LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
-        when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document);
+        when(documentMapper.selectActiveById(7L)).thenReturn(document);
         when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, properties.getFlushLog().getBatchSize()))
                 .thenReturn(List.of(new DocumentOpLogDO(1L, 7L, "1-0", "123e4567-e89b-12d3-a456-426614174000",
                         durableUpdate, 42L, "user", LocalDateTime.now())));
@@ -109,7 +109,7 @@ class DocumentBootstrapServiceTest {
                 mock(MinioBucketResolver.class),
                 documentMapper, opLogMapper, redisRepository, transactionManager, codec, properties);
 
-        service.sendBootstrap(7L, 42L, session);
+        service.sendBootstrap(7L, session);
 
         ArgumentCaptor<WebSocketMessage<?>> messages = ArgumentCaptor.forClass(WebSocketMessage.class);
         verify(session, times(2)).sendMessage(messages.capture());
@@ -134,7 +134,7 @@ class DocumentBootstrapServiceTest {
                 LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
 
         when(redisRepository.readPendingUpdates(7L, Integer.MAX_VALUE)).thenReturn(List.of());
-        when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document);
+        when(documentMapper.selectActiveById(7L)).thenReturn(document);
         when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, properties.getFlushLog().getBatchSize()))
                 .thenReturn(List.of());
 
@@ -142,12 +142,12 @@ class DocumentBootstrapServiceTest {
                 mock(MinioBucketResolver.class), documentMapper, opLogMapper, redisRepository,
                 transactionManager, codec, properties);
 
-        service.sendBootstrap(7L, 42L, session);
+        service.sendBootstrap(7L, session);
 
         InOrder order = inOrder(redisRepository, transactionManager, documentMapper);
         order.verify(redisRepository).readPendingUpdates(7L, Integer.MAX_VALUE);
         order.verify(transactionManager).getTransaction(any(TransactionDefinition.class));
-        order.verify(documentMapper).selectActiveByIdAndTeamId(7L, 42L);
+        order.verify(documentMapper).selectActiveById(7L);
     }
 
     @Test
@@ -164,7 +164,7 @@ class DocumentBootstrapServiceTest {
                 LocalDateTime.now(), 42L, false, 0L, LocalDateTime.now(), LocalDateTime.now());
 
         when(redisRepository.readPendingUpdates(7L, Integer.MAX_VALUE)).thenReturn(List.of());
-        when(documentMapper.selectActiveByIdAndTeamId(7L, 42L)).thenReturn(document);
+        when(documentMapper.selectActiveById(7L)).thenReturn(document);
         when(opLogMapper.selectByDocumentIdAfterId(7L, 0L, 1)).thenReturn(List.of(
                 new DocumentOpLogDO(1L, 7L, "1-0", "123e4567-e89b-12d3-a456-426614174000",
                         new byte[] {1}, 42L, "user", LocalDateTime.now())));
@@ -174,11 +174,11 @@ class DocumentBootstrapServiceTest {
                 mock(MinioBucketResolver.class), documentMapper, opLogMapper, redisRepository,
                 transactionManager, codec, properties);
 
-        service.sendBootstrap(7L, 42L, session);
+        service.sendBootstrap(7L, session);
 
         InOrder readOrder = inOrder(transactionManager, documentMapper, opLogMapper);
         readOrder.verify(transactionManager).getTransaction(any(TransactionDefinition.class));
-        readOrder.verify(documentMapper).selectActiveByIdAndTeamId(7L, 42L);
+        readOrder.verify(documentMapper).selectActiveById(7L);
         readOrder.verify(opLogMapper).selectByDocumentIdAfterId(7L, 0L, 1);
         readOrder.verify(opLogMapper).selectByDocumentIdAfterId(7L, 1L, 1);
         readOrder.verify(transactionManager).commit(any(TransactionStatus.class));

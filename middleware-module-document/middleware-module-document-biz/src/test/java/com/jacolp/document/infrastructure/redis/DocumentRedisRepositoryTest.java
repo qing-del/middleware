@@ -50,11 +50,11 @@ class DocumentRedisRepositoryTest {
         assertThat(string(key.getValue())).isEqualTo("document:meta:18");
         assertThat(stringMap(fields.getValue())).containsExactlyInAnyOrderEntriesOf(Map.of(
                 "documentId", "18",
-                "teamId", "7",
+                "ownerUserId", "7",
                 "isClose", "0",
                 "lastModifyTime", "1234",
                 "lastModifyUserId", "9"));
-        verify(connection).hDel(any(byte[].class), any(byte[].class));
+        verify(connection, times(2)).hDel(any(byte[].class), any(byte[].class));
         verify(connection).close();
     }
 
@@ -62,7 +62,7 @@ class DocumentRedisRepositoryTest {
     void shouldReadRoomMetaFromDocumentHash() {
         when(connection.hGetAll(any(byte[].class))).thenReturn(bytesMap(Map.of(
                 "documentId", "18",
-                "teamId", "7",
+                "ownerUserId", "7",
                 "isClose", "1",
                 "closeToken", "3fa85f64-5717-4562-b3fc-2c963f66afa6",
                 "lastModifyTime", "1234",
@@ -72,6 +72,19 @@ class DocumentRedisRepositoryTest {
                 18L, 7L, true, "3fa85f64-5717-4562-b3fc-2c963f66afa6", 1234L, 9L));
 
         verify(connection).close();
+    }
+
+    @Test
+    void shouldReadLegacyTeamIdRoomMetaDuringRedisRollout() {
+        when(connection.hGetAll(any(byte[].class))).thenReturn(bytesMap(Map.of(
+                "documentId", "18",
+                "teamId", "7",
+                "isClose", "0",
+                "lastModifyTime", "1234",
+                "lastModifyUserId", "9")));
+
+        assertThat(repository.findRoomMeta(18L)).contains(new DocumentRoomMeta(
+                18L, 7L, false, null, 1234L, 9L));
     }
 
     @Test
@@ -137,7 +150,7 @@ class DocumentRedisRepositoryTest {
         when(cursor.next()).thenReturn(metaKey);
         when(connection.hGetAll(metaKey)).thenReturn(bytesMap(Map.of(
                 "documentId", "18",
-                "teamId", "7",
+                "ownerUserId", "7",
                 "isClose", "0",
                 "lastModifyTime", "1234",
                 "lastModifyUserId", "9")));

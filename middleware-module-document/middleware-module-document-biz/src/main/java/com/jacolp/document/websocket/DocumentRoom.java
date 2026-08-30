@@ -1,6 +1,7 @@
 package com.jacolp.document.websocket;
 
 import com.jacolp.common.security.context.CurrentPrincipal;
+import com.jacolp.document.application.access.DocumentAccess;
 import com.jacolp.document.api.model.DocumentRoomLifecycleState;
 import com.jacolp.document.config.DocumentProperties;
 import java.io.IOException;
@@ -20,29 +21,32 @@ public class DocumentRoom {
     private static final CloseStatus SLOW_CLIENT = new CloseStatus(1013, "document outbound queue exceeded");
 
     private final long documentId;
-    private final long teamId;
+    private final long ownerUserId;
     private final DocumentProperties properties;
     private final ConcurrentHashMap<String, DocumentSessionContext> sessions = new ConcurrentHashMap<>();
     private volatile DocumentRoomLifecycleState lifecycleState = DocumentRoomLifecycleState.OPEN;
 
     /** 创建只保存会话运行态的本机 Room。 */
-    DocumentRoom(long documentId, long teamId, DocumentProperties properties) {
-        if (documentId <= 0 || teamId <= 0) {
+    DocumentRoom(long documentId, long ownerUserId, DocumentProperties properties) {
+        if (documentId <= 0 || ownerUserId <= 0) {
             // Room ID 会直接参与本地索引和 Redis key 生成，非法范围不能创建运行时容器。
-            throw new IllegalArgumentException("documentId and teamId must be positive");
+            throw new IllegalArgumentException("documentId and ownerUserId must be positive");
         }
         this.documentId = documentId;
-        this.teamId = teamId;
+        this.ownerUserId = ownerUserId;
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
     }
 
-    /** 校验个人范围和 Room 状态后加入会话；重复加入同一 session 保持幂等。 */
-    public synchronized DocumentSessionContext join(WebSocketSession session, CurrentPrincipal principal) {
+    /** 校验 Room 状态和已计算的文档访问结果后加入会话；重复加入同一 session 保持幂等。 */
+    public synchronized DocumentSessionContext join(WebSocketSession session, CurrentPrincipal principal,
+                                                    DocumentAccess documentAccess) {
         Objects.requireNonNull(session, "session must not be null");
         Objects.requireNonNull(principal, "principal must not be null");
-        if (principal.userId() != teamId) {
-            // 第一版 document 使用个人 scope；认证用户不是 Room 所属者时不能加入或观察该 Room。
-            throw new DocumentRoomAccessException("document does not belong to the authenticated personal scope");
+        Objects.requireNonNull(documentAccess, "documentAccess must not be null");
+        if (documentAccess.document().getId() == null || documentAccess.document().getId() != documentId
+                || !Objects.equals(documentAccess.document().getOwnerUserId(), ownerUserId)) {
+            // Room 只接受同一篇文档和同一所有者快照的访问结果，避免调用方把 ACL 结果串到其他 Room。
+            throw new DocumentRoomAccessException("document access does not match this Room");
         }
         if (lifecycleState == DocumentRoomLifecycleState.CLOSED) {
             // CLOSED 表示运行态已经清理；调用方应先通过新的 JOIN 流程重新建立 Room 状态。
@@ -50,7 +54,8 @@ public class DocumentRoom {
         }
         DocumentSessionContext existing = sessions.get(session.getId());
         if (existing != null) {
-            // 同一连接重复 JOIN 直接复用原上下文，避免重复占用名额或重置同步状态。
+            // 同一连接重复 JOIN 复用原上下文，同时刷新权限以反映最新 ACL。
+            existing.updateAccess(documentAccess);
             return existing;
         }
         if (sessions.size() >= properties.getWebsocket().getMaxRoomSessions()) {
@@ -62,7 +67,7 @@ public class DocumentRoom {
         WebSocketSession boundedSession = new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS,
                 properties.getWebsocket().getMaxSendQueueBytes(),
                 ConcurrentWebSocketSessionDecorator.OverflowStrategy.TERMINATE);
-        DocumentSessionContext context = new DocumentSessionContext(boundedSession, principal.userId());
+        DocumentSessionContext context = new DocumentSessionContext(boundedSession, principal.userId(), documentAccess);
         sessions.put(context.sessionId(), context);
         lifecycleState = DocumentRoomLifecycleState.ACTIVE;
         return context;
@@ -125,9 +130,9 @@ public class DocumentRoom {
         return documentId;
     }
 
-    /** 返回个人空间归属 ID。 */
-    public long teamId() {
-        return teamId;
+    /** 返回文档所有者 ID，仅用于 Room 生命周期和运行态审计。 */
+    public long ownerUserId() {
+        return ownerUserId;
     }
 
     /** 返回本机 Room 生命周期状态。 */

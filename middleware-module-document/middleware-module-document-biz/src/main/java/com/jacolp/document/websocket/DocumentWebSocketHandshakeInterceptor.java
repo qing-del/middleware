@@ -47,9 +47,10 @@ public class DocumentWebSocketHandshakeInterceptor implements HandshakeIntercept
         try {
             Jwt jwt = jwtDecoder.decode(token);
             CurrentPrincipal principal = SecurityContextCurrentPrincipalAccessor.fromJwt(jwt);
-            if (!"user".equals(principal.clientId())
-                    || !PermissionScopeMatcher.grants(principal.scopes(), "document:write")) {
-                // 文档协同通道会写入 CRDT 更新，因此只允许用户客户端且具备 document:write scope 的主体。
+            boolean canReadDocument = PermissionScopeMatcher.grants(principal.scopes(), "document:read");
+            boolean canWriteDocument = PermissionScopeMatcher.grants(principal.scopes(), "document:write");
+            if (!"user".equals(principal.clientId()) || (!canReadDocument && !canWriteDocument)) {
+                // 握手只校验账号级文档能力；具体 documentId 的读写 ACL 在 JOIN 和更新前再校验。
                 return false;
             }
             attributes.put(PRINCIPAL_ATTRIBUTE, principal);

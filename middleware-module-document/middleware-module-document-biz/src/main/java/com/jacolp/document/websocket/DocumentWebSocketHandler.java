@@ -1,6 +1,9 @@
 package com.jacolp.document.websocket;
 
 import com.jacolp.common.security.context.CurrentPrincipal;
+import com.jacolp.document.application.access.DocumentAccess;
+import com.jacolp.document.application.access.DocumentAccessDeniedException;
+import com.jacolp.document.application.access.DocumentAccessService;
 import com.jacolp.document.application.close.DocumentRoomLifecycleService;
 import com.jacolp.document.config.DocumentProperties;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
@@ -44,6 +47,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
 
     private final DocumentWsCodec codec;
     private final DocumentMapper documentMapper;
+    private final DocumentAccessService accessService;
     private final DocumentRedisRepository documentRedisRepository;
     private final DocumentRoomManager roomManager;
     private final DocumentBootstrapService bootstrapService;
@@ -56,17 +60,19 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
 
     /** 创建不记录指标的文档 WebSocket 处理器，保留生产处理流程。 */
     public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
+                                    DocumentAccessService accessService,
                                     DocumentRedisRepository documentRedisRepository, DocumentRoomManager roomManager,
                                     DocumentBootstrapService bootstrapService, DocumentSchedulePublisher schedulePublisher,
                                     DocumentSessionPresenceRegistry presenceRegistry,
                                     DocumentRoomLifecycleService lifecycleService, DocumentProperties properties) {
-        this(codec, documentMapper, documentRedisRepository, roomManager, bootstrapService, schedulePublisher,
+        this(codec, documentMapper, accessService, documentRedisRepository, roomManager, bootstrapService, schedulePublisher,
                 presenceRegistry, lifecycleService, properties, DocumentMetrics.noop());
     }
 
     /** 创建带运行指标的文档 WebSocket 处理器。 */
     @Autowired
     public DocumentWebSocketHandler(DocumentWsCodec codec, DocumentMapper documentMapper,
+                                    DocumentAccessService accessService,
                                     DocumentRedisRepository documentRedisRepository, DocumentRoomManager roomManager,
                                     DocumentBootstrapService bootstrapService, DocumentSchedulePublisher schedulePublisher,
                                     DocumentSessionPresenceRegistry presenceRegistry,
@@ -74,6 +80,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                                     DocumentMetrics metrics) {
         this.codec = Objects.requireNonNull(codec, "codec must not be null");
         this.documentMapper = Objects.requireNonNull(documentMapper, "documentMapper must not be null");
+        this.accessService = Objects.requireNonNull(accessService, "accessService must not be null");
         this.documentRedisRepository = Objects.requireNonNull(documentRedisRepository, "documentRedisRepository must not be null");
         this.roomManager = Objects.requireNonNull(roomManager, "roomManager must not be null");
         this.bootstrapService = Objects.requireNonNull(bootstrapService, "bootstrapService must not be null");
@@ -108,6 +115,15 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             }
         } catch (DocumentRoomLimitExceededException exception) {
             sendError(session, control.requestId(), "DOCUMENT_ROOM_LIMIT_EXCEEDED", exception.getMessage());
+        } catch (DocumentAccessDeniedException exception) {
+            if (control.type() == DocumentWsControlType.JOIN_DOCUMENT
+                    && joinedDocumentIds.containsKey(session.getId())) {
+                // 重复 JOIN 发现授权已撤销时释放旧会话，避免连接继续占用 Room presence。
+                leaveSession(session);
+            }
+            String code = exception.reason() == DocumentAccessDeniedException.Reason.NOT_FOUND
+                    ? "DOCUMENT_NOT_FOUND" : "DOCUMENT_FORBIDDEN";
+            sendError(session, control.requestId(), code, exception.getMessage());
         } catch (DocumentRoomAccessException exception) {
             sendError(session, control.requestId(), "DOCUMENT_FORBIDDEN", exception.getMessage());
         } catch (DocumentBootstrapException exception) {
@@ -143,6 +159,9 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         } catch (DocumentRoomAccessException exception) {
             metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_FORBIDDEN", exception.getMessage());
+        } catch (DocumentAccessDeniedException exception) {
+            metrics.recordUpdateRejected();
+            sendError(session, frame.eventId(), "DOCUMENT_FORBIDDEN", exception.getMessage());
         } catch (RuntimeException exception) {
             metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_UPDATE_ACCEPT_FAILED", "document update could not be accepted");
@@ -161,16 +180,21 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         leaveSession(session);
     }
 
-    /** 校验个人范围后建立 Room 归属，按顺序发送 bootstrap 并在完成后激活会话。 */
+    /** 校验文档 ACL 后建立 Room 归属，按顺序发送 bootstrap 并在完成后激活会话。 */
     private void handleJoin(WebSocketSession session, DocumentWsControlMessage control) {
         long documentId = requireDocumentId(control.documentId());
+        CurrentPrincipal principal = DocumentWebSocketHandshakeInterceptor.requirePrincipal(session.getAttributes());
+        DocumentAccess access = accessService.requireRead(documentId, principal.userId());
         Long alreadyJoinedDocumentId = joinedDocumentIds.get(session.getId());
         // 一个 WebSocket 会话只能绑定一个文档；切换文档必须先断开旧会话，避免状态串写。
         if (alreadyJoinedDocumentId != null) {
             if (alreadyJoinedDocumentId != documentId) {
                 throw new DocumentRoomAccessException("a WebSocket session may join only one document at a time");
             }
-            // 同一会话重复 JOIN 时不重放文档，只确认已有的 Room 成员关系仍有效。
+            DocumentRoom room = roomManager.find(documentId)
+                    .orElseThrow(() -> new DocumentRoomAccessException("document Room is not available"));
+            // 同一会话重复 JOIN 时不重放文档，但刷新会话权限以反映最新 ACL。
+            room.join(session, principal, access);
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
                     control.requestId(), documentId, null, null, null, null));
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.SYNC_COMPLETE,
@@ -178,17 +202,10 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             return;
         }
 
-        CurrentPrincipal principal = DocumentWebSocketHandshakeInterceptor.requirePrincipal(session.getAttributes());
-        DocumentDO document = documentMapper.selectActiveByIdAndTeamId(documentId, principal.userId());
-        if (document == null) {
-            // 查询同时带个人 scope 和 deleted 过滤；对不存在与越权文档统一返回不可访问，避免泄露资源存在性。
-            sendError(session, control.requestId(), "DOCUMENT_NOT_FOUND", "document does not exist or is not accessible");
-            return;
-        }
-
-        DocumentRoom room = roomManager.getOrCreate(documentId, principal.userId());
+        DocumentDO document = access.document();
+        DocumentRoom room = roomManager.getOrCreate(documentId, requireOwnerUserId(document));
         // 先登记本地 Room 和 presence，再发送 bootstrap，确保期间 CLOSE 不会误判无人在线。
-        room.join(session, principal);
+        DocumentSessionContext context = room.join(session, principal, access);
         joinedDocumentIds.put(session.getId(), documentId);
         roomManager.refreshRuntimeMetrics();
         try {
@@ -198,7 +215,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                     control.requestId(), documentId, null, null, null, null));
             // 在快照、持久化日志和 Redis 待写入更新全部发送完前，会话不会进入 active；
             // 此期间收到的二进制编辑会被拒绝。
-            bootstrapService.sendBootstrap(documentId, principal.userId(), room.requireSession(session.getId()).session());
+            bootstrapService.sendBootstrap(documentId, context.session());
             room.markActive(session.getId());
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.SYNC_COMPLETE,
                     control.requestId(), documentId, null, null, null, null));
@@ -212,6 +229,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     /** 校验客户端更新、先写 Redis，再确认/广播并安排异步刷盘。 */
     private void acceptClientUpdate(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
+        DocumentSessionContext context = room.requireSession(session.getId());
         // 先限制单次更新大小，避免异常客户端占满 Redis Stream、出站队列或下游合并服务。
         if (frame.payload().length > properties.getWebsocket().getMaxUpdateBytes()) {
             metrics.recordUpdateRejected();
@@ -226,6 +244,12 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
 
         CurrentPrincipal principal = DocumentWebSocketHandshakeInterceptor.requirePrincipal(session.getAttributes());
+        if (context.userId() != principal.userId() || !context.canWrite()) {
+            throw new DocumentRoomAccessException("document session does not have write permission");
+        }
+        // SessionContext 是快速能力判断；每次真正写入前仍以数据库中的最新 ACL 为准。
+        DocumentAccess access = accessService.requireWrite(room.documentId(), principal.userId());
+        context.updateAccess(access);
         long now = System.currentTimeMillis();
         String redisOpId = documentRedisRepository.appendPendingUpdate(new DocumentPendingUpdate(room.documentId(),
                 frame.payload(), frame.eventId().toString(), principal.userId(), principal.clientId(), now));
@@ -236,10 +260,10 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         int modified = documentMapper.updateLastModificationIfActive(room.documentId(), principal.userId(),
                 LocalDateTime.now(APPLICATION_ZONE), principal.userId());
         if (modified != 1) {
-            // Redis 已经接收更新，但数据库 scope/active 条件未命中；不发送 ACK，避免客户端误以为更新已完成。
-            throw new DocumentRoomAccessException("document no longer accepts updates in this personal scope");
+            // Redis 已经接收更新，但数据库 ACL/active 条件未命中；不发送 ACK，避免客户端误以为更新已完成。
+            throw new DocumentRoomAccessException("document no longer accepts updates");
         }
-        saveRoomMeta(room.documentId(), principal.userId(), now);
+        saveRoomMeta(room.documentId(), room.ownerUserId(), principal.userId(), now);
         sendControl(room.requireSession(session.getId()).session(), new DocumentWsControlMessage(protocolVersion(),
                 DocumentWsControlType.UPDATE_ACCEPTED, frame.eventId(), room.documentId(), frame.eventId(), redisOpId, null, null));
         metrics.recordUpdateAccepted();
@@ -276,18 +300,18 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         long lastModifiedAt = document.getLastModifyTime() == null
                 ? System.currentTimeMillis()
                 : document.getLastModifyTime().atZone(APPLICATION_ZONE).toInstant().toEpochMilli();
-        saveRoomMeta(document.getId(), userId, lastModifiedAt);
+        saveRoomMeta(document.getId(), requireOwnerUserId(document), userId, lastModifiedAt);
     }
 
-    /** 以认证用户作为个人范围保存 Room Meta，并拒绝 Redis 中的范围冲突。 */
-    private void saveRoomMeta(long documentId, long userId, long lastModifiedAt) {
+    /** 以文档所有者保存 Room Meta，并拒绝 Redis 中的文档归属冲突。 */
+    private void saveRoomMeta(long documentId, long ownerUserId, long lastModifyUserId, long lastModifiedAt) {
         Optional<DocumentRoomMeta> existing = documentRedisRepository.findRoomMeta(documentId);
-        if (existing.isPresent() && existing.get().teamId() != userId) {
-            // Redis 中已有的 Room scope 与认证用户不一致时拒绝覆盖，防止错误或越权数据被重新绑定。
-            throw new DocumentRoomAccessException("Redis room meta does not match authenticated personal scope");
+        if (existing.isPresent() && existing.get().ownerUserId() != ownerUserId) {
+            // Redis 中已有的 Room owner 与数据库不一致时拒绝覆盖，防止错误数据被重新绑定。
+            throw new DocumentRoomAccessException("Redis room meta does not match document owner");
         }
-        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(documentId, userId, false,
-                UUID.randomUUID().toString(), lastModifiedAt, userId));
+        documentRedisRepository.saveRoomMeta(new DocumentRoomMeta(documentId, ownerUserId, false,
+                UUID.randomUUID().toString(), lastModifiedAt, lastModifyUserId));
     }
 
     /** 幂等移除会话并在本机最后离开时请求延迟 CLOSE。 */
@@ -300,7 +324,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                 // 只有本次确实移除了最后一个本机会话，才需要发起延迟 CLOSE；重复关闭回调不能重复推进生命周期。
                 if (room.leave(session.getId()) && room.sessionCount() == 0) {
                     try {
-                        lifecycleService.requestClose(documentId, room.teamId());
+                        lifecycleService.requestClose(documentId, room.ownerUserId());
                     } catch (RuntimeException exception) {
                         log.warn("Could not request delayed CLOSE for documentId={}: {}", documentId, exception.getMessage());
                     }
@@ -348,6 +372,14 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             throw new DocumentRoomAccessException("documentId must be positive");
         }
         return documentId;
+    }
+
+    /** 校验并返回文档所有者 ID，避免损坏的持久化数据进入 Room key/生命周期状态。 */
+    private static long requireOwnerUserId(DocumentDO document) {
+        if (document.getOwnerUserId() == null || document.getOwnerUserId() <= 0) {
+            throw new DocumentRoomAccessException("document owner is invalid");
+        }
+        return document.getOwnerUserId();
     }
 
     /** 把协议版本错误映射为客户端可识别的错误码。 */

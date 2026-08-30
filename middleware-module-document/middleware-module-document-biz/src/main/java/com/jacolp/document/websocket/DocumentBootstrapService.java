@@ -60,14 +60,13 @@ public class DocumentBootstrapService {
     }
 
     /** 向新会话发送可恢复的全部内容，并把底层读取/传输错误统一包装。 */
-    public void sendBootstrap(long documentId, long teamId, WebSocketSession session) {
+    public void sendBootstrap(long documentId, WebSocketSession session) {
         Objects.requireNonNull(session, "session must not be null");
         requirePositive(documentId, "documentId");
-        requirePositive(teamId, "teamId");
         try {
             // 先固定 Redis 读取边界；此调用之后产生的 Update 由已加入 Room 的实时转发覆盖。
             List<StoredDocumentPendingUpdate> pendingUpdates = readPendingUpdates(documentId);
-            BootstrapHistory history = readBootstrapHistory(documentId, teamId);
+            BootstrapHistory history = readBootstrapHistory(documentId);
             // RR 事务已经结束，MinIO 和 WebSocket 网络 IO 不会延长数据库 ReadView 生命周期。
             sendSnapshotIfPresent(history.contentObjectKey(), session);
             sendDurableUpdates(history.durableUpdates(), session);
@@ -93,10 +92,10 @@ public class DocumentBootstrapService {
     }
 
     /** 在同一个 RR ReadView 中读取快照位点之后的全部 MySQL 持久化更新。 */
-    private BootstrapHistory readBootstrapHistory(long documentId, long teamId) {
+    private BootstrapHistory readBootstrapHistory(long documentId) {
         BootstrapHistory history = bootstrapTransactionTemplate.execute(status -> {
             // 这是本事务中的第一次一致性读取，负责建立本轮 Bootstrap 的 MySQL ReadView。
-            DocumentDO document = documentMapper.selectActiveByIdAndTeamId(documentId, teamId);
+            DocumentDO document = documentMapper.selectActiveById(documentId);
             if (document == null) {
                 throw new DocumentBootstrapException("document does not exist or is not accessible");
             }

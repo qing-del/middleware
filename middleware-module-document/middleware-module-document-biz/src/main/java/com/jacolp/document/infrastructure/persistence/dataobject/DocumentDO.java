@@ -7,7 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** v0.3 {@code biz_document} 表的一行持久化模型。 */
+/** v0.4 {@code biz_document} 表的一行持久化模型。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,8 +18,8 @@ public class DocumentDO implements Serializable {
 
     /** 数据库自增主键。<p>example: {@code 42}</p> */
     private Long id;
-    /** v0.3 中的个人空间标识，始终保存文档所有者的用户 ID。<p>example: {@code 10001}</p> */
-    private Long teamId;
+    /** 文档所有者用户 ID。<p>example: {@code 10001}</p> */
+    private Long ownerUserId;
     /** 文档标题。<p>example: {@code 项目设计文档}</p> */
     private String title;
     /** 当前 Yjs 快照在 MinIO 中的对象键；尚未生成快照时为空。<p>example: {@code document/42/state/550e8400-e29b-41d4-a716-446655440000.bin}</p> */
