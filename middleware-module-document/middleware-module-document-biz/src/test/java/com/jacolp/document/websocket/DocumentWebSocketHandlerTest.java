@@ -170,6 +170,41 @@ class DocumentWebSocketHandlerTest {
     }
 
     @Test
+    void writeAclWithoutGlobalWriteScopeCannotSubmitClientUpdate() throws Exception {
+        DocumentProperties properties = new DocumentProperties();
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
+        DocumentAccessService accessService = mock(DocumentAccessService.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
+        WebSocketSession session = session("session-read-scope", principal(43L, "document:read"));
+        DocumentAccess access = access(document(7L, 42L), DocumentPermission.WRITE, false);
+        when(accessService.requireRead(7L, 43L)).thenReturn(access);
+        when(redisRepository.findRoomMeta(7L)).thenReturn(Optional.empty());
+
+        DocumentWebSocketHandler handler = handler(codec, documentMapper, accessService, redisRepository,
+                bootstrapService, schedulePublisher, presenceRegistry, lifecycleService, properties);
+        handler.handleMessage(session, codec.encodeControl(new DocumentWsControlMessage(1,
+                DocumentWsControlType.JOIN_DOCUMENT, UUID.randomUUID(), 7L, null, null, null, null)));
+        UUID updateId = UUID.randomUUID();
+        handler.handleMessage(session, codec.encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.CLIENT_UPDATE, updateId, new byte[] {6, 7})));
+
+        ArgumentCaptor<WebSocketMessage<?>> messages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(session, times(3)).sendMessage(messages.capture());
+        DocumentWsControlMessage error = codec.decodeControl((TextMessage) messages.getAllValues().getLast());
+        assertThat(error.type()).isEqualTo(DocumentWsControlType.ERROR);
+        assertThat(error.code()).isEqualTo("DOCUMENT_FORBIDDEN");
+        verify(accessService, never()).requireWrite(anyLong(), anyLong());
+        verify(redisRepository, never()).appendPendingUpdate(any(DocumentPendingUpdate.class));
+        verify(documentMapper, never()).updateLastModificationIfActive(anyLong(), anyLong(), any(), anyLong());
+        verify(schedulePublisher, never()).scheduleFlushLog(anyLong());
+    }
+
+    @Test
     void rejectsUnauthorizedJoinWithoutCreatingRoomOrPresence() throws Exception {
         DocumentProperties properties = new DocumentProperties();
         DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);

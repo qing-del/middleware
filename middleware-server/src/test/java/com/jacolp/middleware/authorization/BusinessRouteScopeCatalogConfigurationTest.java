@@ -67,6 +67,17 @@ class BusinessRouteScopeCatalogConfigurationTest {
     }
 
     @Test
+    void metadataReadRouteAcceptsEitherDocumentScope() {
+        BusinessRouteAuthorizationEntry entry = BusinessRouteScopeCatalogConfiguration.entries().stream()
+                .filter(candidate -> candidate.method().name().equals("GET")
+                        && candidate.pathPattern().equals("/user/document/{documentId}/meta"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(entry.anyRequiredScope()).isTrue();
+        assertThat(entry.requiredScopes()).containsExactlyInAnyOrder("document:read", "document:write");
+    }
+
+    @Test
     void documentationMatchesTheExecutableCatalogueCountsAndCoreScopeRules() throws IOException {
         String document = Files.readString(repositoryRoot().resolve(
                 "static/document/security/phase5-business-route-scope-catalog.md"));

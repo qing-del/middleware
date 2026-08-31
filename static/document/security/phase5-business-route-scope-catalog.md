@@ -65,7 +65,7 @@ OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不
 | 15 | `DELETE /user/image/{id}` | `media:write` | 删除 own 图片 |
 | 16 | `POST /user/document` | `document:write` | 创建 own 协作文档 |
 | 17 | `GET /user/document` | `document:read` | 列表 own 协作文档 |
-| 18 | `GET /user/document/{documentId}/meta` | `document:read` | 读取 own 协作文档元数据 |
+| 18 | `GET /user/document/{documentId}/meta` | `document:read` 或 `document:write`（any-of） | 读取当前可访问文档元数据 |
 | 19 | `GET /user/document/{documentId}/users` | `document:read` | 查看 own 文档授权 |
 | 20 | `PUT /user/document/{documentId}/users/{userId}` | `document:write` | 新增或更新 own 文档授权 |
 | 21 | `DELETE /user/document/{documentId}/users/{userId}` | `document:write` | 撤销 own 文档授权 |

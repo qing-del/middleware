@@ -62,7 +62,7 @@ public class BusinessRouteScopeCatalogConfiguration {
                 user("DELETE /user/image/{id} media:write"),
                 // user collaborative documents
                 user("POST /user/document document:write"), user("GET /user/document document:read"),
-                user("GET /user/document/{documentId}/meta document:read"),
+                userAny("GET /user/document/{documentId}/meta document:read|document:write"),
                 user("GET /user/document/{documentId}/users document:read"),
                 user("PUT /user/document/{documentId}/users/{userId} document:write"),
                 user("DELETE /user/document/{documentId}/users/{userId} document:write"),

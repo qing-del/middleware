@@ -1,6 +1,7 @@
 package com.jacolp.document.websocket;
 
 import com.jacolp.common.security.context.CurrentPrincipal;
+import com.jacolp.common.security.oauth2.authorization.PermissionScopeMatcher;
 import com.jacolp.document.application.access.DocumentAccess;
 import com.jacolp.document.application.access.DocumentAccessDeniedException;
 import com.jacolp.document.application.access.DocumentAccessService;
@@ -246,6 +247,10 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         CurrentPrincipal principal = DocumentWebSocketHandshakeInterceptor.requirePrincipal(session.getAttributes());
         if (context.userId() != principal.userId() || !context.canWrite()) {
             throw new DocumentRoomAccessException("document session does not have write permission");
+        }
+        // WebSocket 握手只要求读或写 scope；真正提交更新时仍必须具备全局写 scope，不能由文档 ACL 单独提升能力。
+        if (!PermissionScopeMatcher.grants(principal.scopes(), "document:write")) {
+            throw new DocumentRoomAccessException("document session does not have document:write scope");
         }
         // SessionContext 是快速能力判断；每次真正写入前仍以数据库中的最新 ACL 为准。
         DocumentAccess access = accessService.requireWrite(room.documentId(), principal.userId());

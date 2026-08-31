@@ -11,6 +11,9 @@ import static org.mockito.Mockito.when;
 
 import com.jacolp.common.core.exception.BaseException;
 import com.jacolp.document.api.model.DocumentMetadata;
+import com.jacolp.document.application.access.DocumentAccess;
+import com.jacolp.document.application.access.DocumentAccessService;
+import com.jacolp.document.enums.DocumentPermission;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
@@ -65,6 +68,23 @@ class DocumentMetadataServiceTest {
         DocumentMetadataService service = new DocumentMetadataService(mapper, mock(DocumentRedisRepository.class));
 
         assertThat(service.updateTitle(42L, 7L, " New title ").title()).isEqualTo("New title");
+    }
+
+    @Test
+    void readsSharedDocumentWithEffectivePermissionAndOwnerFlag() {
+        DocumentMapper mapper = mock(DocumentMapper.class);
+        DocumentAccessService accessService = mock(DocumentAccessService.class);
+        DocumentDO document = document(8L, 99L, "Shared plan");
+        when(accessService.requireRead(42L, 8L)).thenReturn(new DocumentAccess(document, DocumentPermission.READ, false));
+        DocumentMetadataService service = new DocumentMetadataService(mapper, mock(DocumentRedisRepository.class), accessService);
+
+        DocumentMetadata metadata = service.get(8L, 42L);
+
+        assertThat(metadata.documentId()).isEqualTo(8L);
+        assertThat(metadata.ownerUserId()).isEqualTo(99L);
+        assertThat(metadata.permission()).isEqualTo("READ");
+        assertThat(metadata.owner()).isFalse();
+        verify(accessService).requireRead(42L, 8L);
     }
 
     @Test
