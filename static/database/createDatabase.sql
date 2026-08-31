@@ -646,6 +646,7 @@ CREATE TABLE `biz_document_user` (
     KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='协作文档用户直接授权';
 
+-- 文档分享短链主表：只保存 token 摘要，兑换时按有效期和使用次数校验。
 CREATE TABLE `biz_document_share_link` (
     `id`              bigint       NOT NULL AUTO_INCREMENT COMMENT '分享短链ID',
     `document_id`     bigint       NOT NULL COMMENT '关联 biz_document.id',
@@ -665,6 +666,7 @@ CREATE TABLE `biz_document_share_link` (
     KEY `idx_document_share_expiry` (`enabled`, `expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='协作文档分享短链';
 
+-- 短链兑换台账：联合主键保证同一用户对同一短链只计一次有效使用。
 CREATE TABLE `biz_document_share_link_redemption` (
     `share_link_id` bigint      NOT NULL COMMENT '关联 biz_document_share_link.id',
     `user_id`       bigint      NOT NULL COMMENT '兑换用户ID',

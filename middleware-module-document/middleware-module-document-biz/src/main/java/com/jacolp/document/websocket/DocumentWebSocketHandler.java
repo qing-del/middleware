@@ -92,7 +92,12 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         this.metrics = Objects.requireNonNull(metrics, "metrics must not be null");
     }
 
-    /** 解析控制帧并处理 JOIN、LEAVE、PING 及协议错误响应。 */
+    /**
+     * 解析控制帧并处理 JOIN、LEAVE、PING 及协议错误响应。
+     *
+     * <p>控制帧只负责会话生命周期和确认消息；正文更新必须走二进制帧，并在写入前重新
+     * 校验当前文档 ACL。</p>
+     */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         DocumentWsControlMessage control;
@@ -115,6 +120,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                         "unsupported client control frame type: " + control.type());
             }
         } catch (DocumentRoomLimitExceededException exception) {
+            // Room 容量是资源级保护，返回专用错误码让客户端稍后重试，而不是当作协议错误。
             sendError(session, control.requestId(), "DOCUMENT_ROOM_LIMIT_EXCEEDED", exception.getMessage());
         } catch (DocumentAccessDeniedException exception) {
             if (control.type() == DocumentWsControlType.JOIN_DOCUMENT
@@ -122,20 +128,29 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                 // 重复 JOIN 发现授权已撤销时释放旧会话，避免连接继续占用 Room presence。
                 leaveSession(session);
             }
+            // 对外只区分 NOT_FOUND/FORBIDDEN 两种协议码，消息本身保持中性以避免资源枚举。
             String code = exception.reason() == DocumentAccessDeniedException.Reason.NOT_FOUND
                     ? "DOCUMENT_NOT_FOUND" : "DOCUMENT_FORBIDDEN";
             sendError(session, control.requestId(), code, exception.getMessage());
         } catch (DocumentRoomAccessException exception) {
+            // Room/session 状态错误不会泄露底层异常，统一映射为文档不可用。
             sendError(session, control.requestId(), "DOCUMENT_FORBIDDEN", exception.getMessage());
         } catch (DocumentBootstrapException exception) {
+            // bootstrap 失败后清理半初始化会话，避免客户端继续使用未同步的 Room。
             leaveSession(session);
             sendError(session, control.requestId(), "DOCUMENT_SYNC_FAILED", exception.getMessage());
         } catch (RuntimeException exception) {
+            // 未预期异常不回传内部细节，只返回稳定的协议错误码。
             sendError(session, control.requestId(), "DOCUMENT_PROTOCOL_ERROR", "document request could not be completed");
         }
     }
 
-    /** 只接受客户端 CLIENT_UPDATE 和 AWARENESS 二进制帧，其他类型直接拒绝。 */
+    /**
+     * 只接受客户端 CLIENT_UPDATE 和 AWARENESS 二进制帧，其他类型直接拒绝。
+     *
+     * <p>CLIENT_UPDATE 会写入 Redis 并进入异步刷盘；AWARENESS 仅在当前 Room 内转发，
+     * 不产生持久化副作用。</p>
+     */
     @Override
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
         DocumentWsBinaryFrame frame;
@@ -158,12 +173,15 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                 sendError(session, frame.eventId(), "DOCUMENT_PROTOCOL_ERROR", "binary frame type is not accepted from clients");
             }
         } catch (DocumentRoomAccessException exception) {
+            // 未 JOIN、未完成 bootstrap 或无全局写 scope 均属于资源访问失败。
             metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_FORBIDDEN", exception.getMessage());
         } catch (DocumentAccessDeniedException exception) {
+            // 最新 ACL 在更新前复核失败时，不发送 ACK/广播，防止客户端误以为写入成功。
             metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_FORBIDDEN", exception.getMessage());
         } catch (RuntimeException exception) {
+            // 其余写链路异常统一返回失败码，详细原因留在服务端日志或恢复链路中。
             metrics.recordUpdateRejected();
             sendError(session, frame.eventId(), "DOCUMENT_UPDATE_ACCEPT_FAILED", "document update could not be accepted");
         }

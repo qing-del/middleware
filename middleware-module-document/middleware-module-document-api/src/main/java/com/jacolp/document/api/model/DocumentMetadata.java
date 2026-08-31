@@ -29,12 +29,25 @@ public record DocumentMetadata(
 
     /** 校验元数据的范围和标题约束，避免无效状态跨模块传播。 */
     public DocumentMetadata {
-        if (documentId <= 0) throw new IllegalArgumentException("documentId must be positive");
-        if (ownerUserId <= 0) throw new IllegalArgumentException("ownerUserId must be positive");
+        if (documentId <= 0) {
+            // 文档 ID 会作为数据库、Redis 和 WebSocket Room 的共同 key，非正数没有有效业务含义。
+            throw new IllegalArgumentException("documentId must be positive");
+        }
+        if (ownerUserId <= 0) {
+            // 所有者 ID 是后续 ACL 判定的身份边界，不能让缺失或占位值跨模块传播。
+            throw new IllegalArgumentException("ownerUserId must be positive");
+        }
         title = Objects.requireNonNull(title, "title").trim();
-        if (title.isEmpty()) throw new IllegalArgumentException("title must not be blank");
-        if (lastModifyTime < 0) throw new IllegalArgumentException("lastModifyTime must not be negative");
+        if (title.isEmpty()) {
+            // 标题先去除首尾空白，再拒绝空标题，保证列表和编辑页展示一致。
+            throw new IllegalArgumentException("title must not be blank");
+        }
+        if (lastModifyTime < 0) {
+            // 时间戳向前端传递为 Unix 毫秒，负值通常表示错误的持久化数据。
+            throw new IllegalArgumentException("lastModifyTime must not be negative");
+        }
         if (!"READ".equals(permission) && !"WRITE".equals(permission)) {
+            // 未知权限不能默认按 WRITE 处理，避免错误元数据意外开放编辑能力。
             throw new IllegalArgumentException("permission must be READ or WRITE");
         }
     }

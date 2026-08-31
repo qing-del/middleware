@@ -49,39 +49,39 @@ public class DocumentController {
         this.shareLinkService = Objects.requireNonNull(shareLinkService, "shareLinkService must not be null");
     }
 
+    /** 使用当前认证用户创建个人文档，不接受客户端提交的归属范围。 */
     @PostMapping
     @Operation(summary = "创建协作文档")
-    /** 使用当前认证用户创建个人文档，不接受客户端提交的归属范围。 */
     public Result<DocumentMetadata> create(@RequestBody @Valid DocumentCreateRequest request) {
         return Result.success(metadataService.create(BaseContext.getCurrentId(), request.title()));
     }
 
+    /** 返回当前认证用户可见的活跃文档元数据列表。 */
     @GetMapping
     @Operation(summary = "查询当前用户的协作文档列表")
-    /** 返回当前认证用户可见的活跃文档元数据列表。 */
     public Result<List<DocumentMetadata>> list() {
         return Result.success(metadataService.list(BaseContext.getCurrentId()));
     }
 
+    /** 按当前用户范围读取一份文档元数据。 */
     @GetMapping("/{documentId}/meta")
     @Operation(summary = "查询协作文档元数据")
-    /** 按当前用户范围读取一份文档元数据。 */
     public Result<DocumentMetadata> getMetadata(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
         return Result.success(metadataService.get(BaseContext.getCurrentId(), documentId));
     }
 
+    /** 仅文档所有者可以读取授权记录，已撤销记录也会返回。 */
     @GetMapping("/{documentId}/users")
     @Operation(summary = "查询协作文档授权名单")
-    /** 仅文档所有者可以读取授权记录，已撤销记录也会返回。 */
     public Result<List<DocumentUserAuthorizationResponse>> listAuthorizations(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
         return Result.success(authorizationService.list(BaseContext.getCurrentId(), documentId));
     }
 
+    /** 仅文档所有者可以为启用用户设置 READ/WRITE 及 enabled 状态。 */
     @PutMapping("/{documentId}/users/{userId}")
     @Operation(summary = "新增或更新协作文档授权")
-    /** 仅文档所有者可以为启用用户设置 READ/WRITE 及 enabled 状态。 */
     public Result<DocumentUserAuthorizationResponse> upsertAuthorization(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
             @Parameter(description = "被授权用户 ID") @PathVariable @Positive long userId,
@@ -90,9 +90,9 @@ public class DocumentController {
                 request.permission(), request.enabled()));
     }
 
+    /** 仅将授权标记为 disabled，不物理删除授权历史。 */
     @DeleteMapping("/{documentId}/users/{userId}")
     @Operation(summary = "撤销协作文档授权")
-    /** 仅将授权标记为 disabled，不物理删除授权历史。 */
     public Result<Void> revokeAuthorization(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
             @Parameter(description = "被授权用户 ID") @PathVariable @Positive long userId) {
@@ -100,6 +100,7 @@ public class DocumentController {
         return Result.success();
     }
 
+    /** 由文档所有者创建带有效期、权限和最大兑换次数的短链。 */
     @PostMapping("/{documentId}/share-links")
     @Operation(summary = "创建协作文档分享短链")
     public Result<DocumentShareLinkResponse> createShareLink(
@@ -109,6 +110,7 @@ public class DocumentController {
                 request.permission(), request.validForSeconds(), request.maxUses()));
     }
 
+    /** 返回该文档的全部短链状态；列表不会重新暴露原始短链令牌。 */
     @GetMapping("/{documentId}/share-links")
     @Operation(summary = "查询协作文档分享短链")
     public Result<List<DocumentShareLinkResponse>> listShareLinks(
@@ -116,6 +118,7 @@ public class DocumentController {
         return Result.success(shareLinkService.list(BaseContext.getCurrentId(), documentId));
     }
 
+    /** 软撤销指定短链，保留历史记录和已产生的直接 ACL。 */
     @DeleteMapping("/{documentId}/share-links/{shareLinkId}")
     @Operation(summary = "取消协作文档分享短链")
     public Result<Void> revokeShareLink(
@@ -125,18 +128,18 @@ public class DocumentController {
         return Result.success();
     }
 
+    /** 修改标题并返回更新后的元数据，正文内容不经过该接口。 */
     @PatchMapping("/{documentId}/meta")
     @Operation(summary = "修改协作文档标题")
-    /** 修改标题并返回更新后的元数据，正文内容不经过该接口。 */
     public Result<DocumentMetadata> updateMetadata(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
             @RequestBody @Valid DocumentMetadataUpdateRequest request) {
         return Result.success(metadataService.updateTitle(BaseContext.getCurrentId(), documentId, request.title()));
     }
 
+    /** 仅在跨实例没有活跃 presence 时执行逻辑删除。 */
     @DeleteMapping("/{documentId}")
     @Operation(summary = "逻辑删除没有活跃协作会话的文档")
-    /** 仅在跨实例没有活跃 presence 时执行逻辑删除。 */
     public Result<Void> delete(
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
         metadataService.delete(BaseContext.getCurrentId(), documentId);

@@ -3,6 +3,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.jacolp.document.infrastructure.persistence.mapper.DocumentShareLinkMapper">
 
+    <!-- 短链结果映射：permission 直接转换为 READ/WRITE 枚举，token_hash 只在服务端比对摘要。 -->
     <resultMap id="DocumentShareLinkMap"
                type="com.jacolp.document.infrastructure.persistence.dataobject.DocumentShareLinkDO">
         <id column="id" property="id"/>
@@ -20,6 +21,7 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
+    <!-- 兑换台账映射：share_link_id + user_id 对应数据库联合主键，用于幂等判断。 -->
     <resultMap id="DocumentShareLinkRedemptionMap"
                type="com.jacolp.document.infrastructure.persistence.dataobject.DocumentShareLinkRedemptionDO">
         <id column="share_link_id" property="shareLinkId"/>
@@ -29,6 +31,7 @@
         <result column="redeemed_at" property="redeemedAt"/>
     </resultMap>
 
+    <!-- 通过不可逆摘要定位短链，不在查询条件或结果中暴露原始 code。 -->
     <select id="selectByTokenHash" resultMap="DocumentShareLinkMap">
         SELECT id, document_id, creator_user_id, token_hash, permission,
                expires_at, max_uses, used_count, enabled, revoked_at,
@@ -37,6 +40,7 @@
         WHERE token_hash = #{tokenHash}
     </select>
 
+    <!-- 所有者管理列表需要看到全部状态，因此这里不按 enabled/过期时间过滤。 -->
     <select id="selectByDocumentId" resultMap="DocumentShareLinkMap">
         SELECT id, document_id, creator_user_id, token_hash, permission,
                expires_at, max_uses, used_count, enabled, revoked_at,
@@ -46,6 +50,7 @@
         ORDER BY create_time DESC, id DESC
     </select>
 
+    <!-- 兑换事务使用行锁串行化同一短链的取消、校验和配额消耗。 -->
     <select id="selectByIdForUpdate" resultMap="DocumentShareLinkMap">
         SELECT id, document_id, creator_user_id, token_hash, permission,
                expires_at, max_uses, used_count, enabled, revoked_at,
@@ -55,6 +60,7 @@
         FOR UPDATE
     </select>
 
+    <!-- 创建短链时写入摘要和约束字段；原始令牌只存在于服务层响应内。 -->
     <insert id="insert" parameterType="com.jacolp.document.infrastructure.persistence.dataobject.DocumentShareLinkDO"
             useGeneratedKeys="true" keyProperty="shareLink.id" keyColumn="id">
         INSERT INTO biz_document_share_link
@@ -67,6 +73,7 @@
              #{shareLink.revokedAt})
     </insert>
 
+    <!-- 取消只做软状态更新，重复执行保持幂等并保留审计时间。 -->
     <update id="revokeByIdAndCreator">
         UPDATE biz_document_share_link
         SET enabled = 0,
@@ -76,6 +83,7 @@
           AND creator_user_id = #{creatorUserId}
     </update>
 
+    <!-- 在数据库条件中再次校验启用、未过期和配额，防止并发请求超过 max_uses。 -->
     <update id="incrementUsedCountIfAvailable">
         UPDATE biz_document_share_link
         SET used_count = used_count + 1,
@@ -86,6 +94,7 @@
           AND used_count < max_uses
     </update>
 
+    <!-- 查询当前用户是否已经兑换过该短链；无记录才会进入授权和计数流程。 -->
     <select id="selectRedemption" resultMap="DocumentShareLinkRedemptionMap">
         SELECT share_link_id, user_id, permission, redeemed_at
         FROM biz_document_share_link_redemption
@@ -93,6 +102,7 @@
           AND user_id = #{userId}
     </select>
 
+    <!-- 联合主键保证同一短链/用户只产生一条台账；冲突时保留最新权限快照。 -->
     <insert id="insertRedemption">
         INSERT INTO biz_document_share_link_redemption
             (share_link_id, user_id, permission, redeemed_at)
