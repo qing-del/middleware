@@ -123,22 +123,31 @@ class MigrationScriptTest {
                 .contains("CREATE TABLE `biz_document_user`")
                 .contains("PRIMARY KEY (`document_id`, `user_id`)")
                 .contains("KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)")
-                .contains("KEY `idx_user_id` (`user_id`)")
                 .contains("CREATE TABLE `document_op_log`")
                 .contains("UNIQUE KEY `uk_document_redis_op` (`document_id`, `redis_op_id`)")
                 .contains("UNIQUE KEY `uk_document_client_update` (`document_id`, `client_update_id`)");
+        int documentUserStart = bootstrap.indexOf("CREATE TABLE `biz_document_user`");
+        int documentOpLogStart = bootstrap.indexOf("CREATE TABLE `document_op_log`", documentUserStart);
+        assertThat(documentUserStart).isGreaterThanOrEqualTo(0);
+        assertThat(documentOpLogStart).isGreaterThan(documentUserStart);
+        assertThat(bootstrap.substring(documentUserStart, documentOpLogStart))
+                .contains("KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)")
+                .doesNotContain("KEY `idx_user_id` (`user_id`)");
         assertThat(historicalMigration)
                 .contains("USE `personal_saas`;");
         assertThat(authorizationMigration)
                 .contains("ADD COLUMN `owner_user_id`")
                 .contains("SET `owner_user_id` = `team_id`")
-                .contains("CREATE TABLE `biz_document_user`");
+                .contains("CREATE TABLE `biz_document_user`")
+                .contains("document_user_authorization_retire_team_preflight")
+                .contains("document_user_authorization_retire_team_postflight")
+                .doesNotContain("ADD KEY `idx_user_id` (`user_id`)");
     }
 
     @Test
-    void documentPersistenceTeamRetirementShouldRequireOwnerBackfillBeforeDroppingLegacyColumn()
+    void documentAuthorizationMigrationShouldRetireTeamAfterOwnerBackfill()
             throws IOException {
-        String migration = readMigration("20260830_document_user_authorization_retire_team.sql");
+        String migration = readMigration("20260830_document_user_authorization.sql");
 
         assertThat(migration)
                 .contains("document_user_authorization_retire_team_preflight")
@@ -153,29 +162,17 @@ class MigrationScriptTest {
                 .isLessThan(migration.indexOf("DROP COLUMN `team_id`"));
         assertThat(migration.indexOf("DROP COLUMN `team_id`"))
                 .isLessThan(migration.indexOf("CALL `document_user_authorization_retire_team_postflight`()"));
-    }
-
-    @Test
-    void documentUserAuthorizationUserIndexMigrationShouldBeGuardedAndPreserveVisibilityIndex()
-            throws IOException {
-        String migration = readMigration("20260830_document_user_authorization_idx_user_id.sql");
-        String bootstrap = Files.readString(locateMigrationDirectory().getParent().resolve("createDatabase.sql"));
-
+        int ownerBackfill = migration.indexOf("SET `owner_user_id` = `team_id`");
+        int ownerConstraint = migration.indexOf("MODIFY COLUMN `owner_user_id`");
+        int authorizationTable = migration.indexOf("CREATE TABLE `biz_document_user`");
+        int retirePreflight = migration.indexOf("CALL `document_user_authorization_retire_team_preflight`()");
+        assertThat(ownerBackfill).isGreaterThanOrEqualTo(0);
+        assertThat(ownerConstraint).isGreaterThan(ownerBackfill);
+        assertThat(authorizationTable).isGreaterThan(ownerConstraint);
+        assertThat(retirePreflight).isGreaterThan(authorizationTable);
         assertThat(migration)
-                .contains("document_user_authorization_idx_user_id_preflight")
-                .contains("document_user_authorization_idx_user_id_postflight")
-                .contains("table_name = 'biz_document_user'")
-                .contains("index_name = 'idx_user_id'")
-                .contains("ADD KEY `idx_user_id` (`user_id`)")
-                .contains("CALL `document_user_authorization_idx_user_id_preflight`()")
-                .contains("CALL `document_user_authorization_idx_user_id_postflight`()");
-        assertThat(migration.indexOf("CALL `document_user_authorization_idx_user_id_preflight`()"))
-                .isLessThan(migration.indexOf("ADD KEY `idx_user_id` (`user_id`)"));
-        assertThat(migration.indexOf("ADD KEY `idx_user_id` (`user_id`)"))
-                .isLessThan(migration.indexOf("CALL `document_user_authorization_idx_user_id_postflight`()"));
-        assertThat(bootstrap)
-                .contains("KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)")
-                .contains("KEY `idx_user_id` (`user_id`)");
+                .doesNotContain("document_user_authorization_idx_user_id")
+                .doesNotContain("ADD KEY `idx_user_id` (`user_id`)");
     }
 
     @Test
