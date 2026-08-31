@@ -53,6 +53,23 @@
         ORDER BY last_modify_time DESC, id DESC
     </select>
 
+    <select id="listActiveVisibleByUserId" resultMap="DocumentMap">
+        SELECT d.id, d.owner_user_id, d.title, d.content_object_key, d.persisted_log_id, d.last_modify_time,
+               d.last_modify_user_id, d.deleted, d.version, d.create_time, d.update_time
+        FROM biz_document d
+        LEFT JOIN biz_document_user du
+            ON du.document_id = d.id
+           AND du.user_id = #{userId}
+           AND du.enabled = 1
+           AND du.permission IN ('READ', 'WRITE')
+        WHERE d.deleted = 0
+          AND (
+              d.owner_user_id = #{userId}
+              OR du.document_id IS NOT NULL
+          )
+        ORDER BY d.last_modify_time DESC, d.id DESC
+    </select>
+
     <update id="updateLastModificationIfActive">
         UPDATE biz_document
         SET last_modify_time = #{lastModifyTime},
