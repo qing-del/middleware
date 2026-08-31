@@ -44,13 +44,16 @@ class DocumentMetadataServiceTest {
     }
 
     @Test
-    void listsOnlyDocumentsFromAuthenticatedPersonalScope() {
+    void listsDocumentsOwnedOrSharedWithAuthenticatedUser() {
         DocumentMapper mapper = mock(DocumentMapper.class);
-        when(mapper.listActiveByOwnerUserId(42L)).thenReturn(List.of(document(7L, 42L, "Plan")));
+        when(mapper.listActiveVisibleByUserId(42L)).thenReturn(List.of(
+                document(7L, 42L, "Owned plan"),
+                document(8L, 99L, "Shared plan")));
         DocumentMetadataService service = new DocumentMetadataService(mapper, mock(DocumentRedisRepository.class));
 
-        assertThat(service.list(42L)).extracting(DocumentMetadata::documentId).containsExactly(7L);
-        verify(mapper).listActiveByOwnerUserId(42L);
+        assertThat(service.list(42L)).extracting(DocumentMetadata::documentId).containsExactly(7L, 8L);
+        verify(mapper).listActiveVisibleByUserId(42L);
+        verify(mapper, never()).listActiveByOwnerUserId(any());
     }
 
     @Test

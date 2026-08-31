@@ -42,10 +42,10 @@ public class DocumentMetadataService {
         return toMetadata(document);
     }
 
-    /** 查询当前用户拥有的未删除文档列表。 */
-    public List<DocumentMetadata> list(long ownerUserId) {
-        requireUserId(ownerUserId);
-        return documentMapper.listActiveByOwnerUserId(ownerUserId).stream().map(this::toMetadata).toList();
+    /** 查询当前用户可见的未删除文档列表，包括所有者文档和有效授权文档。 */
+    public List<DocumentMetadata> list(long userId) {
+        requireUserId(userId);
+        return documentMapper.listActiveVisibleByUserId(userId).stream().map(this::toMetadata).toList();
     }
 
     /** 在当前用户个人范围内读取一份文档元数据。 */
