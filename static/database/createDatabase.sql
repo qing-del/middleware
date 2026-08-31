@@ -646,6 +646,33 @@ CREATE TABLE `biz_document_user` (
     KEY `idx_document_user_visible` (`user_id`, `enabled`, `document_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='协作文档用户直接授权';
 
+CREATE TABLE `biz_document_share_link` (
+    `id`              bigint       NOT NULL AUTO_INCREMENT COMMENT '分享短链ID',
+    `document_id`     bigint       NOT NULL COMMENT '关联 biz_document.id',
+    `creator_user_id` bigint       NOT NULL COMMENT '短链生成者用户ID',
+    `token_hash`      binary(32)   NOT NULL COMMENT '原始短链令牌的SHA-256摘要',
+    `permission`      varchar(16)  NOT NULL COMMENT 'READ 或 WRITE；WRITE 隐含 READ',
+    `expires_at`      datetime(3)  NOT NULL COMMENT '短链有效期截止时间',
+    `max_uses`        int unsigned NOT NULL COMMENT '短链最大有效兑换次数',
+    `used_count`      int unsigned NOT NULL DEFAULT 0 COMMENT '已完成的有效兑换次数',
+    `enabled`         tinyint      NOT NULL DEFAULT 1 COMMENT '短链是否有效(0:已取消,1:有效)',
+    `revoked_at`      datetime(3)  DEFAULT NULL COMMENT '短链取消时间',
+    `create_time`     datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `update_time`     datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_document_share_token_hash` (`token_hash`),
+    KEY `idx_document_share_owner` (`document_id`, `creator_user_id`, `enabled`),
+    KEY `idx_document_share_expiry` (`enabled`, `expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='协作文档分享短链';
+
+CREATE TABLE `biz_document_share_link_redemption` (
+    `share_link_id` bigint      NOT NULL COMMENT '关联 biz_document_share_link.id',
+    `user_id`       bigint      NOT NULL COMMENT '兑换用户ID',
+    `permission`    varchar(16) NOT NULL COMMENT '本次兑换实际授予的权限',
+    `redeemed_at`   datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '首次有效兑换时间',
+    PRIMARY KEY (`share_link_id`, `user_id`),
+    KEY `idx_share_redemption_user` (`user_id`, `redeemed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文档分享短链兑换记录';
 CREATE TABLE `document_op_log` (
     `id`               bigint       NOT NULL AUTO_INCREMENT COMMENT '持久化操作日志ID',
     `document_id`      bigint       NOT NULL COMMENT '关联biz_document.id',

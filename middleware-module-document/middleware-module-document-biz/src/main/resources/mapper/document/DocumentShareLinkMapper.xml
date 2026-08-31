@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.jacolp.document.infrastructure.persistence.mapper.DocumentShareLinkMapper">
+
+    <resultMap id="DocumentShareLinkMap"
+               type="com.jacolp.document.infrastructure.persistence.dataobject.DocumentShareLinkDO">
+        <id column="id" property="id"/>
+        <result column="document_id" property="documentId"/>
+        <result column="creator_user_id" property="creatorUserId"/>
+        <result column="token_hash" property="tokenHash"/>
+        <result column="permission" property="permission"
+                javaType="com.jacolp.document.enums.DocumentPermission"/>
+        <result column="expires_at" property="expiresAt"/>
+        <result column="max_uses" property="maxUses"/>
+        <result column="used_count" property="usedCount"/>
+        <result column="enabled" property="enabled"/>
+        <result column="revoked_at" property="revokedAt"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="DocumentShareLinkRedemptionMap"
+               type="com.jacolp.document.infrastructure.persistence.dataobject.DocumentShareLinkRedemptionDO">
+        <id column="share_link_id" property="shareLinkId"/>
+        <id column="user_id" property="userId"/>
+        <result column="permission" property="permission"
+                javaType="com.jacolp.document.enums.DocumentPermission"/>
+        <result column="redeemed_at" property="redeemedAt"/>
+    </resultMap>
+
+    <select id="selectByTokenHash" resultMap="DocumentShareLinkMap">
+        SELECT id, document_id, creator_user_id, token_hash, permission,
+               expires_at, max_uses, used_count, enabled, revoked_at,
+               create_time, update_time
+        FROM biz_document_share_link
+        WHERE token_hash = #{tokenHash}
+    </select>
+
+    <select id="selectByDocumentId" resultMap="DocumentShareLinkMap">
+        SELECT id, document_id, creator_user_id, token_hash, permission,
+               expires_at, max_uses, used_count, enabled, revoked_at,
+               create_time, update_time
+        FROM biz_document_share_link
+        WHERE document_id = #{documentId}
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectByIdForUpdate" resultMap="DocumentShareLinkMap">
+        SELECT id, document_id, creator_user_id, token_hash, permission,
+               expires_at, max_uses, used_count, enabled, revoked_at,
+               create_time, update_time
+        FROM biz_document_share_link
+        WHERE id = #{id}
+        FOR UPDATE
+    </select>
+
+    <insert id="insert" parameterType="com.jacolp.document.infrastructure.persistence.dataobject.DocumentShareLinkDO"
+            useGeneratedKeys="true" keyProperty="shareLink.id" keyColumn="id">
+        INSERT INTO biz_document_share_link
+            (document_id, creator_user_id, token_hash, permission, expires_at,
+             max_uses, used_count, enabled, revoked_at)
+        VALUES
+            (#{shareLink.documentId}, #{shareLink.creatorUserId}, #{shareLink.tokenHash},
+             #{shareLink.permission}, #{shareLink.expiresAt}, #{shareLink.maxUses},
+             COALESCE(#{shareLink.usedCount}, 0), COALESCE(#{shareLink.enabled}, 1),
+             #{shareLink.revokedAt})
+    </insert>
+
+    <update id="revokeByIdAndCreator">
+        UPDATE biz_document_share_link
+        SET enabled = 0,
+            revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP(3)),
+            update_time = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id}
+          AND creator_user_id = #{creatorUserId}
+    </update>
+
+    <update id="incrementUsedCountIfAvailable">
+        UPDATE biz_document_share_link
+        SET used_count = used_count + 1,
+            update_time = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id}
+          AND enabled = 1
+          AND expires_at > CURRENT_TIMESTAMP(3)
+          AND used_count < max_uses
+    </update>
+
+    <select id="selectRedemption" resultMap="DocumentShareLinkRedemptionMap">
+        SELECT share_link_id, user_id, permission, redeemed_at
+        FROM biz_document_share_link_redemption
+        WHERE share_link_id = #{shareLinkId}
+          AND user_id = #{userId}
+    </select>
+
+    <insert id="insertRedemption">
+        INSERT INTO biz_document_share_link_redemption
+            (share_link_id, user_id, permission, redeemed_at)
+        VALUES
+            (#{redemption.shareLinkId}, #{redemption.userId}, #{redemption.permission},
+             COALESCE(#{redemption.redeemedAt}, CURRENT_TIMESTAMP(3)))
+        ON DUPLICATE KEY UPDATE
+            permission = VALUES(permission)
+    </insert>
+</mapper>
