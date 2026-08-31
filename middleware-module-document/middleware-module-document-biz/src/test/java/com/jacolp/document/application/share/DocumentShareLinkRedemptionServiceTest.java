@@ -41,7 +41,8 @@ class DocumentShareLinkRedemptionServiceTest {
         when(links.selectByIdForUpdate(7L)).thenReturn(link);
         when(documents.selectActiveById(42L)).thenReturn(document());
         when(users.isActiveUser(2L)).thenReturn(true);
-        when(mappings.selectByDocumentIdAndUserId(42L, 2L)).thenReturn(null);
+        when(mappings.selectByDocumentIdAndUserId(42L, 2L)).thenReturn(null).thenReturn(
+                new DocumentUserMappingDO(42L, 2L, DocumentPermission.READ, true, null, null));
         when(links.selectRedemption(7L, 2L)).thenReturn(null).thenReturn(
                 new DocumentShareLinkRedemptionDO(7L, 2L, DocumentPermission.READ, LocalDateTime.now()));
         when(mappings.upsertByDocumentOwner(any(), eq(1L))).thenReturn(1);
@@ -118,8 +119,57 @@ class DocumentShareLinkRedemptionServiceTest {
         when(links.selectRedemption(7L, 2L)).thenReturn(
                 new DocumentShareLinkRedemptionDO(7L, 2L, DocumentPermission.READ, LocalDateTime.now()));
 
-        assertThat(service.redeem(principal(2L, "document:read"), "code").permission())
+        assertThatThrownBy(() -> service.redeem(principal(2L, "document:read"), "code"))
+                .isInstanceOf(DocumentAccessDeniedException.class);
+        verify(mappings, org.mockito.Mockito.never()).upsertByDocumentOwner(any(), any());
+        verify(links, org.mockito.Mockito.never()).incrementUsedCountIfAvailable(7L);
+    }
+    @Test
+    void existingWriteRedemptionUsesCurrentReadMappingPermission() {
+        DocumentShareLinkMapper links = mock(DocumentShareLinkMapper.class);
+        DocumentMapper documents = mock(DocumentMapper.class);
+        DocumentUserMappingMapper mappings = mock(DocumentUserMappingMapper.class);
+        UserProfileApi users = mock(UserProfileApi.class);
+        OpaqueTokenProtector protector = mock(OpaqueTokenProtector.class);
+        DocumentShareLinkRedemptionService service = new DocumentShareLinkRedemptionService(links, documents, mappings, users, protector);
+        DocumentShareLinkDO link = link(DocumentPermission.WRITE, 1);
+        when(protector.fingerprint("code")).thenReturn("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        when(links.selectByTokenHash(any())).thenReturn(link);
+        when(links.selectByIdForUpdate(7L)).thenReturn(link);
+        when(documents.selectActiveById(42L)).thenReturn(document());
+        when(users.isActiveUser(2L)).thenReturn(true);
+        when(mappings.selectByDocumentIdAndUserId(42L, 2L)).thenReturn(
+                new DocumentUserMappingDO(42L, 2L, DocumentPermission.READ, true, null, null));
+        when(links.selectRedemption(7L, 2L)).thenReturn(
+                new DocumentShareLinkRedemptionDO(7L, 2L, DocumentPermission.WRITE, LocalDateTime.now()));
+
+        assertThat(service.redeem(principal(2L, "document:write"), "code").permission())
                 .isEqualTo(DocumentPermission.READ);
+        verify(mappings, org.mockito.Mockito.never()).upsertByDocumentOwner(any(), any());
+        verify(links, org.mockito.Mockito.never()).incrementUsedCountIfAvailable(7L);
+    }
+
+    @Test
+    void existingReadRedemptionUsesCurrentWriteMappingPermission() {
+        DocumentShareLinkMapper links = mock(DocumentShareLinkMapper.class);
+        DocumentMapper documents = mock(DocumentMapper.class);
+        DocumentUserMappingMapper mappings = mock(DocumentUserMappingMapper.class);
+        UserProfileApi users = mock(UserProfileApi.class);
+        OpaqueTokenProtector protector = mock(OpaqueTokenProtector.class);
+        DocumentShareLinkRedemptionService service = new DocumentShareLinkRedemptionService(links, documents, mappings, users, protector);
+        DocumentShareLinkDO link = link(DocumentPermission.READ, 1);
+        when(protector.fingerprint("code")).thenReturn("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        when(links.selectByTokenHash(any())).thenReturn(link);
+        when(links.selectByIdForUpdate(7L)).thenReturn(link);
+        when(documents.selectActiveById(42L)).thenReturn(document());
+        when(users.isActiveUser(2L)).thenReturn(true);
+        when(mappings.selectByDocumentIdAndUserId(42L, 2L)).thenReturn(
+                new DocumentUserMappingDO(42L, 2L, DocumentPermission.WRITE, true, null, null));
+        when(links.selectRedemption(7L, 2L)).thenReturn(
+                new DocumentShareLinkRedemptionDO(7L, 2L, DocumentPermission.READ, LocalDateTime.now()));
+
+        assertThat(service.redeem(principal(2L, "document:read"), "code").permission())
+                .isEqualTo(DocumentPermission.WRITE);
         verify(mappings, org.mockito.Mockito.never()).upsertByDocumentOwner(any(), any());
         verify(links, org.mockito.Mockito.never()).incrementUsedCountIfAvailable(7L);
     }

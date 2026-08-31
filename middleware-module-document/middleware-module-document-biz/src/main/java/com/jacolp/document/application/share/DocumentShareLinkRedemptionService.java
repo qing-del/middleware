@@ -73,10 +73,13 @@ public class DocumentShareLinkRedemptionService {
         DocumentShareLinkRedemptionDO existingRedemption = shareLinkMapper.selectRedemption(link.getId(), principal.userId());
         DocumentUserMappingDO mapping = mappingMapper.selectByDocumentIdAndUserId(link.getDocumentId(), principal.userId());
         if (existingRedemption != null) {
-            // A successful redemption is idempotent. Do not re-grant a permission that the
-            // owner may have subsequently revoked, and do not consume another quota slot.
-            return new DocumentShareLinkRedeemResponse(document.getId(),
-                    highest(effectiveMappingPermission(mapping), existingRedemption.getPermission()), false);
+            // The ledger only makes redemption idempotent. The current enabled ACL is the
+            // source of truth, so a revoked mapping cannot be resurrected by the ledger.
+            DocumentPermission currentPermission = effectiveMappingPermission(mapping);
+            if (currentPermission == null) {
+                throw DocumentAccessDeniedException.forbidden();
+            }
+            return new DocumentShareLinkRedeemResponse(document.getId(), currentPermission, false);
         }
         DocumentPermission finalPermission = highest(effectiveMappingPermission(mapping), link.getPermission());
         boolean alreadyWritable = mapping != null
