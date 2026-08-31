@@ -76,9 +76,9 @@ public class DocumentShareLinkRedemptionService {
             // A successful redemption is idempotent. Do not re-grant a permission that the
             // owner may have subsequently revoked, and do not consume another quota slot.
             return new DocumentShareLinkRedeemResponse(document.getId(),
-                    highest(mapping == null ? null : mapping.getPermission(), existingRedemption.getPermission()), false);
+                    highest(effectiveMappingPermission(mapping), existingRedemption.getPermission()), false);
         }
-        DocumentPermission finalPermission = highest(mapping == null ? null : mapping.getPermission(), link.getPermission());
+        DocumentPermission finalPermission = highest(effectiveMappingPermission(mapping), link.getPermission());
         boolean alreadyWritable = mapping != null
                 && Boolean.TRUE.equals(mapping.getEnabled())
                 && mapping.getPermission() == DocumentPermission.WRITE;
@@ -122,5 +122,9 @@ public class DocumentShareLinkRedemptionService {
     private static DocumentPermission highest(DocumentPermission first, DocumentPermission second) {
         return first == DocumentPermission.WRITE || second == DocumentPermission.WRITE
                 ? DocumentPermission.WRITE : DocumentPermission.READ;
+    }
+
+    private static DocumentPermission effectiveMappingPermission(DocumentUserMappingDO mapping) {
+        return mapping != null && Boolean.TRUE.equals(mapping.getEnabled()) ? mapping.getPermission() : null;
     }
 }

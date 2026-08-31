@@ -67,6 +67,62 @@ class DocumentShareLinkRedemptionServiceTest {
                 .isInstanceOf(com.jacolp.common.core.exception.PermissionDeniedException.class);
     }
 
+
+    @Test
+    void disabledWriteMappingDoesNotUpgradeReadLink() {
+        DocumentShareLinkMapper links = mock(DocumentShareLinkMapper.class);
+        DocumentMapper documents = mock(DocumentMapper.class);
+        DocumentUserMappingMapper mappings = mock(DocumentUserMappingMapper.class);
+        UserProfileApi users = mock(UserProfileApi.class);
+        OpaqueTokenProtector protector = mock(OpaqueTokenProtector.class);
+        DocumentShareLinkRedemptionService service = new DocumentShareLinkRedemptionService(links, documents, mappings, users, protector);
+        DocumentShareLinkDO link = link(DocumentPermission.READ, 0);
+        DocumentUserMappingDO disabledWrite = new DocumentUserMappingDO(42L, 2L, DocumentPermission.WRITE,
+                false, null, null);
+        when(protector.fingerprint("code")).thenReturn("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        when(links.selectByTokenHash(any())).thenReturn(link);
+        when(links.selectByIdForUpdate(7L)).thenReturn(link);
+        when(documents.selectActiveById(42L)).thenReturn(document());
+        when(users.isActiveUser(2L)).thenReturn(true);
+        when(mappings.selectByDocumentIdAndUserId(42L, 2L)).thenReturn(disabledWrite);
+        when(links.selectRedemption(7L, 2L)).thenReturn(null);
+        when(mappings.upsertByDocumentOwner(any(), eq(1L))).thenReturn(1);
+        when(links.insertRedemption(any())).thenReturn(1);
+        when(links.incrementUsedCountIfAvailable(7L)).thenReturn(1);
+
+        assertThat(service.redeem(principal(2L, "document:read"), "code").permission())
+                .isEqualTo(DocumentPermission.READ);
+        org.mockito.ArgumentCaptor<DocumentUserMappingDO> grant = org.mockito.ArgumentCaptor.forClass(DocumentUserMappingDO.class);
+        verify(mappings).upsertByDocumentOwner(grant.capture(), eq(1L));
+        assertThat(grant.getValue().getPermission()).isEqualTo(DocumentPermission.READ);
+        assertThat(grant.getValue().getEnabled()).isTrue();
+    }
+
+    @Test
+    void existingRedemptionDoesNotTreatDisabledMappingAsEffective() {
+        DocumentShareLinkMapper links = mock(DocumentShareLinkMapper.class);
+        DocumentMapper documents = mock(DocumentMapper.class);
+        DocumentUserMappingMapper mappings = mock(DocumentUserMappingMapper.class);
+        UserProfileApi users = mock(UserProfileApi.class);
+        OpaqueTokenProtector protector = mock(OpaqueTokenProtector.class);
+        DocumentShareLinkRedemptionService service = new DocumentShareLinkRedemptionService(links, documents, mappings, users, protector);
+        DocumentShareLinkDO link = link(DocumentPermission.READ, 1);
+        DocumentUserMappingDO disabledWrite = new DocumentUserMappingDO(42L, 2L, DocumentPermission.WRITE,
+                false, null, null);
+        when(protector.fingerprint("code")).thenReturn("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        when(links.selectByTokenHash(any())).thenReturn(link);
+        when(links.selectByIdForUpdate(7L)).thenReturn(link);
+        when(documents.selectActiveById(42L)).thenReturn(document());
+        when(users.isActiveUser(2L)).thenReturn(true);
+        when(mappings.selectByDocumentIdAndUserId(42L, 2L)).thenReturn(disabledWrite);
+        when(links.selectRedemption(7L, 2L)).thenReturn(
+                new DocumentShareLinkRedemptionDO(7L, 2L, DocumentPermission.READ, LocalDateTime.now()));
+
+        assertThat(service.redeem(principal(2L, "document:read"), "code").permission())
+                .isEqualTo(DocumentPermission.READ);
+        verify(mappings, org.mockito.Mockito.never()).upsertByDocumentOwner(any(), any());
+        verify(links, org.mockito.Mockito.never()).incrementUsedCountIfAvailable(7L);
+    }
     private static DocumentShareLinkDO link(DocumentPermission permission, int used) {
         return new DocumentShareLinkDO(7L, 42L, 1L, new byte[32], permission, LocalDateTime.now().plusHours(1),
                 3, used, true, null, null, null);
