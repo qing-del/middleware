@@ -3,8 +3,8 @@
 ## 状态与适用范围
 
 这是 Phase 5 首发的、可执行的 route-to-scope 目录。Phase 6 删除旧四个登录/登出
-路由后，当前存在 128 个 `@RestController` 下的 `/user/**` 与 `/admin/**` 最终 HTTP
-路由：83 个 user 路由、45 个 admin 路由；其中 124 个是 bearer 业务路由、4 个是下文明确排除的
+路由后，当前存在 131 个 `@RestController` 下的 `/user/**` 与 `/admin/**` 最终 HTTP
+路由：86 个 user 路由、45 个 admin 路由；其中 127 个是 bearer 业务路由、4 个是下文明确排除的
 legacy/public/activation 例外。认证完成后，每个业务路由都必须同时满足本表的全部
 required scope；scope 的 wildcard 匹配由统一 matcher 完成，签发 JWT 时不展开。
 
@@ -45,7 +45,7 @@ admin 操作还会保留相应 rank/creator 业务约束。
 HTTP `403`；响应体保持既有 `Result.error` 契约。此行为在 RS256 与 legacy 模式下一致。
 OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不走业务 `Result` 错误体。
 
-## `/user/**`：user client（79 bearer routes）
+## `/user/**`：user client（82 bearer routes）
 
 | # | method + path | required scopes（all-of） | 业务语义 |
 | ---: | --- | --- | --- |
@@ -72,6 +72,9 @@ OAuth 协议端点不属于本目录，继续使用 RFC OAuth 错误格式，不
 | 21 | `DELETE /user/document/{documentId}/users/{userId}` | `document:write` | 撤销 own 文档授权 |
 | 22 | `PATCH /user/document/{documentId}/meta` | `document:write` | 修改 own 协作文档标题 |
 | 23 | `DELETE /user/document/{documentId}` | `document:write` | 删除 own 协作文档 |
+| 24 | `POST /user/document/{documentId}/share-links` | `document:write` | 创建 own 文档分享短链 |
+| 25 | `GET /user/document/{documentId}/share-links` | `document:read` | 查询 own 文档分享短链 |
+| 26 | `DELETE /user/document/{documentId}/share-links/{shareLinkId}` | `document:write` | 取消 own 文档分享短链 |
 | 24 | `POST /user/note/list` | `note:read` | 列表 own 笔记 |
 | 25 | `GET /user/note/overview` | `note:read` | own 笔记统计 |
 | 26 | `POST /user/note/upload` | `note:write` | 创建 own 笔记 |

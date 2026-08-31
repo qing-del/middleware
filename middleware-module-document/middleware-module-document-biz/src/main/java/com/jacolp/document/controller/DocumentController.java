@@ -5,6 +5,7 @@ import com.jacolp.common.security.context.BaseContext;
 import com.jacolp.document.api.model.DocumentMetadata;
 import com.jacolp.document.application.authorization.DocumentUserAuthorizationService;
 import com.jacolp.document.application.metadata.DocumentMetadataService;
+import com.jacolp.document.application.share.DocumentShareLinkService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -36,13 +37,16 @@ public class DocumentController {
 
     private final DocumentMetadataService metadataService;
     private final DocumentUserAuthorizationService authorizationService;
+    private final DocumentShareLinkService shareLinkService;
 
     /** 创建文档元数据控制器，并保持正文协作由 WebSocket 端点负责。 */
     public DocumentController(DocumentMetadataService metadataService,
-                               DocumentUserAuthorizationService authorizationService) {
+                               DocumentUserAuthorizationService authorizationService,
+                               DocumentShareLinkService shareLinkService) {
         this.metadataService = Objects.requireNonNull(metadataService, "metadataService must not be null");
         this.authorizationService = Objects.requireNonNull(authorizationService,
                 "authorizationService must not be null");
+        this.shareLinkService = Objects.requireNonNull(shareLinkService, "shareLinkService must not be null");
     }
 
     @PostMapping
@@ -93,6 +97,31 @@ public class DocumentController {
             @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
             @Parameter(description = "被授权用户 ID") @PathVariable @Positive long userId) {
         authorizationService.revoke(BaseContext.getCurrentId(), documentId, userId);
+        return Result.success();
+    }
+
+    @PostMapping("/{documentId}/share-links")
+    @Operation(summary = "创建协作文档分享短链")
+    public Result<DocumentShareLinkResponse> createShareLink(
+            @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
+            @RequestBody @Valid DocumentShareLinkRequest request) {
+        return Result.success(shareLinkService.create(BaseContext.getCurrentId(), documentId,
+                request.permission(), request.validForSeconds(), request.maxUses()));
+    }
+
+    @GetMapping("/{documentId}/share-links")
+    @Operation(summary = "查询协作文档分享短链")
+    public Result<List<DocumentShareLinkResponse>> listShareLinks(
+            @Parameter(description = "文档 ID") @PathVariable @Positive long documentId) {
+        return Result.success(shareLinkService.list(BaseContext.getCurrentId(), documentId));
+    }
+
+    @DeleteMapping("/{documentId}/share-links/{shareLinkId}")
+    @Operation(summary = "取消协作文档分享短链")
+    public Result<Void> revokeShareLink(
+            @Parameter(description = "文档 ID") @PathVariable @Positive long documentId,
+            @Parameter(description = "分享短链 ID") @PathVariable @Positive long shareLinkId) {
+        shareLinkService.revoke(BaseContext.getCurrentId(), documentId, shareLinkId);
         return Result.success();
     }
 

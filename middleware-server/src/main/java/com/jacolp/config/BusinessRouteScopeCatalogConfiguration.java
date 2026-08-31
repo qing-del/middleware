@@ -27,7 +27,7 @@ public class BusinessRouteScopeCatalogConfiguration {
         return new ImmutableBusinessRouteAuthorizationPolicy(entries());
     }
 
-    /** Matches only the 124 bearer business routes, never the four public activation exceptions. */
+    /** Matches only the 127 bearer business routes, never the four public activation exceptions. */
     @Bean
     public RequestMatcher businessRouteRequestMatcher() {
         return new OrRequestMatcher(entries().stream()
@@ -66,6 +66,9 @@ public class BusinessRouteScopeCatalogConfiguration {
                 user("GET /user/document/{documentId}/users document:read"),
                 user("PUT /user/document/{documentId}/users/{userId} document:write"),
                 user("DELETE /user/document/{documentId}/users/{userId} document:write"),
+                user("POST /user/document/{documentId}/share-links document:write"),
+                user("GET /user/document/{documentId}/share-links document:read"),
+                user("DELETE /user/document/{documentId}/share-links/{shareLinkId} document:write"),
                 user("PATCH /user/document/{documentId}/meta document:write"),
                 user("DELETE /user/document/{documentId} document:write"),
                 // user notes
