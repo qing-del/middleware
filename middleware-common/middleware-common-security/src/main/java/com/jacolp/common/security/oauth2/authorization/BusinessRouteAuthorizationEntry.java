@@ -11,7 +11,8 @@ import java.util.Set;
 
 /** One exact method/path-pattern rule; every required scope must be granted. */
 public record BusinessRouteAuthorizationEntry(HttpMethod method, String pathPattern,
-                                              Set<String> requiredScopes, String requiredClientId) {
+                                              Set<String> requiredScopes, String requiredClientId,
+                                              boolean anyRequiredScope) {
 
     private static final PathPatternParser PATH_PATTERN_PARSER = new PathPatternParser();
 
@@ -25,6 +26,11 @@ public record BusinessRouteAuthorizationEntry(HttpMethod method, String pathPatt
         if (!"user".equals(requiredClientId) && !"admin".equals(requiredClientId)) {
             throw new IllegalArgumentException("requiredClientId must be user or admin");
         }
+    }
+
+    public BusinessRouteAuthorizationEntry(HttpMethod method, String pathPattern,
+                                           Set<String> requiredScopes, String requiredClientId) {
+        this(method, pathPattern, requiredScopes, requiredClientId, false);
     }
 
     PathPattern compiledPattern() {

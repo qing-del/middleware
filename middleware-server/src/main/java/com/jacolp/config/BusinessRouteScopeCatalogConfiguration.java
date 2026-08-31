@@ -27,7 +27,7 @@ public class BusinessRouteScopeCatalogConfiguration {
         return new ImmutableBusinessRouteAuthorizationPolicy(entries());
     }
 
-    /** Matches only the 127 bearer business routes, never the four public activation exceptions. */
+    /** Matches only the 128 bearer business routes, never the four public activation exceptions. */
     @Bean
     public RequestMatcher businessRouteRequestMatcher() {
         return new OrRequestMatcher(entries().stream()
@@ -35,7 +35,7 @@ public class BusinessRouteScopeCatalogConfiguration {
                 .toList());
     }
 
-    /** The resource-server chain also owns this authenticated internal endpoint, outside the 128 route catalogue. */
+    /** The resource-server chain also owns this authenticated internal endpoint, outside the 132 route catalogue. */
     @Bean
     public RequestMatcher internalLogoutRequestMatcher() {
         return PathPatternRequestMatcher.pathPattern(HttpMethod.POST, INTERNAL_LOGOUT_PATH);
@@ -69,6 +69,7 @@ public class BusinessRouteScopeCatalogConfiguration {
                 user("POST /user/document/{documentId}/share-links document:write"),
                 user("GET /user/document/{documentId}/share-links document:read"),
                 user("DELETE /user/document/{documentId}/share-links/{shareLinkId} document:write"),
+                userAny("POST /user/document/share-links/{code}/redeem document:read|document:write"),
                 user("PATCH /user/document/{documentId}/meta document:write"),
                 user("DELETE /user/document/{documentId} document:write"),
                 // user notes
@@ -131,6 +132,10 @@ public class BusinessRouteScopeCatalogConfiguration {
         );
     }
 
+    private static BusinessRouteAuthorizationEntry userAny(String specification) {
+        return entry(specification, "user", true);
+    }
+
     private static BusinessRouteAuthorizationEntry user(String specification) {
         return entry(specification, "user");
     }
@@ -140,9 +145,14 @@ public class BusinessRouteScopeCatalogConfiguration {
     }
 
     private static BusinessRouteAuthorizationEntry entry(String specification, String clientId) {
+        return entry(specification, clientId, false);
+    }
+
+    private static BusinessRouteAuthorizationEntry entry(String specification, String clientId, boolean anyRequiredScope) {
         String[] fields = specification.split(" ", 3);
         if (fields.length != 3) throw new IllegalArgumentException("invalid route specification: " + specification);
-        Set<String> scopes = new LinkedHashSet<>(Arrays.asList(fields[2].split("\\+")));
-        return new BusinessRouteAuthorizationEntry(HttpMethod.valueOf(fields[0]), fields[1], scopes, clientId);
+        String scopeSeparator = anyRequiredScope ? "\\|" : "\\+";
+        Set<String> scopes = new LinkedHashSet<>(Arrays.asList(fields[2].split(scopeSeparator)));
+        return new BusinessRouteAuthorizationEntry(HttpMethod.valueOf(fields[0]), fields[1], scopes, clientId, anyRequiredScope);
     }
 }

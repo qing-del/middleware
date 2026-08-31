@@ -53,8 +53,10 @@ public final class ImmutableBusinessRouteAuthorizationPolicy implements Business
         BusinessRouteAuthorizationEntry entry = orderedMatches.getFirst();
         if (!entry.requiredClientId().equals(principal.clientId())) return Decision.CLIENT_MISMATCH;
         if (!clientRoleMatches(entry.requiredClientId(), principal.roles())) return Decision.ROLE_MISMATCH;
-        return PermissionScopeMatcher.grantsAll(principal.scopes(), entry.requiredScopes())
-                ? Decision.ALLOW : Decision.SCOPE_MISMATCH;
+        boolean scopeGranted = entry.anyRequiredScope()
+                ? entry.requiredScopes().stream().anyMatch(scope -> PermissionScopeMatcher.grants(principal.scopes(), scope))
+                : PermissionScopeMatcher.grantsAll(principal.scopes(), entry.requiredScopes());
+        return scopeGranted ? Decision.ALLOW : Decision.SCOPE_MISMATCH;
     }
 
     private static void rejectDuplicateMethodPatterns(List<BusinessRouteAuthorizationEntry> entries) {
