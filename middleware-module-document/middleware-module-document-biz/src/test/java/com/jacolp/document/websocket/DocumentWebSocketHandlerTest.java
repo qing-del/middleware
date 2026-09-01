@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -28,6 +29,7 @@ import com.jacolp.document.websocket.protocol.DocumentWsCodec;
 import com.jacolp.document.websocket.protocol.DocumentWsControlMessage;
 import com.jacolp.document.websocket.protocol.DocumentWsControlType;
 import com.jacolp.document.websocket.protocol.DocumentWsFrameType;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -260,6 +263,80 @@ class DocumentWebSocketHandlerTest {
         assertThat(response.code()).isEqualTo("DOCUMENT_FORBIDDEN");
     }
 
+    @Test
+    void bootstrapFailureReleasesTheSessionColor() throws Exception {
+        DocumentProperties properties = new DocumentProperties();
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
+        DocumentAccessService accessService = mock(DocumentAccessService.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
+        DocumentRoomManager roomManager = new DocumentRoomManager(properties);
+        WebSocketSession session = session("session-bootstrap", principal(42L, "document:write"));
+        DocumentAccess access = access(document(7L, 42L), DocumentPermission.WRITE, true);
+        when(accessService.requireRead(7L, 42L)).thenReturn(access);
+        when(redisRepository.findRoomMeta(7L)).thenReturn(Optional.empty());
+        org.mockito.Mockito.doThrow(new DocumentBootstrapException("bootstrap failed"))
+                .when(bootstrapService).sendBootstrap(eq(7L), any(WebSocketSession.class));
+
+        DocumentWebSocketHandler handler = handler(codec, documentMapper, accessService, redisRepository,
+                bootstrapService, schedulePublisher, presenceRegistry, lifecycleService, properties, roomManager);
+        handler.handleMessage(session, codec.encodeControl(new DocumentWsControlMessage(1,
+                DocumentWsControlType.JOIN_DOCUMENT, UUID.randomUUID(), 7L, null, null, null, null)));
+
+        DocumentRoom room = roomManager.find(7L).orElseThrow();
+        assertThat(room.sessionCount()).isZero();
+        DocumentSessionContext replacement = room.join(session("session-bootstrap", principal(42L, "document:write")),
+                principal(42L, "document:write"), access);
+        assertThat(replacement.cursorColor()).matches("#[0-9A-F]{6}");
+        verify(presenceRegistry, atLeastOnce()).unregister("session-bootstrap");
+    }
+
+    @Test
+    void normalCloseAndTransportErrorReleaseSessionColors() throws Exception {
+        DocumentProperties properties = new DocumentProperties();
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
+        DocumentAccessService accessService = mock(DocumentAccessService.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
+        DocumentRoomManager roomManager = new DocumentRoomManager(properties);
+        DocumentDO document = document(7L, 42L);
+        DocumentAccess access = access(document, DocumentPermission.WRITE, true);
+        when(accessService.requireRead(7L, 42L)).thenReturn(access);
+        when(redisRepository.findRoomMeta(7L)).thenReturn(Optional.empty());
+        DocumentWebSocketHandler handler = handler(codec, documentMapper, accessService, redisRepository,
+                bootstrapService, schedulePublisher, presenceRegistry, lifecycleService, properties, roomManager);
+
+        WebSocketSession normalSession = session("session-normal-close", principal(42L, "document:write"));
+        handler.handleMessage(normalSession, codec.encodeControl(new DocumentWsControlMessage(1,
+                DocumentWsControlType.JOIN_DOCUMENT, UUID.randomUUID(), 7L, null, null, null, null)));
+        DocumentRoom room = roomManager.find(7L).orElseThrow();
+        String normalColor = room.requireSession("session-normal-close").cursorColor();
+        handler.afterConnectionClosed(normalSession, CloseStatus.NORMAL);
+        assertThat(room.sessionCount()).isZero();
+        assertThat(room.join(session("session-normal-close", principal(42L, "document:write")),
+                principal(42L, "document:write"), access).cursorColor())
+                .isEqualTo(normalColor);
+        room.leave("session-normal-close");
+
+        WebSocketSession transportSession = session("session-transport-error", principal(42L, "document:write"));
+        handler.handleMessage(transportSession, codec.encodeControl(new DocumentWsControlMessage(1,
+                DocumentWsControlType.JOIN_DOCUMENT, UUID.randomUUID(), 7L, null, null, null, null)));
+        String transportColor = room.requireSession("session-transport-error").cursorColor();
+        handler.handleTransportError(transportSession, new IOException("transport failed"));
+        assertThat(room.sessionCount()).isZero();
+        assertThat(room.join(session("session-transport-error", principal(42L, "document:write")),
+                principal(42L, "document:write"), access).cursorColor())
+                .isEqualTo(transportColor);
+    }
+
     private static DocumentWebSocketHandler handler(DocumentWsCodec codec, DocumentMapper documentMapper,
                                                     DocumentAccessService accessService,
                                                     DocumentRedisRepository redisRepository,
@@ -268,8 +345,21 @@ class DocumentWebSocketHandlerTest {
                                                     DocumentSessionPresenceRegistry presenceRegistry,
                                                     DocumentRoomLifecycleService lifecycleService,
                                                     DocumentProperties properties) {
+        return handler(codec, documentMapper, accessService, redisRepository, bootstrapService, schedulePublisher,
+                presenceRegistry, lifecycleService, properties, new DocumentRoomManager(properties));
+    }
+
+    private static DocumentWebSocketHandler handler(DocumentWsCodec codec, DocumentMapper documentMapper,
+                                                    DocumentAccessService accessService,
+                                                    DocumentRedisRepository redisRepository,
+                                                    DocumentBootstrapService bootstrapService,
+                                                    DocumentSchedulePublisher schedulePublisher,
+                                                    DocumentSessionPresenceRegistry presenceRegistry,
+                                                    DocumentRoomLifecycleService lifecycleService,
+                                                    DocumentProperties properties,
+                                                    DocumentRoomManager roomManager) {
         return new DocumentWebSocketHandler(codec, documentMapper, accessService, redisRepository,
-                new DocumentRoomManager(properties), bootstrapService, schedulePublisher, presenceRegistry,
+                roomManager, bootstrapService, schedulePublisher, presenceRegistry,
                 lifecycleService, properties);
     }
 

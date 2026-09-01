@@ -361,7 +361,8 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private void sendControl(WebSocketSession session, DocumentWsControlMessage control) {
         try {
             session.sendMessage(codec.encodeControl(control));
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
+            // 底层会话可能以 IOException 或已关闭/超限状态抛出运行时异常，两者都必须释放 Room 颜色。
             leaveSession(session);
         }
     }

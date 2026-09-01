@@ -10,16 +10,24 @@ public final class DocumentSessionContext {
 
     private final WebSocketSession session;
     private final long userId;
+    private final String username;
+    private final String cursorColor;
     private volatile SessionAccess access;
     private volatile DocumentSessionSyncStatus syncStatus = DocumentSessionSyncStatus.SYNCING;
 
     /** 创建尚未完成 bootstrap 的同步中会话上下文。 */
-    DocumentSessionContext(WebSocketSession session, long userId, DocumentAccess documentAccess) {
+    DocumentSessionContext(WebSocketSession session, long userId, String username, String cursorColor,
+                           DocumentAccess documentAccess) {
         this.session = Objects.requireNonNull(session, "session must not be null");
         if (userId <= 0) {
             throw new IllegalArgumentException("userId must be positive");
         }
         this.userId = userId;
+        this.username = username;
+        if (cursorColor == null || cursorColor.isBlank()) {
+            throw new IllegalArgumentException("cursorColor must not be blank");
+        }
+        this.cursorColor = cursorColor;
         this.access = toSessionAccess(Objects.requireNonNull(documentAccess, "documentAccess must not be null"));
     }
 
@@ -36,6 +44,16 @@ public final class DocumentSessionContext {
     /** 返回握手认证得到的用户 ID。 */
     public long userId() {
         return userId;
+    }
+
+    /** 返回握手认证得到的用户名；后续 Awareness 元数据将复用该显示名称。 */
+    public String username() {
+        return username;
+    }
+
+    /** 返回服务端为当前 WebSocket Session 分配的临时光标颜色。 */
+    public String cursorColor() {
+        return cursorColor;
     }
 
     /** 返回当前会话在最近一次 ACL 校验中获得的文档权限。 */

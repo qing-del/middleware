@@ -23,11 +23,18 @@ public class DocumentRoom {
     private final long documentId;
     private final long ownerUserId;
     private final DocumentProperties properties;
+    private final DocumentCursorColorAllocator cursorColorAllocator;
     private final ConcurrentHashMap<String, DocumentSessionContext> sessions = new ConcurrentHashMap<>();
     private volatile DocumentRoomLifecycleState lifecycleState = DocumentRoomLifecycleState.OPEN;
 
     /** 创建只保存会话运行态的本机 Room。 */
     DocumentRoom(long documentId, long ownerUserId, DocumentProperties properties) {
+        this(documentId, ownerUserId, properties, new DocumentCursorColorAllocator());
+    }
+
+    /** 创建指定颜色分配器的 Room；测试使用该入口验证碰撞和容量边界。 */
+    DocumentRoom(long documentId, long ownerUserId, DocumentProperties properties,
+                 DocumentCursorColorAllocator cursorColorAllocator) {
         if (documentId <= 0 || ownerUserId <= 0) {
             // Room ID 会直接参与本地索引和 Redis key 生成，非法范围不能创建运行时容器。
             throw new IllegalArgumentException("documentId and ownerUserId must be positive");
@@ -35,6 +42,7 @@ public class DocumentRoom {
         this.documentId = documentId;
         this.ownerUserId = ownerUserId;
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
+        this.cursorColorAllocator = Objects.requireNonNull(cursorColorAllocator, "cursorColorAllocator must not be null");
     }
 
     /** 校验 Room 状态和已计算的文档访问结果后加入会话；重复加入同一 session 保持幂等。 */
@@ -63,14 +71,23 @@ public class DocumentRoom {
             throw new DocumentRoomLimitExceededException("document room session limit exceeded");
         }
 
-        // 用带上限的装饰器隔离慢客户端，避免单个出站队列拖住其他协作者。
-        WebSocketSession boundedSession = new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS,
-                properties.getWebsocket().getMaxSendQueueBytes(),
-                ConcurrentWebSocketSessionDecorator.OverflowStrategy.TERMINATE);
-        DocumentSessionContext context = new DocumentSessionContext(boundedSession, principal.userId(), documentAccess);
-        sessions.put(context.sessionId(), context);
-        lifecycleState = DocumentRoomLifecycleState.ACTIVE;
-        return context;
+        String sessionId = session.getId();
+        String cursorColor = cursorColorAllocator.allocate(sessionId);
+        try {
+            // 用带上限的装饰器隔离慢客户端，避免单个出站队列拖住其他协作者。
+            WebSocketSession boundedSession = new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS,
+                    properties.getWebsocket().getMaxSendQueueBytes(),
+                    ConcurrentWebSocketSessionDecorator.OverflowStrategy.TERMINATE);
+            DocumentSessionContext context = new DocumentSessionContext(boundedSession, principal.userId(),
+                    principal.username(), cursorColor, documentAccess);
+            sessions.put(context.sessionId(), context);
+            lifecycleState = DocumentRoomLifecycleState.ACTIVE;
+            return context;
+        } catch (RuntimeException exception) {
+            // 会话包装器或上下文创建失败时回滚颜色，避免失败 JOIN 泄漏 Room 颜色容量。
+            cursorColorAllocator.release(sessionId);
+            throw exception;
+        }
     }
 
     /** 移除本机会话；最后一个离开者把 Room 推进到 PRE_CLOSE。 */
@@ -80,6 +97,10 @@ public class DocumentRoom {
             return false;
         }
         DocumentSessionContext removed = sessions.remove(sessionId);
+        if (removed != null) {
+            // 所有退出路径都在这里释放颜色；重复退出不会影响其他 Session 的颜色占用。
+            cursorColorAllocator.release(sessionId);
+        }
         if (removed != null && sessions.isEmpty()) {
             // 只有确实移除了最后一个成员才进入 PRE_CLOSE，供异步关闭流程继续做全局校验。
             lifecycleState = DocumentRoomLifecycleState.PRE_CLOSE;
