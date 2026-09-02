@@ -12,12 +12,13 @@ public final class DocumentSessionContext {
     private final long userId;
     private final String username;
     private final String cursorColor;
+    private final long awarenessClientId;
     private volatile SessionAccess access;
     private volatile DocumentSessionSyncStatus syncStatus = DocumentSessionSyncStatus.SYNCING;
 
     /** 创建尚未完成 bootstrap 的同步中会话上下文。 */
     DocumentSessionContext(WebSocketSession session, long userId, String username, String cursorColor,
-                           DocumentAccess documentAccess) {
+                           long awarenessClientId, DocumentAccess documentAccess) {
         this.session = Objects.requireNonNull(session, "session must not be null");
         if (userId <= 0) {
             throw new IllegalArgumentException("userId must be positive");
@@ -28,6 +29,10 @@ public final class DocumentSessionContext {
             throw new IllegalArgumentException("cursorColor must not be blank");
         }
         this.cursorColor = cursorColor;
+        if (awarenessClientId <= 0) {
+            throw new IllegalArgumentException("awarenessClientId must be positive");
+        }
+        this.awarenessClientId = awarenessClientId;
         this.access = toSessionAccess(Objects.requireNonNull(documentAccess, "documentAccess must not be null"));
     }
 
@@ -54,6 +59,11 @@ public final class DocumentSessionContext {
     /** 返回服务端为当前 WebSocket Session 分配的临时光标颜色。 */
     public String cursorColor() {
         return cursorColor;
+    }
+
+    /** 返回当前 Yjs Awareness 实例的 client ID；同一 Room 内必须唯一。 */
+    public long awarenessClientId() {
+        return awarenessClientId;
     }
 
     /** 返回当前会话在最近一次 ACL 校验中获得的文档权限。 */

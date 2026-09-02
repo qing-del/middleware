@@ -59,4 +59,24 @@ class DocumentWsCodecTest {
                 .isInstanceOf(DocumentWsProtocolException.class)
                 .hasMessageContaining("requestId");
     }
+
+    @Test
+    void roundTripsJoinAwarenessClientIdAndTypedAwarenessMetadata() {
+        UUID requestId = UUID.fromString("123e4567-e89b-12d3-a456-426614174010");
+        DocumentWsControlMessage join = new DocumentWsControlMessage(1, DocumentWsControlType.JOIN_DOCUMENT,
+                requestId, 7L, null, null, null, null, 123456789L);
+
+        assertThat(codec.decodeControl(codec.encodeControl(join))).isEqualTo(join);
+
+        DocumentWsAwarenessMeta upsert = new DocumentWsAwarenessMeta(1,
+                DocumentWsControlType.AWARENESS_META, requestId, DocumentWsAwarenessAction.UPSERT,
+                7L, 123456789L, "session-a", 42L, "alice", "#3B82F6");
+        DocumentWsAwarenessMeta decoded = codec.decodeAwarenessMeta(codec.encodeAwarenessMeta(upsert));
+
+        assertThat(decoded).isEqualTo(upsert);
+        assertThat(codec.decodeAwarenessMeta(codec.encodeAwarenessMeta(new DocumentWsAwarenessMeta(1,
+                DocumentWsControlType.AWARENESS_META, requestId, DocumentWsAwarenessAction.REMOVE,
+                7L, 123456789L, "session-a", null, null, null))).action())
+                .isEqualTo(DocumentWsAwarenessAction.REMOVE);
+    }
 }

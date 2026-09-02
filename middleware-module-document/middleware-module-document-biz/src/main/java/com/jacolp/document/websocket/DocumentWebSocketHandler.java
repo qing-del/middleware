@@ -14,6 +14,8 @@ import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.infrastructure.redis.DocumentRoomMeta;
 import com.jacolp.document.messaging.DocumentSchedulePublisher;
 import com.jacolp.document.metrics.DocumentMetrics;
+import com.jacolp.document.websocket.protocol.DocumentWsAwarenessAction;
+import com.jacolp.document.websocket.protocol.DocumentWsAwarenessMeta;
 import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
 import com.jacolp.document.websocket.protocol.DocumentWsCodec;
 import com.jacolp.document.websocket.protocol.DocumentWsControlMessage;
@@ -23,8 +25,13 @@ import com.jacolp.document.websocket.protocol.DocumentWsProtocolException;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,6 +129,9 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         } catch (DocumentRoomLimitExceededException exception) {
             // Room 容量是资源级保护，返回专用错误码让客户端稍后重试，而不是当作协议错误。
             sendError(session, control.requestId(), "DOCUMENT_ROOM_LIMIT_EXCEEDED", exception.getMessage());
+        } catch (DocumentAwarenessException exception) {
+            // Awareness 身份是 JOIN 的必要条件或 Room 绑定约束，向客户端返回稳定原因而不是泛化为协议错误。
+            sendError(session, control.requestId(), exception.code(), exception.getMessage());
         } catch (DocumentAccessDeniedException exception) {
             if (control.type() == DocumentWsControlType.JOIN_DOCUMENT
                     && joinedDocumentIds.containsKey(session.getId())) {
@@ -201,6 +211,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
 
     /** 校验文档 ACL 后建立 Room 归属，按顺序发送 bootstrap 并在完成后激活会话。 */
     private void handleJoin(WebSocketSession session, DocumentWsControlMessage control) {
+        long awarenessClientId = requireAwarenessClientId(control.awarenessClientId());
         long documentId = requireDocumentId(control.documentId());
         CurrentPrincipal principal = DocumentWebSocketHandshakeInterceptor.requirePrincipal(session.getAttributes());
         DocumentAccess access = accessService.requireRead(documentId, principal.userId());
@@ -213,9 +224,11 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             DocumentRoom room = roomManager.find(documentId)
                     .orElseThrow(() -> new DocumentRoomAccessException("document Room is not available"));
             // 同一会话重复 JOIN 时不重放文档，但刷新会话权限以反映最新 ACL。
-            room.join(session, principal, access);
-            sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
-                    control.requestId(), documentId, null, null, null, null));
+            room.join(session, principal, access, awarenessClientId);
+            if (!sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
+                    control.requestId(), documentId, null, null, null, null))) {
+                return;
+            }
             sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.SYNC_COMPLETE,
                     control.requestId(), documentId, null, null, null, null));
             return;
@@ -224,14 +237,19 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         DocumentDO document = access.document();
         DocumentRoom room = roomManager.getOrCreate(documentId, requireOwnerUserId(document));
         // 先登记本地 Room 和 presence，再发送 bootstrap，确保期间 CLOSE 不会误判无人在线。
-        DocumentSessionContext context = room.join(session, principal, access);
+        DocumentSessionContext context = room.join(session, principal, access, awarenessClientId);
         joinedDocumentIds.put(session.getId(), documentId);
         roomManager.refreshRuntimeMetrics();
         try {
             presenceRegistry.register(documentId, session.getId());
             lifecycleService.reopen(document, principal.userId());
-            sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
-                    control.requestId(), documentId, null, null, null, null));
+            if (!sendControl(session, new DocumentWsControlMessage(protocolVersion(), DocumentWsControlType.JOIN_ACCEPTED,
+                    control.requestId(), documentId, null, null, null, null))) {
+                return;
+            }
+            if (!publishAwarenessJoin(room, context)) {
+                return;
+            }
             // 在快照、持久化日志和 Redis 待写入更新全部发送完前，会话不会进入 active；
             // 此期间收到的二进制编辑会被拒绝。
             bootstrapService.sendBootstrap(documentId, context.session());
@@ -290,16 +308,18 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         sendControl(room.requireSession(session.getId()).session(), new DocumentWsControlMessage(protocolVersion(),
                 DocumentWsControlType.UPDATE_ACCEPTED, frame.eventId(), room.documentId(), frame.eventId(), redisOpId, null, null));
         metrics.recordUpdateAccepted();
-        room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.CRDT_UPDATE,
-                frame.eventId(), frame.payload())), session.getId());
+        List<DocumentSessionContext> removedSessions = room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.CRDT_UPDATE, frame.eventId(), frame.payload())), session.getId());
+        cleanupRemovedSessions(room, removedSessions);
         scheduleFlushLog(room.documentId());
     }
 
     /** 将 awareness 数据广播给同一 Room 的其他已同步会话，不进入持久化链路。 */
     private void broadcastAwareness(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
-        room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
-                frame.eventId(), frame.payload())), session.getId());
+        List<DocumentSessionContext> removedSessions = room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.AWARENESS, frame.eventId(), frame.payload())), session.getId());
+        cleanupRemovedSessions(room, removedSessions);
     }
 
     /** 获取已 JOIN 且已完成 bootstrap 的本机会话 Room。 */
@@ -339,32 +359,119 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
 
     /** 幂等移除会话并在本机最后离开时请求延迟 CLOSE。 */
     private void leaveSession(WebSocketSession session) {
-        Long documentId = joinedDocumentIds.remove(session.getId());
-        presenceRegistry.unregister(session.getId());
-        // 未完成 JOIN 的连接也会触发关闭回调；清理 presence 后无需再操作不存在的 Room。
-        if (documentId != null) {
-            roomManager.find(documentId).ifPresent(room -> {
-                // 只有本次确实移除了最后一个本机会话，才需要发起延迟 CLOSE；重复关闭回调不能重复推进生命周期。
-                if (room.leave(session.getId()) && room.sessionCount() == 0) {
-                    try {
-                        lifecycleService.requestClose(documentId, room.ownerUserId());
-                    } catch (RuntimeException exception) {
-                        log.warn("Could not request delayed CLOSE for documentId={}: {}", documentId, exception.getMessage());
-                    }
-                }
-                roomManager.refreshRuntimeMetrics();
-            });
+        String sessionId = session.getId();
+        Long documentId = joinedDocumentIds.get(sessionId);
+        if (documentId == null) {
+            // 未完成 JOIN 的连接也会触发关闭回调；没有 Room 归属时此前不会成功登记 presence，直接返回即可。
+            return;
+        }
+        DocumentRoom room = roomManager.find(documentId).orElse(null);
+        if (room == null) {
+            // Room 可能已被最终关闭流程移除，不能让已关闭连接继续占用本地归属表。
+            joinedDocumentIds.remove(sessionId, documentId);
+            presenceRegistry.unregister(sessionId);
+            return;
+        }
+        Optional<DocumentSessionContext> removed = room.removeSession(sessionId);
+        if (removed.isPresent()) {
+            cleanupRemovedSessions(room, List.of(removed.get()));
+        } else {
+            // 发送失败清理和关闭回调可能并发到达；只有实际移除者负责广播 REMOVE。
+            joinedDocumentIds.remove(sessionId, documentId);
+            presenceRegistry.unregister(sessionId);
+            roomManager.refreshRuntimeMetrics();
+        }
+    }
+
+    /** 将新会话的元数据回放给它，并向已有会话广播自身的 UPSERT。 */
+    private boolean publishAwarenessJoin(DocumentRoom room, DocumentSessionContext joined) {
+        for (DocumentSessionContext existing : room.sessions()) {
+            if (existing.sessionId().equals(joined.sessionId())) {
+                continue;
+            }
+            if (!sendAwarenessMeta(joined.session(), awarenessUpsert(room.documentId(), existing))) {
+                return false;
+            }
+        }
+        if (!containsSession(room, joined.sessionId())) {
+            // 回放过程中连接可能已经关闭；不能在其离开后再次广播 UPSERT。
+            return false;
+        }
+        List<DocumentSessionContext> removedSessions = room.broadcast(
+                codec.encodeAwarenessMeta(awarenessUpsert(room.documentId(), joined)), joined.sessionId());
+        cleanupRemovedSessions(room, removedSessions);
+        return containsSession(room, joined.sessionId());
+    }
+
+    /** 将 Awareness 元数据事件发送给单个会话；失败时进入统一退出清理。 */
+    private boolean sendAwarenessMeta(WebSocketSession session, DocumentWsAwarenessMeta metadata) {
+        try {
+            session.sendMessage(codec.encodeAwarenessMeta(metadata));
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            // 元数据发送失败与普通控制帧失败一样，必须释放颜色、presence 和远端元数据。
+            leaveSession(session);
+            return false;
         }
     }
 
     /** 编码并发送控制帧；发送失败时释放对应会话。 */
-    private void sendControl(WebSocketSession session, DocumentWsControlMessage control) {
+    private boolean sendControl(WebSocketSession session, DocumentWsControlMessage control) {
         try {
             session.sendMessage(codec.encodeControl(control));
+            return true;
         } catch (IOException | RuntimeException exception) {
             // 底层会话可能以 IOException 或已关闭/超限状态抛出运行时异常，两者都必须释放 Room 颜色。
             leaveSession(session);
+            return false;
         }
+    }
+
+    /** 处理 Room 广播中因发送失败被移除的所有会话，直到没有级联清理事件。 */
+    private void cleanupRemovedSessions(DocumentRoom room, Collection<DocumentSessionContext> removedSessions) {
+        if (removedSessions == null || removedSessions.isEmpty()) {
+            return;
+        }
+        ArrayDeque<DocumentSessionContext> pending = new ArrayDeque<>(removedSessions);
+        Set<String> cleanedSessionIds = new HashSet<>();
+        while (!pending.isEmpty()) {
+            DocumentSessionContext removed = pending.removeFirst();
+            if (!cleanedSessionIds.add(removed.sessionId())) {
+                // 同一个会话可能同时触发发送失败和关闭回调，REMOVE 只允许广播一次。
+                continue;
+            }
+            joinedDocumentIds.remove(removed.sessionId(), room.documentId());
+            presenceRegistry.unregister(removed.sessionId());
+            DocumentWsAwarenessMeta remove = awarenessRemove(room.documentId(), removed);
+            pending.addAll(room.broadcast(codec.encodeAwarenessMeta(remove), removed.sessionId()));
+        }
+        if (room.sessionCount() == 0) {
+            try {
+                lifecycleService.requestClose(room.documentId(), room.ownerUserId());
+            } catch (RuntimeException exception) {
+                log.warn("Could not request delayed CLOSE for documentId={}: {}", room.documentId(), exception.getMessage());
+            }
+        }
+        roomManager.refreshRuntimeMetrics();
+    }
+
+    /** 判断会话仍在指定 Room 内，避免连接已清理后继续发布 UPSERT。 */
+    private static boolean containsSession(DocumentRoom room, String sessionId) {
+        return room.sessions().stream().anyMatch(context -> context.sessionId().equals(sessionId));
+    }
+
+    /** 构造包含认证用户和服务端颜色的 Awareness UPSERT 元数据。 */
+    private DocumentWsAwarenessMeta awarenessUpsert(long documentId, DocumentSessionContext context) {
+        return new DocumentWsAwarenessMeta(protocolVersion(), DocumentWsControlType.AWARENESS_META,
+                UUID.randomUUID(), DocumentWsAwarenessAction.UPSERT, documentId, context.awarenessClientId(),
+                context.sessionId(), context.userId(), context.username(), context.cursorColor());
+    }
+
+    /** 构造退出会话所需的最小 Awareness REMOVE 元数据。 */
+    private DocumentWsAwarenessMeta awarenessRemove(long documentId, DocumentSessionContext context) {
+        return new DocumentWsAwarenessMeta(protocolVersion(), DocumentWsControlType.AWARENESS_META,
+                UUID.randomUUID(), DocumentWsAwarenessAction.REMOVE, documentId, context.awarenessClientId(),
+                context.sessionId(), null, null, null);
     }
 
     /** 发布 FLUSH_LOG 信号；Rabbit 失败不回滚已写入 Redis 的更新。 */
@@ -396,6 +503,17 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
             throw new DocumentRoomAccessException("documentId must be positive");
         }
         return documentId;
+    }
+
+    /** 校验 JOIN 控制帧中的 Awareness client ID 为必填正数。 */
+    private static long requireAwarenessClientId(Long awarenessClientId) {
+        if (awarenessClientId == null) {
+            throw DocumentAwarenessException.required();
+        }
+        if (awarenessClientId <= 0) {
+            throw DocumentAwarenessException.invalid();
+        }
+        return awarenessClientId;
     }
 
     /** 校验并返回文档所有者 ID，避免损坏的持久化数据进入 Room key/生命周期状态。 */

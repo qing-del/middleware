@@ -86,6 +86,27 @@ public class DocumentWsCodec {
         }
     }
 
+    /** 编码服务端下发的 Awareness Session 元数据控制帧。 */
+    public TextMessage encodeAwarenessMeta(DocumentWsAwarenessMeta metadata) {
+        validateAwarenessMeta(metadata);
+        try {
+            return new TextMessage(objectMapper.writeValueAsString(metadata));
+        } catch (JsonProcessingException exception) {
+            throw new DocumentWsProtocolException("could not encode document Awareness metadata", exception);
+        }
+    }
+
+    /** 解码并校验 Awareness 元数据控制帧，供协议测试和后续消费方复用。 */
+    public DocumentWsAwarenessMeta decodeAwarenessMeta(TextMessage message) {
+        try {
+            DocumentWsAwarenessMeta metadata = objectMapper.readValue(message.getPayload(), DocumentWsAwarenessMeta.class);
+            validateAwarenessMeta(metadata);
+            return metadata;
+        } catch (JsonProcessingException | IllegalArgumentException exception) {
+            throw new DocumentWsProtocolException("invalid document Awareness metadata", exception);
+        }
+    }
+
     /** 统一校验控制帧版本、类型和请求关联 ID。 */
     private void validateControl(DocumentWsControlMessage control) {
         if (control == null) {
@@ -104,6 +125,20 @@ public class DocumentWsCodec {
         if (control.requestId() == null) {
             // requestId 是客户端重试和服务端响应关联的基础，所有控制帧都必须携带。
             throw new DocumentWsProtocolException("control frame requestId is required");
+        }
+    }
+
+    /** 校验元数据帧使用当前协议版本和固定控制类型。 */
+    private void validateAwarenessMeta(DocumentWsAwarenessMeta metadata) {
+        if (metadata == null) {
+            throw new DocumentWsProtocolException("Awareness metadata must not be null");
+        }
+        if (metadata.protocolVersion() != properties.getWebsocket().getProtocolVersion()) {
+            throw new DocumentWsProtocolException("unsupported document WebSocket protocol version: "
+                    + metadata.protocolVersion());
+        }
+        if (metadata.type() != DocumentWsControlType.AWARENESS_META) {
+            throw new DocumentWsProtocolException("Awareness metadata type must be AWARENESS_META");
         }
     }
 }

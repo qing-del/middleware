@@ -5,9 +5,11 @@ import com.jacolp.document.application.access.DocumentAccess;
 import com.jacolp.document.api.model.DocumentRoomLifecycleState;
 import com.jacolp.document.config.DocumentProperties;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketMessage;
@@ -45,12 +47,19 @@ public class DocumentRoom {
         this.cursorColorAllocator = Objects.requireNonNull(cursorColorAllocator, "cursorColorAllocator must not be null");
     }
 
-    /** 校验 Room 状态和已计算的文档访问结果后加入会话；重复加入同一 session 保持幂等。 */
+    /** 不带 Awareness client ID 的旧入口直接拒绝，避免产生无法清理的远端光标状态。 */
+    public DocumentSessionContext join(WebSocketSession session, CurrentPrincipal principal,
+                                       DocumentAccess documentAccess) {
+        throw DocumentAwarenessException.required();
+    }
+
+    /** 校验 Room 状态和访问结果后加入会话；重复加入同一 session 保持元数据绑定幂等。 */
     public synchronized DocumentSessionContext join(WebSocketSession session, CurrentPrincipal principal,
-                                                    DocumentAccess documentAccess) {
+                                                    DocumentAccess documentAccess, Long awarenessClientId) {
         Objects.requireNonNull(session, "session must not be null");
         Objects.requireNonNull(principal, "principal must not be null");
         Objects.requireNonNull(documentAccess, "documentAccess must not be null");
+        long requiredAwarenessClientId = requireAwarenessClientId(awarenessClientId);
         if (documentAccess.document().getId() == null || documentAccess.document().getId() != documentId
                 || !Objects.equals(documentAccess.document().getOwnerUserId(), ownerUserId)) {
             // Room 只接受同一篇文档和同一所有者快照的访问结果，避免调用方把 ACL 结果串到其他 Room。
@@ -63,8 +72,15 @@ public class DocumentRoom {
         DocumentSessionContext existing = sessions.get(session.getId());
         if (existing != null) {
             // 同一连接重复 JOIN 复用原上下文，同时刷新权限以反映最新 ACL。
+            if (existing.awarenessClientId() != requiredAwarenessClientId) {
+                throw DocumentAwarenessException.mismatch();
+            }
             existing.updateAccess(documentAccess);
             return existing;
+        }
+        if (sessions.values().stream().anyMatch(context -> context.awarenessClientId() == requiredAwarenessClientId)) {
+            // Yjs client ID 是前端清理 Awareness 状态的索引，Room 内重复会导致误删其他 Session 的状态。
+            throw DocumentAwarenessException.conflict();
         }
         if (sessions.size() >= properties.getWebsocket().getMaxRoomSessions()) {
             // 在创建有界 WebSocket 包装器前拒绝超限连接，防止 Room 内存和广播压力继续增长。
@@ -79,7 +95,7 @@ public class DocumentRoom {
                     properties.getWebsocket().getMaxSendQueueBytes(),
                     ConcurrentWebSocketSessionDecorator.OverflowStrategy.TERMINATE);
             DocumentSessionContext context = new DocumentSessionContext(boundedSession, principal.userId(),
-                    principal.username(), cursorColor, documentAccess);
+                    principal.username(), cursorColor, requiredAwarenessClientId, documentAccess);
             sessions.put(context.sessionId(), context);
             lifecycleState = DocumentRoomLifecycleState.ACTIVE;
             return context;
@@ -92,9 +108,14 @@ public class DocumentRoom {
 
     /** 移除本机会话；最后一个离开者把 Room 推进到 PRE_CLOSE。 */
     public synchronized boolean leave(String sessionId) {
+        return removeSession(sessionId).isPresent();
+    }
+
+    /** 原子移除本机会话并返回上下文，供上层广播可信 Awareness REMOVE 元数据。 */
+    public synchronized Optional<DocumentSessionContext> removeSession(String sessionId) {
         if (sessionId == null) {
             // 关闭回调可能在握手未完成时触发，空 session ID 不对应任何可清理的成员。
-            return false;
+            return Optional.empty();
         }
         DocumentSessionContext removed = sessions.remove(sessionId);
         if (removed != null) {
@@ -105,7 +126,7 @@ public class DocumentRoom {
             // 只有确实移除了最后一个成员才进入 PRE_CLOSE，供异步关闭流程继续做全局校验。
             lifecycleState = DocumentRoomLifecycleState.PRE_CLOSE;
         }
-        return removed != null;
+        return Optional.ofNullable(removed);
     }
 
     /** 将已完成 bootstrap 的会话标记为可接收客户端更新。 */
@@ -125,15 +146,19 @@ public class DocumentRoom {
     }
 
     /** 向 Room 中除发送者外的会话广播消息，慢或已关闭会话会被清理。 */
-    public void broadcast(WebSocketMessage<?> message, String excludedSessionId) {
+    public List<DocumentSessionContext> broadcast(WebSocketMessage<?> message, String excludedSessionId) {
         Objects.requireNonNull(message, "message must not be null");
+        List<DocumentSessionContext> removedSessions = new ArrayList<>();
         for (DocumentSessionContext context : sessions.values()) {
             if (context.sessionId().equals(excludedSessionId)) {
                 // 广播调用者已经拥有这条消息，跳过自身可避免重复处理和回环。
                 continue;
             }
-            sendOrDisconnect(context, message);
+            if (sendOrDisconnect(context, message)) {
+                removedSessions.add(context);
+            }
         }
+        return List.copyOf(removedSessions);
     }
 
     /** 获取指定会话，否则返回统一的 Room 访问异常。 */
@@ -172,18 +197,18 @@ public class DocumentRoom {
     }
 
     /** 尝试向会话发送消息；传输失败时移除并关闭该慢会话。 */
-    private void sendOrDisconnect(DocumentSessionContext context, WebSocketMessage<?> message) {
+    private boolean sendOrDisconnect(DocumentSessionContext context, WebSocketMessage<?> message) {
         WebSocketSession session = context.session();
         if (!session.isOpen()) {
             // 发送前再次检查连接状态，及时移除已由容器关闭的失效成员。
-            leave(context.sessionId());
-            return;
+            return removeSession(context.sessionId()).isPresent();
         }
         try {
             session.sendMessage(message);
+            return false;
         } catch (IOException | RuntimeException exception) {
             // 单个客户端发送失败不应阻塞 Room 中其他协作者；先移除，再尝试关闭底层连接。
-            leave(context.sessionId());
+            boolean removed = removeSession(context.sessionId()).isPresent();
             try {
                 if (session.isOpen()) {
                     // 发送异常后连接可能已经被底层关闭，只有仍开放时才发出慢客户端关闭码。
@@ -192,6 +217,18 @@ public class DocumentRoom {
             } catch (IOException ignored) {
                 // 传输失败已经通过从 Room 移除该会话处理，无需再次向上抛出。
             }
+            return removed;
         }
+    }
+
+    /** 校验 Room 绑定的 Awareness client ID 为正数。 */
+    private static long requireAwarenessClientId(Long awarenessClientId) {
+        if (awarenessClientId == null) {
+            throw DocumentAwarenessException.required();
+        }
+        if (awarenessClientId <= 0) {
+            throw DocumentAwarenessException.invalid();
+        }
+        return awarenessClientId;
     }
 }

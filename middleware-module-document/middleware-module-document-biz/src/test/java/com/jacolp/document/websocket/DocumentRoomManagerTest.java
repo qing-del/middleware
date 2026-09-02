@@ -29,7 +29,7 @@ class DocumentRoomManagerTest {
         WebSocketSession session = session("session-a");
 
         DocumentSessionContext context = room.join(session, principal(42L), access(7L, 42L,
-                DocumentPermission.WRITE, true));
+                DocumentPermission.WRITE, true), 1001L);
 
         assertThat(context.syncStatus()).isEqualTo(DocumentSessionSyncStatus.SYNCING);
         assertThat(room.lifecycleState()).isEqualTo(DocumentRoomLifecycleState.ACTIVE);
@@ -50,11 +50,11 @@ class DocumentRoomManagerTest {
         DocumentRoom room = manager.getOrCreate(8L, 42L);
 
         room.join(session("wrong-scope"), principal(43L), access(8L, 42L,
-                DocumentPermission.READ, false));
+                DocumentPermission.READ, false), 1002L);
 
         // The first read-only session consumes the configured slot.
         assertThatThrownBy(() -> room.join(session("second"), principal(42L), access(8L, 42L,
-                DocumentPermission.WRITE, true)))
+                DocumentPermission.WRITE, true), 1003L))
                 .isInstanceOf(DocumentRoomLimitExceededException.class);
         assertThatThrownBy(() -> manager.getOrCreate(8L, 43L))
                 .isInstanceOf(DocumentRoomAccessException.class);
@@ -66,7 +66,7 @@ class DocumentRoomManagerTest {
 
         assertThat(room.beginClosingIfEmpty()).isTrue();
         room.join(session("returning"), principal(42L), access(9L, 42L,
-                DocumentPermission.WRITE, true));
+                DocumentPermission.WRITE, true), 1004L);
 
         assertThat(room.lifecycleState()).isEqualTo(DocumentRoomLifecycleState.ACTIVE);
         assertThat(room.sessionCount()).isEqualTo(1);
@@ -79,9 +79,9 @@ class DocumentRoomManagerTest {
         WebSocketSession activeSession = session("active");
 
         room.join(synchronizingSession, principal(42L), access(10L, 42L,
-                DocumentPermission.READ, false));
+                DocumentPermission.READ, false), 1005L);
         room.join(activeSession, principal(43L), access(10L, 42L,
-                DocumentPermission.WRITE, false));
+                DocumentPermission.WRITE, false), 1006L);
         room.markActive("active");
 
         WebSocketMessage<?> update = new BinaryMessage(new byte[] {1, 2, 3});
@@ -94,11 +94,11 @@ class DocumentRoomManagerTest {
     void assignsDifferentColorsToMultipleSessionsAndReleasesColorOnLeave() {
         DocumentRoom room = new DocumentRoomManager(properties(3)).getOrCreate(11L, 42L);
         DocumentSessionContext first = room.join(session("session-a"), principal(42L),
-                access(11L, 42L, DocumentPermission.WRITE, true));
+                access(11L, 42L, DocumentPermission.WRITE, true), 1007L);
         DocumentSessionContext second = room.join(session("session-b"), principal(42L),
-                access(11L, 42L, DocumentPermission.WRITE, true));
+                access(11L, 42L, DocumentPermission.WRITE, true), 1008L);
         DocumentSessionContext otherUser = room.join(session("session-c"), principal(43L),
-                access(11L, 42L, DocumentPermission.READ, false));
+                access(11L, 42L, DocumentPermission.READ, false), 1009L);
 
         assertThat(first.username()).isEqualTo("user");
         assertThat(first.cursorColor()).matches("#[0-9A-F]{6}");
@@ -108,7 +108,7 @@ class DocumentRoomManagerTest {
 
         assertThat(room.leave("session-a")).isTrue();
         DocumentSessionContext replacement = room.join(session("session-a"), principal(42L),
-                access(11L, 42L, DocumentPermission.WRITE, true));
+                access(11L, 42L, DocumentPermission.WRITE, true), 1010L);
         assertThat(replacement.cursorColor()).isEqualTo(first.cursorColor());
     }
 
@@ -118,12 +118,41 @@ class DocumentRoomManagerTest {
         WebSocketSession session = session("session-a");
 
         DocumentSessionContext first = room.join(session, principal(42L),
-                access(12L, 42L, DocumentPermission.WRITE, true));
+                access(12L, 42L, DocumentPermission.WRITE, true), 1011L);
         DocumentSessionContext repeated = room.join(session, principal(42L),
-                access(12L, 42L, DocumentPermission.WRITE, true));
+                access(12L, 42L, DocumentPermission.WRITE, true), 1011L);
 
         assertThat(repeated).isSameAs(first);
         assertThat(repeated.cursorColor()).isEqualTo(first.cursorColor());
+        assertThat(room.sessionCount()).isEqualTo(1);
+    }
+
+    @Test
+    void rejectsRoomJoinWithoutAwarenessClientId() {
+        DocumentRoom room = new DocumentRoomManager(properties(1)).getOrCreate(16L, 42L);
+
+        assertThatThrownBy(() -> room.join(session("missing-awareness"), principal(42L),
+                access(16L, 42L, DocumentPermission.WRITE, true)))
+                .isInstanceOf(DocumentAwarenessException.class)
+                .hasMessageContaining("awarenessClientId");
+        assertThat(room.sessionCount()).isZero();
+    }
+
+    @Test
+    void rejectsAwarenessClientIdMismatchAndRoomConflict() {
+        DocumentRoom room = new DocumentRoomManager(properties(3)).getOrCreate(17L, 42L);
+        WebSocketSession first = session("first-awareness");
+
+        room.join(first, principal(42L), access(17L, 42L, DocumentPermission.WRITE, true), 1701L);
+
+        assertThatThrownBy(() -> room.join(first, principal(42L),
+                access(17L, 42L, DocumentPermission.WRITE, true), 1702L))
+                .isInstanceOf(DocumentAwarenessException.class)
+                .hasMessageContaining("another awarenessClientId");
+        assertThatThrownBy(() -> room.join(session("second-awareness"), principal(43L),
+                access(17L, 42L, DocumentPermission.READ, false), 1701L))
+                .isInstanceOf(DocumentAwarenessException.class)
+                .hasMessageContaining("already active");
         assertThat(room.sessionCount()).isEqualTo(1);
     }
 
@@ -132,14 +161,14 @@ class DocumentRoomManagerTest {
         DocumentRoom room = new DocumentRoom(15L, 42L, properties(1),
                 new DocumentCursorColorAllocator(List.of("#112233")));
 
-        room.join(session("first"), principal(42L), access(15L, 42L, DocumentPermission.WRITE, true));
+        room.join(session("first"), principal(42L), access(15L, 42L, DocumentPermission.WRITE, true), 1012L);
         assertThatThrownBy(() -> room.join(session("second"), principal(43L),
-                access(15L, 42L, DocumentPermission.READ, false)))
+                access(15L, 42L, DocumentPermission.READ, false), 1013L))
                 .isInstanceOf(DocumentRoomLimitExceededException.class);
 
         assertThat(room.leave("first")).isTrue();
         DocumentSessionContext replacement = room.join(session("second"), principal(43L),
-                access(15L, 42L, DocumentPermission.READ, false));
+                access(15L, 42L, DocumentPermission.READ, false), 1013L);
         assertThat(replacement.cursorColor()).isEqualTo("#112233");
     }
 
@@ -150,14 +179,14 @@ class DocumentRoomManagerTest {
                 new DocumentCursorColorAllocator(List.of("#112233", "#445566")));
 
         DocumentSessionContext first = room.join(session("Aa"), principal(42L),
-                access(13L, 42L, DocumentPermission.WRITE, true));
+                access(13L, 42L, DocumentPermission.WRITE, true), 1014L);
         DocumentSessionContext second = room.join(session("BB"), principal(43L),
-                access(13L, 42L, DocumentPermission.READ, false));
+                access(13L, 42L, DocumentPermission.READ, false), 1015L);
 
         assertThat(first.cursorColor()).isEqualTo("#112233");
         assertThat(second.cursorColor()).isEqualTo("#445566");
         assertThatThrownBy(() -> room.join(session("third"), principal(42L),
-                access(13L, 42L, DocumentPermission.WRITE, true)))
+                access(13L, 42L, DocumentPermission.WRITE, true), 1016L))
                 .isInstanceOf(DocumentRoomLimitExceededException.class);
         assertThat(room.sessionCount()).isEqualTo(2);
     }
@@ -169,16 +198,16 @@ class DocumentRoomManagerTest {
         WebSocketSession failing = session("failing");
         doThrow(new java.io.IOException("send failed")).when(failing).sendMessage(org.mockito.ArgumentMatchers.any());
 
-        room.join(sender, principal(42L), access(14L, 42L, DocumentPermission.WRITE, true));
+        room.join(sender, principal(42L), access(14L, 42L, DocumentPermission.WRITE, true), 1017L);
         DocumentSessionContext failedContext = room.join(failing, principal(43L),
-                access(14L, 42L, DocumentPermission.READ, false));
+                access(14L, 42L, DocumentPermission.READ, false), 1018L);
         String releasedColor = failedContext.cursorColor();
 
         room.broadcast(new BinaryMessage(new byte[] {1, 2, 3}), "sender");
 
         assertThat(room.sessionCount()).isEqualTo(1);
         DocumentSessionContext replacement = room.join(session("failing"), principal(43L),
-                access(14L, 42L, DocumentPermission.READ, false));
+                access(14L, 42L, DocumentPermission.READ, false), 1018L);
         assertThat(replacement.cursorColor()).isEqualTo(releasedColor);
     }
 

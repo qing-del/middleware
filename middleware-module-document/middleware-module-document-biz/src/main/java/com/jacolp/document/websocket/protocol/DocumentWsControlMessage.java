@@ -19,5 +19,15 @@ public record DocumentWsControlMessage(
         /** 机器可判断的错误或状态编码。<p>example: {@code DOCUMENT_NOT_FOUND}</p> */
         String code,
         /** 面向客户端展示或日志记录的附加消息。<p>example: {@code 文档不存在}</p> */
-        String message) {
+        String message,
+        /** JOIN_DOCUMENT 携带的 Yjs Awareness client ID；其他控制帧保持为空。 */
+        Long awarenessClientId) {
+
+    /** 保留既有控制帧构造方式；非 JOIN 消息没有 Awareness client ID。 */
+    public DocumentWsControlMessage(int protocolVersion, DocumentWsControlType type, UUID requestId,
+                                    Long documentId, UUID clientUpdateId, String redisOpId,
+                                    String code, String message) {
+        this(protocolVersion, type, requestId, documentId, clientUpdateId, redisOpId,
+                code, message, null);
+    }
 }
