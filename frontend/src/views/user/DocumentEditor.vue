@@ -44,7 +44,7 @@ import { readAuthSession } from '@/utils/authSession'
 const route = useRoute()
 /** 用于返回文档列表页或跳转到新创建文档的编辑页。 */
 const router = useRouter()
-/** 当前登录用户信息，用于生成协作 awareness 中的展示名称和颜色。 */
+/** 当前登录用户信息，用于生成协作 Awareness 的本地展示名称和用户 ID。 */
 const authStore = useAuthStore()
 
 /** Tiptap 编辑器挂载的 DOM 容器；示例：编辑器区域的 `.editor-host` 元素。 */
@@ -305,16 +305,9 @@ async function revokeAuthorization(row: AuthorizationRow): Promise<void> {
   }
 }
 
-/** 用当前认证用户的昵称、用户名作为 awareness 展示名称。 */
+/** 用当前认证用户的昵称、用户名作为 Awareness 展示名称。 */
 function currentUserLabel(): string {
   return authStore.user?.nickname || authStore.user?.username || '当前用户'
-}
-
-/** 根据稳定字符串生成协作者颜色，保证同一用户刷新后颜色一致。 */
-function createColor(seed: string): string {
-  let hash = 0
-  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
-  return `hsl(${hash % 360} 62% 46%)`
 }
 
 /** 将任意请求异常转换为页面可展示的错误文本。 */
@@ -496,8 +489,13 @@ async function initializeEditor(): Promise<void> {
     ydoc = document
     collaborationClient = client
     editor = instance
-    client.setLocalAwareness({
-      user: { name: currentUserLabel(), color: createColor(currentUserLabel()) }
+    client.updateLocalAwareness({
+      user: {
+        userId: authStore.user?.id ?? null,
+        name: currentUserLabel(),
+        // 当前后端不会回送本地 Session 元数据；本地先使用黑色占位，远端展示以后端元数据为准。
+        color: '#000000'
+      }
     })
     client.connect()
   } catch (cause) {

@@ -11,7 +11,9 @@ import {
   createDocumentWsRequestId,
   decodeDocumentWsFrame,
   encodeDocumentWsFrame,
+  parseDocumentWsAwarenessMeta,
   parseDocumentWsControl,
+  type DocumentWsAwarenessMeta,
   type DocumentWsControlMessage
 } from '@/collaboration/documentProtocol'
 
@@ -35,6 +37,25 @@ export type DocumentReconnectAccessResult =
   | { status: 'denied'; code: string; message?: string }
   | { status: 'retry' }
 
+/** 服务端下发的协作者 Session 身份；展示时不能改用 Awareness payload 内的 user。 */
+export interface DocumentAwarenessSessionMetadata {
+  /** Yjs Awareness 状态索引；与 JOIN 时的 ydoc.clientID 一致。 */
+  awarenessClientId: number
+  /** 服务端 WebSocket Session ID；同一用户的多个窗口各不相同。 */
+  sessionId: string
+  /** 认证用户 ID。 */
+  userId: number
+  /** 认证主体的展示名称。 */
+  name: string
+  /** 服务端按活跃 Session 分配的颜色。 */
+  color: string
+}
+
+/** Session 元数据的生命周期事件，供页面和后续光标渲染订阅。 */
+export type DocumentAwarenessSessionEvent =
+  | { action: 'UPSERT'; metadata: DocumentAwarenessSessionMetadata }
+  | { action: 'REMOVE'; awarenessClientId: number; sessionId: string }
+
 export interface DocumentCollaborationClientOptions {
   /** 要加入协作 Room 的文档 ID；example: {@code 42} */
   documentId: number
@@ -48,6 +69,11 @@ export interface DocumentCollaborationClientOptions {
   onStateChange?: (state: DocumentConnectionState, message?: string) => void
   /** 在线协作者数量变化回调；example: {@code (count) => collaboratorCount.value = count} */
   onAwarenessChange?: (count: number) => void
+  /** 服务端 Session 元数据变化回调；第二个参数是不可修改的当前快照。 */
+  onAwarenessSessionChange?: (
+    event: DocumentAwarenessSessionEvent,
+    sessions: ReadonlyMap<number, DocumentAwarenessSessionMetadata>
+  ) => void
   /** 收到文档拒绝或不存在错误时通知页面层。 */
   onAccessError?: (error: DocumentCollaborationError) => void
   /** 自动重连前重新读取文档元数据，刷新当前页面的资源级权限。 */
@@ -76,6 +102,8 @@ const REMOTE_AWARENESS_ORIGIN = Symbol('document-remote-awareness')
 const LOCAL_AWARENESS_ORIGIN = Symbol('document-local-awareness')
 /** 重连退避等待时间上限；示例：`10000` 毫秒。 */
 const MAX_RECONNECT_DELAY_MS = 10_000
+/** 允许按字段合并的 Awareness 顶层对象，避免更新一个分支覆盖其他协同状态。 */
+const AWARENESS_OBJECT_FIELDS = new Set(['user', 'cursor', 'selection', 'agent'])
 
 /**
  * 将项目的文档 WebSocket 协议连接到一个 Y.Doc。
@@ -96,6 +124,11 @@ export class DocumentCollaborationClient {
   private readonly onStateChange?: (state: DocumentConnectionState, message?: string) => void
   /** awareness 在线人数变化回调，由页面层更新协作者数量。 */
   private readonly onAwarenessChange?: (count: number) => void
+  /** 服务端 Session 元数据变化回调，由后续光标/选区渲染层消费。 */
+  private readonly onAwarenessSessionChange?: (
+    event: DocumentAwarenessSessionEvent,
+    sessions: ReadonlyMap<number, DocumentAwarenessSessionMetadata>
+  ) => void
   /** 文档资源拒绝回调，由页面层切换到不可用状态。 */
   private readonly onAccessError?: (error: DocumentCollaborationError) => void
   /** 自动重连前的权限刷新回调。 */
@@ -120,6 +153,8 @@ export class DocumentCollaborationClient {
   private synchronized = false
   /** 当前对外公布的连接状态；初始值为 `closed`。 */
   private currentState: DocumentConnectionState = 'closed'
+  /** 服务端确认的 Session 元数据；key 是 Yjs Awareness client ID。 */
+  private readonly awarenessSessions = new Map<number, DocumentAwarenessSessionMetadata>()
 
   /** 创建 Y.Doc 与 WebSocket/awareness 事件之间的桥接客户端。 */
   constructor(options: DocumentCollaborationClientOptions) {
@@ -128,6 +163,7 @@ export class DocumentCollaborationClient {
     this.ydoc = options.ydoc
     this.onStateChange = options.onStateChange
     this.onAwarenessChange = options.onAwarenessChange
+    this.onAwarenessSessionChange = options.onAwarenessSessionChange
     this.onAccessError = options.onAccessError
     this.onBeforeReconnect = options.onBeforeReconnect
     this.writable = options.canWrite
@@ -162,7 +198,8 @@ export class DocumentCollaborationClient {
       this.setState('synchronizing')
       this.sendControl(createDocumentWsControl('JOIN_DOCUMENT', {
         requestId: createDocumentWsRequestId(),
-        documentId: this.documentId
+        documentId: this.documentId,
+        awarenessClientId: this.ydoc.clientID
       }))
     }
     socket.onmessage = event => this.handleSocketMessage(socket, event)
@@ -173,10 +210,21 @@ export class DocumentCollaborationClient {
     this.socket = socket
   }
 
-  /** 更新本地 awareness，并在已同步连接上立即广播。 */
-  setLocalAwareness(state: Record<string, unknown>): void {
-    this.awareness.setLocalState(state)
+  /** 按顶层字段合并本地 Awareness，并在已同步连接上立即广播。 */
+  updateLocalAwareness(patch: Record<string, unknown>): void {
+    const current = this.awareness.getLocalState() as Record<string, unknown> | null
+    this.awareness.setLocalState(mergeAwarenessState(current, patch))
     if (this.synchronized) this.sendLocalAwareness()
+  }
+
+  /** 保留旧入口，兼容既有页面调用；实际行为已经改为字段级合并。 */
+  setLocalAwareness(patch: Record<string, unknown>): void {
+    this.updateLocalAwareness(patch)
+  }
+
+  /** 返回服务端 Session 元数据的只读副本，避免调用方修改内部生命周期索引。 */
+  getAwarenessSessions(): ReadonlyMap<number, DocumentAwarenessSessionMetadata> {
+    return new Map(this.awarenessSessions)
   }
 
   /** 停止重连、通知服务端离开并解除 Yjs/awareness 监听。 */
@@ -198,6 +246,7 @@ export class DocumentCollaborationClient {
     this.awareness.off('change', this.handleAwarenessChange)
     this.pendingBootstrapFrames.length = 0
     this.pendingRemoteUpdates.length = 0
+    this.clearAwarenessSessions(false)
     removeAwarenessStates(this.awareness, [this.ydoc.clientID], LOCAL_AWARENESS_ORIGIN)
     this.awareness.destroy()
     this.setState('closed')
@@ -223,7 +272,7 @@ export class DocumentCollaborationClient {
 
   /** 把 awareness 状态数量通知页面层更新协作者显示。 */
   private readonly handleAwarenessChange = (): void => {
-    this.onAwarenessChange?.(this.awareness.getStates().size)
+    this.onAwarenessChange?.(this.awarenessParticipantCount())
   }
 
   /** 区分文本控制帧和二进制帧，并把协议错误转为连接 error 状态。 */
@@ -239,12 +288,17 @@ export class DocumentCollaborationClient {
       /** 面向页面层展示的协议处理错误文本。 */
       const message = error instanceof Error ? error.message : '文档同步协议处理失败'
       this.fail(message)
+      // 元数据解析失败后不能继续使用半可信的 Room 状态；关闭当前连接并等待上层决定是否重试。
+      this.socket?.close(1002, 'document protocol error')
     }
   }
 
   /** 处理同步完成、更新确认、心跳和服务端错误控制帧。 */
   private handleControl(control: DocumentWsControlMessage): void {
     switch (control.type) {
+      case 'AWARENESS_META':
+        this.handleAwarenessMeta(parseDocumentWsAwarenessMeta(control, this.documentId))
+        break
       case 'SYNC_COMPLETE':
         // SYNC_COMPLETE 是服务端已经排完全部 Bootstrap 帧的结束边界；先完成最终
         // Y.Doc 构建，再允许本地编辑进入服务端，避免把同步中的半成品暴露给发送链路。
@@ -297,6 +351,84 @@ export class DocumentCollaborationClient {
     this.pendingRemoteUpdates.length = 0
   }
 
+  /** 处理服务端可信的 Session 元数据，不把身份字段合并回不透明的 Awareness payload。 */
+  private handleAwarenessMeta(metadata: DocumentWsAwarenessMeta): void {
+    if (metadata.action === 'UPSERT') {
+      const session: DocumentAwarenessSessionMetadata = {
+        awarenessClientId: metadata.awarenessClientId,
+        sessionId: metadata.sessionId,
+        userId: metadata.userId,
+        name: metadata.name,
+        color: metadata.color
+      }
+      const previous = this.awarenessSessions.get(session.awarenessClientId)
+      if (previous && previous.sessionId !== session.sessionId
+          && session.awarenessClientId !== this.ydoc.clientID) {
+        // 同一个 Yjs client ID 重新绑定到新 Session 时，先撤掉旧光标，等待新帧重新建立状态。
+        removeAwarenessStates(this.awareness, [session.awarenessClientId], REMOTE_AWARENESS_ORIGIN)
+      }
+      this.awarenessSessions.set(session.awarenessClientId, session)
+      this.emitAwarenessSessionEvent({ action: 'UPSERT', metadata: session })
+      this.notifyAwarenessChange()
+      return
+    }
+
+    const existing = this.awarenessSessions.get(metadata.awarenessClientId)
+    if (existing && existing.sessionId !== metadata.sessionId) {
+      // 重连可能让旧 Session 的 REMOVE 晚于新 Session 的 UPSERT 到达，不能误删新身份。
+      return
+    }
+    this.awarenessSessions.delete(metadata.awarenessClientId)
+    if (metadata.awarenessClientId !== this.ydoc.clientID) {
+      // 服务端 REMOVE 只描述生命周期；实际 Yjs 状态必须按 client ID 显式移除。
+      removeAwarenessStates(this.awareness, [metadata.awarenessClientId], REMOTE_AWARENESS_ORIGIN)
+    }
+    this.emitAwarenessSessionEvent({
+      action: 'REMOVE',
+      awarenessClientId: metadata.awarenessClientId,
+      sessionId: metadata.sessionId
+    })
+    this.notifyAwarenessChange()
+  }
+
+  /** 清理旧连接残留的 Session 元数据和远端 Awareness，保留当前本地状态。 */
+  private clearAwarenessSessions(notifySessionEvents = true): void {
+    const sessions = Array.from(this.awarenessSessions.values())
+    this.awarenessSessions.clear()
+    if (notifySessionEvents && !this.disposed) {
+      for (const session of sessions) {
+        this.emitAwarenessSessionEvent({
+          action: 'REMOVE',
+          awarenessClientId: session.awarenessClientId,
+          sessionId: session.sessionId
+        })
+      }
+    }
+
+    const remoteClientIds = Array.from(this.awareness.getStates().keys())
+      .filter(clientId => clientId !== this.ydoc.clientID)
+    if (remoteClientIds.length > 0) {
+      // 使用远端 origin，避免重连清理被误编码并再次发送给新连接。
+      removeAwarenessStates(this.awareness, remoteClientIds, REMOTE_AWARENESS_ORIGIN)
+    }
+    if (!this.disposed) this.notifyAwarenessChange()
+  }
+
+  /** 向页面提供当前元数据快照；Map 副本保证页面不能反向修改生命周期状态。 */
+  private emitAwarenessSessionEvent(event: DocumentAwarenessSessionEvent): void {
+    this.onAwarenessSessionChange?.(event, this.getAwarenessSessions())
+  }
+
+  /** 用服务端元数据和本地 Awareness 状态计算协作者数量。 */
+  private awarenessParticipantCount(): number {
+    return this.awarenessSessions.size + (this.awarenessSessions.has(this.ydoc.clientID) ? 0 : 1)
+  }
+
+  /** 统一通知页面协作者数量，避免元数据和 Yjs 状态变更使用不同口径。 */
+  private notifyAwarenessChange(): void {
+    this.onAwarenessChange?.(this.awarenessParticipantCount())
+  }
+
   /** 把服务端快照、历史、协作者更新接入同步缓存或 Y.Doc。 */
   private handleBinary(frame: ReturnType<typeof decodeDocumentWsFrame>): void {
     switch (frame.type) {
@@ -329,7 +461,10 @@ export class DocumentCollaborationClient {
 
   /** 连接关闭后清除同步标志，并进入受控的指数退避重连。 */
   private handleSocketClosed(socket: WebSocket): void {
-    if (this.socket === socket) this.socket = null
+    if (this.socket !== socket) return
+    this.socket = null
+    // 断线期间不会再收到旧 Room 的 REMOVE；先清除缓存，防止重连后保留幽灵协作者。
+    this.clearAwarenessSessions()
     this.synchronized = false
     if (this.disposed || this.currentState === 'error') return
     this.scheduleReconnect()
@@ -419,6 +554,33 @@ export class DocumentCollaborationClient {
     this.currentState = state
     this.onStateChange?.(state, message)
   }
+}
+
+/** 按字段合并本地 Awareness；相对位置等复杂值作为一个完整字段替换。 */
+function mergeAwarenessState(
+  current: Record<string, unknown> | null,
+  patch: Record<string, unknown>
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...(current || {}) }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue
+    if (value === null) {
+      next[key] = null
+      continue
+    }
+    const currentValue = next[key]
+    if (AWARENESS_OBJECT_FIELDS.has(key) && isObjectRecord(currentValue) && isObjectRecord(value)) {
+      next[key] = { ...currentValue, ...value }
+      continue
+    }
+    next[key] = value
+  }
+  return next
+}
+
+/** 只把普通对象当作可合并的 Awareness 分支，避免破坏数组或 Yjs 二进制值。 */
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /** 这些错误代表文档资源不可访问，客户端不能把它们当成可重试网络错误。 */

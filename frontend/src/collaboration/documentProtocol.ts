@@ -14,6 +14,9 @@ export type DocumentWsControlType =
   | 'PING'
   | 'PONG'
 
+/** Awareness 元数据控制帧的生命周期动作；服务端只发送这两个值。 */
+export type DocumentWsAwarenessAction = 'UPSERT' | 'REMOVE'
+
 export interface DocumentWsControlMessage {
   /** 控制帧协议版本；example: {@code 1} */
   protocolVersion: number
@@ -31,7 +34,49 @@ export interface DocumentWsControlMessage {
   code: string | null
   /** 面向客户端展示的附加消息；example: {@code '文档不存在'} */
   message: string | null
+  /** JOIN_DOCUMENT 绑定的 Yjs Awareness client ID；其他普通控制帧通常不携带。 */
+  awarenessClientId?: number | null
+  /** AWARENESS_META 的新增、更新或移除动作。 */
+  action?: DocumentWsAwarenessAction | null
+  /** AWARENESS_META 关联的服务端 WebSocket Session ID。 */
+  sessionId?: string | null
+  /** AWARENESS_META 关联的认证用户 ID；REMOVE 时为空。 */
+  userId?: number | null
+  /** AWARENESS_META 关联的认证用户名；REMOVE 时为空。 */
+  name?: string | null
+  /** AWARENESS_META 关联的服务端颜色；REMOVE 时为空。 */
+  color?: string | null
 }
+
+/** JOIN_DOCUMENT 的强类型控制帧；服务端要求 Awareness client ID 必须存在。 */
+export interface DocumentWsJoinDocumentMessage extends DocumentWsControlMessage {
+  type: 'JOIN_DOCUMENT'
+  awarenessClientId: number
+}
+
+/** 服务端下发的 Awareness Session 元数据控制帧的公共字段。 */
+interface DocumentWsAwarenessMetaBase extends DocumentWsControlMessage {
+  type: 'AWARENESS_META'
+  requestId: string
+  documentId: number
+  awarenessClientId: number
+  sessionId: string
+}
+
+/** 服务端下发的 Awareness Session 元数据控制帧；按 action 区分字段是否必填。 */
+export type DocumentWsAwarenessMeta =
+  | (DocumentWsAwarenessMetaBase & {
+      action: 'UPSERT'
+      userId: number
+      name: string
+      color: string
+    })
+  | (DocumentWsAwarenessMetaBase & {
+      action: 'REMOVE'
+      userId: null
+      name: null
+      color: null
+    })
 
 export enum DocumentWsFrameType {
   /** 客户端提交的 Yjs 更新。 */
@@ -84,11 +129,28 @@ export function createDocumentWsRequestId(): string {
   return crypto.randomUUID()
 }
 
+type DocumentWsControlOverrides = Partial<Omit<DocumentWsControlMessage, 'protocolVersion' | 'type'>>
+
+/** JOIN_DOCUMENT 必须在类型层携带当前 Yjs Awareness client ID。 */
+export function createDocumentWsControl(
+  type: 'JOIN_DOCUMENT',
+  overrides: DocumentWsControlOverrides & Pick<DocumentWsJoinDocumentMessage, 'awarenessClientId'>
+): DocumentWsJoinDocumentMessage
+
+/** 其他控制帧沿用原有的默认字段和 requestId 行为。 */
+export function createDocumentWsControl(
+  type: Exclude<DocumentWsControlType, 'JOIN_DOCUMENT'>,
+  overrides?: DocumentWsControlOverrides
+): DocumentWsControlMessage
+
 /** 创建带协议版本、默认空字段和唯一 requestId 的控制帧。 */
 export function createDocumentWsControl(
   type: DocumentWsControlType,
-  overrides: Partial<Omit<DocumentWsControlMessage, 'protocolVersion' | 'type'>> = {}
+  overrides: DocumentWsControlOverrides = {}
 ): DocumentWsControlMessage {
+  if (type === 'JOIN_DOCUMENT' && !isPositiveSafeInteger(overrides.awarenessClientId)) {
+    throw new Error('JOIN_DOCUMENT 必须携带有效的 awarenessClientId')
+  }
   return {
     protocolVersion: DOCUMENT_WS_PROTOCOL_VERSION,
     type,
@@ -154,6 +216,93 @@ export function parseDocumentWsControl(data: string): DocumentWsControlMessage {
   if (control.protocolVersion !== DOCUMENT_WS_PROTOCOL_VERSION || typeof control.type !== 'string') {
     throw new Error('文档 WebSocket 控制帧不兼容')
   }
+  if (control.type === 'JOIN_DOCUMENT' && !isPositiveSafeInteger(control.awarenessClientId)) {
+    throw new Error('JOIN_DOCUMENT 缺少有效的 awarenessClientId')
+  }
   // 此处只校验外层结构；收到控制帧的处理器再判断该类型是否必须包含某个字段。
   return control as DocumentWsControlMessage
+}
+
+/**
+ * 严格解析服务端的 Awareness Session 元数据。
+ *
+ * <p>通用控制帧解析器只负责外层协议兼容性；身份字段在这里统一校验，避免
+ * 将服务端元数据中的空值、错误文档或未知动作写入本地 Session 索引。</p>
+ */
+export function parseDocumentWsAwarenessMeta(
+  control: DocumentWsControlMessage,
+  expectedDocumentId?: number
+): DocumentWsAwarenessMeta {
+  if (control.type !== 'AWARENESS_META') {
+    throw new Error('文档 WebSocket 控制帧不是 Awareness 元数据')
+  }
+  if (typeof control.requestId !== 'string' || control.requestId.trim().length === 0) {
+    throw new Error('Awareness 元数据 requestId 无效')
+  }
+  if (!isPositiveSafeInteger(control.documentId)) {
+    throw new Error('Awareness 元数据 documentId 无效')
+  }
+  if (expectedDocumentId !== undefined && control.documentId !== expectedDocumentId) {
+    throw new Error('Awareness 元数据 documentId 与当前文档不匹配')
+  }
+  if (!isPositiveSafeInteger(control.awarenessClientId)) {
+    throw new Error('Awareness 元数据 awarenessClientId 无效')
+  }
+  if (typeof control.sessionId !== 'string' || control.sessionId.trim().length === 0) {
+    throw new Error('Awareness 元数据 sessionId 无效')
+  }
+  if (control.action !== 'UPSERT' && control.action !== 'REMOVE') {
+    throw new Error('Awareness 元数据 action 无效')
+  }
+
+  const userId = control.userId ?? null
+  const name = control.name ?? null
+  const color = control.color ?? null
+  if (control.action === 'UPSERT') {
+    if (!isPositiveSafeInteger(userId)) {
+      throw new Error('Awareness UPSERT 的 userId 无效')
+    }
+    if (!isNonBlankString(name)) {
+      throw new Error('Awareness UPSERT 的 name 无效')
+    }
+    if (!isNonBlankString(color)) {
+      throw new Error('Awareness UPSERT 的 color 无效')
+    }
+
+    return {
+      ...control,
+      type: 'AWARENESS_META',
+      requestId: control.requestId,
+      documentId: control.documentId,
+      awarenessClientId: control.awarenessClientId,
+      action: 'UPSERT',
+      sessionId: control.sessionId,
+      userId,
+      name,
+      color
+    }
+  }
+
+  return {
+    ...control,
+    type: 'AWARENESS_META',
+    requestId: control.requestId,
+    documentId: control.documentId,
+    awarenessClientId: control.awarenessClientId,
+    action: 'REMOVE',
+    sessionId: control.sessionId,
+    userId: null,
+    name: null,
+    color: null
+  }
+}
+
+/** 校验协议中的正整数 ID，避免把浮点数或超出安全范围的值当成索引。 */
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+}
+
+/** 校验服务端元数据中的必填展示字符串。 */
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
 }
