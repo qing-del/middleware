@@ -16,6 +16,10 @@ import {
   type DocumentWsAwarenessMeta,
   type DocumentWsControlMessage
 } from '@/collaboration/documentProtocol'
+import {
+  createDocumentAwarenessProvider,
+  type DocumentAwarenessProvider
+} from './DocumentAwarenessProvider'
 
 export type DocumentConnectionState = 'connecting' | 'synchronizing' | 'synced' | 'reconnecting' | 'closed' | 'error'
 
@@ -113,6 +117,8 @@ const AWARENESS_OBJECT_FIELDS = new Set(['user', 'cursor', 'selection', 'agent']
 export class DocumentCollaborationClient {
   /** 当前 Yjs 文档对应的 awareness 状态集合。 */
   readonly awareness: Awareness
+  /** 适配 Tiptap CollaborationCaret 的本地 provider；不负责网络连接。 */
+  private readonly awarenessProvider: DocumentAwarenessProvider
 
   /** 要加入协作 Room 的文档 ID；example: {@code 42} */
   private readonly documentId: number
@@ -168,6 +174,11 @@ export class DocumentCollaborationClient {
     this.onBeforeReconnect = options.onBeforeReconnect
     this.writable = options.canWrite
     this.awareness = new Awareness(this.ydoc)
+    this.awarenessProvider = createDocumentAwarenessProvider({
+      awareness: this.awareness,
+      getAwarenessSessions: () => this.getAwarenessSessions(),
+      updateLocalAwareness: patch => this.updateLocalAwareness(patch)
+    })
     this.ydoc.on('update', this.handleDocumentUpdate)
     this.awareness.on('update', this.handleAwarenessUpdate)
     this.awareness.on('change', this.handleAwarenessChange)
@@ -225,6 +236,11 @@ export class DocumentCollaborationClient {
   /** 返回服务端 Session 元数据的只读副本，避免调用方修改内部生命周期索引。 */
   getAwarenessSessions(): ReadonlyMap<number, DocumentAwarenessSessionMetadata> {
     return new Map(this.awarenessSessions)
+  }
+
+  /** 返回只承担 Awareness 适配的本地 façade，网络生命周期仍由当前客户端负责。 */
+  getAwarenessProvider(): DocumentAwarenessProvider {
+    return this.awarenessProvider
   }
 
   /** 停止重连、通知服务端离开并解除 Yjs/awareness 监听。 */
@@ -367,9 +383,22 @@ export class DocumentCollaborationClient {
         // 同一个 Yjs client ID 重新绑定到新 Session 时，先撤掉旧光标，等待新帧重新建立状态。
         removeAwarenessStates(this.awareness, [session.awarenessClientId], REMOTE_AWARENESS_ORIGIN)
       }
+      const metadataChanged = !previous
+        || previous.sessionId !== session.sessionId
+        || previous.userId !== session.userId
+        || previous.name !== session.name
+        || previous.color !== session.color
       this.awarenessSessions.set(session.awarenessClientId, session)
       this.emitAwarenessSessionEvent({ action: 'UPSERT', metadata: session })
-      this.notifyAwarenessChange()
+      if (metadataChanged) {
+        // 元数据不在 Awareness 二进制帧内；用远端 origin 触发 CollaborationCaret 重读 façade，
+        // 不经过 handleAwarenessUpdate 回写网络。
+        this.notifyAwarenessMetadataChange({
+          added: previous ? [] : [session.awarenessClientId],
+          updated: previous ? [session.awarenessClientId] : [],
+          removed: []
+        })
+      }
       return
     }
 
@@ -378,6 +407,7 @@ export class DocumentCollaborationClient {
       // 重连可能让旧 Session 的 REMOVE 晚于新 Session 的 UPSERT 到达，不能误删新身份。
       return
     }
+    const hadAwarenessState = this.awareness.getStates().has(metadata.awarenessClientId)
     this.awarenessSessions.delete(metadata.awarenessClientId)
     if (metadata.awarenessClientId !== this.ydoc.clientID) {
       // 服务端 REMOVE 只描述生命周期；实际 Yjs 状态必须按 client ID 显式移除。
@@ -388,7 +418,14 @@ export class DocumentCollaborationClient {
       awarenessClientId: metadata.awarenessClientId,
       sessionId: metadata.sessionId
     })
-    this.notifyAwarenessChange()
+    if (!hadAwarenessState || metadata.awarenessClientId === this.ydoc.clientID) {
+      // 没有原始 Awareness 状态，或清理本地 Session 元数据时，需要手动刷新 façade。
+      this.notifyAwarenessMetadataChange({
+        added: [],
+        updated: [],
+        removed: [metadata.awarenessClientId]
+      })
+    }
   }
 
   /** 清理旧连接残留的 Session 元数据和远端 Awareness，保留当前本地状态。 */
@@ -407,11 +444,21 @@ export class DocumentCollaborationClient {
 
     const remoteClientIds = Array.from(this.awareness.getStates().keys())
       .filter(clientId => clientId !== this.ydoc.clientID)
+    const remoteStateIds = new Set(remoteClientIds)
     if (remoteClientIds.length > 0) {
       // 使用远端 origin，避免重连清理被误编码并再次发送给新连接。
       removeAwarenessStates(this.awareness, remoteClientIds, REMOTE_AWARENESS_ORIGIN)
     }
-    if (!this.disposed) this.notifyAwarenessChange()
+    const metadataOnlyIds = sessions
+      .map(session => session.awarenessClientId)
+      .filter(clientId => !remoteStateIds.has(clientId))
+    if (metadataOnlyIds.length > 0) {
+      this.notifyAwarenessMetadataChange({
+        added: [],
+        updated: [],
+        removed: metadataOnlyIds
+      })
+    }
   }
 
   /** 向页面提供当前元数据快照；Map 副本保证页面不能反向修改生命周期状态。 */
@@ -424,9 +471,18 @@ export class DocumentCollaborationClient {
     return this.awarenessSessions.size + (this.awarenessSessions.has(this.ydoc.clientID) ? 0 : 1)
   }
 
-  /** 统一通知页面协作者数量，避免元数据和 Yjs 状态变更使用不同口径。 */
-  private notifyAwarenessChange(): void {
-    this.onAwarenessChange?.(this.awarenessParticipantCount())
+  /**
+   * 让依赖 Awareness change/update 的本地插件感知服务端元数据变化。
+   * origin 必须是远端标记，避免伪造的元数据事件再次进入网络发送链路。
+   */
+  private notifyAwarenessMetadataChange(changes: {
+    added: number[]
+    updated: number[]
+    removed: number[]
+  }): void {
+    if (this.disposed) return
+    this.awareness.emit('change', [changes, REMOTE_AWARENESS_ORIGIN])
+    this.awareness.emit('update', [changes, REMOTE_AWARENESS_ORIGIN])
   }
 
   /** 把服务端快照、历史、协作者更新接入同步缓存或 Y.Doc。 */

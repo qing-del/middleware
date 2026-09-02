@@ -35,6 +35,7 @@ import {
   type DocumentConnectionState,
   type DocumentReconnectAccessResult
 } from '@/collaboration/DocumentCollaborationClient'
+import { createDocumentCollaborationCaret } from '@/collaboration/DocumentCollaborationCaret'
 import { ResourceReference } from '@/editor/ResourceReference'
 import { useAuthStore } from '@/stores/auth'
 import { confirmAction, toastError, toastSuccess } from '@/utils/feedback'
@@ -364,10 +365,12 @@ function handleAccessError(accessError: DocumentCollaborationError): void {
 
 /** 释放当前编辑器、Y.Doc、协作连接和页面状态，供路由切换复用。 */
 function teardownEditor(): void {
-  collaborationClient?.dispose()
-  collaborationClient = null
+  // 先销毁 Tiptap 插件，让 CollaborationCaret 解除 Awareness 监听并清理本地 cursor；
+  // 再释放 WebSocket 客户端和 Awareness，避免插件在已销毁状态上继续回调。
   editor?.destroy()
   editor = null
+  collaborationClient?.dispose()
+  collaborationClient = null
   ydoc?.destroy()
   ydoc = null
   editorVersion.value += 1
@@ -419,6 +422,12 @@ async function initializeEditor(): Promise<void> {
     // `content` fragment 读写。
     document.getXmlFragment('content')
     // 先绑定回调再连接，确保 bootstrap 完成前页面只读且过期路由不会更新当前状态。
+    /** CollaborationCaret 写入本地 Awareness 的用户字段；Session 由服务端元数据分配。 */
+    const localAwarenessUser = {
+      userId: authStore.user?.id ?? null,
+      name: currentUserLabel(),
+      color: '#000000'
+    }
     /** 负责 WebSocket、Yjs 更新队列和 awareness 广播的协作客户端。 */
     const client = new DocumentCollaborationClient({
       documentId: loadedMetadata.documentId,
@@ -468,6 +477,7 @@ async function initializeEditor(): Promise<void> {
       extensions: [
         StarterKit.configure({ undoRedo: false }),
         Collaboration.configure({ document, field: 'content' }),
+        createDocumentCollaborationCaret(client, localAwarenessUser),
         ResourceReference
       ],
       editorProps: {
@@ -489,14 +499,6 @@ async function initializeEditor(): Promise<void> {
     ydoc = document
     collaborationClient = client
     editor = instance
-    client.updateLocalAwareness({
-      user: {
-        userId: authStore.user?.id ?? null,
-        name: currentUserLabel(),
-        // 当前后端不会回送本地 Session 元数据；本地先使用黑色占位，远端展示以后端元数据为准。
-        color: '#000000'
-      }
-    })
     client.connect()
   } catch (cause) {
     if (requestedVersion === initializationVersion) {
@@ -936,5 +938,38 @@ h1 { margin: 10px 0; color: var(--cn-text); font-size: 28px; font-weight: 800; }
 :deep(.document-tiptap-editor h1), :deep(.document-tiptap-editor h2), :deep(.document-tiptap-editor h3) { color: var(--cn-text); line-height: 1.3; }
 :deep(.document-tiptap-editor p.is-editor-empty:first-child::before) { float: left; height: 0; color: var(--cn-text-faint); content: '开始记录你的想法…'; pointer-events: none; }
 :deep(.document-resource-reference) { display: inline-block; border-radius: 4px; background: color-mix(in srgb, var(--cn-accent) 12%, transparent); color: var(--cn-accent); padding: 0 4px; font-size: .92em; font-weight: 700; }
+:deep(.document-tiptap-editor .collaboration-carets__caret) {
+  position: relative;
+  z-index: 2;
+  margin-right: -1px;
+  margin-left: -1px;
+  border-right: 1px solid currentColor;
+  border-left: 1px solid currentColor;
+  pointer-events: none;
+  word-break: normal;
+}
+:deep(.document-tiptap-editor .collaboration-carets__label) {
+  position: absolute;
+  top: -1.35em;
+  left: -1px;
+  max-width: min(42vw, 280px);
+  overflow: hidden;
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 6px;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  user-select: none;
+  white-space: nowrap;
+}
+:deep(.document-tiptap-editor .collaboration-carets__selection) {
+  background-color: currentColor;
+  opacity: .25;
+  pointer-events: none;
+}
 @media (max-width: 640px) { .document-editor-header { align-items: flex-start; flex-direction: column; } .document-editor-header-actions { width: 100%; justify-content: space-between; } .create-card { margin-top: 20px; padding: 26px 20px; } .document-title-row { align-items: flex-start; flex-direction: column; gap: 2px; } .document-title-input { font-size: 22px; } .editor-toolbar { flex-wrap: wrap; } .collaborator-count { margin-left: 0; } .authorization-modal-backdrop { align-items: flex-end; padding: 10px; } .authorization-modal-card { max-height: 92vh; } .authorization-modal-header, .authorization-modal-body { padding-inline: 16px; } .authorization-form-grid { grid-template-columns: 1fr; } .authorization-form-actions { align-items: flex-start; flex-direction: column; } .authorization-submit-button { width: 100%; } .authorization-row-controls { align-items: stretch; flex-wrap: wrap; } .authorization-row-permission { flex-basis: 100%; } .authorization-row-controls > .authorization-checkbox { flex: 1 1 auto; } :deep(.document-tiptap-editor) { padding: 24px 20px; } }
 </style>
