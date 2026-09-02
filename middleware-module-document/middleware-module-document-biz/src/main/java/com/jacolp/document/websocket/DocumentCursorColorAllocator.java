@@ -1,5 +1,7 @@
 package com.jacolp.document.websocket;
 
+import com.jacolp.document.websocket.exception.DocumentRoomLimitExceededException;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

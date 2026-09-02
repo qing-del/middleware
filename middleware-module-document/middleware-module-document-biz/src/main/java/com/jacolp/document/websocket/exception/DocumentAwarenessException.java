@@ -1,4 +1,4 @@
-package com.jacolp.document.websocket;
+package com.jacolp.document.websocket.exception;
 
 /** Awareness JOIN 或 Session 绑定失败时返回给客户端的结构化异常。 */
 public final class DocumentAwarenessException extends RuntimeException {

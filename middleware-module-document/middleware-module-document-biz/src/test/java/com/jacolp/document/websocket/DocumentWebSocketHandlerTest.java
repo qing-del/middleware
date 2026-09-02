@@ -26,6 +26,7 @@ import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
 import com.jacolp.document.infrastructure.redis.DocumentPendingUpdate;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.messaging.DocumentSchedulePublisher;
+import com.jacolp.document.websocket.exception.DocumentBootstrapException;
 import com.jacolp.document.websocket.protocol.DocumentWsAwarenessAction;
 import com.jacolp.document.websocket.protocol.DocumentWsAwarenessMeta;
 import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;

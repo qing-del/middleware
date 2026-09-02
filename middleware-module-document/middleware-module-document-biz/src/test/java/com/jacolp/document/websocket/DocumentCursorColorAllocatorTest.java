@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+
+import com.jacolp.document.websocket.exception.DocumentRoomLimitExceededException;
 import org.junit.jupiter.api.Test;
 
 class DocumentCursorColorAllocatorTest {

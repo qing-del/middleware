@@ -7,6 +7,7 @@ import com.jacolp.document.infrastructure.persistence.mapper.DocumentMapper;
 import com.jacolp.document.infrastructure.persistence.mapper.DocumentOpLogMapper;
 import com.jacolp.document.infrastructure.redis.DocumentRedisRepository;
 import com.jacolp.document.infrastructure.redis.StoredDocumentPendingUpdate;
+import com.jacolp.document.websocket.exception.DocumentBootstrapException;
 import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
 import com.jacolp.document.websocket.protocol.DocumentWsCodec;
 import com.jacolp.document.websocket.protocol.DocumentWsFrameType;
