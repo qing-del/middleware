@@ -4,6 +4,7 @@ import com.jacolp.common.security.context.CurrentPrincipal;
 import com.jacolp.document.application.access.DocumentAccess;
 import com.jacolp.document.api.model.DocumentRoomLifecycleState;
 import com.jacolp.document.config.DocumentProperties;
+import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -119,7 +120,8 @@ public class DocumentRoom {
         }
         DocumentSessionContext removed = sessions.remove(sessionId);
         if (removed != null) {
-            // 所有退出路径都在这里释放颜色；重复退出不会影响其他 Session 的颜色占用。
+            // 所有退出路径都在这里清理最新 Awareness、释放颜色；重复退出不会影响其他 Session。
+            removed.clearLatestAwareness();
             cursorColorAllocator.release(sessionId);
         }
         if (removed != null && sessions.isEmpty()) {
@@ -127,6 +129,27 @@ public class DocumentRoom {
             lifecycleState = DocumentRoomLifecycleState.PRE_CLOSE;
         }
         return Optional.ofNullable(removed);
+    }
+
+    /** 原子记录指定会话最新的 Awareness 帧，避免会话退出后仍写入已移除上下文。 */
+    public synchronized DocumentSessionContext rememberAwareness(String sessionId,
+                                                                  DocumentWsBinaryFrame awarenessFrame) {
+        DocumentSessionContext context = sessions.get(sessionId);
+        if (context == null) {
+            // 关闭回调和二进制帧处理可能并发到达；已移除会话不能重新建立 Awareness 状态。
+            throw new DocumentRoomAccessException("WebSocket session has not joined this document");
+        }
+        context.updateLatestAwareness(awarenessFrame);
+        return context;
+    }
+
+    /** 在 Room 锁内取得会话身份和最新 Awareness 帧的一致快照，供 JOIN 回放使用。 */
+    public synchronized List<AwarenessSnapshot> awarenessSnapshots() {
+        List<AwarenessSnapshot> snapshots = new ArrayList<>(sessions.size());
+        for (DocumentSessionContext context : sessions.values()) {
+            snapshots.add(new AwarenessSnapshot(context, context.latestAwareness().orElse(null)));
+        }
+        return List.copyOf(snapshots);
     }
 
     /** 将已完成 bootstrap 的会话标记为可接收客户端更新。 */
@@ -192,8 +215,15 @@ public class DocumentRoom {
     }
 
     /** 返回会话快照，避免调用方直接修改内部并发容器。 */
-    public Collection<DocumentSessionContext> sessions() {
+    public synchronized Collection<DocumentSessionContext> sessions() {
         return List.copyOf(sessions.values());
+    }
+
+    /** Room 内 Awareness 回放所需的会话身份和最新帧；帧为空表示该会话尚未发送 Awareness。 */
+    public record AwarenessSnapshot(DocumentSessionContext context, DocumentWsBinaryFrame latestFrame) {
+        public AwarenessSnapshot {
+            Objects.requireNonNull(context, "context must not be null");
+        }
     }
 
     /** 尝试向会话发送消息；传输失败时移除并关闭该慢会话。 */

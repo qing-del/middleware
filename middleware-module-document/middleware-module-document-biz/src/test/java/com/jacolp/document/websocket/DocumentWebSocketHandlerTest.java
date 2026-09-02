@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
@@ -38,8 +39,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
@@ -449,6 +452,121 @@ class DocumentWebSocketHandlerTest {
         verify(collaborator, times(4)).sendMessage(any(WebSocketMessage.class));
         assertThat(roomManager.find(7L).orElseThrow().sessionCount()).isEqualTo(1);
         verify(presenceRegistry).unregister("session-awareness-owner");
+    }
+
+    @Test
+    void replaysOnlyLatestAwarenessFrameToNewSession() throws Exception {
+        DocumentProperties properties = new DocumentProperties();
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
+        DocumentAccessService accessService = mock(DocumentAccessService.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
+        DocumentRoomManager roomManager = new DocumentRoomManager(properties);
+        DocumentDO document = document(7L, 42L);
+        DocumentAccess ownerAccess = access(document, DocumentPermission.WRITE, true);
+        DocumentAccess collaboratorAccess = access(document, DocumentPermission.READ, false);
+        when(accessService.requireRead(7L, 42L)).thenReturn(ownerAccess);
+        when(accessService.requireRead(7L, 43L)).thenReturn(collaboratorAccess);
+
+        DocumentWebSocketHandler handler = handler(codec, documentMapper, accessService, redisRepository,
+                bootstrapService, schedulePublisher, presenceRegistry, lifecycleService, properties, roomManager);
+        WebSocketSession owner = session("session-awareness-replay-owner", principal(42L, "document:write"));
+        WebSocketSession collaborator = session("session-awareness-replay-new", principal(43L, "document:read"));
+        handler.handleMessage(owner, codec.encodeControl(joinControl(7L, 2201L)));
+
+        UUID firstEventId = UUID.randomUUID();
+        UUID latestEventId = UUID.randomUUID();
+        handler.handleMessage(owner, codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
+                firstEventId, new byte[] {1, 1})));
+        handler.handleMessage(owner, codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
+                latestEventId, new byte[] {2, 3, 5, 8})));
+
+        handler.handleMessage(collaborator, codec.encodeControl(joinControl(7L, 2202L)));
+
+        ArgumentCaptor<WebSocketMessage<?>> replayedMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(collaborator, times(4)).sendMessage(replayedMessages.capture());
+        assertThat(codec.decodeControl((TextMessage) replayedMessages.getAllValues().get(0)).type())
+                .isEqualTo(DocumentWsControlType.JOIN_ACCEPTED);
+        DocumentWsAwarenessMeta ownerMeta = codec.decodeAwarenessMeta(
+                (TextMessage) replayedMessages.getAllValues().get(1));
+        assertThat(ownerMeta.action()).isEqualTo(DocumentWsAwarenessAction.UPSERT);
+        assertThat(ownerMeta.sessionId()).isEqualTo("session-awareness-replay-owner");
+        DocumentWsBinaryFrame replayed = codec.decodeBinary((BinaryMessage) replayedMessages.getAllValues().get(2));
+        assertThat(replayed.type()).isEqualTo(DocumentWsFrameType.AWARENESS);
+        assertThat(replayed.eventId()).isEqualTo(latestEventId);
+        assertThat(replayed.payload()).containsExactly(2, 3, 5, 8);
+        assertThat(codec.decodeControl((TextMessage) replayedMessages.getAllValues().get(3)).type())
+                .isEqualTo(DocumentWsControlType.SYNC_COMPLETE);
+
+        UUID forwardedEventId = UUID.randomUUID();
+        handler.handleMessage(owner, codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
+                forwardedEventId, new byte[] {13, 21})));
+        ArgumentCaptor<WebSocketMessage<?>> forwardedMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(collaborator, times(5)).sendMessage(forwardedMessages.capture());
+        DocumentWsBinaryFrame forwarded = codec.decodeBinary((BinaryMessage) forwardedMessages.getAllValues().get(4));
+        assertThat(forwarded.eventId()).isEqualTo(forwardedEventId);
+        assertThat(forwarded.payload()).containsExactly(13, 21);
+
+        handler.handleMessage(owner, codec.encodeControl(new DocumentWsControlMessage(1,
+                DocumentWsControlType.LEAVE_DOCUMENT, UUID.randomUUID(), 7L, null, null, null, null)));
+        ArgumentCaptor<WebSocketMessage<?>> removedMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(collaborator, times(6)).sendMessage(removedMessages.capture());
+        DocumentWsAwarenessMeta remove = codec.decodeAwarenessMeta(
+                (TextMessage) removedMessages.getAllValues().get(5));
+        assertThat(remove.action()).isEqualTo(DocumentWsAwarenessAction.REMOVE);
+        assertThat(remove.awarenessClientId()).isEqualTo(2201L);
+        verify(presenceRegistry).unregister("session-awareness-replay-owner");
+    }
+
+    @Test
+    void awarenessReplaySendFailureRemovesNewSessionAndPublishesRemove() throws Exception {
+        DocumentProperties properties = new DocumentProperties();
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
+        DocumentAccessService accessService = mock(DocumentAccessService.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
+        DocumentRoomManager roomManager = new DocumentRoomManager(properties);
+        DocumentDO document = document(7L, 42L);
+        DocumentAccess ownerAccess = access(document, DocumentPermission.WRITE, true);
+        DocumentAccess collaboratorAccess = access(document, DocumentPermission.READ, false);
+        when(accessService.requireRead(7L, 42L)).thenReturn(ownerAccess);
+        when(accessService.requireRead(7L, 43L)).thenReturn(collaboratorAccess);
+
+        DocumentWebSocketHandler handler = handler(codec, documentMapper, accessService, redisRepository,
+                bootstrapService, schedulePublisher, presenceRegistry, lifecycleService, properties, roomManager);
+        WebSocketSession owner = session("session-awareness-replay-failure-owner", principal(42L, "document:write"));
+        WebSocketSession collaborator = session("session-awareness-replay-failure-new", principal(43L, "document:read"));
+        handler.handleMessage(owner, codec.encodeControl(joinControl(7L, 2301L)));
+        handler.handleMessage(owner, codec.encodeBinary(new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
+                UUID.randomUUID(), new byte[] {9, 7, 4})));
+
+        AtomicInteger collaboratorSendCount = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (collaboratorSendCount.incrementAndGet() == 3) {
+                throw new IOException("replay send failed");
+            }
+            return null;
+        }).when(collaborator).sendMessage(any(WebSocketMessage.class));
+
+        handler.handleMessage(collaborator, codec.encodeControl(joinControl(7L, 2302L)));
+
+        ArgumentCaptor<WebSocketMessage<?>> ownerMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(owner, times(3)).sendMessage(ownerMessages.capture());
+        DocumentWsAwarenessMeta remove = codec.decodeAwarenessMeta(
+                (TextMessage) ownerMessages.getAllValues().get(2));
+        assertThat(remove.action()).isEqualTo(DocumentWsAwarenessAction.REMOVE);
+        assertThat(remove.awarenessClientId()).isEqualTo(2302L);
+        assertThat(remove.sessionId()).isEqualTo("session-awareness-replay-failure-new");
+        assertThat(roomManager.find(7L).orElseThrow().sessionCount()).isEqualTo(1);
+        verify(presenceRegistry).unregister("session-awareness-replay-failure-new");
     }
 
     @Test

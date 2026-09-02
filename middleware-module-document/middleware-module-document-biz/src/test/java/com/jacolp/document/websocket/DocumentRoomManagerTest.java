@@ -13,8 +13,11 @@ import com.jacolp.document.api.model.DocumentRoomLifecycleState;
 import com.jacolp.document.config.DocumentProperties;
 import com.jacolp.document.enums.DocumentPermission;
 import com.jacolp.document.infrastructure.persistence.dataobject.DocumentDO;
+import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
+import com.jacolp.document.websocket.protocol.DocumentWsFrameType;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.junit.jupiter.api.Test;
@@ -110,6 +113,32 @@ class DocumentRoomManagerTest {
         DocumentSessionContext replacement = room.join(session("session-a"), principal(42L),
                 access(11L, 42L, DocumentPermission.WRITE, true), 1010L);
         assertThat(replacement.cursorColor()).isEqualTo(first.cursorColor());
+    }
+
+    @Test
+    void replacesLatestAwarenessFrameAndClearsItWhenSessionLeaves() {
+        DocumentRoom room = new DocumentRoomManager(properties(2)).getOrCreate(18L, 42L);
+        DocumentSessionContext context = room.join(session("awareness-cache"), principal(42L),
+                access(18L, 42L, DocumentPermission.WRITE, true), 1801L);
+        DocumentWsBinaryFrame first = new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
+                UUID.randomUUID(), new byte[] {1, 2});
+        DocumentWsBinaryFrame latest = new DocumentWsBinaryFrame(DocumentWsFrameType.AWARENESS,
+                UUID.randomUUID(), new byte[] {3, 4, 5});
+
+        room.rememberAwareness("awareness-cache", first);
+        room.rememberAwareness("awareness-cache", latest);
+
+        DocumentWsBinaryFrame cached = context.latestAwareness().orElseThrow();
+        assertThat(cached.eventId()).isEqualTo(latest.eventId());
+        assertThat(cached.payload()).containsExactly(3, 4, 5);
+        assertThat(room.awarenessSnapshots()).singleElement()
+                .satisfies(snapshot -> assertThat(snapshot.latestFrame().eventId()).isEqualTo(latest.eventId()));
+
+        DocumentSessionContext removed = room.removeSession("awareness-cache").orElseThrow();
+        assertThat(removed.latestAwareness()).isEmpty();
+        assertThat(room.awarenessSnapshots()).isEmpty();
+        assertThatThrownBy(() -> room.rememberAwareness("awareness-cache", latest))
+                .isInstanceOf(DocumentRoomAccessException.class);
     }
 
     @Test

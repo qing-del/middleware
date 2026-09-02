@@ -2,10 +2,13 @@ package com.jacolp.document.websocket;
 
 import com.jacolp.document.application.access.DocumentAccess;
 import com.jacolp.document.enums.DocumentPermission;
+import com.jacolp.document.websocket.protocol.DocumentWsBinaryFrame;
+import com.jacolp.document.websocket.protocol.DocumentWsFrameType;
 import java.util.Objects;
+import java.util.Optional;
 import org.springframework.web.socket.WebSocketSession;
 
-/** 单个会话的运行时元数据；JVM 内不保存任何 Yjs 更新历史。 */
+/** 单个会话的运行时元数据；JVM 内只保留最新 Awareness 帧，不保存正文或更新历史。 */
 public final class DocumentSessionContext {
 
     private final WebSocketSession session;
@@ -15,6 +18,7 @@ public final class DocumentSessionContext {
     private final long awarenessClientId;
     private volatile SessionAccess access;
     private volatile DocumentSessionSyncStatus syncStatus = DocumentSessionSyncStatus.SYNCING;
+    private volatile DocumentWsBinaryFrame latestAwarenessFrame;
 
     /** 创建尚未完成 bootstrap 的同步中会话上下文。 */
     DocumentSessionContext(WebSocketSession session, long userId, String username, String cursorColor,
@@ -85,6 +89,25 @@ public final class DocumentSessionContext {
     /** 用重复 JOIN 或写入前的最新 ACL 结果刷新会话能力。 */
     void updateAccess(DocumentAccess documentAccess) {
         access = toSessionAccess(Objects.requireNonNull(documentAccess, "documentAccess must not be null"));
+    }
+
+    /** 替换当前会话的最新 Awareness 帧；帧本身只允许携带透明的 Awareness 字节。 */
+    void updateLatestAwareness(DocumentWsBinaryFrame awarenessFrame) {
+        DocumentWsBinaryFrame frame = Objects.requireNonNull(awarenessFrame, "awarenessFrame must not be null");
+        if (frame.type() != DocumentWsFrameType.AWARENESS) {
+            throw new IllegalArgumentException("awareness frame type must be AWARENESS");
+        }
+        latestAwarenessFrame = frame;
+    }
+
+    /** 返回当前最新 Awareness 帧的不可变快照；尚未发送时返回空。 */
+    Optional<DocumentWsBinaryFrame> latestAwareness() {
+        return Optional.ofNullable(latestAwarenessFrame);
+    }
+
+    /** 在 Session 离开 Room 时清除 Awareness 帧，避免已移除会话继续占用内存。 */
+    void clearLatestAwareness() {
+        latestAwarenessFrame = null;
     }
 
     /** 返回 bootstrap 同步状态。 */

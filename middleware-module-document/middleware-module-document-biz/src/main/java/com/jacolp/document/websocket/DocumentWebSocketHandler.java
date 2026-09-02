@@ -314,11 +314,12 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         scheduleFlushLog(room.documentId());
     }
 
-    /** 将 awareness 数据广播给同一 Room 的其他已同步会话，不进入持久化链路。 */
+    /** 先缓存发送者最新的 Awareness 帧，再广播给同一 Room 的其他会话，不进入持久化链路。 */
     private void broadcastAwareness(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
-        List<DocumentSessionContext> removedSessions = room.broadcast(codec.encodeBinary(new DocumentWsBinaryFrame(
-                DocumentWsFrameType.AWARENESS, frame.eventId(), frame.payload())), session.getId());
+        // Room 在同一把锁内校验成员并替换缓存，避免关闭回调之后仍保存幽灵会话状态。
+        room.rememberAwareness(session.getId(), frame);
+        List<DocumentSessionContext> removedSessions = room.broadcast(codec.encodeBinary(frame), session.getId());
         cleanupRemovedSessions(room, removedSessions);
     }
 
@@ -383,13 +384,22 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
-    /** 将新会话的元数据回放给它，并向已有会话广播自身的 UPSERT。 */
+    /** 将已有会话的元数据和最新 Awareness 帧回放给新会话，再广播新会话的 UPSERT。 */
     private boolean publishAwarenessJoin(DocumentRoom room, DocumentSessionContext joined) {
-        for (DocumentSessionContext existing : room.sessions()) {
+        for (DocumentRoom.AwarenessSnapshot snapshot : room.awarenessSnapshots()) {
+            DocumentSessionContext existing = snapshot.context();
             if (existing.sessionId().equals(joined.sessionId())) {
                 continue;
             }
+            if (!containsSession(room, existing.sessionId())) {
+                // 快照建立后旧会话可能已经退出；其 REMOVE 会由统一清理流程发送，不能回放过期状态。
+                continue;
+            }
             if (!sendAwarenessMeta(joined.session(), awarenessUpsert(room.documentId(), existing))) {
+                return false;
+            }
+            if (snapshot.latestFrame() != null && containsSession(room, existing.sessionId())
+                    && !sendAwarenessFrame(joined.session(), snapshot.latestFrame())) {
                 return false;
             }
         }
@@ -401,6 +411,18 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
                 codec.encodeAwarenessMeta(awarenessUpsert(room.documentId(), joined)), joined.sessionId());
         cleanupRemovedSessions(room, removedSessions);
         return containsSession(room, joined.sessionId());
+    }
+
+    /** 将已有会话最新的 Awareness 二进制帧回放给新会话；发送失败时走统一退出清理。 */
+    private boolean sendAwarenessFrame(WebSocketSession session, DocumentWsBinaryFrame awarenessFrame) {
+        try {
+            session.sendMessage(codec.encodeBinary(awarenessFrame));
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            // 回放发送失败代表目标连接不可继续使用，必须释放其 Room、颜色和 presence 状态。
+            leaveSession(session);
+            return false;
+        }
     }
 
     /** 将 Awareness 元数据事件发送给单个会话；失败时进入统一退出清理。 */
