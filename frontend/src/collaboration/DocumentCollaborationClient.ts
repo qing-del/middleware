@@ -60,6 +60,44 @@ export type DocumentAwarenessSessionEvent =
   | { action: 'UPSERT'; metadata: DocumentAwarenessSessionMetadata }
   | { action: 'REMOVE'; awarenessClientId: number; sessionId: string }
 
+/** 协作 Agent 对外公布的有限状态；不包含提示词、思考过程或模型输出。 */
+export type DocumentAgentStatus = 'reading' | 'thinking' | 'editing' | 'idle'
+
+/** Yjs Relative Position JSON 中的客户端时钟标识。 */
+export interface DocumentAwarenessRelativePositionId {
+  client: number
+  clock: number
+}
+
+/**
+ * Awareness 中可传输的 Yjs Relative Position 结构。
+ *
+ * 该类型与 Y.relativePositionToJSON 的结果兼容，也能接收 Y.RelativePosition
+ * 实例的结构；位置始终保持相对语义，不允许退化成普通文本 offset。
+ */
+export interface DocumentAwarenessRelativePosition {
+  type?: DocumentAwarenessRelativePositionId | null
+  tname?: string | null
+  item?: DocumentAwarenessRelativePositionId | null
+  assoc?: number
+}
+
+/** Agent 当前正在读取或编辑的文档相对位置范围。 */
+export interface DocumentAgentWorkingRange {
+  from: DocumentAwarenessRelativePosition
+  to: DocumentAwarenessRelativePosition
+}
+
+/** Agent Awareness 的完整状态；没有活动操作时可使用 idle 和空范围。 */
+export interface DocumentAgentAwarenessState {
+  operationId: string | null
+  status: DocumentAgentStatus
+  workingRange: DocumentAgentWorkingRange | null
+}
+
+/** Agent Awareness 的字段级更新；未提供的字段保持已有值。 */
+export type DocumentAgentAwarenessPatch = Partial<DocumentAgentAwarenessState>
+
 export interface DocumentCollaborationClientOptions {
   /** 要加入协作 Room 的文档 ID；example: {@code 42} */
   documentId: number
@@ -226,6 +264,36 @@ export class DocumentCollaborationClient {
     const current = this.awareness.getLocalState() as Record<string, unknown> | null
     this.awareness.setLocalState(mergeAwarenessState(current, patch))
     if (this.synchronized) this.sendLocalAwareness()
+  }
+
+  /**
+   * 按字段更新本地 Agent Awareness。
+   *
+   * Agent 只同步 operationId、有限 status 和相对位置范围；默认状态保证
+   * 第一次只更新一个字段时，agent 分支仍然保持完整且可被后续消费者读取。
+   */
+  updateLocalAgentAwareness(patch: DocumentAgentAwarenessPatch): void {
+    const current = this.awareness.getLocalState() as Record<string, unknown> | null
+    const currentAgent = isObjectRecord(current?.agent)
+      ? current.agent as Partial<DocumentAgentAwarenessState>
+      : {}
+    const agent: DocumentAgentAwarenessState = {
+      operationId: currentAgent.operationId ?? null,
+      status: currentAgent.status ?? 'idle',
+      workingRange: currentAgent.workingRange ?? null
+    }
+
+    // 逐字段判断 undefined，避免部分更新把已有 Agent 字段覆盖成空值。
+    if (patch.operationId !== undefined) agent.operationId = patch.operationId
+    if (patch.status !== undefined) agent.status = patch.status
+    if (patch.workingRange !== undefined) agent.workingRange = patch.workingRange
+
+    this.updateLocalAwareness({ agent })
+  }
+
+  /** 清除整个本地 Agent Awareness 分支；其他用户和光标字段继续保留。 */
+  clearLocalAgentAwareness(): void {
+    this.updateLocalAwareness({ agent: null })
   }
 
   /** 保留旧入口，兼容既有页面调用；实际行为已经改为字段级合并。 */
@@ -626,7 +694,12 @@ function mergeAwarenessState(
     }
     const currentValue = next[key]
     if (AWARENESS_OBJECT_FIELDS.has(key) && isObjectRecord(currentValue) && isObjectRecord(value)) {
-      next[key] = { ...currentValue, ...value }
+      // 对嵌套字段同样忽略 undefined，避免 Agent 等部分更新写入空字段。
+      const mergedValue: Record<string, unknown> = { ...currentValue }
+      for (const [nestedKey, nestedValue] of Object.entries(value)) {
+        if (nestedValue !== undefined) mergedValue[nestedKey] = nestedValue
+      }
+      next[key] = mergedValue
       continue
     }
     next[key] = value
