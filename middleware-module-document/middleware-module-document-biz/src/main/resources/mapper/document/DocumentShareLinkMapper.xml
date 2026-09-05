@@ -91,7 +91,7 @@
         WHERE id = #{id}
           AND enabled = 1
           AND expires_at > CURRENT_TIMESTAMP(3)
-          AND used_count < max_uses
+          <![CDATA[AND used_count < max_uses]]>
     </update>
 
     <!-- 查询当前用户是否已经兑换过该短链；无记录才会进入授权和计数流程。 -->
