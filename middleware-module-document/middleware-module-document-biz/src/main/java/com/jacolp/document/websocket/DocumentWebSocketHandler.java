@@ -271,18 +271,7 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     private void acceptClientUpdate(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
         DocumentSessionContext context = room.requireSession(session.getId());
-        // 先限制单次更新大小，避免异常客户端占满 Redis Stream、出站队列或下游合并服务。
-        if (frame.payload().length > properties.getWebsocket().getMaxUpdateBytes()) {
-            metrics.recordUpdateRejected();
-            sendError(session, frame.eventId(), "DOCUMENT_UPDATE_TOO_LARGE", "Yjs update exceeds configured maximum size");
-            return;
-        }
-        // 空更新没有任何可合并内容，却会污染 ACK、广播和刷盘链路，因此直接拒绝。
-        if (frame.payload().length == 0) {
-            metrics.recordUpdateRejected();
-            sendError(session, frame.eventId(), "DOCUMENT_PROTOCOL_ERROR", "Yjs update must not be empty");
-            return;
-        }
+        if (rejectInvalidClientPayload(session, frame, "Yjs update")) return;
 
         CurrentPrincipal principal = DocumentWebSocketHandshakeInterceptor.requirePrincipal(session.getAttributes());
         if (context.userId() != principal.userId() || !context.canWrite()) {
@@ -321,10 +310,30 @@ public class DocumentWebSocketHandler extends AbstractWebSocketHandler {
     /** 先缓存发送者最新的 Awareness 帧，再广播给同一 Room 的其他会话，不进入持久化链路。 */
     private void broadcastAwareness(WebSocketSession session, DocumentWsBinaryFrame frame) {
         DocumentRoom room = requireActiveRoom(session);
+        if (rejectInvalidClientPayload(session, frame, "Awareness payload")) return;
         // Room 在同一把锁内校验成员并替换缓存，避免关闭回调之后仍保存幽灵会话状态。
         room.rememberAwareness(session.getId(), frame);
         List<DocumentSessionContext> removedSessions = room.broadcast(codec.encodeBinary(frame), session.getId());
         cleanupRemovedSessions(room, removedSessions);
+    }
+
+    /** 统一限制客户端二进制 payload，避免无效数据进入持久化、缓存或广播链路。 */
+    private boolean rejectInvalidClientPayload(WebSocketSession session, DocumentWsBinaryFrame frame,
+                                               String payloadName) {
+        int payloadBytes = frame.payload().length;
+        if (payloadBytes > properties.getWebsocket().getMaxUpdateBytes()) {
+            metrics.recordUpdateRejected();
+            sendError(session, frame.eventId(), "DOCUMENT_UPDATE_TOO_LARGE",
+                    payloadName + " exceeds configured maximum size");
+            return true;
+        }
+        // 空 payload 没有任何可应用内容，却会污染 ACK、缓存和广播链路，因此直接拒绝。
+        if (payloadBytes == 0) {
+            metrics.recordUpdateRejected();
+            sendError(session, frame.eventId(), "DOCUMENT_PROTOCOL_ERROR", payloadName + " must not be empty");
+            return true;
+        }
+        return false;
     }
 
     /** 获取已 JOIN 且已完成 bootstrap 的本机会话 Room。 */

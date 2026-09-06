@@ -456,6 +456,109 @@ class DocumentWebSocketHandlerTest {
     }
 
     @Test
+    void rejectsOversizedAwarenessPayloadBeforeCachingOrBroadcasting() throws Exception {
+        WebSocketTestFixture fixture = websocketFixture(4);
+        joinOwnerAndCollaborator(fixture);
+        UUID eventId = UUID.randomUUID();
+
+        fixture.handler().handleMessage(fixture.owner(), fixture.codec().encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.AWARENESS, eventId, new byte[] {1, 2, 3, 4, 5})));
+
+        ArgumentCaptor<WebSocketMessage<?>> ownerMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(fixture.owner(), times(4)).sendMessage(ownerMessages.capture());
+        DocumentWsControlMessage error = fixture.codec().decodeControl(
+                (TextMessage) ownerMessages.getAllValues().get(3));
+        assertThat(error.type()).isEqualTo(DocumentWsControlType.ERROR);
+        assertThat(error.requestId()).isEqualTo(eventId);
+        assertThat(error.code()).isEqualTo("DOCUMENT_UPDATE_TOO_LARGE");
+        assertThat(error.message()).isEqualTo("Awareness payload exceeds configured maximum size");
+
+        verify(fixture.collaborator(), times(3)).sendMessage(any(WebSocketMessage.class));
+        assertThat(fixture.roomManager().find(7L).orElseThrow().awarenessSnapshots())
+                .allSatisfy(snapshot -> assertThat(snapshot.latestFrame()).isNull());
+    }
+
+    @Test
+    void rejectsEmptyAwarenessPayloadBeforeCachingOrBroadcasting() throws Exception {
+        WebSocketTestFixture fixture = websocketFixture(4);
+        joinOwnerAndCollaborator(fixture);
+        UUID eventId = UUID.randomUUID();
+
+        fixture.handler().handleMessage(fixture.owner(), fixture.codec().encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.AWARENESS, eventId, new byte[0])));
+
+        ArgumentCaptor<WebSocketMessage<?>> ownerMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(fixture.owner(), times(4)).sendMessage(ownerMessages.capture());
+        DocumentWsControlMessage error = fixture.codec().decodeControl(
+                (TextMessage) ownerMessages.getAllValues().get(3));
+        assertThat(error.type()).isEqualTo(DocumentWsControlType.ERROR);
+        assertThat(error.requestId()).isEqualTo(eventId);
+        assertThat(error.code()).isEqualTo("DOCUMENT_PROTOCOL_ERROR");
+        assertThat(error.message()).isEqualTo("Awareness payload must not be empty");
+
+        verify(fixture.collaborator(), times(3)).sendMessage(any(WebSocketMessage.class));
+        assertThat(fixture.roomManager().find(7L).orElseThrow().awarenessSnapshots())
+                .allSatisfy(snapshot -> assertThat(snapshot.latestFrame()).isNull());
+    }
+
+    @Test
+    void acceptsAwarenessPayloadAtConfiguredMaximumSize() throws Exception {
+        WebSocketTestFixture fixture = websocketFixture(4);
+        joinOwnerAndCollaborator(fixture);
+        UUID eventId = UUID.randomUUID();
+        byte[] payload = new byte[] {1, 2, 3, 4};
+
+        fixture.handler().handleMessage(fixture.owner(), fixture.codec().encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.AWARENESS, eventId, payload)));
+
+        ArgumentCaptor<WebSocketMessage<?>> collaboratorMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(fixture.collaborator(), times(4)).sendMessage(collaboratorMessages.capture());
+        DocumentWsBinaryFrame forwarded = fixture.codec().decodeBinary(
+                (BinaryMessage) collaboratorMessages.getAllValues().get(3));
+        assertThat(forwarded.eventId()).isEqualTo(eventId);
+        assertThat(forwarded.payload()).containsExactly(payload);
+
+        DocumentWsBinaryFrame cached = fixture.roomManager().find(7L).orElseThrow().awarenessSnapshots().stream()
+                .filter(snapshot -> snapshot.context().sessionId().equals(fixture.owner().getId()))
+                .findFirst()
+                .orElseThrow()
+                .latestFrame();
+        assertThat(cached).isNotNull();
+        assertThat(cached.eventId()).isEqualTo(eventId);
+        assertThat(cached.payload()).containsExactly(payload);
+    }
+
+    @Test
+    void rejectsEmptyAndOversizedClientUpdatesThroughSharedPayloadValidation() throws Exception {
+        WebSocketTestFixture fixture = websocketFixture(3);
+        joinOwner(fixture);
+        UUID emptyEventId = UUID.randomUUID();
+        UUID oversizedEventId = UUID.randomUUID();
+
+        fixture.handler().handleMessage(fixture.owner(), fixture.codec().encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.CLIENT_UPDATE, emptyEventId, new byte[0])));
+        fixture.handler().handleMessage(fixture.owner(), fixture.codec().encodeBinary(new DocumentWsBinaryFrame(
+                DocumentWsFrameType.CLIENT_UPDATE, oversizedEventId, new byte[] {1, 2, 3, 4})));
+
+        ArgumentCaptor<WebSocketMessage<?>> ownerMessages = ArgumentCaptor.forClass(WebSocketMessage.class);
+        verify(fixture.owner(), times(4)).sendMessage(ownerMessages.capture());
+        DocumentWsControlMessage emptyError = fixture.codec().decodeControl(
+                (TextMessage) ownerMessages.getAllValues().get(2));
+        assertThat(emptyError.type()).isEqualTo(DocumentWsControlType.ERROR);
+        assertThat(emptyError.requestId()).isEqualTo(emptyEventId);
+        assertThat(emptyError.code()).isEqualTo("DOCUMENT_PROTOCOL_ERROR");
+        assertThat(emptyError.message()).isEqualTo("Yjs update must not be empty");
+
+        DocumentWsControlMessage oversizedError = fixture.codec().decodeControl(
+                (TextMessage) ownerMessages.getAllValues().get(3));
+        assertThat(oversizedError.type()).isEqualTo(DocumentWsControlType.ERROR);
+        assertThat(oversizedError.requestId()).isEqualTo(oversizedEventId);
+        assertThat(oversizedError.code()).isEqualTo("DOCUMENT_UPDATE_TOO_LARGE");
+        assertThat(oversizedError.message()).isEqualTo("Yjs update exceeds configured maximum size");
+        verify(fixture.redisRepository(), never()).appendPendingUpdate(any(DocumentPendingUpdate.class));
+    }
+
+    @Test
     void replaysOnlyLatestAwarenessFrameToNewSession() throws Exception {
         DocumentProperties properties = new DocumentProperties();
         DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
@@ -608,6 +711,40 @@ class DocumentWebSocketHandlerTest {
         verify(presenceRegistry).unregister("session-awareness-failed");
     }
 
+    private static WebSocketTestFixture websocketFixture(int maxUpdateBytes) {
+        DocumentProperties properties = new DocumentProperties();
+        properties.getWebsocket().setMaxUpdateBytes(maxUpdateBytes);
+        DocumentWsCodec codec = new DocumentWsCodec(new ObjectMapper(), properties);
+        DocumentMapper documentMapper = mock(DocumentMapper.class);
+        DocumentAccessService accessService = mock(DocumentAccessService.class);
+        DocumentRedisRepository redisRepository = mock(DocumentRedisRepository.class);
+        DocumentBootstrapService bootstrapService = mock(DocumentBootstrapService.class);
+        DocumentSchedulePublisher schedulePublisher = mock(DocumentSchedulePublisher.class);
+        DocumentSessionPresenceRegistry presenceRegistry = mock(DocumentSessionPresenceRegistry.class);
+        DocumentRoomLifecycleService lifecycleService = mock(DocumentRoomLifecycleService.class);
+        DocumentRoomManager roomManager = new DocumentRoomManager(properties);
+        DocumentDO document = document(7L, 42L);
+        when(accessService.requireRead(7L, 42L)).thenReturn(access(document, DocumentPermission.WRITE, true));
+        when(accessService.requireRead(7L, 43L)).thenReturn(access(document, DocumentPermission.READ, false));
+        when(redisRepository.findRoomMeta(7L)).thenReturn(Optional.empty());
+
+        DocumentWebSocketHandler handler = handler(codec, documentMapper, accessService, redisRepository,
+                bootstrapService, schedulePublisher, presenceRegistry, lifecycleService, properties, roomManager);
+        WebSocketSession owner = session("session-awareness-validation-owner", principal(42L, "document:write"));
+        WebSocketSession collaborator = session("session-awareness-validation-collaborator",
+                principal(43L, "document:read"));
+        return new WebSocketTestFixture(handler, codec, roomManager, redisRepository, owner, collaborator);
+    }
+
+    private static void joinOwner(WebSocketTestFixture fixture) throws Exception {
+        fixture.handler().handleMessage(fixture.owner(), fixture.codec().encodeControl(joinControl(7L, 2401L)));
+    }
+
+    private static void joinOwnerAndCollaborator(WebSocketTestFixture fixture) throws Exception {
+        joinOwner(fixture);
+        fixture.handler().handleMessage(fixture.collaborator(), fixture.codec().encodeControl(joinControl(7L, 2402L)));
+    }
+
     private static DocumentWebSocketHandler handler(DocumentWsCodec codec, DocumentMapper documentMapper,
                                                     DocumentAccessService accessService,
                                                     DocumentRedisRepository redisRepository,
@@ -658,5 +795,10 @@ class DocumentWebSocketHandlerTest {
 
     private static DocumentAccess access(DocumentDO document, DocumentPermission permission, boolean owner) {
         return new DocumentAccess(document, permission, owner);
+    }
+
+    private record WebSocketTestFixture(DocumentWebSocketHandler handler, DocumentWsCodec codec,
+                                        DocumentRoomManager roomManager, DocumentRedisRepository redisRepository,
+                                        WebSocketSession owner, WebSocketSession collaborator) {
     }
 }
