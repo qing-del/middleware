@@ -144,6 +144,8 @@ const REMOTE_AWARENESS_ORIGIN = Symbol('document-remote-awareness')
 const LOCAL_AWARENESS_ORIGIN = Symbol('document-local-awareness')
 /** 重连退避等待时间上限；示例：`10000` 毫秒。 */
 const MAX_RECONNECT_DELAY_MS = 10_000
+/** 本地 Awareness 更新的最小发送间隔；示例：`50` 毫秒。 */
+const AWARENESS_THROTTLE_MS = 50
 /** 允许按字段合并的 Awareness 顶层对象，避免更新一个分支覆盖其他协同状态。 */
 const AWARENESS_OBJECT_FIELDS = new Set(['user', 'cursor', 'selection', 'agent'])
 
@@ -189,6 +191,10 @@ export class DocumentCollaborationClient {
   private socket: WebSocket | null = null
   /** 当前唯一的重连定时器；没有待重连任务时为 `null`。 */
   private reconnectTimer: ReturnType<typeof window.setTimeout> | null = null
+  /** 高频本地 Awareness 更新的 trailing 定时器。 */
+  private awarenessSendTimer: ReturnType<typeof window.setTimeout> | null = null
+  /** 最近一次成功发送本地 Awareness 的时间戳。 */
+  private awarenessLastSentAt: number | null = null
   /** 已连续发起的重连次数，用于计算指数退避时长。 */
   private reconnectAttempts = 0
   /** 客户端是否已经释放，不再允许创建连接或处理事件。 */
@@ -262,11 +268,10 @@ export class DocumentCollaborationClient {
     this.socket = socket
   }
 
-  /** 按顶层字段合并本地 Awareness，并在已同步连接上立即广播。 */
+  /** 按顶层字段合并本地 Awareness；网络发送由 Awareness update 监听统一处理。 */
   updateLocalAwareness(patch: Record<string, unknown>): void {
     const current = this.awareness.getLocalState() as Record<string, unknown> | null
     this.awareness.setLocalState(mergeAwarenessState(current, patch))
-    if (this.synchronized) this.sendLocalAwareness()
   }
 
   /**
@@ -322,6 +327,7 @@ export class DocumentCollaborationClient {
       window.clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
+    this.clearAwarenessSendTimer()
     this.sendControl(createDocumentWsControl('LEAVE_DOCUMENT', {
       requestId: createDocumentWsRequestId(),
       documentId: this.documentId
@@ -350,10 +356,10 @@ export class DocumentCollaborationClient {
     if (this.synchronized) this.sendPendingUpdate(this.pendingUpdates.get(id)!)
   }
 
-  /** 仅在本地状态变化且连接已同步时发送 awareness。 */
+  /** 仅在本地状态变化且连接已同步时请求发送 Awareness。 */
   private readonly handleAwarenessUpdate = (_changes: unknown, origin: unknown): void => {
     if (origin !== REMOTE_AWARENESS_ORIGIN && this.synchronized && !this.disposed) {
-      this.sendLocalAwareness()
+      this.requestLocalAwarenessSend()
     }
   }
 
@@ -395,6 +401,7 @@ export class DocumentCollaborationClient {
         // 最终构建完成后才发送本地队列中的变更，从而让它们在服务端快照、历史更新
         // 和同步期间收到的远端更新之后应用。
         this.pendingUpdates.forEach(update => this.sendPendingUpdate(update))
+        this.clearAwarenessSendTimer()
         this.sendLocalAwareness()
         break
       case 'UPDATE_ACCEPTED':
@@ -590,6 +597,7 @@ export class DocumentCollaborationClient {
   private handleSocketClosed(socket: WebSocket): void {
     if (this.socket !== socket) return
     this.socket = null
+    this.clearAwarenessSendTimer()
     // 断线期间不会再收到旧 Room 的 REMOVE；先清除缓存，防止重连后保留幽灵协作者。
     this.clearAwarenessSessions()
     this.synchronized = false
@@ -648,6 +656,34 @@ export class DocumentCollaborationClient {
     this.socket!.send(encodeDocumentWsFrame(DocumentWsFrameType.CLIENT_UPDATE, update.id, update.payload))
   }
 
+  /** 请求发送当前本地 Awareness；首帧立即发送，窗口内只保留最后状态。 */
+  private requestLocalAwarenessSend(): void {
+    if (!this.synchronized || this.disposed || !this.isSocketOpen()) return
+
+    const now = Date.now()
+    const elapsed = this.awarenessLastSentAt === null
+      ? AWARENESS_THROTTLE_MS
+      : now - this.awarenessLastSentAt
+    if (elapsed >= AWARENESS_THROTTLE_MS) {
+      this.clearAwarenessSendTimer()
+      this.sendLocalAwareness()
+      return
+    }
+
+    if (this.awarenessSendTimer !== null) return
+    this.awarenessSendTimer = window.setTimeout(() => {
+      this.awarenessSendTimer = null
+      this.sendLocalAwareness()
+    }, Math.max(0, AWARENESS_THROTTLE_MS - elapsed))
+  }
+
+  /** 清理尚未触发的本地 Awareness 节流任务。 */
+  private clearAwarenessSendTimer(): void {
+    if (this.awarenessSendTimer === null) return
+    window.clearTimeout(this.awarenessSendTimer)
+    this.awarenessSendTimer = null
+  }
+
   /** 发送当前客户端的 awareness 状态，不写入持久化更新队列。 */
   private sendLocalAwareness(): void {
     if (!this.synchronized || !this.isSocketOpen()) return
@@ -658,6 +694,7 @@ export class DocumentCollaborationClient {
       createDocumentWsRequestId(),
       payload
     ))
+    this.awarenessLastSentAt = Date.now()
   }
 
   /**
