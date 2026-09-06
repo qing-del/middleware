@@ -7,6 +7,7 @@ import {
   readAuthSession,
   type AuthClientId
 } from '@/utils/authSession'
+import { sanitizeShareRedirect, shareLinkCodeFromPath } from '@/utils/shareLink'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -52,6 +53,17 @@ const router = createRouter({
           component: () => import('@/views/guest/NoteDetail.vue')
         }
       ]
+    },
+    {
+      path: '/share/documents/:code',
+      name: 'DocumentShare',
+      component: () => import('@/views/DocumentShare.vue'),
+      // 分享页本身不授予权限；只有已登录 user client 且拥有文档 scope 才能调用 redeem。
+      meta: {
+        requiresAuth: true,
+        clientId: 'user',
+        anyRequiredScopes: ['document:read', 'document:write']
+      }
     },
     {
       path: '/dashboard',
@@ -259,18 +271,37 @@ const router = createRouter({
 router.beforeEach((to) => {
   const session = readAuthSession()
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const isShareRoute = to.name === 'DocumentShare'
+  const shareRedirect = sanitizeShareRedirect(to.path)
+
+  // Malformed codes are rendered as a neutral invalid-link state without ever
+  // being sent to an API or used to build a redirect.
+  if (isShareRoute && !shareLinkCodeFromPath(to.path)) return true
 
   if (!session.accessToken) {
-    return requiresAuth ? '/login' : true
+    return requiresAuth
+      ? shareRedirect ? { path: '/login', query: { redirect: shareRedirect } } : '/login'
+      : true
   }
 
   if (!session.clientId) {
     clearStoredAuth()
-    return '/login'
+    return shareRedirect ? { path: '/login', query: { redirect: shareRedirect } } : '/login'
   }
 
   if (to.path === '/login' || to.path === '/') {
+    if (to.path === '/login' && session.clientId === 'user') {
+      const redirect = sanitizeShareRedirect(to.query.redirect)
+      if (redirect) return redirect
+    }
     return session.clientId === 'admin' ? '/admin' : '/user'
+  }
+
+  if (isShareRoute && session.clientId !== 'user') {
+    // An admin token must never reach redeem. Clear the client boundary and
+    // restart through the user login entry while preserving only this route.
+    clearStoredAuth()
+    return shareRedirect ? { path: '/login', query: { redirect: shareRedirect } } : '/login'
   }
 
   if (!requiresAuth) return true

@@ -8,6 +8,7 @@ import * as Y from 'yjs'
 import {
   ArrowLeft,
   Bold,
+  Copy,
   CircleAlert,
   Cloud,
   FilePlus2,
@@ -24,9 +25,12 @@ import {
   X
 } from 'lucide-vue-next'
 import {
+  MAX_DOCUMENT_SHARE_LINK_USES,
+  MAX_DOCUMENT_SHARE_LINK_VALID_FOR_SECONDS,
   documentApi,
   type DocumentAccessMetadata,
   type DocumentPermission,
+  type DocumentShareLink,
   type DocumentUserAuthorization
 } from '@/api/documents'
 import {
@@ -92,6 +96,31 @@ const newAuthorizationEnabled = ref(true)
 const addingAuthorization = ref(false)
 /** 当前正在保存或撤销的授权用户 ID；同一时间只允许一个行操作。 */
 const authorizationOperationUserId = ref<number | null>(null)
+/** 当前文档的分享短链历史状态；历史记录不会包含原始 shareUrl。 */
+const shareLinks = ref<DocumentShareLink[]>([])
+/** 分享短链列表请求是否正在执行。 */
+const shareLinksLoading = ref(false)
+/** 分享短链操作错误；不展示令牌或后端实现细节。 */
+const shareLinkError = ref<string | null>(null)
+/** 创建短链表单是否展开。 */
+const shareLinkPanelVisible = ref(true)
+/** 新短链授予的文档级权限，默认使用最小 READ 权限。 */
+const newShareLinkPermission = ref<DocumentPermission>('READ')
+/** 新短链有效时长，单位为秒；默认 7 天。 */
+const newShareLinkValidForSeconds = ref(7 * 24 * 60 * 60)
+/** 新短链最大兑换次数，默认允许 10 位不同用户成功兑换。 */
+const newShareLinkMaxUses = ref(10)
+/** 创建短链请求是否正在执行。 */
+const creatingShareLink = ref(false)
+/** 当前正在撤销的短链 ID。 */
+const revokingShareLinkId = ref<number | null>(null)
+/** 最近一次创建响应返回的原始 URL，只保存在当前组件内存中。 */
+const createdShareUrl = ref<string | null>(null)
+/** 最近一次创建的短链 ID，用于在撤销后清理内存中的一次性 URL。 */
+const createdShareLinkId = ref<number | null>(null)
+/** 复制按钮的短暂成功状态。 */
+const shareUrlCopied = ref(false)
+let shareUrlCopyTimer: number | null = null
 
 /** 授权列表中的可编辑行，草稿字段只在保存成功后由服务端数据覆盖。 */
 interface AuthorizationRow extends DocumentUserAuthorization {
@@ -122,6 +151,8 @@ const editorIsSynced = computed(() => connectionState.value === 'synced' && Bool
 const isOwner = computed(() => metadata.value?.owner === true)
 /** 当前调用方是否拥有正文写权限；OWNER 始终拥有写权限。 */
 const canWrite = computed(() => metadata.value?.owner === true || metadata.value?.permission === 'WRITE')
+/** 分享短链管理接口要求全局 document:write scope；资源 OWNER 不能绕过路由门槛。 */
+const canManageShareLinks = computed(() => isOwner.value && authStore.hasScope('document:write'))
 /** 编辑器是否已经同步且允许执行会改变正文的操作。 */
 const editorCanEdit = computed(() => editorIsSynced.value && canWrite.value)
 /** 页面上展示的资源级权限标签。 */
@@ -178,6 +209,155 @@ function resetAuthorizationForm(): void {
   newAuthorizationEnabled.value = true
 }
 
+/** 重置短链表单；原始 URL 不从历史记录恢复。 */
+function resetShareLinkForm(): void {
+  newShareLinkPermission.value = 'READ'
+  newShareLinkValidForSeconds.value = 7 * 24 * 60 * 60
+  newShareLinkMaxUses.value = 10
+  shareLinkError.value = null
+}
+
+/** 格式化短链状态时间；非法时间不会被当成有效日期使用。 */
+function formatShareLinkTime(value: string | null): string {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+  }).format(date)
+}
+
+/** 将历史短链的 enabled、撤销、过期和配额状态转换为中性展示文本。 */
+function shareLinkStatus(link: DocumentShareLink): { label: string; disabled: boolean } {
+  if (!link.enabled || link.revokedAt) return { label: '已撤销', disabled: true }
+  if (Date.parse(link.expiresAt) <= Date.now()) return { label: '已过期', disabled: true }
+  if (link.usedCount >= link.maxUses) return { label: '已耗尽', disabled: true }
+  return { label: '有效', disabled: false }
+}
+
+/** 将分享操作错误收敛为不会泄露 code/token 的页面文案。 */
+function getShareLinkErrorMessage(cause: unknown, fallback: string): string {
+  const status = responseStatus(cause)
+  if (status === 403) return '当前账号没有管理文档分享链接的权限'
+  if (status === 404 || status === 410) return '文档分享链接不可用'
+  const message = getErrorMessage(cause, fallback)
+  return /[A-Za-z0-9_-]{43}|access[_ -]?token|refresh[_ -]?token|bearer|share.?code|token/i.test(message)
+    ? fallback
+    : message
+}
+
+/** 加载当前文档的全部短链状态；原始 token 不会由客户端重建。 */
+async function loadShareLinks(): Promise<void> {
+  const requestedDocumentId = documentId.value
+  if (requestedDocumentId === null || !isOwner.value || accessUnavailable.value) return
+
+  shareLinksLoading.value = true
+  shareLinkError.value = null
+  try {
+    const records = await documentApi.listShareLinks(requestedDocumentId)
+    if (documentId.value !== requestedDocumentId) return
+    shareLinks.value = records
+  } catch (cause) {
+    if (documentId.value !== requestedDocumentId) return
+    shareLinkError.value = getShareLinkErrorMessage(cause, '无法加载分享链接状态')
+  } finally {
+    if (documentId.value === requestedDocumentId) shareLinksLoading.value = false
+  }
+}
+
+/** 严格校验短链创建参数，并与后端边界保持一致。 */
+function parseShareLinkForm(): { permission: DocumentPermission; validForSeconds: number; maxUses: number } | null {
+  const validForSeconds = newShareLinkValidForSeconds.value
+  const maxUses = newShareLinkMaxUses.value
+  if (newShareLinkPermission.value !== 'READ' && newShareLinkPermission.value !== 'WRITE') {
+    shareLinkError.value = '分享权限无效'
+    return null
+  }
+  if (typeof validForSeconds !== 'number' || !Number.isSafeInteger(validForSeconds)
+      || validForSeconds <= 0 || validForSeconds > MAX_DOCUMENT_SHARE_LINK_VALID_FOR_SECONDS) {
+    shareLinkError.value = `有效期必须为 1 至 ${MAX_DOCUMENT_SHARE_LINK_VALID_FOR_SECONDS} 秒`
+    return null
+  }
+  if (typeof maxUses !== 'number' || !Number.isSafeInteger(maxUses)
+      || maxUses <= 0 || maxUses > MAX_DOCUMENT_SHARE_LINK_USES) {
+    shareLinkError.value = `最大兑换次数必须为 1 至 ${MAX_DOCUMENT_SHARE_LINK_USES}`
+    return null
+  }
+  return { permission: newShareLinkPermission.value, validForSeconds, maxUses }
+}
+
+/** 创建短链，并仅展示本次接口响应返回的一次性 shareUrl。 */
+async function createShareLink(): Promise<void> {
+  const requestedDocumentId = documentId.value
+  if (!canManageShareLinks.value || requestedDocumentId === null || creatingShareLink.value) return
+
+  const data = parseShareLinkForm()
+  if (!data) return
+
+  creatingShareLink.value = true
+  shareLinkError.value = null
+  shareUrlCopied.value = false
+  try {
+    const created = await documentApi.createShareLink(requestedDocumentId, data)
+    if (!created.shareUrl) throw new Error('创建分享链接失败')
+    createdShareUrl.value = created.shareUrl
+    createdShareLinkId.value = created.shareLinkId
+    toastSuccess('分享公开链接已创建，请立即复制保存')
+    await loadShareLinks()
+  } catch (cause) {
+    shareLinkError.value = getShareLinkErrorMessage(cause, '创建分享链接失败')
+    toastError(shareLinkError.value)
+  } finally {
+    creatingShareLink.value = false
+  }
+}
+
+/** 复制最近一次创建响应中的 URL；复制失败时只显示中性提示。 */
+async function copyCreatedShareUrl(): Promise<void> {
+  const shareUrl = createdShareUrl.value
+  if (!shareUrl) return
+  try {
+    await navigator.clipboard.writeText(shareUrl)
+    shareUrlCopied.value = true
+    if (shareUrlCopyTimer) window.clearTimeout(shareUrlCopyTimer)
+    shareUrlCopyTimer = window.setTimeout(() => {
+      shareUrlCopied.value = false
+      shareUrlCopyTimer = null
+    }, 2200)
+  } catch {
+    shareLinkError.value = '复制失败，请使用浏览器提供的复制功能重试'
+  }
+}
+
+/** 撤销短链；既有兑换产生的直接 ACL 不因撤销短链而自动删除。 */
+async function revokeShareLink(link: DocumentShareLink): Promise<void> {
+  if (!canManageShareLinks.value || documentId.value === null || revokingShareLinkId.value !== null) return
+  if (!await confirmAction({
+    title: '撤销分享公开链接',
+    content: '确定撤销该链接吗？撤销后不能继续兑换，已经获得的文档授权不会被自动删除。',
+    okText: '确认撤销',
+    danger: true
+  })) return
+
+  revokingShareLinkId.value = link.shareLinkId
+  shareLinkError.value = null
+  try {
+    await documentApi.revokeShareLink(documentId.value, link.shareLinkId)
+    if (createdShareLinkId.value === link.shareLinkId) {
+      createdShareLinkId.value = null
+      createdShareUrl.value = null
+      shareUrlCopied.value = false
+    }
+    toastSuccess('分享公开链接已撤销')
+    await loadShareLinks()
+  } catch (cause) {
+    shareLinkError.value = getShareLinkErrorMessage(cause, '撤销分享链接失败')
+    toastError(shareLinkError.value)
+  } finally {
+    revokingShareLinkId.value = null
+  }
+}
+
 /** 加载当前文档的全部授权记录，并丢弃路由切换后返回的过期结果。 */
 async function loadAuthorizations(): Promise<void> {
   const requestedDocumentId = documentId.value
@@ -204,13 +384,20 @@ function openAuthorizationModal(): void {
   authorizationModalVisible.value = true
   authorizationError.value = null
   resetAuthorizationForm()
-  void loadAuthorizations()
+  shareLinkPanelVisible.value = true
+  resetShareLinkForm()
+  void Promise.all([loadAuthorizations(), loadShareLinks()])
 }
 
 /** 关闭权限管理弹窗；已提交的服务端数据不会因关闭而丢失。 */
 function closeAuthorizationModal(): void {
   authorizationModalVisible.value = false
   authorizationError.value = null
+  shareLinkError.value = null
+  // 原始 shareUrl 只在当前弹窗会话中保留，关闭后不从历史列表恢复。
+  createdShareUrl.value = null
+  createdShareLinkId.value = null
+  shareUrlCopied.value = false
 }
 
 /** 新增或重新写入一条用户授权记录。 */
@@ -383,6 +570,12 @@ function teardownEditor(): void {
   authorizationError.value = null
   authorizations.value = []
   authorizationOperationUserId.value = null
+  shareLinks.value = []
+  shareLinksLoading.value = false
+  shareLinkError.value = null
+  createdShareUrl.value = null
+  createdShareLinkId.value = null
+  shareUrlCopied.value = false
 }
 
 /** 按当前路由加载元数据、创建 Tiptap/Yjs 绑定并启动协作连接。 */
@@ -602,7 +795,10 @@ function goBack(): void {
 watch(() => route.fullPath, () => { void initializeEditor() })
 onMounted(() => { void initializeEditor() })
 onBeforeRouteLeave(() => { teardownEditor() })
-onUnmounted(() => { teardownEditor() })
+onUnmounted(() => {
+  teardownEditor()
+  if (shareUrlCopyTimer) window.clearTimeout(shareUrlCopyTimer)
+})
 </script>
 
 <template>
@@ -695,7 +891,7 @@ onUnmounted(() => { teardownEditor() })
               <div>
                 <span class="authorization-eyebrow">DOCUMENT ACCESS</span>
                 <h2 id="authorization-modal-title">文档权限管理</h2>
-                <p>所有者可以给指定用户授予正文的只读或可编辑权限。</p>
+                <p>所有者可以直接授权用户，也可以生成必须登录后兑换的分享公开链接。</p>
               </div>
               <button class="authorization-close-button" type="button" title="关闭" @click="closeAuthorizationModal">
                 <X class="h-5 w-5" />
@@ -746,6 +942,133 @@ onUnmounted(() => { teardownEditor() })
                   </button>
                 </div>
               </form>
+
+              <section class="share-link-section" aria-labelledby="share-link-title">
+                <div class="share-link-heading">
+                  <div>
+                    <h3 id="share-link-title">分享公开链接</h3>
+                    <p>链接可以转发，但不支持匿名访问；兑换后会写入现有文档授权。</p>
+                  </div>
+                  <button
+                    class="share-link-toggle-button"
+                    type="button"
+                    :aria-expanded="shareLinkPanelVisible"
+                    @click="shareLinkPanelVisible = !shareLinkPanelVisible"
+                  >
+                    <Link2 class="h-4 w-4" />
+                    {{ shareLinkPanelVisible ? '收起设置' : '分享公开链接' }}
+                  </button>
+                </div>
+
+                <div v-if="shareLinkPanelVisible" class="share-link-panel">
+                  <form class="share-link-form" @submit.prevent="createShareLink">
+                    <div class="authorization-form-grid share-link-form-grid">
+                      <label class="authorization-field">
+                        <span>兑换权限</span>
+                        <select v-model="newShareLinkPermission" :disabled="creatingShareLink || !canManageShareLinks">
+                          <option value="READ">READ · 只读</option>
+                          <option value="WRITE">WRITE · 可编辑正文</option>
+                        </select>
+                      </label>
+                      <label class="authorization-field">
+                        <span>有效期</span>
+                        <select v-model.number="newShareLinkValidForSeconds" :disabled="creatingShareLink || !canManageShareLinks">
+                          <option :value="24 * 60 * 60">1 天</option>
+                          <option :value="7 * 24 * 60 * 60">7 天</option>
+                          <option :value="30 * 24 * 60 * 60">30 天</option>
+                          <option :value="365 * 24 * 60 * 60">365 天</option>
+                        </select>
+                      </label>
+                      <label class="authorization-field">
+                        <span>最大兑换次数</span>
+                        <input
+                          v-model.number="newShareLinkMaxUses"
+                          type="number"
+                          min="1"
+                          :max="MAX_DOCUMENT_SHARE_LINK_USES"
+                          step="1"
+                          inputmode="numeric"
+                          :disabled="creatingShareLink || !canManageShareLinks"
+                        />
+                      </label>
+                    </div>
+                    <p class="share-link-scope-notice">
+                      WRITE 链接仍要求兑换者拥有全局 <code>document:write</code> scope；分享链接不会提升 OAuth scope。
+                    </p>
+                    <p v-if="!canManageShareLinks" class="share-link-permission-notice">
+                      当前账号缺少 <code>document:write</code> scope，无法创建或撤销分享链接。
+                    </p>
+                    <button class="primary-button share-link-create-button" type="submit" :disabled="creatingShareLink || shareLinksLoading || !canManageShareLinks">
+                      <Loader2 v-if="creatingShareLink" class="h-4 w-4 animate-spin" />
+                      <Link2 v-else class="h-4 w-4" />
+                      {{ creatingShareLink ? '创建中…' : '生成分享公开链接' }}
+                    </button>
+                  </form>
+
+                  <div v-if="createdShareUrl" class="share-link-created-card">
+                    <div>
+                      <strong>本次链接已生成</strong>
+                      <p>原始链接只在本次创建响应中返回；关闭弹窗后不能从历史记录恢复。</p>
+                    </div>
+                    <div class="share-link-url-row">
+                      <input :value="createdShareUrl" type="text" readonly aria-label="本次生成的分享链接" />
+                      <button class="share-link-copy-button" type="button" @click="copyCreatedShareUrl">
+                        <Copy v-if="!shareUrlCopied" class="h-3.5 w-3.5" />
+                        <span>{{ shareUrlCopied ? '已复制' : '复制链接' }}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="share-link-history">
+                    <div class="share-link-history-heading">
+                      <div>
+                        <h4>已有分享链接</h4>
+                        <p>历史记录只显示状态，不会重新返回原始短链 URL。</p>
+                      </div>
+                      <button class="authorization-refresh-button" type="button" :disabled="shareLinksLoading" @click="loadShareLinks">
+                        <Loader2 v-if="shareLinksLoading" class="h-4 w-4 animate-spin" />
+                        <span v-else>刷新</span>
+                      </button>
+                    </div>
+                    <div v-if="shareLinksLoading && shareLinks.length === 0" class="authorization-state">
+                      <Loader2 class="h-5 w-5 animate-spin" /> 正在加载分享链接状态…
+                    </div>
+                    <div v-else-if="shareLinkError" class="authorization-state is-error">
+                      <CircleAlert class="h-5 w-5" />
+                      <span>{{ shareLinkError }}</span>
+                      <button type="button" class="authorization-retry-button" @click="loadShareLinks">重新加载</button>
+                    </div>
+                    <div v-else-if="shareLinks.length === 0" class="authorization-state">
+                      <Link2 class="h-5 w-5" /> 暂无分享链接
+                    </div>
+                    <div v-else class="share-link-rows">
+                      <article v-for="shareLink in shareLinks" :key="shareLink.shareLinkId" class="share-link-row">
+                        <div class="share-link-row-heading">
+                          <strong>{{ shareLink.permission === 'WRITE' ? 'WRITE · 可编辑正文' : 'READ · 只读' }}</strong>
+                          <span class="authorization-status" :class="{ 'is-disabled': shareLinkStatus(shareLink).disabled }">
+                            {{ shareLinkStatus(shareLink).label }}
+                          </span>
+                        </div>
+                        <div class="share-link-row-details">
+                          <span>有效至 {{ formatShareLinkTime(shareLink.expiresAt) }}</span>
+                          <span>已兑换 {{ shareLink.usedCount }} / {{ shareLink.maxUses }} 次</span>
+                        </div>
+                        <button
+                          v-if="shareLinkStatus(shareLink).disabled === false && canManageShareLinks"
+                          class="authorization-revoke-button share-link-revoke-button"
+                          type="button"
+                          :disabled="revokingShareLinkId !== null"
+                          @click="revokeShareLink(shareLink)"
+                        >
+                          <Loader2 v-if="revokingShareLinkId === shareLink.shareLinkId" class="h-3.5 w-3.5 animate-spin" />
+                          <Trash2 v-else class="h-3.5 w-3.5" />
+                          撤销
+                        </button>
+                      </article>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
               <div class="authorization-list-section">
                 <div class="authorization-list-heading">
@@ -912,6 +1235,31 @@ h1 { margin: 10px 0; color: var(--cn-text); font-size: 28px; font-weight: 800; }
 .authorization-checkbox { display: inline-flex; align-items: center; gap: 7px; color: var(--cn-text-soft); font-size: 12px; }
 .authorization-checkbox input { width: 15px; height: 15px; accent-color: var(--cn-accent); }
 .authorization-submit-button { margin-top: 0; }
+.share-link-section { margin-top: 22px; border: 1px solid color-mix(in srgb, var(--cn-accent) 28%, var(--cn-border)); border-radius: var(--cn-radius-md); background: color-mix(in srgb, var(--cn-accent) 4%, var(--cn-surface)); padding: 16px; }
+.share-link-heading, .share-link-history-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.share-link-heading h3, .share-link-history-heading h4 { margin: 0 0 3px; color: var(--cn-text); font-size: 14px; font-weight: 800; }
+.share-link-heading p, .share-link-history-heading p, .share-link-created-card p { margin: 0; color: var(--cn-text-muted); font-size: 12px; line-height: 1.55; }
+.share-link-toggle-button, .share-link-copy-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 5px; border: 1px solid color-mix(in srgb, var(--cn-accent) 42%, var(--cn-border)); border-radius: var(--cn-radius-sm); background: color-mix(in srgb, var(--cn-accent) 10%, var(--cn-surface)); color: var(--cn-accent); padding: 7px 9px; font-size: 11px; font-weight: 750; transition: all var(--cn-fast) var(--cn-ease); }
+.share-link-toggle-button:hover, .share-link-copy-button:hover { border-color: var(--cn-accent); background: color-mix(in srgb, var(--cn-accent) 16%, var(--cn-surface)); }
+.share-link-panel { margin-top: 14px; }
+.share-link-form { border-top: 1px solid var(--cn-border); padding-top: 14px; }
+.share-link-form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.share-link-scope-notice, .share-link-permission-notice { margin: 11px 0 0; color: var(--cn-text-muted); font-size: 11px; line-height: 1.55; }
+.share-link-scope-notice code, .share-link-permission-notice code { border-radius: 4px; background: var(--cn-bg-subtle); color: var(--cn-accent); padding: 1px 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+.share-link-permission-notice { color: var(--cn-danger); }
+.share-link-create-button { width: 100%; margin-top: 13px; }
+.share-link-created-card { display: grid; gap: 10px; margin-top: 13px; border: 1px solid color-mix(in srgb, var(--cn-success) 35%, var(--cn-border)); border-radius: var(--cn-radius-md); background: color-mix(in srgb, var(--cn-success) 5%, var(--cn-surface)); padding: 12px; }
+.share-link-created-card strong { color: var(--cn-success); font-size: 12px; font-weight: 800; }
+.share-link-url-row { display: flex; gap: 8px; }
+.share-link-url-row input { min-width: 0; flex: 1; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-sm); background: var(--cn-surface); color: var(--cn-text-soft); padding: 8px 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.share-link-copy-button { color: var(--cn-success); }
+.share-link-history { margin-top: 18px; border-top: 1px solid var(--cn-border); padding-top: 14px; }
+.share-link-rows { display: grid; gap: 8px; margin-top: 10px; }
+.share-link-row { position: relative; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-sm); background: var(--cn-surface); padding: 11px 12px; }
+.share-link-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.share-link-row-heading strong { color: var(--cn-text); font-size: 12px; font-weight: 800; }
+.share-link-row-details { display: flex; flex-wrap: wrap; gap: 5px 14px; margin-top: 7px; color: var(--cn-text-faint); font-size: 10px; }
+.share-link-revoke-button { margin-top: 9px; min-height: 30px; padding: 5px 8px; }
 .authorization-list-section { margin-top: 22px; }
 .authorization-refresh-button, .authorization-retry-button { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--cn-border); border-radius: var(--cn-radius-sm); background: var(--cn-surface); color: var(--cn-text-muted); padding: 6px 9px; font-size: 11px; font-weight: 700; transition: all var(--cn-fast) var(--cn-ease); }
 .authorization-refresh-button:hover:not(:disabled), .authorization-retry-button:hover { border-color: var(--cn-border-strong); background: var(--cn-surface-muted); color: var(--cn-text); }
@@ -971,5 +1319,5 @@ h1 { margin: 10px 0; color: var(--cn-text); font-size: 28px; font-weight: 800; }
   opacity: .25;
   pointer-events: none;
 }
-@media (max-width: 640px) { .document-editor-header { align-items: flex-start; flex-direction: column; } .document-editor-header-actions { width: 100%; justify-content: space-between; } .create-card { margin-top: 20px; padding: 26px 20px; } .document-title-row { align-items: flex-start; flex-direction: column; gap: 2px; } .document-title-input { font-size: 22px; } .editor-toolbar { flex-wrap: wrap; } .collaborator-count { margin-left: 0; } .authorization-modal-backdrop { align-items: flex-end; padding: 10px; } .authorization-modal-card { max-height: 92vh; } .authorization-modal-header, .authorization-modal-body { padding-inline: 16px; } .authorization-form-grid { grid-template-columns: 1fr; } .authorization-form-actions { align-items: flex-start; flex-direction: column; } .authorization-submit-button { width: 100%; } .authorization-row-controls { align-items: stretch; flex-wrap: wrap; } .authorization-row-permission { flex-basis: 100%; } .authorization-row-controls > .authorization-checkbox { flex: 1 1 auto; } :deep(.document-tiptap-editor) { padding: 24px 20px; } }
+@media (max-width: 640px) { .document-editor-header { align-items: flex-start; flex-direction: column; } .document-editor-header-actions { width: 100%; justify-content: space-between; } .create-card { margin-top: 20px; padding: 26px 20px; } .document-title-row { align-items: flex-start; flex-direction: column; gap: 2px; } .document-title-input { font-size: 22px; } .editor-toolbar { flex-wrap: wrap; } .collaborator-count { margin-left: 0; } .authorization-modal-backdrop { align-items: flex-end; padding: 10px; } .authorization-modal-card { max-height: 92vh; } .authorization-modal-header, .authorization-modal-body { padding-inline: 16px; } .authorization-form-grid, .share-link-form-grid { grid-template-columns: 1fr; } .authorization-form-actions { align-items: flex-start; flex-direction: column; } .authorization-submit-button { width: 100%; } .authorization-row-controls { align-items: stretch; flex-wrap: wrap; } .authorization-row-permission { flex-basis: 100%; } .authorization-row-controls > .authorization-checkbox { flex: 1 1 auto; } .share-link-heading, .share-link-history-heading { flex-direction: column; } .share-link-toggle-button { width: 100%; } .share-link-url-row { align-items: stretch; flex-direction: column; } .share-link-copy-button { width: 100%; } :deep(.document-tiptap-editor) { padding: 24px 20px; } }
 </style>

@@ -9,6 +9,7 @@ import {
   readAuthSession,
   saveAuthSession
 } from '@/utils/authSession'
+import { sanitizeShareRedirect } from '@/utils/shareLink'
 
 interface RequestConfig extends AxiosRequestConfig {
   _authRetry?: boolean
@@ -154,17 +155,36 @@ function expireSession(message = '登录状态已失效，请重新登录'): voi
     sessionExpiryNoticeShown = true
   }
   if (router.currentRoute.value.path !== '/login') {
-    void router.push('/login')
+    const redirect = sanitizeShareRedirect(router.currentRoute.value.path)
+    const loginLocation = redirect ? { path: '/login', query: { redirect } } : '/login'
+    // Replace the credential-bearing share page in history while preserving a
+    // validated internal redirect for the next user login.
+    void router.replace(loginLocation)
   }
 }
 
 function sanitizeRequestError(error: unknown): unknown {
   if (!isRecord(error)) return error
 
+  const redactShareCodeText = (value: unknown): unknown => {
+    if (typeof value !== 'string') return value
+    // A server or proxy must not be able to echo the opaque 256-bit code into
+    // a caller-visible error object or a later diagnostic log.
+    return value.replace(/[A-Za-z0-9_-]{43}/g, '[redacted]')
+  }
+
+  const redactShareCode = (url: unknown): unknown => {
+    if (typeof url !== 'string') return url
+    // Keep rejected Axios errors from retaining the opaque credential in a
+    // caller's diagnostic object. The live request has already completed.
+    return url.replace(/(\/share-links\/)[A-Za-z0-9_-]{43}(\/redeem)/g, '$1[redacted]$2')
+  }
+
   const sanitizeConfig = (config: unknown) => {
     if (!isRecord(config)) return
     // Callers may log rejected errors; never retain request bodies or bearer headers there.
     config.data = undefined
+    config.url = redactShareCode(config.url)
     const headers = config.headers
     if (!isRecord(headers)) return
     if (typeof headers.delete === 'function') {
@@ -174,8 +194,18 @@ function sanitizeRequestError(error: unknown): unknown {
     }
   }
 
+  error.message = redactShareCodeText(error.message)
   sanitizeConfig(error.config)
-  if (isRecord(error.response)) sanitizeConfig(error.response.config)
+  if (isRecord(error.response)) {
+    error.response.data = typeof error.response.data === 'string'
+      ? redactShareCodeText(error.response.data)
+      : error.response.data
+    if (isRecord(error.response.data)) {
+      error.response.data.msg = redactShareCodeText(error.response.data.msg)
+      error.response.data.message = redactShareCodeText(error.response.data.message)
+    }
+    sanitizeConfig(error.response.config)
+  }
   return error
 }
 

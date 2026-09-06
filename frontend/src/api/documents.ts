@@ -1,7 +1,40 @@
 import request from '@/utils/request'
+import { isValidShareLinkCode } from '@/utils/shareLink'
+import {
+  MAX_DOCUMENT_SHARE_LINK_USES,
+  MAX_DOCUMENT_SHARE_LINK_VALID_FOR_SECONDS,
+  normalizeShareLink as normalizeDocumentShareLink,
+  normalizeShareLinkRedeemResponse as normalizeDocumentShareLinkRedeemResponse,
+  normalizeShareLinks as normalizeDocumentShareLinks,
+  validateShareLinkCreateInput
+} from '@/utils/shareLinkContract'
+import type {
+  ShareLink,
+  ShareLinkCreateInput,
+  ShareLinkPermission,
+  ShareLinkRedeemResponse
+} from '@/utils/shareLinkContract'
 
 /** 文档级直接授权；WRITE 在服务端语义上包含 READ。 */
-export type DocumentPermission = 'READ' | 'WRITE'
+export type DocumentPermission = ShareLinkPermission
+export type DocumentShareLink = ShareLink
+export type DocumentShareLinkRedeemResponse = ShareLinkRedeemResponse
+export type DocumentShareLinkCreateInput = ShareLinkCreateInput
+
+export {
+  MAX_DOCUMENT_SHARE_LINK_USES,
+  MAX_DOCUMENT_SHARE_LINK_VALID_FOR_SECONDS,
+  normalizeDocumentShareLink,
+  normalizeDocumentShareLinks,
+  normalizeDocumentShareLinkRedeemResponse,
+  validateShareLinkCreateInput
+}
+
+function assertPositiveId(value: unknown, label: string): asserts value is number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${label}无效`)
+  }
+}
 
 /** 协作文档 API 返回的基础元数据；CRDT 正文只通过 WebSocket 传输。 */
 export interface DocumentMetadata {
@@ -41,6 +74,11 @@ export interface DocumentUserAuthorization {
   createTime: string
   /** 授权记录最后修改时间；后端 LocalDateTime 的 JSON 字符串。 */
   updateTime: string
+}
+
+function encodePathId(value: number, label: string): string {
+  assertPositiveId(value, label)
+  return encodeURIComponent(String(value))
 }
 
 /**
@@ -142,7 +180,7 @@ export const documentApi = {
 
   /** 查询文档全部直接授权记录，包含已撤销记录。 */
   async listAuthorizations(documentId: number): Promise<DocumentUserAuthorization[]> {
-    const value = await request.get<unknown>(`/user/document/${documentId}/users`)
+    const value = await request.get<unknown>(`/user/document/${encodePathId(documentId, '文档 ID')}/users`)
     return normalizeDocumentUserAuthorizations(value)
   },
 
@@ -152,12 +190,45 @@ export const documentApi = {
     userId: number,
     data: { permission: DocumentPermission; enabled: boolean }
   ): Promise<DocumentUserAuthorization> {
-    const value = await request.put<unknown>(`/user/document/${documentId}/users/${userId}`, data)
+    const value = await request.put<unknown>(`/user/document/${encodePathId(documentId, '文档 ID')}/users/${encodePathId(userId, '用户 ID')}`, data)
     return normalizeDocumentUserAuthorization(value)
   },
 
   /** 软撤销指定用户授权，服务端保留历史记录。 */
   revokeAuthorization(documentId: number, userId: number): Promise<void> {
-    return request.delete(`/user/document/${documentId}/users/${userId}`)
+    return request.delete(`/user/document/${encodePathId(documentId, '文档 ID')}/users/${encodePathId(userId, '用户 ID')}`)
+  },
+
+  /** 创建分享短链；原始 shareUrl 只从本次响应读取，不持久化。 */
+  async createShareLink(
+    documentId: number,
+    data: { permission: DocumentPermission; validForSeconds: number; maxUses: number }
+  ): Promise<DocumentShareLink> {
+    const encodedDocumentId = encodePathId(documentId, '文档 ID')
+    validateShareLinkCreateInput(data)
+    const value = await request.post<unknown>(`/user/document/${encodedDocumentId}/share-links`, data, { _silentErrorToast: true })
+    return normalizeDocumentShareLink(value, { requireShareUrl: true })
+  },
+
+  /** 查询短链历史状态；后端不会重新返回原始 shareUrl。 */
+  async listShareLinks(documentId: number): Promise<DocumentShareLink[]> {
+    const value = await request.get<unknown>(`/user/document/${encodePathId(documentId, '文档 ID')}/share-links`, { _silentErrorToast: true })
+    return normalizeDocumentShareLinks(value)
+  },
+
+  /** 软撤销指定分享短链。 */
+  revokeShareLink(documentId: number, shareLinkId: number): Promise<void> {
+    return request.delete(`/user/document/${encodePathId(documentId, '文档 ID')}/share-links/${encodePathId(shareLinkId, '分享短链 ID')}`, { _silentErrorToast: true })
+  },
+
+  /** 使用路由中的不透明 code 请求服务端兑换；code 永远只进入编码后的 URL path。 */
+  async redeemShareLink(code: string): Promise<DocumentShareLinkRedeemResponse> {
+    if (!isValidShareLinkCode(code)) throw new Error('分享链接无效')
+    const value = await request.post<unknown>(
+      `/user/document/share-links/${encodeURIComponent(code)}/redeem`,
+      undefined,
+      { _silentErrorToast: true }
+    )
+    return normalizeDocumentShareLinkRedeemResponse(value)
   }
 }

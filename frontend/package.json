@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:share-link": "node --experimental-strip-types --test scripts/share-link.test.ts"
   },
   "dependencies": {
     "@arco-design/web-vue": "^2.0.0",
