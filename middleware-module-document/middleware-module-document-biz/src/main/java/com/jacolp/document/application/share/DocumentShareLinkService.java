@@ -54,9 +54,10 @@ public class DocumentShareLinkService {
 
         // 原始 code 只存在于本次响应；数据库只保存不可逆摘要，泄露数据库不会直接泄露短链。
         String rawCode = tokenGenerator.newOpaqueToken();
+        LocalDateTime now = LocalDateTime.now();
         DocumentShareLinkDO shareLink = new DocumentShareLinkDO(
                 null, documentId, currentUserId, Base64.getUrlDecoder().decode(tokenProtector.fingerprint(rawCode)), permission,
-                LocalDateTime.now().plusSeconds(validForSeconds), maxUses, 0, true, null, null, null);
+                now.plusSeconds(validForSeconds), maxUses, 0, true, null, now, now);
         // Mapper 写入后回填自增主键，主键缺失表示短链记录未可靠落库，不能返回可用 URL。
         shareLinkMapper.insert(shareLink);
         if (shareLink.getId() == null || shareLink.getId() <= 0) {

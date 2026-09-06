@@ -162,7 +162,8 @@ jacolp:
     input-dir: ${jacolp.markdown.input}
     output-dir: ${jacolp.markdown.output}
   app:
-    base-url: ${APP_BASE_URL:http://localhost:8080}
+    # Must be the public frontend origin, not the backend's internal address.
+    base-url: ${APP_BASE_URL:http://localhost:5173}
   base-url: ${jacolp.app.base-url}
   aliyun:
     oss:
