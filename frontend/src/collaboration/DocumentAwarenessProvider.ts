@@ -34,10 +34,17 @@ export class DocumentAwarenessProviderAdapter {
    * 视图，避免把未经服务端确认的二进制 user 身份暴露给渲染层。
    */
   get states(): Map<number, Record<string, unknown>> {
-    return this.getStates()
+    return this.buildStates(true)
   }
 
   getStates(): Map<number, Record<string, unknown>> {
+    // y-tiptap 的默认 awareness 过滤器使用 Y.Doc.clientID 排除本地状态。
+    // 本客户端的 Awareness ID 是连接级的、刻意独立于 Y.Doc.clientID，因此
+    // 给光标插件的 getStates 只暴露远端状态，避免把本地光标误渲染成协作者。
+    return this.buildStates(false)
+  }
+
+  private buildStates(includeLocal: boolean): Map<number, Record<string, unknown>> {
     const states = new Map<number, Record<string, unknown>>()
     const sessions = this.source.getAwarenessSessions()
 
@@ -48,7 +55,7 @@ export class DocumentAwarenessProviderAdapter {
 
       // 本地状态由 CollaborationCaret 自己维护，原样返回。
       if (clientId === this.source.awareness.clientID) {
-        states.set(clientId, state)
+        if (includeLocal) states.set(clientId, state)
         continue
       }
 

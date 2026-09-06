@@ -15,11 +15,11 @@ import {
   parseDocumentWsControl,
   type DocumentWsAwarenessMeta,
   type DocumentWsControlMessage
-} from '@/collaboration/documentProtocol'
+} from './documentProtocol.ts'
 import {
   createDocumentAwarenessProvider,
   type DocumentAwarenessProvider
-} from './DocumentAwarenessProvider'
+} from './DocumentAwarenessProvider.ts'
 
 export type DocumentConnectionState = 'connecting' | 'synchronizing' | 'synced' | 'reconnecting' | 'closed' | 'error'
 
@@ -43,7 +43,7 @@ export type DocumentReconnectAccessResult =
 
 /** 服务端下发的协作者 Session 身份；展示时不能改用 Awareness payload 内的 user。 */
 export interface DocumentAwarenessSessionMetadata {
-  /** Yjs Awareness 状态索引；与 JOIN 时的 ydoc.clientID 一致。 */
+  /** Yjs Awareness 状态索引；与当前 JOIN 的 awarenessClientId 一致。 */
   awarenessClientId: number
   /** 服务端 WebSocket Session ID；同一用户的多个窗口各不相同。 */
   sessionId: string
@@ -232,6 +232,9 @@ export class DocumentCollaborationClient {
   connect(): void {
     if (this.disposed || this.socket) return
     this.setState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting')
+    // Y.Doc 的 clientID 只负责正文 CRDT；每个 WebSocket 连接使用独立的
+    // Awareness ID，避免旧连接尚未清理时与新连接发生身份冲突。
+    this.rotateAwarenessClientId()
 
     /** 本次连接尝试创建的 WebSocket；回调通过它判断事件是否属于当前连接。 */
     const socket = new WebSocket(documentWebSocketUrl(), [`bearer.${this.accessToken}`])
@@ -248,7 +251,7 @@ export class DocumentCollaborationClient {
       this.sendControl(createDocumentWsControl('JOIN_DOCUMENT', {
         requestId: createDocumentWsRequestId(),
         documentId: this.documentId,
-        awarenessClientId: this.ydoc.clientID
+        awarenessClientId: this.awareness.clientID
       }))
     }
     socket.onmessage = event => this.handleSocketMessage(socket, event)
@@ -331,7 +334,7 @@ export class DocumentCollaborationClient {
     this.pendingBootstrapFrames.length = 0
     this.pendingRemoteUpdates.length = 0
     this.clearAwarenessSessions(false)
-    removeAwarenessStates(this.awareness, [this.ydoc.clientID], LOCAL_AWARENESS_ORIGIN)
+    removeAwarenessStates(this.awareness, [this.awareness.clientID], LOCAL_AWARENESS_ORIGIN)
     this.awareness.destroy()
     this.setState('closed')
   }
@@ -447,8 +450,8 @@ export class DocumentCollaborationClient {
       }
       const previous = this.awarenessSessions.get(session.awarenessClientId)
       if (previous && previous.sessionId !== session.sessionId
-          && session.awarenessClientId !== this.ydoc.clientID) {
-        // 同一个 Yjs client ID 重新绑定到新 Session 时，先撤掉旧光标，等待新帧重新建立状态。
+          && session.awarenessClientId !== this.awareness.clientID) {
+        // 同一个 Awareness ID 重新绑定到新 Session 时，先撤掉旧光标，等待新帧重新建立状态。
         removeAwarenessStates(this.awareness, [session.awarenessClientId], REMOTE_AWARENESS_ORIGIN)
       }
       const metadataChanged = !previous
@@ -477,8 +480,8 @@ export class DocumentCollaborationClient {
     }
     const hadAwarenessState = this.awareness.getStates().has(metadata.awarenessClientId)
     this.awarenessSessions.delete(metadata.awarenessClientId)
-    if (metadata.awarenessClientId !== this.ydoc.clientID) {
-      // 服务端 REMOVE 只描述生命周期；实际 Yjs 状态必须按 client ID 显式移除。
+    if (metadata.awarenessClientId !== this.awareness.clientID) {
+      // 服务端 REMOVE 只描述生命周期；实际 Awareness 状态必须按 client ID 显式移除。
       removeAwarenessStates(this.awareness, [metadata.awarenessClientId], REMOTE_AWARENESS_ORIGIN)
     }
     this.emitAwarenessSessionEvent({
@@ -486,7 +489,7 @@ export class DocumentCollaborationClient {
       awarenessClientId: metadata.awarenessClientId,
       sessionId: metadata.sessionId
     })
-    if (!hadAwarenessState || metadata.awarenessClientId === this.ydoc.clientID) {
+    if (!hadAwarenessState || metadata.awarenessClientId === this.awareness.clientID) {
       // 没有原始 Awareness 状态，或清理本地 Session 元数据时，需要手动刷新 façade。
       this.notifyAwarenessMetadataChange({
         added: [],
@@ -511,7 +514,7 @@ export class DocumentCollaborationClient {
     }
 
     const remoteClientIds = Array.from(this.awareness.getStates().keys())
-      .filter(clientId => clientId !== this.ydoc.clientID)
+      .filter(clientId => clientId !== this.awareness.clientID)
     const remoteStateIds = new Set(remoteClientIds)
     if (remoteClientIds.length > 0) {
       // 使用远端 origin，避免重连清理被误编码并再次发送给新连接。
@@ -536,7 +539,7 @@ export class DocumentCollaborationClient {
 
   /** 用服务端元数据和本地 Awareness 状态计算协作者数量。 */
   private awarenessParticipantCount(): number {
-    return this.awarenessSessions.size + (this.awarenessSessions.has(this.ydoc.clientID) ? 0 : 1)
+    return this.awarenessSessions.size + (this.awarenessSessions.has(this.awareness.clientID) ? 0 : 1)
   }
 
   /**
@@ -649,12 +652,35 @@ export class DocumentCollaborationClient {
   private sendLocalAwareness(): void {
     if (!this.synchronized || !this.isSocketOpen()) return
     /** 当前用户 awareness 的二进制编码，不进入 Yjs 持久化更新队列。 */
-    const payload = encodeAwarenessUpdate(this.awareness, [this.ydoc.clientID])
+    const payload = encodeAwarenessUpdate(this.awareness, [this.awareness.clientID])
     this.socket!.send(encodeDocumentWsFrame(
       DocumentWsFrameType.AWARENESS,
       createDocumentWsRequestId(),
       payload
     ))
+  }
+
+  /**
+   * 为下一次 WebSocket 连接切换到新的 Awareness 身份，同时保留本地状态。
+   *
+   * Awareness.clientID 是独立于 Y.Doc.clientID 的状态索引；只修改后者会让
+   * Awareness 的 states/meta 不一致，并在编码本地状态时找不到对应时钟。
+   */
+  private rotateAwarenessClientId(): void {
+    const localState = this.awareness.getLocalState()
+    const usedClientIds = new Set<number>([
+      this.ydoc.clientID,
+      ...this.awareness.getStates().keys(),
+      ...this.awareness.meta.keys(),
+      ...this.awarenessSessions.keys()
+    ])
+    const nextClientId = generateAwarenessClientId(usedClientIds)
+
+    // 先以本地 origin 移除旧键下的状态，再切换键并恢复原状态；连接尚未同步，
+    // 因此这两个本地事件不会被发送到服务端，也不会进入 pendingUpdates。
+    this.awareness.setLocalState(null)
+    this.awareness.clientID = nextClientId
+    this.awareness.setLocalState(localState)
   }
 
   /** 发送控制 JSON；连接未打开时静默等待后续重连。 */
@@ -712,6 +738,15 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** 生成服务端可接受且不复用本地历史 Awareness 身份的正整数。 */
+function generateAwarenessClientId(usedClientIds: ReadonlySet<number>): number {
+  const value = new Uint32Array(1)
+  do {
+    globalThis.crypto.getRandomValues(value)
+  } while (value[0] === 0 || usedClientIds.has(value[0]))
+  return value[0]
+}
+
 /** 这些错误代表文档资源不可访问，客户端不能把它们当成可重试网络错误。 */
 function isTerminalAccessCode(code: string | null): boolean {
   return code === 'DOCUMENT_FORBIDDEN' || code === 'DOCUMENT_NOT_FOUND'
@@ -720,7 +755,7 @@ function isTerminalAccessCode(code: string | null): boolean {
 /** 按环境变量或当前页面 host 解析文档 WebSocket 地址。 */
 function documentWebSocketUrl(): string {
   /** 环境变量中配置的 WebSocket 地址；未配置时回退到当前页面 host。 */
-  const configured = import.meta.env.VITE_DOCUMENT_WS_URL?.trim()
+  const configured = import.meta.env?.VITE_DOCUMENT_WS_URL?.trim()
   if (configured) return configured
   /** 根据当前页面协议选择 ws 或 wss。 */
   const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
